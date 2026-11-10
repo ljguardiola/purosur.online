@@ -464,17 +464,23 @@ test("keeps the primary variant's icon after the text when the icon position is 
   expect(iconRect.left).toBeGreaterThanOrEqual(labelRect.right);
 });
 
-test("places the secondary variant's icon after the text when the icon position is end", async () => {
-  const screen = await render(
-    <Button variant="secondary" icon={<X />} iconPosition="end">
-      Cancel
-    </Button>,
-  );
-  const button = screen.getByRole("button", { name: "Cancel" }).element() as HTMLElement;
-  const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
-  const labelRect = textNodeRect(button.querySelector("span.truncate")?.firstChild as ChildNode);
-
-  expect(iconRect.left).toBeGreaterThanOrEqual(labelRect.right);
+test("accepts an icon position on the primary variant only", () => {
+  expectTypeOf<{ iconPosition: "start" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "primary"; iconPosition: "end" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "secondary";
+    iconPosition: "end";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: false;
+    iconPosition: "end";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: true;
+    iconPosition: "start";
+  }>().not.toExtend<ButtonPropsWithoutText>();
 });
 
 test("places the secondary variant's 18px icon before the text with its 8px gap", async () => {
