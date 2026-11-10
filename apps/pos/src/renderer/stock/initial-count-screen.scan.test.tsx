@@ -49,6 +49,20 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     expect(findCountableProduct.mock.calls).toEqual([["7790001"]]);
   });
 
+  it("does not count a code the reader reads while the confirmation to leave is open", async () => {
+    const findCountableProduct = vi.fn(async () => FOUND_YERBA);
+    const { screen, readBarcode } = await renderScreen({ findCountableProduct });
+    await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .toBeVisible();
+
+    readBarcode("7790001");
+
+    await expect.element(screen.getByText("No se agregó el producto escaneado")).toBeVisible();
+    expect(findCountableProduct).not.toHaveBeenCalled();
+  });
+
   it("reads the count again and shows the new line once the window records it", async () => {
     const readInitialCount = vi
       .fn<() => Promise<ReadInitialCountOutcome>>()

@@ -2429,6 +2429,32 @@ describe("the register's router", () => {
     await expect.poll(() => closed).toEqual([["u2", "s1", 4_580_000]]);
   });
 
+  it("closes /cash-count?leaving=true like any other close, asking for no sign out after it", async () => {
+    const closeCashSession = vi.fn<RouterContext["closeCashSession"]>(async () => ({
+      kind: "unavailable",
+    }));
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        cashBalance: async () => BALANCE,
+        closeCashSession,
+      },
+      "/cash-count?leaving=true",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await expect
+      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
+      .toBeVisible();
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+    await expect
+      .poll(() => closeCashSession.mock.calls)
+      .toEqual([[expect.objectContaining({ user_id: "u2" }), "s1", 4_580_000]]);
+  });
+
   it("names the register in the open-session screen's header", async () => {
     const router = createRegisterRouter(
       routeTree,

@@ -26,7 +26,9 @@ function renderInFrame(rail: ReactNode) {
         rail={rail}
         aside={<aside aria-label="Panel">panel</aside>}
       >
-        <main>contenido</main>
+        <main>
+          <input aria-label="Buscar" />
+        </main>
       </RegisterFrame>
     </div>,
   );
@@ -188,6 +190,32 @@ describe("NoSessionRail", () => {
       await userEvent.keyboard("{Enter}");
 
       expect(signOut).toHaveBeenCalledOnce();
+    });
+
+    it("closes without leaving on Enter while the Esc key is focused", async () => {
+      const signOut = vi.fn();
+      const screen = await openConfirmation(signOut);
+      screen.getByRole("button", { name: "Cerrar con Esc" }).element().focus();
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+        .not.toBeInTheDocument();
+      expect(signOut).not.toHaveBeenCalled();
+    });
+
+    it("leaves Enter to a field of the screen behind the panel", async () => {
+      const signOut = vi.fn();
+      const screen = await openConfirmation(signOut);
+      await userEvent.click(screen.getByRole("textbox", { name: "Buscar" }));
+
+      await userEvent.keyboard("{Enter}");
+
+      expect(signOut).not.toHaveBeenCalled();
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+        .toBeVisible();
     });
 
     it("closes on Escape without leaving and without leaving the screen it is on", async () => {
