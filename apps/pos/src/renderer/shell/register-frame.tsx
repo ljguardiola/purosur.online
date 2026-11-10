@@ -18,7 +18,7 @@ export function RegisterFrame({ background, rail, aside, children }: RegisterFra
       {rail}
       <div className="flex min-w-0 flex-1 flex-col">
         {statusData === undefined ? null : <RegisterHeader {...statusData} />}
-        {children}
+        <div className="flex min-h-0 flex-1">{children}</div>
       </div>
       {aside}
     </div>
