@@ -91,7 +91,7 @@ test("shows each active tag with its product count and state, and the totals", a
   const screen = await loaded(services, [sinTacc, vegano, sinColorantes], {}, 3);
 
   expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
-  await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activo", "Vegano18Activo"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activa", "Vegano18Activa"]);
   await expect.element(screen.getByText("2 etiquetas · 3 productos")).toBeVisible();
 });
 
@@ -110,7 +110,7 @@ test("the state filter shows the inactive tags, or every tag, counting the inact
     .toEqual(["Activas", "Inactivas", "Todas"]);
   await userEvent.click(screen.getByRole("option", { name: "Inactivas" }));
 
-  await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactivo"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactiva"]);
   await expect.element(screen.getByText("1 etiqueta · 1 inactiva · 37 productos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));

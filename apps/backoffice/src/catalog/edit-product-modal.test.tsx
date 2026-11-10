@@ -602,11 +602,11 @@ test("editing a product with a deactivated tag shows it as a removable chip with
 
   await expect.element(dialog.getByRole("button", { name: "Quitar Sin TACC" })).toBeVisible();
   await expect
-    .element(dialog.getByRole("listitem").filter({ hasText: /Sin colorantes\s*Inactivo/ }))
+    .element(dialog.getByRole("listitem").filter({ hasText: /Sin colorantes\s*Inactiva/ }))
     .toBeVisible();
   await expect
     .element(
-      dialog.getByText('"Sin colorantes" está dado de baja. No se ofrece para productos nuevos.'),
+      dialog.getByText('"Sin colorantes" está dada de baja. No se ofrece para productos nuevos.'),
     )
     .toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -626,7 +626,7 @@ test("removing the deactivated tag drops the help line and the tag, which is not
 
   await userEvent.click(dialog.getByRole("button", { name: "Quitar Sin colorantes" }));
 
-  expect(dialog.getByText(/está dado de baja/).query()).toBeNull();
+  expect(dialog.getByText(/está dada de baja/).query()).toBeNull();
   await userEvent.click(addTagButton(dialog));
   expect(
     page
