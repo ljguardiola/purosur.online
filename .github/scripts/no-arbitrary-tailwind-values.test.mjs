@@ -4,6 +4,7 @@ import {
   checkFiles,
   describeViolation,
   findArbitraryValues,
+  findNumericZIndexUtilities,
   findScannedFiles,
 } from "./no-arbitrary-tailwind-values.mjs";
 
@@ -118,6 +119,57 @@ test("does not flag a hyphenated name followed by a space before the bracket", (
   assert.deepEqual(findArbitraryValues('const label = "size - [none]";'), []);
 });
 
+const numericZIndexTexts = (source) =>
+  findNumericZIndexUtilities(source).map((match) => match.text);
+
+test("finds a numeric z-index utility", () => {
+  assert.deepEqual(numericZIndexTexts('<div className="relative z-10" />'), ["z-10"]);
+});
+
+test("finds a negative numeric z-index utility", () => {
+  assert.deepEqual(numericZIndexTexts('"-z-1 z-0"'), ["-z-1", "z-0"]);
+});
+
+test("finds a numeric z-index utility behind a variant, naming it with its variant", () => {
+  assert.deepEqual(numericZIndexTexts('cn("hover:z-20", "md:focus:-z-5")'), [
+    "hover:z-20",
+    "md:focus:-z-5",
+  ]);
+});
+
+test("finds a numeric z-index utility marked important", () => {
+  assert.deepEqual(numericZIndexTexts('"z-10! !z-20 hover:!-z-1"'), [
+    "z-10",
+    "!z-20",
+    "hover:!-z-1",
+  ]);
+});
+
+test("does not flag the z-index role utilities", () => {
+  assert.deepEqual(
+    numericZIndexTexts('"z-raised focus:z-focused z-overlay md:z-popover -z-raised"'),
+    [],
+  );
+});
+
+test("does not flag a z followed by a number inside another word or expression", () => {
+  const source = [
+    'const a = "size-z-10 baz-10 z-10px z-10-x";',
+    "const b = z - 10;",
+    "const c = matrix.z-1;",
+  ].join("\n");
+
+  assert.deepEqual(findNumericZIndexUtilities(source), []);
+});
+
+test("reports the line and column where a numeric z-index utility starts", () => {
+  const source = ["const a = 1;", 'const b = "flex hover:z-10";'].join("\n");
+
+  assert.deepEqual(findNumericZIndexUtilities(source), [
+    { line: 2, column: 17, text: "hover:z-10" },
+  ]);
+});
+
 test("describes a violation with its file, position and text", () => {
   const description = describeViolation({ path: "a.tsx", line: 2, column: 5, text: "-[13px]" });
 
@@ -133,6 +185,20 @@ test("reports the file of every match across several files", () => {
   const violations = checkFiles(Object.keys(files), (path) => files[path]);
 
   assert.deepEqual(violations, [{ path: "a.tsx", line: 1, column: 16, text: "-[13px]" }]);
+});
+
+test("reports the file of every numeric z-index utility beside the arbitrary values", () => {
+  const files = {
+    "a.tsx": 'const a = "z-10 text-[13px]";\n',
+    "b.tsx": 'const b = "z-raised";\n',
+  };
+
+  const violations = checkFiles(Object.keys(files), (path) => files[path]);
+
+  assert.deepEqual(violations, [
+    { path: "a.tsx", line: 1, column: 21, text: "-[13px]" },
+    { path: "a.tsx", line: 1, column: 12, text: "z-10" },
+  ]);
 });
 
 test("scans the design system and the apps' screens, but not tests or CSS", () => {
@@ -159,7 +225,7 @@ test("scans the design system and the apps' screens, but not tests or CSS", () =
   );
 });
 
-test("no design system or screen source uses a Tailwind arbitrary value", () => {
+test("no design system or screen source uses a Tailwind arbitrary value or a numeric z-index", () => {
   const files = findScannedFiles();
   for (const sentinel of [
     "packages/ui/src/components/forms/button.tsx",
@@ -173,6 +239,6 @@ test("no design system or screen source uses a Tailwind arbitrary value", () => 
   assert.deepEqual(
     violations.map(describeViolation),
     [],
-    "use a design-system token instead of an arbitrary value",
+    "use a design-system token instead of an arbitrary value or a numeric z-index",
   );
 });
