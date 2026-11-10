@@ -492,21 +492,23 @@ describe("StartupPendingScreen", () => {
     });
 
     it("keeps the printing notice on the screen for five seconds before telling the route nothing is left", async () => {
-      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
       const load = vi
         .fn<() => Promise<StartupPending>>()
         .mockResolvedValueOnce({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })
         .mockResolvedValue(NOTHING);
       const { screen, onNothingLeft } = await renderScreen({ loadStartupPending: load });
+      await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
       await userEvent.click(screen.getByRole("button", { name: /^Imprimir el ticket/ }));
-      await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
       await expect
         .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
         .toBeVisible();
+      await vi.advanceTimersByTimeAsync(4999);
+      await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
       expect(onNothingLeft).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(1);
 
       await vi.waitFor(() => expect(onNothingLeft).toHaveBeenCalledOnce());
       await expect
@@ -764,7 +766,8 @@ describe("StartupPendingScreen", () => {
         .element(
           screen
             .getByRole("complementary", { name: "Sesión abierta" })
-            .getByText(SELLING_BLOCKED_REASON),
+            .getByText(SELLING_BLOCKED_REASON, { exact: true })
+            .and(screen.getByRole("paragraph")),
         )
         .toBeVisible();
       goSelling(screen)
@@ -856,7 +859,6 @@ describe("StartupPendingScreen", () => {
     });
 
     it("keeps the refund notice on the screen for five seconds before telling the route nothing is left", async () => {
-      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
       const load = vi
         .fn<() => Promise<StartupPending>>()
         .mockResolvedValueOnce(BLOCKED_BY_QR)
@@ -865,16 +867,17 @@ describe("StartupPendingScreen", () => {
       await userEvent.click(
         screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
       );
-      await userEvent.click(
-        screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
-          .getByRole("button", { name: "Pasar a reembolso" }),
-      );
-      await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
+      const confirmation = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
+      await expect.element(confirmation).toBeVisible();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+
+      await userEvent.click(confirmation.getByRole("button", { name: "Pasar a reembolso" }));
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
+      await vi.advanceTimersByTimeAsync(4999);
+      await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
       expect(onNothingLeft).not.toHaveBeenCalled();
 
-      await vi.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(1);
 
       await vi.waitFor(() => expect(onNothingLeft).toHaveBeenCalledOnce());
       await expect
