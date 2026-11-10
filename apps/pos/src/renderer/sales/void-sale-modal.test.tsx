@@ -465,19 +465,18 @@ describe("VoidSaleModal", () => {
         .toBeVisible();
     });
 
-    it("closes the authorization modal and shows the notice when the sale cannot be voided any more", async () => {
+    it("closes the authorization modal and locks voiding when the sale cannot be voided any more", async () => {
       const { screen } = await renderModal({
         authorizationRequired: true,
         voidSale: async () => ({ kind: "session_closed" }),
       });
-      await userEvent.click(screen.getByRole("button", { name: VOID }));
+      const voidButton = screen.getByRole("button", { name: VOID });
+      await userEvent.click(voidButton);
 
       await authorizeInModal({ pin: "1234" });
 
       await expect.element(authorizationDialog()).not.toBeInTheDocument();
-      await expect
-        .element(screen.getByText("La sesión de la venta ya cerró. Se tramita como devolución."))
-        .toBeVisible();
+      await expect.element(voidButton).toHaveAttribute("aria-disabled", "true");
     });
   });
 

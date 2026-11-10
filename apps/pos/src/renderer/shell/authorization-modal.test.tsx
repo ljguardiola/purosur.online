@@ -136,7 +136,7 @@ describe("an action guarded by another person's PIN", () => {
 
       await expect
         .element(dialog.getByRole("button", { name: /USUARIO/ }))
-        .toHaveTextContent("Grace");
+        .toMatchTextContent("Grace");
       await expect.element(dialog.getByLabelText("PIN")).toHaveFocus();
     });
 
@@ -145,13 +145,13 @@ describe("an action guarded by another person's PIN", () => {
       const person = authorizationDialog().getByRole("button", { name: /USUARIO/ });
 
       await userEvent.keyboard("{ArrowDown}");
-      await expect.element(person).toHaveTextContent("Sofía");
+      await expect.element(person).toMatchTextContent("Sofía");
       await userEvent.keyboard("{ArrowDown}");
-      await expect.element(person).toHaveTextContent("Sofía");
+      await expect.element(person).toMatchTextContent("Sofía");
       await userEvent.keyboard("{ArrowUp}");
-      await expect.element(person).toHaveTextContent("Grace");
+      await expect.element(person).toMatchTextContent("Grace");
       await userEvent.keyboard("{ArrowUp}");
-      await expect.element(person).toHaveTextContent("Grace");
+      await expect.element(person).toMatchTextContent("Grace");
     });
 
     it("offers every authorizer by first name in the select", async () => {
@@ -159,12 +159,8 @@ describe("an action guarded by another person's PIN", () => {
 
       await userEvent.click(authorizationDialog().getByRole("button", { name: /USUARIO/ }));
 
-      await expect
-        .element(page.getByRole("option", { name: "Grace" }))
-        .toBeVisible();
-      await expect
-        .element(page.getByRole("option", { name: "Sofía" }))
-        .toBeVisible();
+      await expect.element(page.getByRole("option", { name: "Grace" })).toBeVisible();
+      await expect.element(page.getByRole("option", { name: "Sofía" })).toBeVisible();
     });
 
     it("types the digits into the PIN", async () => {

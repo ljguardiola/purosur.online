@@ -100,7 +100,7 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
       screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
       "Otra copia",
     );
-    await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: REPRINT }));
 
     await expect
       .element(authorizationDialog().getByText("Reimprimir comprobante", { exact: true }))

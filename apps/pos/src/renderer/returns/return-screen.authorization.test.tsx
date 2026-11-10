@@ -126,12 +126,12 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
   it("asks who authorizes in the modal when completing is refused for lack of permission, and completes on Enter", async () => {
     let attempts = 0;
     const { screen, completeReturn } = await renderScreen({
-      completeReturn: async () => {
+      completeReturn: vi.fn(async () => {
         attempts += 1;
         return attempts === 1
-          ? { kind: "lacks_permission" }
-          : { kind: "wrong_pin", attempts_left: 2, retry_after_seconds: 0 };
-      },
+          ? { kind: "lacks_permission" as const }
+          : { kind: "wrong_pin" as const, attempts_left: 2, retry_after_seconds: 0 };
+      }),
     });
     await openReturn(screen);
     await chooseReturnLine(screen, "Pasta de maní 380 g", RETURN_LINE);
@@ -152,7 +152,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
 
   it("does not complete the return when the modal is closed with Esc", async () => {
     const { screen, completeReturn } = await renderScreen({
-      completeReturn: async () => ({ kind: "lacks_permission" }),
+      completeReturn: vi.fn(async () => ({ kind: "lacks_permission" as const })),
     });
     await openReturn(screen);
     await chooseReturnLine(screen, "Pasta de maní 380 g", RETURN_LINE);
