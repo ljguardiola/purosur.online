@@ -213,7 +213,7 @@ function ControlledScreen({
     <FieldSizeProvider size="backoffice">
       <main>
         <PricesListScreen
-          access={access}
+          access={ADMINISTRATOR_ACCESS}
           services={services}
           onSessionEnded={() => {}}
           filters={filters}

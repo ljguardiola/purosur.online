@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { BranchTermChange, ReadBranchTermChange } from "./branch-term-change";
-import { createBranchTermServices } from "./test-support/branch-term";
 import { ADMINISTRATOR_ACCESS, accessWith } from "./test-support/backoffice-access";
+import { createBranchTermServices } from "./test-support/branch-term";
 import { render } from "./test-support/render-with-router";
 
 beforeEach(() => {

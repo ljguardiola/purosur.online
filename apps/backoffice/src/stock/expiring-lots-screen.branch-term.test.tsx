@@ -1,8 +1,8 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import { EVERY_LOT, listed, renderScreen } from "./test-support/expiring-lots-screen";
 import { expiringLotList } from "./test-support/expiring-lots-fixtures";
+import { EVERY_LOT, listed, renderScreen } from "./test-support/expiring-lots-screen";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);

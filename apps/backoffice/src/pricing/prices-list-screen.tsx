@@ -32,6 +32,8 @@ import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { BranchTermChange } from "../shell/branch-term-change";
 import { IncompleteCostTag } from "./incomplete-cost-tag";
 import { formatCentsWithUnit } from "./money";
 import { PriceChangeModal, type PriceModalOutcome, type ScreenNotice } from "./price-change-modal";
@@ -51,6 +53,7 @@ import {
 import type { PricesListFilters } from "./routes";
 
 export type PricesListScreenProps = {
+  access: BackofficeAccess;
   filters: PricesListFilters;
   onFiltersChange: (filters: PricesListFilters) => void;
   purchasedProductsToReview: readonly string[];
@@ -99,6 +102,7 @@ function emptyTableState(params: {
 type RaisedNotice = Omit<ScreenNotice, "description"> & { description: string | null };
 
 export function PricesListScreen({
+  access,
   filters,
   onFiltersChange,
   purchasedProductsToReview,
@@ -584,6 +588,14 @@ export function PricesListScreen({
             }}
           />
           <div className="ml-auto flex items-center gap-3">
+            <BranchTermChange
+              term="unreviewedPriceAlertDays"
+              value={loaded?.reviewWindowDays}
+              access={access}
+              onSessionEnded={onSessionEnded}
+              onChanged={() => void refreshPrices()}
+              services={services.branchTerm}
+            />
             {loaded && pendingCount === 0 ? null : (
               <Button
                 variant="primary"
