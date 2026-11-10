@@ -12,7 +12,6 @@ import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -21,7 +20,7 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
 import { salesByDaySpreadsheet } from "./sales-by-day-spreadsheet";
 import { useSalesReportQuery } from "./sales-queries";
@@ -38,7 +37,7 @@ type SalesOfDay = SalesReportBody["days"][number];
 
 const NO_DAYS: SalesOfDay[] = [];
 
-const SCREEN_TITLE = "Ventas por día o por rango";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["sales-by-day"];
 
 const columns = [
   dataColumn({
@@ -79,10 +78,7 @@ export function SalesByDayScreen({
   const table = useTableModel({ items: days, id: (sales) => sales.day, columns });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -142,6 +138,6 @@ export function SalesByDayScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }

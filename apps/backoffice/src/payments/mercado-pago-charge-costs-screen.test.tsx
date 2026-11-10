@@ -67,7 +67,6 @@ function renderScreen(services: MercadoPagoChargeCostsScreenServices, handlers: 
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-const TITLE = "Costos de Mercado Pago";
 const NO_CHARGES = "No hay cobros de Mercado Pago en este período";
 const NO_REGISTER_CHARGES = "Ninguna caja cobró con Mercado Pago en este período";
 
@@ -84,11 +83,9 @@ function emptyStateIconColor(title: Element): string {
   return icon ? getComputedStyle(icon).color : "";
 }
 
-test("titles the report under the charges reports", async () => {
+test("has no accessibility violations", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByRole("heading", { name: TITLE, level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Reportes · Cobros", { exact: true })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 

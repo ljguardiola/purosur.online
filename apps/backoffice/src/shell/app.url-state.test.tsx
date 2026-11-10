@@ -2,9 +2,11 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { almonds, honey } from "../catalog/test-support/products";
+import { pricesPastReviewDeadlineReport } from "../pricing/test-support/prices-past-review-deadline-report-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { periodSegments, typePeriodStart } from "./test-support/report-dates";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -324,3 +326,39 @@ test.each([
     await expect.poll(() => window.location.pathname).toBe("/help");
   },
 );
+
+test("writes the period typed under Por revisar into the prices URL, and strips it when the URL names none", async () => {
+  const services = createAppServices();
+  vi.mocked(services.pricesListScreen.fetchPricesPastReviewDeadlineReport).mockResolvedValue({
+    kind: "ok",
+    value: pricesPastReviewDeadlineReport(),
+  });
+  window.history.pushState(null, "", "/products/prices");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  expect(window.location.search).toBe("");
+
+  await typePeriodStart(screen, "01092026");
+
+  await expect.poll(() => window.location.search).toBe("?from=2026-09-01&to=2026-10-13");
+});
+
+test("reopens the prices list under Por revisar with the period its URL carries", async () => {
+  const services = createAppServices();
+  window.history.pushState(null, "", "/products/prices?from=2026-10-02&to=2026-10-05");
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .poll(() => services.pricesListScreen.fetchPricesPastReviewDeadlineReport)
+    .toHaveBeenCalledWith({ from: "2026-10-02", to: "2026-10-05" });
+});
+
+test("replaces a prices URL with a refused period by the same URL without it", async () => {
+  const services = createAppServices();
+  window.history.pushState(null, "", "/products/prices?review=all&from=2026-10-05&to=2026-10-02");
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(() => window.location.search).toBe("?review=all");
+});

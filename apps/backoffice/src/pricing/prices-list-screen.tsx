@@ -39,6 +39,10 @@ import { emptyPendingDetail, reviewedCellText } from "./price-review-age";
 import type { ConfirmPriceOutcome, PricesReviewFilter } from "./prices-api";
 import type { PricesListScreenServices } from "./prices-list-services";
 import {
+  PricesPastReviewDeadlineReportPeriod,
+  PricesPastReviewDeadlineReportRows,
+} from "./prices-past-review-deadline-report-content";
+import {
   usePricesQuery,
   useReadReviewQueue,
   useRefreshPrices,
@@ -114,6 +118,9 @@ export function PricesListScreen({
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>(filters.category);
   const [reviewFilter, setReviewFilter] = useState<PricesReviewFilter>(filters.review);
+  const period = { from: filters.from, to: filters.to };
+  const reportsPeriod = reviewFilter === "pending";
+  const listsReportRows = reportsPeriod && period.from !== "";
   const [modal, setModal] = useState<{
     target: PriceProduct;
     previousProductNotice: ScreenNotice | null;
@@ -129,17 +136,38 @@ export function PricesListScreen({
 
   const reportFilters = useEffectEvent(onFiltersChange);
 
+  const { from, to, search: urlSearch, category: urlCategory, review: urlReview } = filters;
+
   useEffect(() => {
-    const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
-    if (!deepEqual(shown, filters)) {
+    const shown: PricesListFilters = {
+      search,
+      category: categoryFilter,
+      review: reviewFilter,
+      from,
+      to,
+    };
+    const kept: PricesListFilters = {
+      search: urlSearch,
+      category: urlCategory,
+      review: urlReview,
+      from,
+      to,
+    };
+    if (!deepEqual(shown, kept)) {
       reportFilters(shown);
     }
-  }, [search, categoryFilter, reviewFilter, filters]);
+  }, [search, categoryFilter, reviewFilter, from, to, urlSearch, urlCategory, urlReview]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(handle);
   }, [search]);
+
+  function clearListFilters() {
+    setSearch("");
+    setDebouncedSearch("");
+    setCategoryFilter("ALL");
+  }
 
   // Each notice gets a fresh key: an unchanged key would leave the live region's text identical, and
   // screen readers don't re-announce a live region that already holds that text.
@@ -516,28 +544,32 @@ export function PricesListScreen({
     <>
       <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={(value) => {
-                clearErrorNotice();
-                setSearch(value);
-              }}
-              placeholder="Buscar un producto"
-              icon={<Search />}
-            />
-          </div>
-          <ListFilter
-            name="category"
-            label="Categoría:"
-            searchable
-            options={categoryFilterOptions}
-            value={categoryFilter}
-            onChange={(value) => {
-              clearErrorNotice();
-              setCategoryFilter(value);
-            }}
-          />
+          {listsReportRows ? null : (
+            <>
+              <div className="w-105">
+                <SearchField
+                  value={search}
+                  onChange={(value) => {
+                    clearErrorNotice();
+                    setSearch(value);
+                  }}
+                  placeholder="Buscar un producto"
+                  icon={<Search />}
+                />
+              </div>
+              <ListFilter
+                name="category"
+                label="Categoría:"
+                searchable
+                options={categoryFilterOptions}
+                value={categoryFilter}
+                onChange={(value) => {
+                  clearErrorNotice();
+                  setCategoryFilter(value);
+                }}
+              />
+            </>
+          )}
           <ListFilter
             name="review"
             label="Revisión:"
@@ -545,6 +577,9 @@ export function PricesListScreen({
             value={reviewFilter}
             onChange={(value) => {
               clearErrorNotice();
+              if (value === "pending" && period.from !== "") {
+                clearListFilters();
+              }
               setReviewFilter(value);
             }}
           />
@@ -569,32 +604,60 @@ export function PricesListScreen({
             )}
           </div>
         </div>
-        <Table
-          aria-label="Precios"
-          table={table}
-          {...cloudTableState(shownData, "los precios")}
-          empty={emptyTableState({
-            activeProductCount,
-            reviewFilter,
-            pendingCount,
-            reviewWindowDays,
-          })}
-          footer={
-            products.length === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {reviewFilter === "pending"
-                  ? plural(products.length, {
-                      one: "1 producto sin revisar, del más viejo al más nuevo",
-                      other: `${formatNumber(products.length)} productos sin revisar, del más viejo al más nuevo`,
-                    })
-                  : plural(products.length, {
-                      one: "1 producto",
-                      other: `${formatNumber(products.length)} productos`,
-                    })}
-              </p>
-            )
-          }
-        />
+        {reportsPeriod ? (
+          <PricesPastReviewDeadlineReportPeriod
+            filters={period}
+            onFiltersChange={(next) => {
+              if (next.from === "") {
+                onFiltersChange({
+                  search,
+                  category: categoryFilter,
+                  review: reviewFilter,
+                  ...next,
+                });
+                return;
+              }
+              clearListFilters();
+              onFiltersChange({ search: "", category: "ALL", review: reviewFilter, ...next });
+            }}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        ) : null}
+        {listsReportRows ? (
+          <PricesPastReviewDeadlineReportRows
+            filters={period}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        ) : (
+          <Table
+            aria-label="Precios"
+            table={table}
+            {...cloudTableState(shownData, "los precios")}
+            empty={emptyTableState({
+              activeProductCount,
+              reviewFilter,
+              pendingCount,
+              reviewWindowDays,
+            })}
+            footer={
+              products.length === 0 ? undefined : (
+                <p className="text-text-subtle text-detail">
+                  {reviewFilter === "pending"
+                    ? plural(products.length, {
+                        one: "1 producto sin revisar, del más viejo al más nuevo",
+                        other: `${formatNumber(products.length)} productos sin revisar, del más viejo al más nuevo`,
+                      })
+                    : plural(products.length, {
+                        one: "1 producto",
+                        other: `${formatNumber(products.length)} productos`,
+                      })}
+                </p>
+              )
+            }
+          />
+        )}
       </div>
       <PriceChangeModal
         target={modal?.target ?? null}

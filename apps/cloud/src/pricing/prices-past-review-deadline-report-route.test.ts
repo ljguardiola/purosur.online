@@ -98,7 +98,7 @@ describe("GET /reports/prices-past-review-deadline access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_prices_and_review"], NOW);
 
     const response = await report({ ...headers, origin: "https://attacker.example" });
 
@@ -106,8 +106,8 @@ describe("GET /reports/prices-past-review-deadline access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it.each(["manage_prices_and_review", "view_stock_balances"] as const)(
-    "rejects a user holding %s but not view_reports",
+  it.each(["view_reports", "view_stock_balances"] as const)(
+    "rejects a user holding %s but not manage_prices_and_review",
     async (permission) => {
       const { headers } = await signedInWith(db, [permission], NOW);
 
@@ -117,8 +117,8 @@ describe("GET /reports/prices-past-review-deadline access", () => {
     },
   );
 
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+  it("answers a user who may manage prices and review", async () => {
+    const { headers } = await signedInWith(db, ["manage_prices_and_review"], NOW);
 
     const response = await report(headers);
 
@@ -130,7 +130,7 @@ describe("GET /reports/prices-past-review-deadline access", () => {
     ["only one end of the period", "?from=2026-12-01"],
     ["a parameter given twice", "?from=2026-12-01&from=2026-12-02&to=2026-12-31"],
   ])("answers 400 to %s", async (_name, query) => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_prices_and_review"], NOW);
 
     const response = await report(headers, query);
 
@@ -141,7 +141,7 @@ describe("GET /reports/prices-past-review-deadline access", () => {
 
 describe("GET /reports/prices-past-review-deadline", () => {
   it("answers an empty report for today and the branch's window when no price is pending", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_prices_and_review"], NOW);
 
     const response = await report(headers);
 
@@ -154,7 +154,11 @@ describe("GET /reports/prices-past-review-deadline", () => {
   });
 
   it("lists the overdue, postponed and never reviewed prices, never reviewed first and then the oldest", async () => {
-    const { headers, userId, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, userId, locationId } = await signedInWith(
+      db,
+      ["manage_prices_and_review"],
+      NOW,
+    );
     await db
       .update(branchSettings)
       .set({ unreviewedPriceAlertDays: 45 })
@@ -257,7 +261,7 @@ describe("GET /reports/prices-past-review-deadline", () => {
   });
 
   it("keeps the prices whose deadline day is within the period asked and every never reviewed one", async () => {
-    const { headers, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, userId } = await signedInWith(db, ["manage_prices_and_review"], NOW);
     const early = await insertProduct(db, { name: "Arroz" });
     const inside = await insertProduct(db, { name: "Fideos" });
     const late = await insertProduct(db, { name: "Sal" });
@@ -286,11 +290,7 @@ describe("GET /reports/prices-past-review-deadline", () => {
   });
 
   it("stops listing a price once it is confirmed, and lists a newly postponed one at once", async () => {
-    const { headers, userId } = await signedInWith(
-      db,
-      ["view_reports", "manage_prices_and_review"],
-      NOW,
-    );
+    const { headers, userId } = await signedInWith(db, ["manage_prices_and_review"], NOW);
     const overdue = await insertProduct(db, { name: "Arroz" });
     const reviewed = await insertProduct(db, { name: "Fideos" });
     const overduePriceId = await priceProduct(overdue.productId, {

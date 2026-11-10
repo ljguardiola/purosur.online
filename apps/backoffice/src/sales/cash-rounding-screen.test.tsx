@@ -76,10 +76,6 @@ function renderScreen(
 test("shows each day and register with the rounding and the rounded sales, and the totals of the range", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Redondeo en efectivo", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes", { exact: true })).toBeVisible();
   const table = screen.getByRole("table", { name: "Redondeo por día y caja" });
   await expect.element(table.getByRole("columnheader", { name: "Día" })).toBeVisible();
   await expect.element(table.getByRole("columnheader", { name: "Caja" })).toBeVisible();

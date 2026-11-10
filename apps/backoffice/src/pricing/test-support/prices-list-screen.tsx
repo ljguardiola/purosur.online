@@ -1,12 +1,15 @@
 import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
+import { useState } from "react";
 import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { z } from "zod";
 import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
 import { render } from "../../shell/test-support/render-with-router";
 import { PricesListScreen } from "../prices-list-screen";
 import type { PricesListScreenServices } from "../prices-list-services";
 import { type PricesListFilters, pricesListFilters } from "../routes";
+import { pricesPastReviewDeadlineReport } from "./prices-past-review-deadline-report-fixtures";
 
 const NOW = () => new Date("2026-09-25T12:00:00.000Z");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -19,6 +22,9 @@ export function createServices(
     fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
     setPrice: vi.fn(),
     confirmPrice: vi.fn(),
+    fetchPricesPastReviewDeadlineReport: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: pricesPastReviewDeadlineReport() }),
     ...overrides,
   };
 }
@@ -87,13 +93,13 @@ export function screenElement(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
   {
-    filters = pricesListFilters.parse({}),
+    filters = {},
     onFiltersChange = () => {},
     purchasedProductsToReview = [],
     onPurchaseReviewTaken = () => {},
     releaseMonitor,
   }: {
-    filters?: PricesListFilters;
+    filters?: z.input<typeof pricesListFilters>;
     onFiltersChange?: (filters: PricesListFilters) => void;
     purchasedProductsToReview?: readonly string[];
     onPurchaseReviewTaken?: () => void;
@@ -106,7 +112,7 @@ export function screenElement(
         <PricesListScreen
           services={services}
           onSessionEnded={onSessionEnded}
-          filters={filters}
+          filters={pricesListFilters.parse(filters)}
           onFiltersChange={onFiltersChange}
           purchasedProductsToReview={purchasedProductsToReview}
           onPurchaseReviewTaken={onPurchaseReviewTaken}
@@ -184,4 +190,43 @@ export function expectRowActionsDisabled(screen: Awaited<ReturnType<typeof rende
       .toBeDisabled(),
     expect.element(screen.getByRole("button", { name: "Revisar los 2" })).toBeDisabled(),
   ]);
+}
+
+function ControlledScreen({
+  services,
+  initial,
+  onFiltersChange,
+}: {
+  services: PricesListScreenServices;
+  initial: z.input<typeof pricesListFilters>;
+  onFiltersChange: (filters: PricesListFilters) => void;
+}) {
+  const [filters, setFilters] = useState(pricesListFilters.parse(initial));
+  return (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <PricesListScreen
+          services={services}
+          onSessionEnded={() => {}}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          purchasedProductsToReview={[]}
+          onPurchaseReviewTaken={() => {}}
+        />
+      </main>
+    </FieldSizeProvider>
+  );
+}
+
+export function renderControlledScreen(
+  services: PricesListScreenServices,
+  initial: z.input<typeof pricesListFilters>,
+  onFiltersChange: (filters: PricesListFilters) => void = () => {},
+) {
+  return render(
+    <ControlledScreen services={services} initial={initial} onFiltersChange={onFiltersChange} />,
+  );
 }

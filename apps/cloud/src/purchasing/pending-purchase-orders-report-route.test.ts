@@ -100,7 +100,7 @@ describe("GET /reports/pending-purchase-orders access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_purchase_orders"], NOW);
 
     const response = await pendingOrders({ ...headers, origin: "https://attacker.example" });
 
@@ -108,23 +108,18 @@ describe("GET /reports/pending-purchase-orders access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may neither view reports nor read purchase orders", async () => {
-    const { headers } = await signedInWith(db, ["compare_prices_and_suggest_orders"], NOW);
+  it.each(["view_reports", "compare_prices_and_suggest_orders"] as const)(
+    "rejects a user holding %s but not a purchase order permission",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOW);
 
-    const response = await pendingOrders(headers);
+      const response = await pendingOrders(headers);
 
-    expect(response.statusCode).toBe(403);
-  });
+      expect(response.statusCode).toBe(403);
+    },
+  );
 
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
-
-    const response = await pendingOrders(headers);
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  it("answers a user who may read purchase orders without viewing reports", async () => {
+  it("answers a user who may read purchase orders", async () => {
     const { headers } = await signedInWith(db, ["manage_purchase_orders"], NOW);
 
     const response = await pendingOrders(headers);
@@ -135,7 +130,7 @@ describe("GET /reports/pending-purchase-orders access", () => {
 
 describe("GET /reports/pending-purchase-orders", () => {
   it("answers 400 to a range the contract refuses", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_purchase_orders"], NOW);
 
     const response = await pendingOrders(headers, "?from=2026-10-09&to=2026-10-01");
 
@@ -144,7 +139,7 @@ describe("GET /reports/pending-purchase-orders", () => {
   });
 
   it("reports the last 30 days up to today when no range is asked", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_purchase_orders"], NOW);
 
     const response = await pendingOrders(headers);
 
@@ -156,7 +151,7 @@ describe("GET /reports/pending-purchase-orders", () => {
   });
 
   it("lists the pending orders of the branch of the session with their supplier and expected total", async () => {
-    const { headers, userId, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, userId, locationId } = await signedInWith(db, ["manage_purchase_orders"], NOW);
     const { productId } = await insertProduct(db);
     const supplierId = await insertSupplier(db, { actorId: userId, name: "Distribuidora Sur" });
     const orderId = await insertOrderRow(db, {
@@ -196,7 +191,7 @@ describe("GET /reports/pending-purchase-orders", () => {
   });
 
   it("lists neither a draft, a received nor a cancelled order", async () => {
-    const { headers, userId, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, userId, locationId } = await signedInWith(db, ["manage_purchase_orders"], NOW);
     const { productId } = await insertProduct(db);
     const supplierId = await insertSupplier(db, { actorId: userId, name: "Distribuidora Sur" });
     for (const state of ["DRAFT", "RECEIVED", "CANCELLED"] as const) {
@@ -211,7 +206,7 @@ describe("GET /reports/pending-purchase-orders", () => {
   it("lists an order partially received right after it is received in part, and no longer once its last quantity arrives", async () => {
     const { headers, userId, locationId } = await signedInWith(
       db,
-      ["view_reports", "receive_purchase_orders"],
+      ["receive_purchase_orders"],
       NOW,
     );
     const { orderId, productId } = await sentOrder(userId, locationId);

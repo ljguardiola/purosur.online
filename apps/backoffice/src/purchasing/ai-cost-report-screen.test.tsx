@@ -79,11 +79,9 @@ function emptyStateIconColor(title: Element): string {
   return icon ? getComputedStyle(icon).color : "";
 }
 
-test("titles the report under the purchases reports", async () => {
+test("has no accessibility violations", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByRole("heading", { name: TITLE, level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Reportes · Compras", { exact: true })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 

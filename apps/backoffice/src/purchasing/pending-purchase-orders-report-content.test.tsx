@@ -9,7 +9,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { periodSegments, typePeriodEnd, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { PendingPurchaseOrdersReportContent } from "./pending-purchase-orders-report-content";
-import type { PendingPurchaseOrdersReportScreenServices } from "./pending-purchase-orders-report-services";
+import type { PendingPurchaseOrdersReportContentServices } from "./pending-purchase-orders-report-content-services";
 import {
   emptyPendingPurchaseOrdersReport,
   pendingPurchaseOrdersReport,
@@ -23,7 +23,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function createServices(): PendingPurchaseOrdersReportScreenServices {
+function createServices(): PendingPurchaseOrdersReportContentServices {
   const services = { fetchPendingPurchaseOrdersReport: vi.fn() };
   services.fetchPendingPurchaseOrdersReport.mockResolvedValue({
     kind: "ok",
@@ -47,7 +47,7 @@ function ControlledContent({
   onOpenOrder,
   openOrder,
   onSessionEnded = () => {},
-}: Handlers & { services: PendingPurchaseOrdersReportScreenServices }) {
+}: Handlers & { services: PendingPurchaseOrdersReportContentServices }) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
@@ -69,7 +69,7 @@ function ControlledContent({
 }
 
 function renderContent(
-  services: PendingPurchaseOrdersReportScreenServices,
+  services: PendingPurchaseOrdersReportContentServices,
   handlers: Handlers = {},
 ) {
   return render(<ControlledContent services={services} {...handlers} />);

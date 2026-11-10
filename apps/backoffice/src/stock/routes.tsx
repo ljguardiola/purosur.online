@@ -1,12 +1,7 @@
 import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import {
-  canManageBatches,
-  canManageRecipes,
-  canSeeReports,
-  canSeeStockPage,
-} from "../shell/backoffice-access";
+import { canManageBatches, canManageRecipes, canSeeStockPage } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
 import {
@@ -14,7 +9,7 @@ import {
   reportPeriodSearch,
   withoutRefusedPeriod,
 } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
+import { reportsRoute, reportViewRedirect } from "../shell/reports-route";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 import { ASSEMBLIES_SECTION_TARGETS, ASSEMBLIES_SECTIONS } from "./assemblies-sections";
@@ -160,37 +155,41 @@ export const stockBalancesRoute = createRoute({
   component: lazyScreen(() => import("./stock-balances-page"), "StockBalancesPage"),
 });
 
-export const currentStockReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyCurrentStockReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/current-stock",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: currentStockReportFilters,
-  search: { middlewares: [stripSearchParams(currentStockReportFilters.parse({}))] },
-  component: lazyScreen(() => import("./current-stock-report-page"), "CurrentStockReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/stock", search });
+  },
 });
 
-export const expiringLotsReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyExpiringLotsReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/expiring-lots",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(() => import("./expiring-lots-report-page"), "ExpiringLotsReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/stock/expiries", search });
+  },
 });
 
-export const lossesByReasonReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyLossesByReasonReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/losses-by-reason",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(() => import("./losses-by-reason-report-page"), "LossesByReasonReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: "/stock/movements",
+      search: { ...search, type: ["loss"], view: "reason" },
+    });
+  },
 });
 
 export const marginReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/margin",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "margin",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "margin", search),
   validateSearch: marginReportFilters,
   search: { middlewares: [stripSearchParams(marginReportFilters.parse({}))] },
   component: lazyScreen(() => import("./margin-report-page"), "MarginReportPage"),

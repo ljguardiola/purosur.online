@@ -97,13 +97,9 @@ function shownCategories(screen: Screen) {
     .filter((name) => name !== undefined);
 }
 
-test("names the report and shows the amount sold, the cost and the margin of the period", async () => {
+test("shows the amount sold, the cost and the margin of the period", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Rentabilidad", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Vendido", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
   await expect.element(screen.getByText("Costo", { exact: true }).first()).toBeVisible();

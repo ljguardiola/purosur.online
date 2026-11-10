@@ -76,10 +76,6 @@ function renderScreen(
 test("shows each day with its sales and total, and the totals of the range", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes", { exact: true })).toBeVisible();
   const table = screen.getByRole("table", { name: "Ventas por día" });
   await expect.element(table.getByText("02/10/2026")).toBeVisible();
   await expect.element(table.getByText("$ 12.500,50")).toBeVisible();

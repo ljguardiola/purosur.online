@@ -130,6 +130,7 @@ export function createAppServices(
       fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
+      fetchPricesPastReviewDeadlineReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     discountsListScreen: {
       fetchDiscounts: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -199,20 +200,8 @@ export function createAppServices(
       registerAssemblyBatch: vi.fn(),
       voidAssemblyBatch: vi.fn(),
     },
-    purchasesReportScreen: {
-      fetchPurchasesReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    pendingPurchaseOrdersReportScreen: {
-      fetchPendingPurchaseOrdersReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    receiptDifferencesReportScreen: {
-      fetchReceiptDifferencesReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
     aiCostReportScreen: {
       fetchAiCostReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    freightReportScreen: {
-      fetchFreightReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -307,20 +296,8 @@ export function createAppServices(
     salesByProductAndCategoryScreen: {
       fetchSalesByProductAndCategory: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    currentStockReportScreen: {
-      fetchCurrentStockReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    expiringLotsReportScreen: {
-      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    lossesByReasonReportScreen: {
-      fetchLossesByReasonReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
     marginReportScreen: {
       fetchMarginReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    pricesPastReviewDeadlineReportScreen: {
-      fetchPricesPastReviewDeadlineReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     salesByCashierScreen: {
       fetchSalesByCashier: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -337,9 +314,6 @@ export function createAppServices(
     cashRoundingScreen: {
       fetchCashRounding: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    issuedFiscalDocumentsReportScreen: {
-      fetchIssuedFiscalDocumentsReport: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
     returnsHistoryScreen: {
       fetchReturnsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
@@ -352,9 +326,6 @@ export function createAppServices(
     },
     mercadoPagoChargeCostsScreen: {
       fetchMercadoPagoChargeCosts: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    handConfirmedPaymentsScreen: {
-      fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     cashMovementsScreen: {
       fetchCashMovements: vi.fn().mockReturnValue(new Promise(() => {})),

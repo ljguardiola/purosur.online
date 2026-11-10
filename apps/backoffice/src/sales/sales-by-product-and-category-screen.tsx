@@ -19,13 +19,12 @@ import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { shareOfTotal } from "../platform/share-of-total";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { SalesByProductAndCategoryFilters } from "./sales-by-product-and-category-filters";
 import type { SalesByProductAndCategoryScreenServices } from "./sales-by-product-and-category-services";
 import { salesByProductAndCategorySpreadsheet } from "./sales-by-product-and-category-spreadsheet";
@@ -50,7 +49,7 @@ const GROUP_OPTIONS = [
   { value: "product" as const, label: "Por producto" },
 ] as const;
 
-const SCREEN_TITLE = "Ventas por producto y por categoría";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["sales-by-product-and-category"];
 
 const labelOrder = textOrder(soldRowLabel);
 
@@ -122,10 +121,7 @@ export function SalesByProductAndCategoryScreen({
   }
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -239,6 +235,6 @@ export function SalesByProductAndCategoryScreen({
           )
         }
       />
-    </ScreenLayout>
+    </>
   );
 }

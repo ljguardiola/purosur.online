@@ -25,7 +25,7 @@ opensOnlyScreens([
   "/",
   "/help",
   "/refunds",
-  "/reports",
+  "/reports/sales-by-day",
   "/registers",
   "/registers/closes",
   "/registers/movements",
@@ -346,16 +346,19 @@ test("takes a person with reports_area alone to Cierres de caja from the rail", 
   expect(location()).toBe("/registers/closes");
 });
 
-test("leaves the closes and the movements out of the Reportes column", async () => {
+test("leaves the closes and the movements out of Reportes", async () => {
   const services = registersServices(["reports_area"]);
   window.history.pushState(null, "", "/reports");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const sections = screen.getByRole("navigation", { name: "Reportes" });
-  await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
-  expect(sections.getByRole("link", { name: "Cierres de sesión" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Movimientos de caja" }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("tablist", { name: "Secciones de Reportes" }))
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: "Cierres de sesión" }).query()).toBeNull();
+  expect(screen.getByRole("radio", { name: "Cierres de sesión" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Movimientos de caja" }).query()).toBeNull();
+  expect(screen.getByRole("radio", { name: "Movimientos de caja" }).query()).toBeNull();
 });
 
 const EVERY_CAPABILITY: Capability[] = [

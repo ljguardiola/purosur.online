@@ -95,6 +95,8 @@ test("the review filter offers the overdue prices, asking the cloud for review=o
     search: "",
     category: "ALL",
     review: "overdue",
+    from: "",
+    to: "",
   });
 });
 
@@ -239,6 +241,8 @@ test("reports every change to its filters, so they can be kept for a reload", as
     search: "arr",
     category: "ALL",
     review: "all",
+    from: "",
+    to: "",
   });
 });
 

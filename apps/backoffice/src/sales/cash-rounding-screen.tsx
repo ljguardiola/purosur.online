@@ -12,7 +12,6 @@ import { Coins } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -21,7 +20,7 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { CashRoundingScreenServices } from "./cash-rounding-services";
 import { cashRoundingSpreadsheet } from "./cash-rounding-spreadsheet";
 import { useCashRoundingQuery } from "./sales-queries";
@@ -38,7 +37,7 @@ type RoundingOfDay = CashRoundingBody["rows"][number];
 
 const NO_ROWS: RoundingOfDay[] = [];
 
-const SCREEN_TITLE = "Redondeo en efectivo";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["cash-rounding"];
 
 const columns = [
   dataColumn({
@@ -88,10 +87,7 @@ export function CashRoundingScreen({
   });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -149,6 +145,6 @@ export function CashRoundingScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }

@@ -1,9 +1,9 @@
-import type { HandConfirmedPaymentsScreenServices } from "./hand-confirmed-payments-services";
+import type { HandConfirmedPaymentsSectionServices } from "./hand-confirmed-payments-section-services";
 import { fetchHandConfirmedPayments, fetchSalesByPaymentMethod } from "./payments-report-api";
 
 export type SalesByPaymentMethodScreenServices = {
   fetchSalesByPaymentMethod: typeof fetchSalesByPaymentMethod;
-} & HandConfirmedPaymentsScreenServices;
+} & HandConfirmedPaymentsSectionServices;
 
 export const defaultSalesByPaymentMethodScreenServices: SalesByPaymentMethodScreenServices = {
   fetchSalesByPaymentMethod,

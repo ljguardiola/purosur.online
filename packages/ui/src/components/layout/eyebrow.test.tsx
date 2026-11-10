@@ -75,6 +75,35 @@ test("can be a level-two heading, drawn the same as the plain eyebrow", async ()
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("can be a level-three heading, drawn the same as the plain eyebrow", async () => {
+  const screen = await render(
+    <>
+      <h2>Configuración</h2>
+      <Eyebrow text="Diagnóstico" headingLevel={3} />
+      <Eyebrow text="Caja 1" />
+    </>,
+  );
+  const heading = screen.getByRole("heading", { level: 3, name: "Diagnóstico" }).element();
+  const plain = screen.getByText("Caja 1", { exact: true }).element();
+  const headingStyle = getComputedStyle(heading);
+  const plainStyle = getComputedStyle(plain);
+
+  for (const property of [
+    "fontSize",
+    "fontWeight",
+    "lineHeight",
+    "textTransform",
+    "letterSpacing",
+    "color",
+    "marginTop",
+    "marginBottom",
+  ] as const) {
+    expect(headingStyle[property]).toBe(plainStyle[property]);
+  }
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("wraps a long text inside its container instead of overflowing it", async () => {
   const longText = "Un texto largo que no entra en una sola línea dentro de este espacio angosto";
   const screen = await render(
@@ -100,7 +129,12 @@ test("accepts a tone a caller may or may not have at hand", () => {
   expectTypeOf<{ text: string; tone: Tone | undefined }>().toExtend<EyebrowProps>();
 });
 
-test("does not accept a heading level other than two", () => {
+test("does not accept a heading level other than two or three", () => {
   expectTypeOf<{ text: string; headingLevel: 1 }>().not.toExtend<EyebrowProps>();
-  expectTypeOf<{ text: string; headingLevel: 3 }>().not.toExtend<EyebrowProps>();
+  expectTypeOf<{ text: string; headingLevel: 4 }>().not.toExtend<EyebrowProps>();
+});
+
+test("accepts a heading level of two or three", () => {
+  expectTypeOf<{ text: string; headingLevel: 2 }>().toExtend<EyebrowProps>();
+  expectTypeOf<{ text: string; headingLevel: 3 }>().toExtend<EyebrowProps>();
 });

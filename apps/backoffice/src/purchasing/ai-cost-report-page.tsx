@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { AiCostReportScreen } from "./ai-cost-report-screen";
 import { defaultAiCostReportScreenServices } from "./ai-cost-report-services";
 
-const route = getRouteApi("/signed-in/reports-area/reports/ai-cost-by-period");
+const route = getRouteApi("/signed-in/settings-area/reports/ai-cost-by-period");
 
 export function AiCostReportPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

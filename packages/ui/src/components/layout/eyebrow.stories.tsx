@@ -34,6 +34,10 @@ export const Heading: Story = {
   args: { text: "Antes de empezar", headingLevel: 2 },
 };
 
+export const SubHeading: Story = {
+  args: { text: "Diagnóstico", headingLevel: 3 },
+};
+
 export const LongText: Story = {
   args: {
     text: "Un texto largo que no entra en una sola línea dentro de este espacio angosto",

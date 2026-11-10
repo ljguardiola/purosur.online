@@ -9,7 +9,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { periodSegments, typePeriodEnd, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { FreightReportContent } from "./freight-report-content";
-import type { FreightReportScreenServices } from "./freight-report-services";
+import type { FreightReportContentServices } from "./freight-report-content-services";
 import { emptyFreightReport, quarterFreightReport } from "./test-support/freight-report-fixtures";
 
 beforeEach(async () => {
@@ -20,7 +20,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function createServices(): FreightReportScreenServices {
+function createServices(): FreightReportContentServices {
   const services = { fetchFreightReport: vi.fn() };
   services.fetchFreightReport.mockResolvedValue({ kind: "ok", value: quarterFreightReport });
   return services;
@@ -37,7 +37,7 @@ function ControlledContent({
   filters: initial = reportPeriodSearch.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
-}: Handlers & { services: FreightReportScreenServices }) {
+}: Handlers & { services: FreightReportContentServices }) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
@@ -56,7 +56,7 @@ function ControlledContent({
   );
 }
 
-function renderContent(services: FreightReportScreenServices, handlers: Handlers = {}) {
+function renderContent(services: FreightReportContentServices, handlers: Handlers = {}) {
   return render(<ControlledContent services={services} {...handlers} />);
 }
 

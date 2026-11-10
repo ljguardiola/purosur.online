@@ -14,13 +14,12 @@ import {
 import { BadgePercent } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import { promotionTermsText } from "./promotion-terms-text";
 import type { SalesByPromotionFilters } from "./sales-by-promotion-filters";
 import type { SalesByPromotionScreenServices } from "./sales-by-promotion-services";
@@ -42,7 +41,7 @@ const NO_ROWS: PromotionRow[] = [];
 
 const UNKNOWN_PROMOTION = "Promoción desconocida";
 const NO_FIGURE = "—";
-const SCREEN_TITLE = "Descuentos por promoción";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["sales-by-promotion"];
 
 function promotionName(name: string | null): string {
   return name ?? UNKNOWN_PROMOTION;
@@ -120,10 +119,7 @@ export function SalesByPromotionScreen({
   const mostUsed = shown?.totals.most_used ?? null;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -210,6 +206,6 @@ export function SalesByPromotionScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }

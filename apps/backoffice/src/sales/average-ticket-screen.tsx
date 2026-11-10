@@ -14,13 +14,12 @@ import {
 import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { AverageTicketFilters } from "./average-ticket-filters";
 import type { AverageTicketScreenServices } from "./average-ticket-services";
 import { averageTicketSpreadsheet } from "./average-ticket-spreadsheet";
@@ -40,7 +39,7 @@ type WeekRow = AverageTicketBody["weeks"][number];
 const NO_WEEKS: WeekRow[] = [];
 
 const NO_FIGURE = "—";
-const SCREEN_TITLE = "Ticket promedio";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["average-ticket"];
 
 function averageTicketText(averageTicket: number | null): string {
   return averageTicket === null ? NO_FIGURE : formatCents(averageTicket);
@@ -111,10 +110,7 @@ export function AverageTicketScreen({
   });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -202,6 +198,6 @@ export function AverageTicketScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }
