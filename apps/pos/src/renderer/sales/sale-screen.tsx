@@ -47,6 +47,7 @@ import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { AdjustLineModal } from "./adjust-line-modal";
 import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
@@ -731,13 +732,37 @@ export function SaleScreen({
   }
 
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail
-        registerName={registerName}
-        lock={lock}
-        current="sale"
-        abilities={person.abilities}
-      />
+    <RegisterFrame
+      background="subtle"
+      rail={
+        <OpenSessionRail
+          registerName={registerName}
+          lock={lock}
+          current="sale"
+          abilities={person.abilities}
+        />
+      }
+      aside={
+        <PaymentPanel
+          saleStatus={current.status}
+          lineCount={sale?.lines.length ?? 0}
+          grossSubtotal={sale?.gross_subtotal ?? 0}
+          promotionSavings={sale?.promotion_savings ?? 0}
+          saleDiscount={sale?.sale_discount ?? null}
+          total={sale?.total ?? 0}
+          paid={sale?.paid ?? 0}
+          pending={sale?.pending ?? 0}
+          cancellable={answer !== undefined}
+          hasApprovedPayment={sale?.lines_lock === "approved_payment"}
+          chargeRefusal={sale?.charge_refusal ?? null}
+          canCancel={sale !== null && !editing}
+          canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
+          onDiscount={() => askToDiscount(true)}
+          onCharge={() => void navigate({ to: "/charge" })}
+          onCancel={() => void askToCancelSale()}
+        />
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Venta en curso" />
         {diskFull === undefined ? null : (
@@ -820,24 +845,6 @@ export function SaleScreen({
           />
         ) : null}
       </main>
-      <PaymentPanel
-        saleStatus={current.status}
-        lineCount={sale?.lines.length ?? 0}
-        grossSubtotal={sale?.gross_subtotal ?? 0}
-        promotionSavings={sale?.promotion_savings ?? 0}
-        saleDiscount={sale?.sale_discount ?? null}
-        total={sale?.total ?? 0}
-        paid={sale?.paid ?? 0}
-        pending={sale?.pending ?? 0}
-        cancellable={answer !== undefined}
-        hasApprovedPayment={sale?.lines_lock === "approved_payment"}
-        chargeRefusal={sale?.charge_refusal ?? null}
-        canCancel={sale !== null && !editing}
-        canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
-        onDiscount={() => askToDiscount(true)}
-        onCharge={() => void navigate({ to: "/charge" })}
-        onCancel={() => void askToCancelSale()}
-      />
       <CancelSaleModal
         open={confirmingCancel}
         lineCount={sale?.lines.length ?? 0}
@@ -919,6 +926,6 @@ export function SaleScreen({
       {cancelledRefunds === undefined ? null : (
         <PaidSaleCancelledModal refunds={cancelledRefunds} onClose={closeCancelledPaidSale} />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

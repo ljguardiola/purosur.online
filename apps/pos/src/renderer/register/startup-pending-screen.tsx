@@ -31,6 +31,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -478,13 +479,49 @@ export function StartupPendingScreen({
       : "";
 
   return (
-    <div className="flex h-full w-full bg-surface">
-      <OpenSessionRail
-        registerName={registerName}
-        lock={lock}
-        current="sale"
-        abilities={person.abilities}
-      />
+    <RegisterFrame
+      background="surface"
+      rail={
+        <OpenSessionRail
+          registerName={registerName}
+          lock={lock}
+          current="sale"
+          abilities={person.abilities}
+        />
+      }
+      aside={
+        <SidePanel
+          label="Sesión abierta"
+          footer={
+            keptFromSelling ? (
+              <Button
+                size="sale"
+                fullWidth
+                icon={<ArrowRight />}
+                disabledReason={
+                  keptFromSelling.selling_blocked ? SELLING_BLOCKED_REASON : CHECKING_REASON
+                }
+              >
+                Ir a vender
+              </Button>
+            ) : (
+              <>
+                <p className="text-detail text-text-subtle">
+                  Lo que quedó pendiente se puede resolver después.
+                </p>
+                <Button size="sale" fullWidth icon={<ArrowRight />} onPress={onGoSelling}>
+                  Ir a vender
+                </Button>
+              </>
+            )
+          }
+        >
+          <Eyebrow text="Sesión abierta" />
+          <p className="text-title text-text-accent">{sessionOwner.first_name}</p>
+          <p className="text-detail text-text-subtle">{`${since}${openingFloat}`}</p>
+        </SidePanel>
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-4 bg-surface-soft p-6">
         <ScreenHeader
           eyebrow={
@@ -503,36 +540,6 @@ export function StartupPendingScreen({
           onRefund={setRefundOf}
         />
       </main>
-      <SidePanel
-        label="Sesión abierta"
-        footer={
-          keptFromSelling ? (
-            <Button
-              size="sale"
-              fullWidth
-              icon={<ArrowRight />}
-              disabledReason={
-                keptFromSelling.selling_blocked ? SELLING_BLOCKED_REASON : CHECKING_REASON
-              }
-            >
-              Ir a vender
-            </Button>
-          ) : (
-            <>
-              <p className="text-detail text-text-subtle">
-                Lo que quedó pendiente se puede resolver después.
-              </p>
-              <Button size="sale" fullWidth icon={<ArrowRight />} onPress={onGoSelling}>
-                Ir a vender
-              </Button>
-            </>
-          )
-        }
-      >
-        <Eyebrow text="Sesión abierta" />
-        <p className="text-title text-text-accent">{sessionOwner.first_name}</p>
-        <p className="text-detail text-text-subtle">{`${since}${openingFloat}`}</p>
-      </SidePanel>
       {duplicateOf === undefined ? null : (
         <ReprintReceiptModal
           document="sale_receipt"
@@ -601,6 +608,6 @@ export function StartupPendingScreen({
           onDismiss={() => setProblem(undefined)}
         />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

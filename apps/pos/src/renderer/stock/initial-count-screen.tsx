@@ -25,6 +25,7 @@ import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CountLineModal } from "./count-line-modal";
 import type { CountableProduct, CountableSearchedProduct } from "./countable-product";
@@ -309,8 +310,11 @@ export function InitialCountScreen({
   const lines = linesOf(count);
 
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      <NoSessionRail person={person} current="/initial-count" signOut={signOut} />
+    <RegisterFrame
+      background="subtle"
+      rail={<NoSessionRail person={person} current="/initial-count" signOut={signOut} />}
+      aside={open ? <InitialCountSummaryPanel state={lines} onFinish={goHome} /> : null}
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <ScreenHeader eyebrow="Puesta en marcha · Sin sesión de caja" title="Inventario inicial" />
         {open ? (
@@ -364,7 +368,6 @@ export function InitialCountScreen({
           />
         ) : null}
       </main>
-      {open ? <InitialCountSummaryPanel state={lines} onFinish={goHome} /> : null}
       {counting === undefined ? null : (
         <CountLineModal
           product={counting}
@@ -383,6 +386,6 @@ export function InitialCountScreen({
           onDismiss={() => setWithdrawNotice(undefined)}
         />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

@@ -20,10 +20,12 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { Check, ShieldCheck, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
 import { paidPaymentName } from "../platform/payment-method-names";
 import { AuthorizationSection } from "../shell/authorization-section";
+import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
 import type { CompletedReturn } from "./hand-over-refund-modal";
 import type { ReturnDraft, ReturnFormValues } from "./return-form";
@@ -50,6 +52,7 @@ const SALE_GONE = "Esa venta ya no se puede devolver.";
 const NOT_PERMITTED = "No tenés permiso para hacer devoluciones.";
 
 export type ReturnBuildStepProps = {
+  rail: ReactNode;
   sale: SaleForReturn;
   source: "QR" | "TYPED";
   authorization: AuthorizationState;
@@ -71,6 +74,7 @@ function lineOf(sale: SaleForReturn, lineId: string): SaleLineForReturn | undefi
 }
 
 export function ReturnBuildStep({
+  rail,
   sale,
   source,
   authorization,
@@ -249,7 +253,73 @@ export function ReturnBuildStep({
           : notice;
 
   return (
-    <>
+    <RegisterFrame
+      background="subtle"
+      rail={rail}
+      aside={
+        <SidePanel
+          label="Resumen de la devolución"
+          footer={
+            <>
+              {authorizedBy === undefined ? (
+                <AuthorizationSection
+                  authorization={authorization}
+                  action="hacer devoluciones"
+                  disabled={submitting}
+                />
+              ) : (
+                <InlineNotice
+                  tone="info"
+                  icon={<ShieldCheck />}
+                  title={`Autorizó ${authorizedBy.first_name}`}
+                />
+              )}
+              {panelNotice === undefined ? null : (
+                <InlineNotice tone="warning" icon={<TriangleAlert />} title={panelNotice} />
+              )}
+              <Button
+                size="large"
+                fullWidth
+                icon={<Check />}
+                disabled={!canComplete}
+                dataStatus={submitting ? "loading" : "loaded"}
+                onPress={() => void submit()}
+              >
+                Completar devolución
+              </Button>
+              <Button variant="text" destructive disabled={submitting} onPress={onLeave}>
+                Salir sin completar
+              </Button>
+            </>
+          }
+        >
+          {lines.length > 0 && preview.status === "failed" ? (
+            <LoadFailure
+              icon={<TriangleAlert />}
+              title="No se pudo calcular el reintegro"
+              description="Probá de nuevo."
+              onRetry={preview.retry}
+            />
+          ) : lines.length > 0 && preview.status === "loading" ? (
+            <FigureStat label="A REINTEGRAR" loading />
+          ) : (
+            <FigureStat label="A REINTEGRAR" value={formatCents(refundableTotal)} />
+          )}
+          <SummaryRowGroup
+            variant="divided"
+            rows={[{ label: "Líneas a devolver", value: String(lines.length) }]}
+          />
+          {nothingToRefund ? null : (
+            <>
+              <Eyebrow text="SE DEVUELVE POR EL MEDIO DEL PAGO" />
+              <form.AppField name="refunds">
+                {() => <ReturnRefundsField texts={refundTexts} disabled={submitting} />}
+              </form.AppField>
+            </>
+          )}
+        </SidePanel>
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto p-8">
         <ScreenHeader eyebrow={eyebrow} title="Elegí qué devuelve el cliente" />
         <div className="flex flex-wrap items-center gap-3">
@@ -272,67 +342,6 @@ export function ReturnBuildStep({
           onChange={(lineId, edit) => change(changeLine(values.lines, lineId, edit))}
         />
       </main>
-      <SidePanel
-        label="Resumen de la devolución"
-        footer={
-          <>
-            {authorizedBy === undefined ? (
-              <AuthorizationSection
-                authorization={authorization}
-                action="hacer devoluciones"
-                disabled={submitting}
-              />
-            ) : (
-              <InlineNotice
-                tone="info"
-                icon={<ShieldCheck />}
-                title={`Autorizó ${authorizedBy.first_name}`}
-              />
-            )}
-            {panelNotice === undefined ? null : (
-              <InlineNotice tone="warning" icon={<TriangleAlert />} title={panelNotice} />
-            )}
-            <Button
-              size="large"
-              fullWidth
-              icon={<Check />}
-              disabled={!canComplete}
-              dataStatus={submitting ? "loading" : "loaded"}
-              onPress={() => void submit()}
-            >
-              Completar devolución
-            </Button>
-            <Button variant="text" destructive disabled={submitting} onPress={onLeave}>
-              Salir sin completar
-            </Button>
-          </>
-        }
-      >
-        {lines.length > 0 && preview.status === "failed" ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo calcular el reintegro"
-            description="Probá de nuevo."
-            onRetry={preview.retry}
-          />
-        ) : lines.length > 0 && preview.status === "loading" ? (
-          <FigureStat label="A REINTEGRAR" loading />
-        ) : (
-          <FigureStat label="A REINTEGRAR" value={formatCents(refundableTotal)} />
-        )}
-        <SummaryRowGroup
-          variant="divided"
-          rows={[{ label: "Líneas a devolver", value: String(lines.length) }]}
-        />
-        {nothingToRefund ? null : (
-          <>
-            <Eyebrow text="SE DEVUELVE POR EL MEDIO DEL PAGO" />
-            <form.AppField name="refunds">
-              {() => <ReturnRefundsField texts={refundTexts} disabled={submitting} />}
-            </form.AppField>
-          </>
-        )}
-      </SidePanel>
-    </>
+    </RegisterFrame>
   );
 }

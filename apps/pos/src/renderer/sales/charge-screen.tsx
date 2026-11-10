@@ -36,6 +36,7 @@ import { Info, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MercadoPagoChargeKind } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashChargeModal } from "./cash-charge-modal";
 import type { CompletedPayment } from "./charge-completed-modal";
@@ -231,13 +232,27 @@ export function ChargeScreen({
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail
-        registerName={registerName}
-        lock={lock}
-        current="sale"
-        abilities={person.abilities}
-      />
+    <RegisterFrame
+      background="subtle"
+      rail={
+        <OpenSessionRail
+          registerName={registerName}
+          lock={lock}
+          current="sale"
+          abilities={person.abilities}
+        />
+      }
+      aside={
+        sale === undefined ? null : (
+          <ChargePaymentPanel
+            total={sale.total}
+            paid={step.name === "completed" ? step.sale.total : sale.paid}
+            pending={step.name === "completed" ? 0 : sale.pending}
+            {...(step.name === "completed" ? {} : { onBackToSale: backToSale })}
+          />
+        )
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={1} /> : null}
         {current.status === "failed" ? (
@@ -293,14 +308,6 @@ export function ChargeScreen({
           </>
         )}
       </main>
-      {sale === undefined ? null : (
-        <ChargePaymentPanel
-          total={sale.total}
-          paid={step.name === "completed" ? step.sale.total : sale.paid}
-          pending={step.name === "completed" ? 0 : sale.pending}
-          {...(step.name === "completed" ? {} : { onBackToSale: backToSale })}
-        />
-      )}
       {sale !== undefined && step.name === "cash" ? (
         <CashChargeModal
           saleId={sale.id}
@@ -454,6 +461,6 @@ export function ChargeScreen({
           onNewSale={backToSale}
         />
       ) : null}
-    </div>
+    </RegisterFrame>
   );
 }
