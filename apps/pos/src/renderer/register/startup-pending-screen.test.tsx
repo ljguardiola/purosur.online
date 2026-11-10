@@ -8,9 +8,10 @@ import type {
   StartupPending,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { notifyManager } from "@tanstack/react-query";
 import type {} from "@vitest/browser-playwright";
 import type { ReactNode } from "react";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import type { RegisterStatusData } from "../shell/register-status-context";
@@ -142,6 +143,15 @@ async function expectGoSellingLocked(screen: Awaited<ReturnType<typeof renderScr
 async function expectGoSellingOpen(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
   await expect.element(goSelling(screen)).toBeEnabled();
   await expect.element(goSelling(screen)).not.toHaveAttribute("aria-disabled");
+}
+
+function freezeTimersKeepingQueriesAnswered() {
+  notifyManager.setScheduler(queueMicrotask);
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  onTestFinished(() => {
+    vi.useRealTimers();
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+  });
 }
 
 type Overrides = {
@@ -498,7 +508,7 @@ describe("StartupPendingScreen", () => {
         .mockResolvedValue(NOTHING);
       const { screen, onNothingLeft } = await renderScreen({ loadStartupPending: load });
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
-      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+      freezeTimersKeepingQueriesAnswered();
 
       await userEvent.click(screen.getByRole("button", { name: /^Imprimir el ticket/ }));
       await expect
@@ -864,7 +874,7 @@ describe("StartupPendingScreen", () => {
       );
       const confirmation = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
       await expect.element(confirmation).toBeVisible();
-      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+      freezeTimersKeepingQueriesAnswered();
 
       await userEvent.click(confirmation.getByRole("button", { name: "Pasar a reembolso" }));
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
