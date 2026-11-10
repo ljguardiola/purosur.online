@@ -19,6 +19,7 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { lineAdjustmentText } from "./line-adjustment-text";
 import { linePromotionText } from "./line-promotion-text";
 
@@ -93,6 +94,11 @@ export function SaleLines({
   actions: SaleLineActions;
   onSelect: (line: SaleLine) => void;
 }) {
+  const latest = useRef(actions);
+  useEffect(() => {
+    latest.current = actions;
+  });
+  const { editable } = actions;
   const columns = [
     dataColumn({
       id: "product",
@@ -125,27 +131,27 @@ export function SaleLines({
       header: "Acciones",
       actions: [
         (line: SaleLine) =>
-          actions.editable && line.sale_unit === "KG"
+          editable && line.sale_unit === "KG"
             ? {
                 icon: <Scale />,
                 "aria-label": `Cambiar el peso de ${line.product_name}`,
-                onPress: () => actions.onChangeWeight(line),
+                onPress: () => latest.current.onChangeWeight(line),
               }
             : undefined,
         (line: SaleLine) =>
-          actions.editable
+          editable
             ? {
                 icon: <Percent />,
                 "aria-label": `Cambiar el precio de ${line.product_name}`,
-                onPress: () => actions.onAdjust(line),
+                onPress: () => latest.current.onAdjust(line),
               }
             : undefined,
         (line: SaleLine) =>
-          actions.editable
+          editable
             ? {
                 icon: <Trash2 />,
                 "aria-label": `Quitar ${line.product_name}`,
-                onPress: () => actions.onRemove(line),
+                onPress: () => latest.current.onRemove(line),
               }
             : undefined,
       ],
