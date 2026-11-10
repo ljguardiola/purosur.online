@@ -1,6 +1,5 @@
 import type { ScanProductOutcome } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   renderScreen,

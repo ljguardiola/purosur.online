@@ -205,7 +205,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       <SaleScreen
         sessionId="s1"
         person={overrides.person ?? PERSON}
-        lock={() => {}}
+        lock={overrides.lock ?? (() => {})}
         currentSale={currentSale}
         scanProduct={scanProduct}
         searchProducts={searchProducts}
