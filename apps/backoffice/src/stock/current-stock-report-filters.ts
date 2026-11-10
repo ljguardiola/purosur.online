@@ -5,5 +5,3 @@ export const currentStockReportFilters = z.object({
   sortBy: z.enum(["product", "lots", "balance", "value"]).default("value").catch("value"),
   sort: z.enum(["ascending", "descending"]).default("descending").catch("descending"),
 });
-
-export type CurrentStockReportFilters = z.output<typeof currentStockReportFilters>;

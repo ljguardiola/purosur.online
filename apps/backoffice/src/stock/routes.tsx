@@ -160,31 +160,34 @@ export const stockBalancesRoute = createRoute({
   component: lazyScreen(() => import("./stock-balances-page"), "StockBalancesPage"),
 });
 
-export const currentStockReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyCurrentStockReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/current-stock",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: currentStockReportFilters,
-  search: { middlewares: [stripSearchParams(currentStockReportFilters.parse({}))] },
-  component: lazyScreen(() => import("./current-stock-report-page"), "CurrentStockReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/stock", search });
+  },
 });
 
-export const expiringLotsReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyExpiringLotsReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/expiring-lots",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(() => import("./expiring-lots-report-page"), "ExpiringLotsReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/stock/expiries", search });
+  },
 });
 
-export const lossesByReasonReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyLossesByReasonReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/losses-by-reason",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(() => import("./losses-by-reason-report-page"), "LossesByReasonReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: "/stock/movements",
+      search: { ...search, type: ["loss"], view: "reason" },
+    });
+  },
 });
 
 export const marginReportRoute = createRoute({

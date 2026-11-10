@@ -32,7 +32,7 @@ export type PendingPurchaseOrdersReportContentProps = {
   services: PendingPurchaseOrdersReportScreenServices;
 };
 
-export const PENDING_PURCHASE_ORDERS_REPORT_TITLE = "Pedidos pendientes de recibir";
+const PENDING_PURCHASE_ORDERS_REPORT_TITLE = "Pedidos pendientes de recibir";
 
 type PendingOrder = PendingPurchaseOrdersBody["orders"][number];
 

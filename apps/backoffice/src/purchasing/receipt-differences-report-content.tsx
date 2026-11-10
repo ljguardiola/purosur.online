@@ -32,7 +32,7 @@ export type ReceiptDifferencesReportContentProps = {
   services: ReceiptDifferencesReportScreenServices;
 };
 
-export const RECEIPT_DIFFERENCES_REPORT_TITLE = "Diferencias de recepción";
+const RECEIPT_DIFFERENCES_REPORT_TITLE = "Diferencias de recepción";
 
 const NO_PRICE_DIFFERENCE = "—";
 

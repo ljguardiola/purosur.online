@@ -35,7 +35,7 @@ type Price = PricesPastReviewDeadlineReportBody["prices"][number];
 
 const NO_PRICES: Price[] = [];
 
-export const PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE = "Precios sin revisar";
+const PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE = "Precios sin revisar";
 
 function windowText(windowDays: number): string {
   return `Plazo de revisión: ${plural(windowDays, { one: "1 día", other: `${windowDays} días` })}`;

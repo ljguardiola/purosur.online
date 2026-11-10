@@ -26,7 +26,7 @@ export type LossesByReasonReportContentProps = {
   services: LossesByReasonReportScreenServices;
 };
 
-export const REPORT_TITLE = "Mermas por motivo";
+const REPORT_TITLE = "Mermas por motivo";
 
 const FAILURE_SUBJECT = "las mermas por motivo";
 

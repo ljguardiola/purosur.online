@@ -26,7 +26,7 @@ export type FreightReportContentProps = {
   services: FreightReportScreenServices;
 };
 
-export const FREIGHT_REPORT_TITLE = "Flete por período";
+const FREIGHT_REPORT_TITLE = "Flete por período";
 
 type FreightRow = FreightByPeriodBody["months"][number];
 

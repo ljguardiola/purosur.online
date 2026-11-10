@@ -67,16 +67,16 @@ export const salesByPaymentMethodRoute = createRoute({
   component: lazyScreen(() => import("./sales-by-payment-method-page"), "SalesByPaymentMethodPage"),
 });
 
-export const handConfirmedPaymentsRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyHandConfirmedPaymentsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/hand-confirmed-payments",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: handConfirmedPaymentsFilters,
-  search: { middlewares: [stripSearchParams(handConfirmedPaymentsFilters.parse({}))] },
-  component: lazyScreen(
-    () => import("./hand-confirmed-payments-page"),
-    "HandConfirmedPaymentsPage",
-  ),
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: "/reports/sales-by-payment-method",
+      search: { ...search, handConfirmed: true },
+    });
+  },
 });
 
 export const mercadoPagoChargeCostsRoute = createRoute({

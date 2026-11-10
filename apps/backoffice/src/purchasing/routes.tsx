@@ -8,7 +8,6 @@ import {
   canSeeAiCostReport,
   canSeePurchaseOrdersPage,
   canSeePurchasesPage,
-  canSeeReports,
   canSeeSuppliersPage,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
@@ -292,13 +291,13 @@ export const purchaseOrderReceiveRoute = createRoute({
   component: lazyScreen(() => import("./purchase-order-receive-page"), "PurchaseOrderReceivePage"),
 });
 
-export const freightReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyFreightReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/freight-by-period",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(() => import("./freight-report-page"), "FreightReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/purchases/freights", search: { ...search, byMonth: true } });
+  },
 });
 
 export const aiCostReportRoute = createRoute({
@@ -310,35 +309,29 @@ export const aiCostReportRoute = createRoute({
   component: lazyScreen(() => import("./ai-cost-report-page"), "AiCostReportPage"),
 });
 
-export const pendingPurchaseOrdersReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyPendingPurchaseOrdersReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/pending-purchase-orders",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(
-    () => import("./pending-purchase-orders-report-page"),
-    "PendingPurchaseOrdersReportPage",
-  ),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/purchase-orders", search: { ...search, state: "PENDING_RECEIPT" } });
+  },
 });
 
-export const receiptDifferencesReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyReceiptDifferencesReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/receipt-differences",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(
-    () => import("./receipt-differences-report-page"),
-    "ReceiptDifferencesReportPage",
-  ),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/purchase-orders", search: { ...search, differences: true } });
+  },
 });
 
-export const purchasesReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyPurchasesReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/purchases-by-supplier",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
-  component: lazyScreen(() => import("./purchases-report-page"), "PurchasesReportPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/purchases", search: { ...search, bySupplier: true } });
+  },
 });

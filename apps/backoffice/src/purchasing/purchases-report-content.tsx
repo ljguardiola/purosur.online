@@ -26,7 +26,7 @@ export type PurchasesReportContentProps = {
   services: PurchasesReportScreenServices;
 };
 
-export const PURCHASES_REPORT_TITLE = "Compras por proveedor";
+const PURCHASES_REPORT_TITLE = "Compras por proveedor";
 
 type PurchasesRow = {
   id: string;
