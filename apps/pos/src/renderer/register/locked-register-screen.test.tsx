@@ -18,7 +18,14 @@ function answering(outcome: SignInOutcome) {
 }
 
 async function renderScreen(signIn = answering({ kind: "unavailable" }).signIn) {
-  return render(<LockedRegisterScreen opener={OPENER} registerName="Caja 1" signIn={signIn} />);
+  return render(
+    <LockedRegisterScreen
+      opener={OPENER}
+      registerName="Caja 1"
+      signIn={signIn}
+      version="1.4.212"
+    />,
+  );
 }
 
 type Screen = Awaited<ReturnType<typeof render>>;
@@ -38,6 +45,16 @@ describe("LockedRegisterScreen", () => {
     expect(screen.getByRole("radio").elements()).toHaveLength(1);
     await expect.element(screen.getByRole("button", { name: "Retomar" })).toBeDisabled();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the full logo and the version, with no rail", async () => {
+    const screen = await renderScreen();
+
+    await expect.element(screen.getByRole("img", { name: /Puro Sur/ })).toBeVisible();
+    await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
+    await expect
+      .element(screen.getByRole("navigation", { name: "Menú de la caja" }))
+      .not.toBeInTheDocument();
   });
 
   it("offers the opener a code to change the PIN, and no other way in", async () => {

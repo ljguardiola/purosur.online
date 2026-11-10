@@ -20,6 +20,7 @@ import { useState } from "react";
 import type { SerialDevicesToRegister } from "../platform/core-client";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import type { ShownSerialDevices } from "./register-queries";
 import { useRefreshSerialDevices, useSerialDevicesQuery } from "./register-queries";
@@ -230,19 +231,23 @@ export function SerialDevicesScreen({
   const read = devices.status === "loaded" && devices.value.kind === "read" ? devices.value : null;
 
   return (
-    <div className="flex h-full w-full bg-surface">
-      {sessionOpen ? (
-        <OpenSessionRail
-          registerName={registerName}
-          lock={signOut}
-          current="serial_devices"
-          abilities={person.abilities}
-        />
-      ) : (
-        <NoSessionRail person={person} current="/serial-devices" signOut={signOut} />
-      )}
+    <RegisterFrame
+      background="surface"
+      rail={
+        sessionOpen ? (
+          <OpenSessionRail
+            registerName={registerName}
+            lock={signOut}
+            current="serial_devices"
+            abilities={person.abilities}
+          />
+        ) : (
+          <NoSessionRail person={person} current="/serial-devices" signOut={signOut} />
+        )
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Balanza y lector" />
+        <ScreenHeader title="Balanza y lector" />
         {devices.status === "loading" ? <LoadingPlaceholder variant="form" fields={2} /> : null}
         {devices.status === "failed" ? (
           <LoadFailure
@@ -308,6 +313,6 @@ export function SerialDevicesScreen({
           onDismiss={() => setSavedDescription(undefined)}
         />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

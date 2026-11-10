@@ -79,13 +79,13 @@ describe("ReceiptPrinterScreen", () => {
     await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
   });
 
-  it("is titled Impresora de tickets and names the register in the eyebrow", async () => {
+  it("is titled Impresora de tickets, leaving the register's name to the frame's header", async () => {
     const { screen } = await renderScreen();
 
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 

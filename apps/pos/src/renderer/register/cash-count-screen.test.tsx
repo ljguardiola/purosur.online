@@ -133,7 +133,7 @@ describe("CashCountScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "Efectivo contado" })).toHaveValue("");
     await expect.element(screen.getByText("$", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
     await expect
       .element(screen.getByRole("textbox", { name: "Efectivo contado" }))

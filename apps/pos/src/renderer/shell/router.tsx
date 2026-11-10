@@ -146,10 +146,10 @@ import { InitialCountScreen } from "../stock/initial-count-screen";
 import { initialCountQueryOptions } from "../stock/stock-queries";
 import { BrandPanelScreen } from "./brand-panel-screen";
 import { CoreDownNotice } from "./core-down-notice";
+import { RegisterStatusLayout } from "./register-status-layout";
 import { RegisterUpdatingNotice } from "./register-updating-notice";
 import type { SignedInPerson } from "./signed-in-person";
 import type { StartupPendingGate } from "./startup-pending-gate";
-import { StatusBarLayout } from "./status-bar-layout";
 
 export type CoreStatus = CoreStatusMessage["status"];
 
@@ -525,20 +525,22 @@ const sessionEyebrowRoute = createRoute({
   component: Outlet,
 });
 
-const statusBarRoute = createRoute({
+const registerStatusRoute = createRoute({
   getParentRoute: () => sessionEyebrowRoute,
-  id: "status-bar",
-  component: function StatusBarRoute() {
+  id: "register-status",
+  component: function RegisterStatusRoute() {
     const {
       person,
+      registerName,
       cashSession,
       registerStatus,
       contingencyBackupTickets,
       discardContingencyBackupTickets,
-    } = statusBarRoute.useRouteContext();
+    } = registerStatusRoute.useRouteContext();
     return (
-      <StatusBarLayout
+      <RegisterStatusLayout
         person={person}
+        readRegisterName={registerName}
         cashSession={cashSession}
         readStatus={registerStatus}
         readBackupTickets={contingencyBackupTickets}
@@ -549,7 +551,7 @@ const statusBarRoute = createRoute({
 });
 
 const signedInRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/",
   beforeLoad: async ({ context }) => {
     const person = requireSignedInPerson(context);
@@ -578,7 +580,6 @@ const signedInRoute = createRoute({
     return (
       <NoSessionScreen
         person={person}
-        registerName={registerName}
         signOut={signOut}
         offers={
           <>
@@ -599,7 +600,7 @@ const signedInRoute = createRoute({
 });
 
 const receiptPrinterRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/receipt-printer",
   beforeLoad: ({ context }) => {
     const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
@@ -633,7 +634,7 @@ const receiptPrinterRoute = createRoute({
 });
 
 const serialDevicesRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/serial-devices",
   validateSearch: (search: { offered?: unknown }) => ({ offered: search.offered === true }),
   beforeLoad: ({ context }) => {
@@ -671,7 +672,7 @@ const serialDevicesRoute = createRoute({
 });
 
 const initialCountRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/initial-count",
   beforeLoad: async ({ context }) => {
     const person = requireSignedInPerson(context);
@@ -717,7 +718,7 @@ function InitialCountRoute() {
 }
 
 const openSessionRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/session",
   beforeLoad: async ({ context }) => {
     const { id, person } = requireOpenSession(context);
@@ -790,7 +791,7 @@ const openSessionRoute = createRoute({
 });
 
 const startupPendingRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/startup-pending",
   beforeLoad: async ({ context }) => {
     const { id, openedAt, openedBy, person } = requireOpenSession(context);
@@ -867,7 +868,7 @@ function StartupPendingRoute() {
 }
 
 const chargeRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/charge",
   beforeLoad: ({ context }) => {
     const { id, person } = requireOpenSession(context);
@@ -928,7 +929,7 @@ const chargeRoute = createRoute({
 });
 
 const historyRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/history",
   beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
   component: function HistoryRoute() {
@@ -970,7 +971,7 @@ const historyRoute = createRoute({
 });
 
 const deferredSaleRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/deferred-sale",
   beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
   component: function DeferredSaleRoute() {
@@ -1002,7 +1003,7 @@ const deferredSaleRoute = createRoute({
 });
 
 const returnRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/return",
   beforeLoad: ({ context }) => {
     const { person } = requireOpenSession(context);
@@ -1035,7 +1036,7 @@ const returnRoute = createRoute({
 });
 
 const cashRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/cash",
   beforeLoad: ({ context }) => {
     const { id, openedAt, person } = requireOpenSession(context);
@@ -1084,7 +1085,7 @@ const cashRoute = createRoute({
 });
 
 const cashCountRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/cash-count",
   validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
@@ -1111,7 +1112,7 @@ const cashCountRoute = createRoute({
 });
 
 const lockedRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/locked",
   beforeLoad: ({ context }) => {
     const { openedBy } = requireLockedRegister(context);
@@ -1120,12 +1121,20 @@ const lockedRoute = createRoute({
   component: function LockedRoute() {
     const { openedBy, signIn } = lockedRoute.useRouteContext();
     const registerName = useRegisterName();
-    return <LockedRegisterScreen opener={openedBy} registerName={registerName} signIn={signIn} />;
+    const version = useRegisterVersion();
+    return (
+      <LockedRegisterScreen
+        opener={openedBy}
+        registerName={registerName}
+        version={version}
+        signIn={signIn}
+      />
+    );
   },
 });
 
 const lockedCloseRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
+  getParentRoute: () => registerStatusRoute,
   path: "/locked-close",
   beforeLoad: ({ context }) => {
     const { id, openedBy } = requireLockedRegister(context);
@@ -1144,11 +1153,13 @@ const lockedCloseRoute = createRoute({
       cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
     const registerName = useRegisterName();
+    const version = useRegisterVersion();
     return (
       <LockedCloseScreen
         sessionId={id}
         opener={openedBy}
         registerName={registerName}
+        version={version}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}
@@ -1343,7 +1354,7 @@ const olderVersionRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
-    statusBarRoute.addChildren([
+    registerStatusRoute.addChildren([
       signedInRoute,
       receiptPrinterRoute,
       serialDevicesRoute,

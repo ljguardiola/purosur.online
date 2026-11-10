@@ -17,13 +17,15 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, Lock, ScanBarcode, TriangleAlert, UserX } from "lucide-react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useKeys } from "../platform/key-layer";
 import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CountLineModal } from "./count-line-modal";
 import type { CountableProduct, CountableSearchedProduct } from "./countable-product";
@@ -280,23 +282,30 @@ export function InitialCountScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
-  function driveResults(event: KeyboardEvent) {
-    if (found === undefined) {
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      setDismissed(true);
-    } else if (chosen !== undefined && event.key === "Enter") {
-      event.preventDefault();
-      choose(chosen);
-    } else if (choosing && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-      event.preventDefault();
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setActiveIndex(Math.min(found.products.length - 1, Math.max(0, activeIndex + step)));
-    }
-  }
+  const resultCount = found?.products.length ?? 0;
+  useKeys(
+    [
+      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
+      {
+        key: "Enter",
+        run: () => {
+          if (chosen !== undefined) {
+            choose(chosen);
+          }
+        },
+        enabled: chosen !== undefined,
+      },
+      {
+        key: "ArrowUpDown",
+        run: (pressed) => {
+          const step = pressed === "ArrowDown" ? 1 : -1;
+          setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+        },
+        enabled: choosing,
+      },
+    ],
+    { within: field },
+  );
 
   const answer = count.status === "loaded" ? count.value : undefined;
   const open = !retired && (answer === undefined || (answer.kind === "read" && answer.offered));
@@ -304,19 +313,16 @@ export function InitialCountScreen({
   const lines = linesOf(count);
 
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      <NoSessionRail person={person} current="/initial-count" signOut={signOut} />
+    <RegisterFrame
+      background="subtle"
+      rail={<NoSessionRail person={person} current="/initial-count" signOut={signOut} />}
+      aside={open ? <InitialCountSummaryPanel state={lines} onFinish={goHome} /> : null}
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader eyebrow="Puesta en marcha · Sin sesión de caja" title="Inventario inicial" />
+        <ScreenHeader eyebrow="Puesta en marcha" title="Inventario inicial" />
         {open ? (
           <>
-            <form
-              ref={field}
-              noValidate
-              className="relative"
-              onSubmit={submit}
-              onKeyDownCapture={driveResults}
-            >
+            <form ref={field} noValidate className="relative" onSubmit={submit}>
               <SearchField
                 label="Producto"
                 placeholder="Escaneá el producto o buscalo por nombre"
@@ -365,7 +371,6 @@ export function InitialCountScreen({
           />
         ) : null}
       </main>
-      {open ? <InitialCountSummaryPanel state={lines} onFinish={goHome} /> : null}
       {counting === undefined ? null : (
         <CountLineModal
           product={counting}
@@ -384,6 +389,6 @@ export function InitialCountScreen({
           onDismiss={() => setWithdrawNotice(undefined)}
         />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

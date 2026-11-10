@@ -290,6 +290,25 @@ describe("SaleScreen searching by name", () => {
       expect(scanProduct).not.toHaveBeenCalled();
     });
 
+    it("leaves the arrows and Enter to another focused control, without moving or adding a result", async () => {
+      const addProduct = vi.fn<SaleScreenProps["addProduct"]>();
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND, QUESO_FOUND])),
+        addProduct,
+      });
+      await field.fill("a");
+      await expect.element(screen.getByRole("option")).toHaveLength(2);
+
+      screen.getByRole("navigation").getByRole("button", { name: "Salir" }).element().focus();
+      await userEvent.keyboard("{ArrowDown}{Enter}");
+
+      await expect.element(screen.getByRole("dialog")).toBeVisible();
+      await expect
+        .element(screen.getByRole("option").nth(0))
+        .toHaveAttribute("aria-selected", "true");
+      expect(addProduct).not.toHaveBeenCalled();
+    });
+
     it("closes the list keeping the text on Escape, and Enter then scans that text", async () => {
       const scanProduct = vi.fn<SaleScreenProps["scanProduct"]>(
         async (): Promise<ScanProductOutcome> => ({ kind: "unknown_code" }),

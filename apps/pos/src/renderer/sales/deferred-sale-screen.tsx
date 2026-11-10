@@ -25,6 +25,7 @@ import type { DeferredSaleReading } from "../platform/core-client";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -138,17 +139,74 @@ export function DeferredSaleScreen({
   const notice = refusal === undefined ? undefined : deferredSaleRefusal(refusal);
 
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      {sessionOpen ? (
-        <OpenSessionRail
-          registerName={registerName}
-          lock={lock}
-          current="deferred_sale"
-          abilities={person.abilities}
-        />
-      ) : (
-        <NoSessionRail person={person} current="/deferred-sale" signOut={lock} />
-      )}
+    <RegisterFrame
+      background="subtle"
+      rail={
+        sessionOpen ? (
+          <OpenSessionRail
+            registerName={registerName}
+            lock={lock}
+            current="deferred_sale"
+            abilities={person.abilities}
+          />
+        ) : (
+          <NoSessionRail person={person} current="/deferred-sale" signOut={lock} />
+        )
+      }
+      aside={
+        <SidePanel
+          label="Venta diferida"
+          footer={
+            <p className="text-detail text-text-subtle">
+              La factura sale como original, con la fecha de la venta.
+            </p>
+          }
+        >
+          <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
+          <p className="text-title text-text-accent">
+            Tipeá el código de consulta impreso en el documento
+          </p>
+          <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+            <form.AppField name="code" listeners={{ onChange: () => setRefusal(undefined) }}>
+              {(field) => (
+                <field.TextField
+                  kind="plain-text"
+                  label="Código de consulta"
+                  disabled={submitting}
+                />
+              )}
+            </form.AppField>
+            <Button
+              type="submit"
+              size="large"
+              fullWidth
+              dataStatus={submitting ? "loading" : "loaded"}
+            >
+              Buscar venta
+            </Button>
+          </form>
+          {notice === undefined ? null : (
+            <InlineNotice
+              tone={notice.tone}
+              icon={notice.tone === "info" ? <Info /> : <TriangleAlert />}
+              title={notice.title}
+              description={notice.description}
+            />
+          )}
+          {refusal === "already_printed" && printedSale !== undefined ? (
+            <Button
+              variant="secondary"
+              size="large"
+              fullWidth
+              icon={<Printer />}
+              onPress={() => setReprinting(true)}
+            >
+              {receiptCopyPresentation({ kind: "duplicate" }).printButton}
+            </Button>
+          ) : null}
+        </SidePanel>
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader
           eyebrow="VENTA DIFERIDA · EL CLIENTE VOLVIÓ POR SU FACTURA"
@@ -165,53 +223,6 @@ export function DeferredSaleScreen({
           </Card>
         </div>
       </main>
-      <SidePanel
-        label="Venta diferida"
-        footer={
-          <p className="text-detail text-text-subtle">
-            La factura sale como original, con la fecha de la venta.
-          </p>
-        }
-      >
-        <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
-        <p className="text-title text-text-accent">
-          Tipeá el código de consulta impreso en el documento
-        </p>
-        <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
-          <form.AppField name="code" listeners={{ onChange: () => setRefusal(undefined) }}>
-            {(field) => (
-              <field.TextField kind="plain-text" label="Código de consulta" disabled={submitting} />
-            )}
-          </form.AppField>
-          <Button
-            type="submit"
-            size="large"
-            fullWidth
-            dataStatus={submitting ? "loading" : "loaded"}
-          >
-            Buscar venta
-          </Button>
-        </form>
-        {notice === undefined ? null : (
-          <InlineNotice
-            tone={notice.tone}
-            icon={notice.tone === "info" ? <Info /> : <TriangleAlert />}
-            title={notice.title}
-            description={notice.description}
-          />
-        )}
-        {refusal === "already_printed" && printedSale !== undefined ? (
-          <Button
-            variant="secondary"
-            size="large"
-            fullWidth
-            icon={<Printer />}
-            onPress={() => setReprinting(true)}
-          >
-            {receiptCopyPresentation({ kind: "duplicate" }).printButton}
-          </Button>
-        ) : null}
-      </SidePanel>
       {found === undefined ? null : (
         <PrintDeferredInvoiceModal
           sale={found}
@@ -281,6 +292,6 @@ export function DeferredSaleScreen({
           onDismiss={() => setPrinted(false)}
         />
       ) : null}
-    </div>
+    </RegisterFrame>
   );
 }

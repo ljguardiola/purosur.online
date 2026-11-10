@@ -67,16 +67,20 @@ function ReturnFlow({
     loadAuthorizers,
   });
 
+  const rail = (
+    <OpenSessionRail
+      registerName={registerName}
+      lock={lock}
+      current="return"
+      abilities={person.abilities}
+    />
+  );
+
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail
-        registerName={registerName}
-        lock={lock}
-        current="return"
-        abilities={person.abilities}
-      />
+    <>
       {standing.step === "build" || standing.step === "completed" ? (
         <ReturnBuildStep
+          rail={rail}
           sale={standing.sale}
           source={standing.source}
           authorization={authorization}
@@ -96,6 +100,7 @@ function ReturnFlow({
         />
       ) : (
         <ReturnFindStep
+          rail={rail}
           authorization={authorization}
           findSaleForReturn={findSaleForReturn}
           onFound={(sale, source) => setStanding({ step: "confirm", sale, source })}
@@ -121,7 +126,7 @@ function ReturnFlow({
           onDone={restart}
         />
       ) : null}
-    </div>
+    </>
   );
 }
 

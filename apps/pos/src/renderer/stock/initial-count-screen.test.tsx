@@ -65,13 +65,14 @@ describe("InitialCountScreen", () => {
       .toBeInViewport();
   });
 
-  it("is titled Inventario inicial, names the start-up without a cash session, and offers the way home", async () => {
+  it("is titled Inventario inicial, names the start-up, leaving the missing cash session to the frame's header, and offers the way home", async () => {
     const { screen, field } = await renderScreen();
 
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Inventario inicial" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Puesta en marcha · Sin sesión de caja")).toBeVisible();
+    await expect.element(screen.getByText("Puesta en marcha", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/sesión/)).not.toBeInTheDocument();
     await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
     await expect.element(field).toHaveAttribute("placeholder", PLACEHOLDER);
     await expectNoAccessibilityViolations(screen.container);

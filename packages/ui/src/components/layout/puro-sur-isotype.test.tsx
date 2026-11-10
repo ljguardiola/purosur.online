@@ -9,3 +9,12 @@ test("renders the brand kit's isotype named after the brand", async () => {
   expect(image.tagName).toBe("IMG");
   expect(image.src).toContain("puro-sur-iso");
 });
+
+test("stays out of the accessibility tree when it only decorates", async () => {
+  const screen = await render(<PuroSurIsotype decorative />);
+
+  await expect.element(screen.getByRole("img", { name: "Puro Sur" })).not.toBeInTheDocument();
+  const image = screen.container.querySelector("img") as HTMLImageElement;
+  expect(image.alt).toBe("");
+  expect(image.src).toContain("puro-sur-iso");
+});

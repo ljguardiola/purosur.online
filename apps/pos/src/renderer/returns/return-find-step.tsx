@@ -10,11 +10,12 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { ScanBarcode, Search, TriangleAlert } from "lucide-react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { SaleForReturnReading } from "../platform/core-client";
 import { AuthorizationSection } from "../shell/authorization-section";
 import { useBarcodeReadings } from "../shell/barcode-readings";
+import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
 import type { SaleForReturn } from "./return-sale";
 import type { FindRefusalKind } from "./return-text";
@@ -29,6 +30,7 @@ import {
 } from "./return-ticket-form";
 
 export type ReturnFindStepProps = {
+  rail: ReactNode;
   authorization: AuthorizationState;
   findSaleForReturn: (
     reading: SaleForReturnReading,
@@ -40,6 +42,7 @@ export type ReturnFindStepProps = {
 };
 
 export function ReturnFindStep({
+  rail,
   authorization,
   findSaleForReturn,
   onFound,
@@ -133,7 +136,61 @@ export function ReturnFindStep({
   const notice = refusal === undefined ? undefined : findRefusalText(refusal);
 
   return (
-    <>
+    <RegisterFrame
+      background="subtle"
+      rail={rail}
+      aside={
+        <SidePanel label="Datos del ticket">
+          <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
+          <p className="text-title text-text-accent">Tipeá los datos impresos en el ticket</p>
+          <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+            <form.AppField name="pointOfSale" listeners={{ onChange: () => setRefusal(undefined) }}>
+              {(field) => (
+                <field.TextField
+                  kind="plain-text"
+                  label="Punto de venta"
+                  inputMode="numeric"
+                  disabled={submitting}
+                />
+              )}
+            </form.AppField>
+            <form.AppField name="number" listeners={{ onChange: () => setRefusal(undefined) }}>
+              {(field) => (
+                <field.TextField
+                  kind="plain-text"
+                  label="Número de comprobante"
+                  inputMode="numeric"
+                  disabled={submitting}
+                />
+              )}
+            </form.AppField>
+            <Button
+              type="submit"
+              variant="secondary"
+              size="large"
+              fullWidth
+              icon={<Search />}
+              dataStatus={submitting ? "loading" : "loaded"}
+            >
+              Buscar venta
+            </Button>
+          </form>
+          {notice === undefined ? null : (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title={notice.title}
+              {...(notice.description === undefined ? {} : { description: notice.description })}
+            />
+          )}
+          <AuthorizationSection
+            authorization={authorization}
+            action="hacer devoluciones"
+            disabled={submitting}
+          />
+        </SidePanel>
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader
           eyebrow="DEVOLUCIÓN · SOLO CON TICKET"
@@ -150,55 +207,6 @@ export function ReturnFindStep({
           </Card>
         </div>
       </main>
-      <SidePanel label="Datos del ticket">
-        <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
-        <p className="text-title text-text-accent">Tipeá los datos impresos en el ticket</p>
-        <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
-          <form.AppField name="pointOfSale" listeners={{ onChange: () => setRefusal(undefined) }}>
-            {(field) => (
-              <field.TextField
-                kind="plain-text"
-                label="Punto de venta"
-                inputMode="numeric"
-                disabled={submitting}
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="number" listeners={{ onChange: () => setRefusal(undefined) }}>
-            {(field) => (
-              <field.TextField
-                kind="plain-text"
-                label="Número de comprobante"
-                inputMode="numeric"
-                disabled={submitting}
-              />
-            )}
-          </form.AppField>
-          <Button
-            type="submit"
-            variant="secondary"
-            size="large"
-            fullWidth
-            icon={<Search />}
-            dataStatus={submitting ? "loading" : "loaded"}
-          >
-            Buscar venta
-          </Button>
-        </form>
-        {notice === undefined ? null : (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={notice.title}
-            {...(notice.description === undefined ? {} : { description: notice.description })}
-          />
-        )}
-        <AuthorizationSection
-          authorization={authorization}
-          action="hacer devoluciones"
-          disabled={submitting}
-        />
-      </SidePanel>
-    </>
+    </RegisterFrame>
   );
 }

@@ -46,6 +46,7 @@ type ModalLeadingProps = {
   context?: string;
   contextTone?: Tone;
   bodyPadding?: ModalBodyPadding;
+  escapeKeycap?: boolean;
 };
 
 type ModalCenteredProps = {
@@ -53,6 +54,7 @@ type ModalCenteredProps = {
   context?: undefined;
   contextTone?: undefined;
   bodyPadding?: undefined;
+  escapeKeycap?: undefined;
 };
 
 // In the centered layout, `closable` only enables Escape to dismiss — it draws no close button.
@@ -330,7 +332,12 @@ export function Modal(props: ModalProps) {
                     {title}
                   </AriaHeading>
                 </div>
-                {props.closable ? <CloseButton onPress={() => onOpenChange(false)} /> : null}
+                {props.closable ? (
+                  <CloseButton
+                    onPress={() => onOpenChange(false)}
+                    escapeKeycap={props.escapeKeycap ?? false}
+                  />
+                ) : null}
               </div>
               {hasContent(children) && (
                 <div

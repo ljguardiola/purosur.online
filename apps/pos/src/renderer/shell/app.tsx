@@ -34,6 +34,7 @@ import type {
   SalesHistoryQuery,
   SerialDevicesToRegister,
 } from "../platform/core-client";
+import { KeyLayerProvider } from "../platform/key-layer";
 import { createQueryClient } from "../platform/query-client";
 import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
@@ -66,7 +67,9 @@ export function App({ core }: { core: CoreClient }) {
     <LocaleProvider>
       <QueryClientProvider client={queryClient}>
         <BarcodeReadings onBarcodeRead={core.onBarcodeRead}>
-          <Register core={core} />
+          <KeyLayerProvider>
+            <Register core={core} />
+          </KeyLayerProvider>
         </BarcodeReadings>
       </QueryClientProvider>
     </LocaleProvider>

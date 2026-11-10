@@ -7,6 +7,7 @@ import {
   app,
   BrowserWindow,
   dialog,
+  Menu,
   MessageChannelMain,
   net,
   safeStorage,
@@ -23,6 +24,7 @@ import { reportCoreReadinessMiss } from "./core-readiness-miss";
 import { reportCoreRefusal } from "./core-refusal";
 import { broadcastCoreStatus, type CoreStatus } from "./core-status-broadcast";
 import { createCoreSupervisor, type SupervisedProcess } from "./core-supervisor";
+import { createRegisterWindow } from "./create-register-window";
 import {
   answerCoreCredentialsRequest,
   createDeviceCredentialsStore,
@@ -44,7 +46,6 @@ import { createSnapshotWorkerLauncher } from "./snapshot-worker-launcher";
 import { reportStartFailure } from "./start-failure";
 import { createSafeMomentAsker } from "./update-safe-moment-asker";
 import { showWhenReadyAndReviveRenderer } from "./window-lifecycle";
-import { createWindowOptions } from "./window-options";
 
 // Electron derives the data folder from package.json's name, which both channels share; each
 // channel's own folder has to be set before the app is ready.
@@ -109,7 +110,7 @@ function startRegister(settings: ChannelSettings): void {
   app.whenReady().then(() => {
     applyContentSecurityPolicy();
 
-    const window = new BrowserWindow(createWindowOptions(PRELOAD_ENTRY));
+    const window = createRegisterWindow({ BrowserWindow, Menu }, PRELOAD_ENTRY);
     guardWindow(window);
     showWhenReadyAndReviveRenderer(
       {

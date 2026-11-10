@@ -143,3 +143,16 @@ export const ScrollingBody: Story = {
     await expect(body).toHaveFocus();
   },
 };
+
+export const ClosableWithEscapeKeycap: Story = {
+  args: {
+    tone: "info",
+    icon: <Info />,
+    title: "Reloj atrasado",
+    context: "Caja 1",
+    closable: true,
+    escapeKeycap: true,
+    children: "Podés cerrar este modal con Esc.",
+    footer: <Button keycap="Enter">Confirmar hora</Button>,
+  },
+};

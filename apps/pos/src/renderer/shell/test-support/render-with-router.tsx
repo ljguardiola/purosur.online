@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 import type { ComponentRenderOptions } from "vitest-browser-react";
 import { render as renderInPage } from "vitest-browser-react";
+import { KeyLayerProvider } from "../../platform/key-layer";
 import { createQueryClient } from "../../platform/query-client";
 
 const ContentContext = createContext<ReactNode>(null);
@@ -37,9 +38,11 @@ export async function render(ui: ReactNode, options: ComponentRenderOptions = {}
     ...options,
     wrapper: ({ children }) => (
       <QueryClientProvider client={queryClient}>
-        <ContentContext value={children}>
-          <RouterProvider router={router} />
-        </ContentContext>
+        <KeyLayerProvider>
+          <ContentContext value={children}>
+            <RouterProvider router={router} />
+          </ContentContext>
+        </KeyLayerProvider>
       </QueryClientProvider>
     ),
   });

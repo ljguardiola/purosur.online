@@ -28,6 +28,7 @@ async function renderStep(
     <LockedCloserIdentification
       sessionId="s1"
       registerName="Caja 1"
+      version="1.4.212"
       loadClosers={options.loadClosers ?? (async () => CLOSERS)}
       identify={identify}
       returned={options.returned}
@@ -56,6 +57,16 @@ describe("LockedCloserIdentification", () => {
     await expect.element(screen.getByRole("radio", { name: "Sofía" })).toBeVisible();
     expect(screen.getByRole("radio").elements()).toHaveLength(1);
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the full logo and the version, with no rail", async () => {
+    const { screen } = await renderStep();
+
+    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
+    await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
+    await expect
+      .element(screen.getByRole("navigation", { name: "Menú de la caja" }))
+      .not.toBeInTheDocument();
   });
 
   it("shows no cash figure", async () => {

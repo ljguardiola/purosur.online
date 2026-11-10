@@ -180,6 +180,25 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     await expect.element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" })).toBeVisible();
   });
 
+  it("leaves the arrows and Enter to another focused control, without moving or choosing a result", async () => {
+    const { screen, field } = await renderScreen({
+      searchCountableProducts: vi.fn(async () => results(QUESO_PRODUCT, YERBA_PRODUCT)),
+    });
+    await field.fill("que");
+    await expect.element(screen.getByRole("listbox")).toBeVisible();
+
+    screen.getByRole("navigation").getByRole("button", { name: "Salir" }).element().focus();
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+
+    await expect.element(screen.getByRole("dialog", { name: "¿Salir de la caja?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("option").nth(0))
+      .toHaveAttribute("aria-selected", "true");
+    await expect
+      .element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" }))
+      .not.toBeInTheDocument();
+  });
+
   it("tells nothing matches the name that was typed", async () => {
     const { screen, field } = await renderScreen({
       searchCountableProducts: vi.fn(async () => results()),
