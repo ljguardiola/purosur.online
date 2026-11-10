@@ -314,7 +314,7 @@ test("keeps the channel chosen in the address", async () => {
   await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
 
   await screen.getByRole("button", { name: /^Canal/ }).click();
-  await userEvent.click(screen.getByRole("option", { name: "Sin API" }));
+  await userEvent.click(screen.getByRole("option", { name: "Fuera de Mercado Pago" }));
 
   await expect.poll(location).toBe("/refunds?channel=without-api");
   await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();

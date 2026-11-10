@@ -77,12 +77,12 @@ test("opens Personas on its Usuarios tab, with the Roles tab and the assistant's
   expect(config.getAttribute("aria-current")).toBe("page");
 });
 
-test("the settings menu has no Usuarios, Mi cuenta, Roles or Respuesta ante un compromiso item", async () => {
+test("the settings menu has no Usuarios, Mi cuenta, Roles or Ante una sospecha de compromiso item", async () => {
   window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
   await expect.element(screen.getByRole("link", { name: "Personas" })).toBeVisible();
 
-  for (const name of ["Usuarios", "Mi cuenta", "Roles", "Respuesta ante un compromiso"]) {
+  for (const name of ["Usuarios", "Mi cuenta", "Roles", "Ante una sospecha de compromiso"]) {
     expect(screen.getByRole("link", { name }).query()).toBeNull();
   }
 });

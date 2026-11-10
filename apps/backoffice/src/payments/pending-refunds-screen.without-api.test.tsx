@@ -152,7 +152,7 @@ test("explains under the table that the refunds without an API are made outside 
   await expect
     .element(
       screen.getByText(
-        "Los reembolsos sin API se hacen fuera del sistema y acá se marcan como hechos.",
+        "Los reembolsos fuera de Mercado Pago se hacen por otro medio y acá se marcan como hechos.",
       ),
     )
     .toBeVisible();
