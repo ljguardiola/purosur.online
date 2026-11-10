@@ -14,6 +14,8 @@ export type { HelpArticleBodyProps } from "./components/data-display/help-articl
 export { HelpArticleBody } from "./components/data-display/help-article-body";
 export type { HighlightedFigureProps } from "./components/data-display/highlighted-figure";
 export { HighlightedFigure } from "./components/data-display/highlighted-figure";
+export type { KeycapProps, KeyName } from "./components/data-display/keycap";
+export { Keycap } from "./components/data-display/keycap";
 export type { PercentBarProps } from "./components/data-display/percent-bar";
 export { PercentBar } from "./components/data-display/percent-bar";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
