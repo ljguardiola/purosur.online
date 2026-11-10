@@ -32,7 +32,7 @@ import {
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Ban, BatteryLow, ScanBarcode } from "lucide-react";
+import { Ban, BatteryLow, ScanBarcode, Search } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -880,7 +880,7 @@ export function SaleScreen({
             label="Producto"
             {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
             placeholder="Escaneá o escribí el nombre"
-            icon={<ScanBarcode />}
+            icon={LETTER.test(code) ? <Search /> : <ScanBarcode />}
             invalid={shownProblem?.kind === "unknown_code"}
             {...(found === undefined
               ? {}
