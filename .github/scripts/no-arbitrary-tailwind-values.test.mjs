@@ -53,10 +53,34 @@ test("finds an arbitrary variant opening with a relative combinator that starts 
   assert.deepEqual(matchedTexts('"[>svg]:p-4 [+p]:p-4 [~p]:p-4"'), ["[>svg]", "[+p]", "[~p]"]);
 });
 
+test("finds an arbitrary variant without a nesting selector that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[.dark]:p-4 [:hover]:p-4 [#app]:p-4 [*]:p-4 [[data-x]]:p-4"'), [
+    "[.dark]",
+    "[:hover]",
+    "[#app]",
+    "[*]",
+    "[[data-x]]",
+  ]);
+});
+
+test("finds an arbitrary attribute variant that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[data-slot]:p-4 [aria-expanded=true]:p-4"'), [
+    "[data-slot]",
+    "[aria-expanded=true]",
+  ]);
+});
+
 test("reports once an arbitrary variant starting a class whose bracket opens like a property", () => {
   assert.deepEqual(matchedTexts('"[input:checked_&]:p-4 [input:checked_&[x]]:p-4"'), [
     "[input:checked_&]",
     "[input:checked_&[x]]",
+  ]);
+});
+
+test("finds an arbitrary variant before a variant named like a pseudo-class that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[data-slot]:hover:p-4 [data-x]:focus:hover:p-4"'), [
+    "[data-slot]",
+    "[data-x]",
   ]);
 });
 
@@ -65,6 +89,10 @@ test("does not flag a CSS selector string", () => {
     `const a = root.querySelector("[aria-live]:not([aria-live='off'])");`,
     'const b = root.querySelectorAll("[role=switch]:checked");',
     'const c = root.querySelector("[data-slot]:first-child");',
+    'const d = root.querySelector("[data-x]::before");',
+    'const e = root.querySelector("[data-x]:nth-child(2)");',
+    'const f = root.querySelector("[data-slot]:hover:focus");',
+    'const g = root.querySelector("[data-x]:not(.a):first-child");',
   ].join("\n");
 
   assert.deepEqual(findArbitraryValues(source), []);
