@@ -41,13 +41,20 @@ export function ConfirmationPanel({
         </div>
       }
       footer={
-        <Button size="large" fullWidth icon={actionIcon} keycap="Enter" onPress={onConfirm}>
+        <Button
+          size="large"
+          fullWidth
+          icon={actionIcon}
+          iconPosition="start"
+          keycap="Enter"
+          onPress={onConfirm}
+        >
           {actionLabel}
         </Button>
       }
     >
       <Eyebrow text={fieldLabel} />
-      <p className="text-display text-text">{value}</p>
+      <p className="text-hero text-text">{value}</p>
     </SidePanel>
   );
 }
