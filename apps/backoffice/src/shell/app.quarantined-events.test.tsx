@@ -17,7 +17,7 @@ function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });
 }
 
-test("shows the Eventos en cuarentena item to a user holding quarantined_events, opening its screen from the Config rail", async () => {
+test("shows the Cambios de cajas retenidos item to a user holding quarantined_events, opening its screen from the Config rail", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
@@ -35,16 +35,16 @@ test("shows the Eventos en cuarentena item to a user holding quarantined_events,
   await userEvent.click(screen.getByRole("link", { name: "Configuración" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/quarantined-events");
   const item = screen
-    .getByRole("link", { name: "Eventos en cuarentena" })
+    .getByRole("link", { name: "Cambios de cajas retenidos" })
     .element() as HTMLAnchorElement;
   expect(item.getAttribute("aria-current")).toBe("page");
 });
 
-test("hides the Eventos en cuarentena item from a user without quarantined_events", async () => {
+test("hides the Cambios de cajas retenidos item from a user without quarantined_events", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding([])),
   });
@@ -53,7 +53,7 @@ test("hides the Eventos en cuarentena item from a user without quarantined_event
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Eventos en cuarentena" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Cambios de cajas retenidos" }).query()).toBeNull();
 });
 
 test("redirects a typed /quarantined-events to Mi cuenta for a user without quarantined_events, without calling its API", async () => {
@@ -119,12 +119,12 @@ test("follows a quarantined event's alert to the quarantined events list", async
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Ver la alerta «Cuarentena de eventos»" }),
+    screen.getByRole("button", { name: "Ver la alerta «Cambios de cajas retenidos»" }),
   );
-  await userEvent.click(screen.getByRole("link", { name: "Ver eventos en cuarentena" }));
+  await userEvent.click(screen.getByRole("link", { name: "Ver cambios de cajas retenidos" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/quarantined-events");
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
