@@ -332,7 +332,7 @@ test("downloads a spreadsheet of the groups shown, for the grouping and the peri
 
   await expect
     .poll(() => downloads.names)
-    .toEqual(["costo-de-ia-por-periodo-2026-10-01-2026-10-31.xlsx"]);
+    .toEqual(["costo-de-ia-2026-10-01-2026-10-31.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Costo de IA"]);
   expect(file.sheet(0).get("B4")?.value).toBe("Proveedor");
