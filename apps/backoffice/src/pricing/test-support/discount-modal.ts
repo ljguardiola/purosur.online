@@ -28,7 +28,7 @@ export function validitySegments(dialog: Dialog) {
 
 const TARGET_LABELS: Record<string, string> = {
   "Elegí una categoría": "Categoría",
-  "Elegí un distintivo": "Distintivo",
+  "Elegí una etiqueta": "Etiqueta",
 };
 
 export async function chooseTarget(dialog: Dialog, placeholder: string, option: string) {

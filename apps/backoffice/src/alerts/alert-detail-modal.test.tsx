@@ -998,11 +998,11 @@ test("tells which register has events in quarantine", async () => {
 
   const screen = await renderModal(services);
 
-  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("Cambios de una caja retenidos")).toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "La caja «Caja 1» tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
+        "La caja «Caja 1» tiene cambios que no se pudieron aplicar y quedaron retenidos. Los cambios siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
       ),
     )
     .toBeVisible();
@@ -1023,9 +1023,9 @@ test("links a quarantined event's alert to the quarantined events screen for a p
 
   const screen = await renderModal(services, { access: accessWith("quarantined_events") });
 
-  const link = screen.getByRole("link", { name: "Ver eventos en cuarentena" });
+  const link = screen.getByRole("link", { name: "Ver cambios de cajas retenidos" });
   await expect.element(link).toBeVisible();
-  await expect.element(link).toHaveAttribute("href", "/quarantined-events");
+  await expect.element(link).toHaveAttribute("href", "/held-register-changes");
   await expectNoAccessibilityViolations(document.body);
 });
 
@@ -1035,8 +1035,8 @@ test("does not link a quarantined event's alert to the quarantined events screen
 
   const screen = await renderModal(services, { access: accessWith("alerts_area") });
 
-  await expect.element(screen.getByText("Eventos de una caja en cuarentena")).toBeVisible();
-  expect(screen.getByRole("link", { name: "Ver eventos en cuarentena" }).query()).toBeNull();
+  await expect.element(screen.getByText("Cambios de una caja retenidos")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Ver cambios de cajas retenidos" }).query()).toBeNull();
 });
 
 test("does not link an alert of another kind to the quarantined events screen", async () => {
@@ -1046,7 +1046,7 @@ test("does not link an alert of another kind to the quarantined events screen", 
   const screen = await renderModal(services, { access: accessWith("quarantined_events") });
 
   await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
-  expect(screen.getByRole("link", { name: "Ver eventos en cuarentena" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Ver cambios de cajas retenidos" }).query()).toBeNull();
 });
 
 test("tells which event was applied with an inconsistency and what it breaks", async () => {
@@ -2716,12 +2716,9 @@ test("tells that an alert for quarantined events resolves by itself and still of
 
   await expect
     .element(
-      screen.getByText(
-        "Se resuelve sola cuando no queda ningún evento de esta caja en cuarentena.",
-        {
-          exact: true,
-        },
-      ),
+      screen.getByText("Se resuelve sola cuando no queda ningún cambio retenido de esta caja.", {
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();

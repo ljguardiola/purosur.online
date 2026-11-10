@@ -9,10 +9,10 @@ export type NewTagModalServices = {
 };
 
 const NEW_TAG_TEXTS = {
-  title: "Nuevo distintivo",
-  submitLabel: "Crear el distintivo",
+  title: "Nueva etiqueta",
+  submitLabel: "Crear la etiqueta",
   nameTaken: TAG_NAME_TAKEN,
-  failed: "No se guardó el distintivo",
+  failed: "No se guardó la etiqueta",
 };
 
 type NewTagModalProps = {

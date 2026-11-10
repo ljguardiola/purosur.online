@@ -137,7 +137,7 @@ export function EditTagModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Productos · Distintivos"
+      context="Productos · Etiquetas"
       title={loaded?.name ?? ""}
       closable
       footer={
@@ -168,7 +168,7 @@ export function EditTagModal({
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
             <ActionFailureNotice
-              title="No se guardó el distintivo"
+              title="No se guardó la etiqueta"
               description="Volvé a intentarlo."
             />
           )}
@@ -184,7 +184,7 @@ export function EditTagModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title="Este distintivo cambió mientras lo editabas"
+              title="Esta etiqueta cambió mientras la editabas"
               description="Recargá sus datos y volvé a hacer el cambio."
             />
           )}
@@ -192,7 +192,7 @@ export function EditTagModal({
             <InlineNotice
               tone="error"
               icon={<TriangleAlert />}
-              title="Este distintivo ya no existe"
+              title="Esta etiqueta ya no existe"
             />
           )}
           {notice?.kind === "staleVersion" ? (

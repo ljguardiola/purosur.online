@@ -63,7 +63,7 @@ test("shows the current price beside the recommended one, per kilo, and the unit
   await expect.element(screen.getByText("$ 15.000,00 / kg")).toBeVisible();
   await expect.element(screen.getByText("Precio recomendado")).toBeVisible();
   await expect.element(screen.getByText("$ 16.000,00 / kg", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Costo de la última tanda")).toBeVisible();
+  await expect.element(screen.getByText("Costo de la última producción")).toBeVisible();
   await expect.element(screen.getByText("$ 12.000,00 / kg")).toBeVisible();
 });
 
@@ -121,7 +121,7 @@ test("shows no margin and says there is no batch yet", async () => {
 
   await expect.element(screen.getByText("No se puede calcular el margen.")).toBeVisible();
   await expect.element(screen.getByText("Margen con este precio")).not.toBeInTheDocument();
-  await expect.element(screen.getByText("Sin tandas")).toBeVisible();
+  await expect.element(screen.getByText("Sin producciones")).toBeVisible();
 });
 
 test("shows no margin and says the latest batch's cost is incomplete", async () => {

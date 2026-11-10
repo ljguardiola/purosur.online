@@ -26,7 +26,7 @@ async function fillNewProduct(dialog: Locator) {
 }
 
 function addTagButton(dialog: Locator) {
-  return dialog.getByRole("button", { name: "Agregar distintivo" });
+  return dialog.getByRole("button", { name: "Agregar etiqueta" });
 }
 
 async function chooseTag(dialog: Locator, name: string) {
@@ -36,8 +36,8 @@ async function chooseTag(dialog: Locator, name: string) {
 
 async function openStackedNewTagModal(dialog: Locator) {
   await userEvent.click(addTagButton(dialog));
-  await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
-  const tagDialog = page.getByRole("dialog", { name: "Nuevo distintivo" });
+  await userEvent.click(page.getByRole("menuitem", { name: "Crear etiqueta…" }));
+  const tagDialog = page.getByRole("dialog", { name: "Nueva etiqueta" });
   await expect.element(tagDialog).toBeVisible();
   return tagDialog;
 }
@@ -54,7 +54,7 @@ test("a new product starts with no tags and offers the active ones by name, then
     sinTacc,
   ]);
 
-  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
+  await expect.element(dialog.getByRole("group", { name: "Etiquetas" })).toBeVisible();
   expect(dialog.getByRole("button", { name: /^Quitar/ }).query()).toBeNull();
   await userEvent.click(addTagButton(dialog));
 
@@ -63,7 +63,7 @@ test("a new product starts with no tags and offers the active ones by name, then
     "Orgánico",
     "Sin TACC",
     "Vegano",
-    "Crear distintivo…",
+    "Crear etiqueta…",
   ]);
 });
 
@@ -94,13 +94,13 @@ test("creates a tag in a modal stacked over the product form, appends it as a ch
   await chooseTag(productDialog, "Sin TACC");
 
   const tagDialog = await openStackedNewTagModal(productDialog);
-  await expect.element(tagDialog.getByText("Distintivos", { exact: true })).toBeVisible();
+  await expect.element(tagDialog.getByText("Etiquetas", { exact: true })).toBeVisible();
   await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), "Orgánico");
-  await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+  await userEvent.click(tagDialog.getByRole("button", { name: "Crear la etiqueta" }));
 
   expect(services.createTag).toHaveBeenCalledWith({ name: "Orgánico" });
   await expect
-    .poll(() => screen.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+    .poll(() => screen.getByRole("dialog", { name: "Nueva etiqueta" }).query())
     .toBeNull();
   const productForm = screen.getByRole("dialog", { name: "Nuevo producto" });
   const chips = productForm.getByRole("listitem").all();
@@ -131,9 +131,9 @@ test("keeps every tag created from the stacked modal as a chip, each removable a
   for (const name of ["Orgánico", "Vegano"]) {
     const tagDialog = await openStackedNewTagModal(productDialog);
     await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), name);
-    await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+    await userEvent.click(tagDialog.getByRole("button", { name: "Crear la etiqueta" }));
     await expect
-      .poll(() => screen.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+      .poll(() => screen.getByRole("dialog", { name: "Nueva etiqueta" }).query())
       .toBeNull();
   }
 
@@ -155,14 +155,14 @@ test("a tag name already taken shows the error in the stacked modal and keeps th
 
   const tagDialog = await openStackedNewTagModal(productDialog);
   await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), "sin tacc");
-  await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+  await userEvent.click(tagDialog.getByRole("button", { name: "Crear la etiqueta" }));
 
   await expect
-    .element(tagDialog.getByText("Ya existe un distintivo con este nombre."))
+    .element(tagDialog.getByText("Ya existe una etiqueta con este nombre."))
     .toBeVisible();
   await userEvent.click(tagDialog.getByRole("button", { name: "Cancelar" }));
   await expect
-    .poll(() => screen.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+    .poll(() => screen.getByRole("dialog", { name: "Nueva etiqueta" }).query())
     .toBeNull();
   const productForm = screen.getByRole("dialog", { name: "Nuevo producto" });
   await expect
@@ -196,7 +196,7 @@ test("shows on the tags field that a tag chosen no longer exists", async () => {
 
   await submit(dialog);
 
-  await expect.element(dialog.getByText("Un distintivo elegido ya no existe.")).toBeVisible();
+  await expect.element(dialog.getByText("Una etiqueta elegida ya no existe.")).toBeVisible();
 });
 
 test("has no accessibility violations with the tag modal stacked over the product form", async () => {

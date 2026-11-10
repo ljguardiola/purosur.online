@@ -45,12 +45,7 @@ export function ReportsPage(): ReactElement {
 
   return (
     <ScreenLayout
-      topBar={
-        <AreaTopBar
-          eyebrow={`Reportes · ${REPORTS_TAB_LABELS[selectedTab]}`}
-          title={REPORT_VIEW_TITLES[selectedView]}
-        />
-      }
+      topBar={<AreaTopBar eyebrow="Reportes" title={REPORT_VIEW_TITLES[selectedView]} />}
       bodyClassName="p-0"
     >
       <Tabs

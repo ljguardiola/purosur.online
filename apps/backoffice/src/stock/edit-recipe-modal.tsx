@@ -209,8 +209,8 @@ export function EditRecipeModal({
             )}
           </form.AppField>
           <p className="text-detail text-text-subtle">
-            Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo
-            que realmente se usó.
+            Es una plantilla: al registrar una producción se proponen estas cantidades y se registra
+            lo que realmente se usó.
           </p>
           {PriceSection && values.components.length > 0 ? (
             <PriceSection

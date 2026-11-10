@@ -26,12 +26,12 @@ const meta: Meta<typeof ChipListField<Diet>> = {
   title: "Components/ChipListField",
   component: ChipListField<Diet>,
   args: {
-    label: "Distintivos",
+    label: "Etiquetas",
     options,
     value: [],
     onChange: () => {},
-    addLabel: "Agregar distintivo",
-    create: { label: "Crear distintivo…", onAction: () => {} },
+    addLabel: "Agregar etiqueta",
+    create: { label: "Crear etiqueta…", onAction: () => {} },
   },
   decorators: [
     (Story) => (
@@ -86,17 +86,17 @@ export const RemoveButtonHovered: Story = {
 };
 
 export const FocusedAddPill: Story = {
-  play: playTabReachesFocusVisible(button("Agregar distintivo")),
+  play: playTabReachesFocusVisible(button("Agregar etiqueta")),
 };
 
 export const MenuOpen: Story = {
   args: { value: ["organic"] },
-  play: playClickExpandsTrigger(button("Agregar distintivo")),
+  play: playClickExpandsTrigger(button("Agregar etiqueta")),
 };
 
 export const MenuOpenOnlyCreate: Story = {
   args: { value: ["organic", "vegan", "local", "gluten-free", "fair-trade"] },
-  play: playClickExpandsTrigger(button("Agregar distintivo")),
+  play: playClickExpandsTrigger(button("Agregar etiqueta")),
 };
 
 const withoutCreate: Story["render"] = ({ create: _create, ...args }) => (
@@ -106,7 +106,7 @@ const withoutCreate: Story["render"] = ({ create: _create, ...args }) => (
 export const MenuOpenWithoutCreate: Story = {
   args: { value: ["organic"] },
   render: withoutCreate,
-  play: playClickExpandsTrigger(button("Agregar distintivo")),
+  play: playClickExpandsTrigger(button("Agregar etiqueta")),
 };
 
 export const NothingToAdd: Story = {
@@ -118,11 +118,11 @@ function ChipListFieldLosingItsOnlyChip() {
   const [value, setValue] = useState<Diet[]>(["dye-free"]);
   return (
     <ChipListField
-      label="Distintivos"
+      label="Etiquetas"
       options={options.filter((option) => option.status !== undefined)}
       value={value}
       onChange={setValue}
-      addLabel="Agregar distintivo"
+      addLabel="Agregar etiqueta"
     />
   );
 }
@@ -132,14 +132,14 @@ export const FocusedAfterRemovingTheOnlyChip: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.tab();
     await userEvent.keyboard("{Enter}");
-    const group = within(canvasElement).getByRole("group", { name: "Distintivos" });
+    const group = within(canvasElement).getByRole("group", { name: "Etiquetas" });
     await expect(group).toHaveFocus();
     await expect(group.matches(":focus-visible")).toBe(true);
   },
 };
 
 export const Invalid: Story = {
-  args: { value: [], errorMessage: "Elegí al menos un distintivo." },
+  args: { value: [], errorMessage: "Elegí al menos una etiqueta." },
 };
 
 function ChipListFieldWithMessageElsewhere() {
@@ -147,15 +147,15 @@ function ChipListFieldWithMessageElsewhere() {
   return (
     <div className="flex flex-col gap-1.5">
       <ChipListField
-        label="Distintivos"
+        label="Etiquetas"
         options={options}
         value={["organic"]}
         onChange={() => {}}
-        addLabel="Agregar distintivo"
+        addLabel="Agregar etiqueta"
         errorMessageId={messageId}
       />
       <p id={messageId} className={fieldErrorClassName}>
-        Elegí al menos un distintivo.
+        Elegí al menos una etiqueta.
       </p>
     </div>
   );

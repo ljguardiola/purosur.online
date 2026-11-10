@@ -266,3 +266,44 @@ test("has no accessibility violations while a permission is required", async () 
   await expect.element(screen.getByText("Lo requiere «Pérdidas».")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("names the permissions of a renamed page after it", async () => {
+  const purchasing = await render(<Harness initialArea="purchasing" />);
+  await expect
+    .element(purchasing.getByRole("checkbox", { name: "Pedidos a proveedores", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      purchasing.getByRole("checkbox", { name: "Recibir pedidos a proveedores", exact: true }),
+    )
+    .toBeVisible();
+  await purchasing.unmount();
+
+  const assembled = await render(<Harness initialArea="assembledProducts" />);
+  await expect
+    .element(assembled.getByRole("checkbox", { name: "Producciones", exact: true }))
+    .toBeVisible();
+  await assembled.unmount();
+
+  const devices = await render(<Harness initialArea="devices" />);
+  await expect
+    .element(
+      devices.getByRole("checkbox", { name: "Liberar cambios de cajas retenidos", exact: true }),
+    )
+    .toBeVisible();
+});
+
+test("names the permission areas after the rail's pages", async () => {
+  const screen = await render(<Harness />);
+
+  for (const area of ["Devoluciones y reembolsos", "Productos", "Armados", "Personas"]) {
+    await expect
+      .element(screen.getByRole("button", { name: new RegExp(`^${area} \\d+ de \\d+$`) }))
+      .toBeVisible();
+  }
+  for (const retired of ["Devoluciones", "Catálogo", "Productos armados", "Usuarios"]) {
+    expect(
+      screen.getByRole("button", { name: new RegExp(`^${retired} \\d+ de \\d+$`) }).query(),
+    ).toBeNull();
+  }
+});

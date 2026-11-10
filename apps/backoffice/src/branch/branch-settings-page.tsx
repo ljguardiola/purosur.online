@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { BranchSettingsScreen } from "./branch-settings-screen";
 import { defaultBranchSettingsScreenServices } from "./branch-settings-services";
 
-const route = getRouteApi("/signed-in/settings-area/location-settings");
+const route = getRouteApi("/signed-in/settings-area/branch");
 
 export function BranchSettingsPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

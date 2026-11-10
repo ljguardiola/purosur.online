@@ -144,13 +144,13 @@ export function AssemblyBatchesScreen({
     }),
     actionsColumn({
       id: "actions",
-      header: "Acciones de la tanda",
+      header: "Acciones de la producción",
       actions: [
         (batch: AssemblyBatch) =>
           batch.status === "voidable"
             ? {
                 icon: <Ban />,
-                "aria-label": `Anular tanda de ${formatProductDescription({ name: batch.productName, brandName: batch.brandName, netContent: batch.netContent })}`,
+                "aria-label": `Anular producción de ${formatProductDescription({ name: batch.productName, brandName: batch.brandName, netContent: batch.netContent })}`,
                 onPress: () => setVoiding(batch),
               }
             : undefined,
@@ -201,20 +201,20 @@ export function AssemblyBatchesScreen({
               dataStatus={data.status}
               onPress={() => setModalOpen(true)}
             >
-              Nueva tanda
+              Nueva producción
             </Button>
           </div>
         </div>
         <Table
-          aria-label="Tandas"
+          aria-label="Producciones"
           table={table}
-          {...cloudTableState(data, "las tandas")}
+          {...cloudTableState(data, "las producciones")}
           empty={
             batches.length === 0
               ? {
                   icon: <CookingPot />,
-                  title: `Sin tandas en los últimos ${days} días`,
-                  description: "Cada tanda registra lo que se usó y lo que se obtuvo.",
+                  title: `Sin producciones en los últimos ${days} días`,
+                  description: "Cada producción registra lo que se usó y lo que se obtuvo.",
                   variant: "blank",
                 }
               : {
@@ -241,8 +241,8 @@ export function AssemblyBatchesScreen({
             setModalOpen(false);
             setNotice((previous) => ({
               id: (previous?.id ?? 0) + 1,
-              title: "Tanda registrada",
-              description: `Se registró una tanda de ${formatProductDescription({ name: recipe.productName, brandName: recipe.brandName, netContent: recipe.netContent })}.`,
+              title: "Producción registrada",
+              description: `Se registró una producción de ${formatProductDescription({ name: recipe.productName, brandName: recipe.brandName, netContent: recipe.netContent })}.`,
             }));
             void refreshStock();
           }}
@@ -258,8 +258,8 @@ export function AssemblyBatchesScreen({
             setVoiding(null);
             setNotice((previous) => ({
               id: (previous?.id ?? 0) + 1,
-              title: "Tanda anulada",
-              description: `Se anuló la tanda de ${formatProductDescription({ name: voiding.productName, brandName: voiding.brandName, netContent: voiding.netContent })}.`,
+              title: "Producción anulada",
+              description: `Se anuló la producción de ${formatProductDescription({ name: voiding.productName, brandName: voiding.brandName, netContent: voiding.netContent })}.`,
             }));
             void refreshStock();
           }}

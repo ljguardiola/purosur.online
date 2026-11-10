@@ -211,7 +211,7 @@ test("a list the previous person had open is read again from the loading placeho
   expect(screen.getByText(honey.name).query()).toBeNull();
 });
 
-test("follows a demotion reported by real use of the open tab: Personas leaves the Config rail and the Users list gives way to the own account panel", async () => {
+test("follows a demotion reported by real use of the open tab: Personas leaves the Configuración rail and the Users list gives way to the own account panel", async () => {
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -237,7 +237,7 @@ test("follows a demotion reported by real use of the open tab: Personas leaves t
   }
 });
 
-test("follows a promotion reported by real use of the open tab: Personas becomes the Config rail's target", async () => {
+test("follows a promotion reported by real use of the open tab: Personas becomes the Configuración rail's target", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -252,7 +252,7 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
   window.history.pushState(null, "", "/");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect
-    .element(screen.getByRole("link", { name: "Config" }))
+    .element(screen.getByRole("link", { name: "Configuración" }))
     .toHaveAttribute("href", "/?account=credentials");
 
   vi.mocked(services.fetchSession).mockResolvedValue(
@@ -263,7 +263,7 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
     await expect
-      .element(screen.getByRole("link", { name: "Config" }))
+      .element(screen.getByRole("link", { name: "Configuración" }))
       .toHaveAttribute("href", "/people");
   } finally {
     vi.useRealTimers();

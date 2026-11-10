@@ -25,9 +25,9 @@ type VoidAssemblyBatchModalProps = {
 type VoidRefusal = AssemblyBatchVoidRefusal["code"];
 
 const VOID_REFUSAL_TEXTS: Record<VoidRefusal, string> = {
-  not_found: "No se encontró la tanda.",
-  already_voided: "La tanda ya fue anulada.",
-  consumed: "La tanda ya tuvo consumo: corregila con un ajuste y un recuento.",
+  not_found: "No se encontró la producción.",
+  already_voided: "La producción ya fue anulada.",
+  consumed: "La producción ya tuvo consumo: corregila con un ajuste y un recuento.",
 };
 
 type VoidNotice =
@@ -91,7 +91,7 @@ export function VoidAssemblyBatchModal({
       width="confirmation"
       tone="info"
       icon={<Ban />}
-      title={`¿Anular la tanda de ${product}?`}
+      title={`¿Anular la producción de ${product}?`}
       closable={!submitting}
       footer={
         <>
@@ -124,7 +124,7 @@ export function VoidAssemblyBatchModal({
               disabled={submitting}
               onPress={() => void handleConfirm()}
             >
-              Anular tanda
+              Anular producción
             </Button>
           )}
         </>
@@ -132,10 +132,13 @@ export function VoidAssemblyBatchModal({
     >
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">
-          {`Los componentes vuelven al stock, se descuentan ${formatStockQuantity(batch.output, batch.saleUnit)} de ${product} y el lote de la tanda queda en cero.`}
+          {`Los componentes vuelven al stock, se descuentan ${formatStockQuantity(batch.output, batch.saleUnit)} de ${product} y el lote de la producción queda en cero.`}
         </p>
         {notice?.kind === "attemptFailed" && (
-          <ActionFailureNotice title="No se anuló la tanda" description="Volvé a intentarlo." />
+          <ActionFailureNotice
+            title="No se anuló la producción"
+            description="Volvé a intentarlo."
+          />
         )}
         {notice?.kind === "outdated" && (
           <InlineNotice

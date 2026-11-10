@@ -54,7 +54,7 @@ function columnsFor(openRelease: (event: QuarantinedEvent) => void) {
     }),
     dataColumn({
       id: "quarantinedAt",
-      header: "En cuarentena desde",
+      header: "Retenido desde",
       render: (item: QuarantinedEvent) => quarantinedDateTimeText(item.quarantinedAt),
     }),
     dataColumn({
@@ -106,7 +106,7 @@ export function QuarantinedEventsScreen({
           <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
             <div className="flex flex-col justify-center">
               <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Eventos en cuarentena</ScreenTitle>
+              <ScreenTitle>Cambios de cajas retenidos</ScreenTitle>
             </div>
           </div>
         }
@@ -118,12 +118,12 @@ export function QuarantinedEventsScreen({
           sigue con los eventos del mismo registro que esperaban detrás.
         </p>
         <Table
-          aria-label="Eventos en cuarentena"
+          aria-label="Cambios de cajas retenidos"
           table={table}
-          {...cloudTableState(data, "los eventos en cuarentena")}
+          {...cloudTableState(data, "los cambios de cajas retenidos")}
           empty={{
             icon: <PackageX />,
-            title: "No hay eventos en cuarentena",
+            title: "No hay cambios de cajas retenidos",
             variant: "blank",
           }}
         />
@@ -147,7 +147,7 @@ export function QuarantinedEventsScreen({
             title: "No se liberó el evento",
             description:
               reason === "not_quarantined"
-                ? "Este evento ya no está en cuarentena."
+                ? "Este cambio ya no está retenido."
                 : "No encontramos este evento.",
           });
           void refresh();

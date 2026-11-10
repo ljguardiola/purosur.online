@@ -152,7 +152,7 @@ test("offers the name, the category, the brand, the net content, the tags, the s
     fields.getByRole("combobox", { name: /^Categoría/ }),
     fields.getByRole("combobox", { name: /^Marca/ }),
     fields.getByRole("textbox", { name: "Contenido neto" }),
-    fields.getByRole("group", { name: "Distintivos" }),
+    fields.getByRole("group", { name: "Etiquetas" }),
     fields.getByRole("radio", { name: "Por unidad" }),
     fields.getByRole("button", { name: "Generar código interno" }),
   ]
@@ -170,15 +170,15 @@ test("shows the placeholder given in place of each list that is not available", 
   const fields = await renderFields({
     categories: { state: "unavailable", placeholder: <p>Categorías sin cargar</p> },
     brands: { state: "unavailable", placeholder: <p>Marcas sin cargar</p> },
-    tags: { state: "unavailable", placeholder: <p>Distintivos sin cargar</p> },
+    tags: { state: "unavailable", placeholder: <p>Etiquetas sin cargar</p> },
   });
 
   await expect.element(fields.getByText("Categorías sin cargar")).toBeVisible();
   await expect.element(fields.getByText("Marcas sin cargar")).toBeVisible();
-  await expect.element(fields.getByText("Distintivos sin cargar")).toBeVisible();
+  await expect.element(fields.getByText("Etiquetas sin cargar")).toBeVisible();
   expect(fields.getByRole("combobox", { name: /^Categoría/ }).query()).toBeNull();
   expect(fields.getByRole("combobox", { name: /^Marca/ }).query()).toBeNull();
-  expect(fields.getByRole("group", { name: "Distintivos" }).query()).toBeNull();
+  expect(fields.getByRole("group", { name: "Etiquetas" }).query()).toBeNull();
   await expect.element(fields.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
 });
 
@@ -202,10 +202,10 @@ test("offers no way to create a category when no creation is given", async () =>
 test("offers no way to create a tag when no creation is given", async () => {
   const fields = await renderFields();
 
-  await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
+  await userEvent.click(fields.getByRole("button", { name: "Agregar etiqueta" }));
 
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
-  expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
+  expect(page.getByRole("menuitem", { name: "Crear etiqueta…" }).query()).toBeNull();
 });
 
 test("starts creating a brand with the typed text from the entry the brand selector offers, and a tag through its menu", async () => {
@@ -219,8 +219,8 @@ test("starts creating a brand with the typed text from the entry the brand selec
   expect(fields.getByRole("button", { name: "Nueva marca" }).query()).toBeNull();
   await userEvent.fill(fields.getByRole("combobox", { name: /^Marca/ }), "Serenísima");
   await userEvent.click(page.getByRole("option", { name: "Crear marca «Serenísima»" }));
-  await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
-  await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
+  await userEvent.click(fields.getByRole("button", { name: "Agregar etiqueta" }));
+  await userEvent.click(page.getByRole("menuitem", { name: "Crear etiqueta…" }));
 
   expect(brands.start).toHaveBeenCalledExactlyOnceWith("Serenísima");
   expect(tags.start).toHaveBeenCalledTimes(1);
@@ -279,7 +279,7 @@ test("offers the active brands and tags, and the brand and tag just created thou
       .map((option) => option.element().textContent),
   ).toEqual(["Sin marca", "Cabriola", "Granuz"]);
   await userEvent.keyboard("{Escape}");
-  await userEvent.click(fields.getByRole("button", { name: "Agregar distintivo" }));
+  await userEvent.click(fields.getByRole("button", { name: "Agregar etiqueta" }));
   await expect.element(page.getByRole("menuitem", { name: "Orgánico" })).toBeVisible();
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Sin colorantes" }).query()).toBeNull();
