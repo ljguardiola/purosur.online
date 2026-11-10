@@ -117,9 +117,9 @@ export function TagsListScreen({
       header: "Estado",
       render: (item: TagSummary) =>
         item.active ? (
-          <StatusIndicator tone="success">Activo</StatusIndicator>
+          <StatusIndicator tone="success">Activa</StatusIndicator>
         ) : (
-          <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
+          <StatusIndicator tone="neutral">Inactiva</StatusIndicator>
         ),
     }),
     actionsColumn({
