@@ -19,15 +19,13 @@ describe("ChargeScreen · Point", () => {
   it("offers the terminal after cash and before the QR when the core answers it is available", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
-    await expect.element(screen.getByRole("radio", { name: "Point · Crédito" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point crédito" })).toBeEnabled();
     expect(screen.getByText("Tarjeta en la terminal · requiere internet").elements()).toHaveLength(
       2,
     );
     const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
-    expect(methods.textContent).toMatch(
-      /Efectivo.*Point · Débito.*Point · Crédito.*QR de Mercado Pago/s,
-    );
+    expect(methods.textContent).toMatch(/Efectivo.*Point débito.*Point crédito.*QR/s);
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -36,11 +34,11 @@ describe("ChargeScreen · Point", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point · Crédito" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point crédito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
     expect(screen.getByText("No disponible sin conexión").elements()).toHaveLength(3);
-    await userEvent.click(screen.getByText("Point · Crédito", { exact: true }), { force: true });
+    await userEvent.click(screen.getByText("Point crédito", { exact: true }), { force: true });
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
       .not.toBeInTheDocument();
@@ -53,11 +51,11 @@ describe("ChargeScreen · Point", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "not_configured" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point · Crédito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point crédito" })).toBeDisabled();
     expect(screen.getByText("No configurada en esta caja").elements()).toHaveLength(2);
-    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
-    await userEvent.click(screen.getByText("Point · Débito", { exact: true }), { force: true });
+    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
+    await userEvent.click(screen.getByText("Point débito", { exact: true }), { force: true });
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
       .not.toBeInTheDocument();
@@ -70,12 +68,12 @@ describe("ChargeScreen · Point", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "below_minimum" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
     await expect
-      .element(screen.getByRole("radio", { name: "Point · Débito" }))
+      .element(screen.getByRole("radio", { name: "Point débito" }))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("radio", { name: "Point · Crédito" }))
+      .element(screen.getByRole("radio", { name: "Point crédito" }))
       .not.toBeInTheDocument();
     await expect
       .element(

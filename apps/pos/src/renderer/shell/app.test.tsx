@@ -2733,7 +2733,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
@@ -2814,7 +2814,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));

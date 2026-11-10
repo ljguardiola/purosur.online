@@ -50,19 +50,19 @@ describe("RebuiltPaidOrderNotice", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Pago con QR de Mercado Pago de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+        "Pago con Mercado Pago de $ 5.000,00 Aplicado a la venta antes de cobrar con otro medio.",
       );
     await expect.element(screen.getByRole("button", { name: APPLY })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("names a Point paid order as Point", async () => {
+  it("names a Point paid order as Mercado Pago too", async () => {
     const { screen } = await renderNotice({ paidOrder: { ...QR_ORDER, method: "POINT" } });
 
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Pago con Point de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+        "Pago con Mercado Pago de $ 5.000,00 Aplicado a la venta antes de cobrar con otro medio.",
       );
   });
 

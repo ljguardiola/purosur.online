@@ -3245,8 +3245,8 @@ describe("the charge route's Mercado Pago QR", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeEnabled();
-    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
+    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeEnabled();
   });
 
   it("shows the QR and the terminal as unavailable when the core answers that they are offline", async () => {
@@ -3259,8 +3259,41 @@ describe("the charge route's Mercado Pago QR", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
+    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeDisabled();
+  });
+
+  it("opens the chosen method's charge when the route carries it", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        ...SALE_TO_CHARGE,
+        paymentMethodAvailability: async () => AVAILABLE,
+      },
+      "/charge?method=QR",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("button", { name: "Crear orden" })).toBeVisible();
+  });
+
+  it("shows the methods to choose from when the route carries a method that does not exist", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        ...SALE_TO_CHARGE,
+        paymentMethodAvailability: async () => AVAILABLE,
+      },
+      "/charge?method=BITCOIN",
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("creates the QR order through the core for the sale in progress", async () => {
@@ -3280,7 +3313,7 @@ describe("the charge route's Mercado Pago QR", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
 
     await expect.poll(() => started).toEqual([["sale-1", { method: "QR" }, 238_000]]);
