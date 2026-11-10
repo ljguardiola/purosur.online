@@ -81,7 +81,6 @@ const REVOKED: Enrollment = "revoked";
 const COMPLETED: Restoration = { kind: "completed" };
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
-const SESSION_TITLE = "Venta en curso";
 const STARTUP_PENDING_TITLE = "Hay cosas para resolver";
 const NOTHING_PENDING: StartupPending = {
   sales_to_print: [],
@@ -171,7 +170,7 @@ const screenFor: Record<
 > = {
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
   "/sign-in": (screen) => screen.getByRole("heading", { name: SIGN_IN_TITLE }),
-  "/session": (screen) => screen.getByRole("heading", { name: SESSION_TITLE }),
+  "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
@@ -2145,7 +2144,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
       .toBeVisible();
@@ -2492,11 +2491,11 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
     await expect
-      .element(screen.getByRole("heading", { name: "Venta en curso" }))
+      .element(screen.getByRole("combobox", { name: "Producto" }))
       .not.toBeInTheDocument();
     name.resolve("Caja 1");
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).toContain("CAJA 1");
   });
 

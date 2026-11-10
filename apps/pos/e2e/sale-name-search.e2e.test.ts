@@ -72,7 +72,7 @@ describe("searching products by name into a sale on the register", () => {
     await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
     await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
 
     const field = page.getByRole("combobox", { name: "Producto" });
     const cafe = page.getByRole("row").filter({ hasText: "Café molido 500 g" });

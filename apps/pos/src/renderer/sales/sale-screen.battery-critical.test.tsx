@@ -41,7 +41,7 @@ describe("SaleScreen while the battery is critical", () => {
   it("shows nothing of the battery while the register holds no condition", async () => {
     const { screen } = await renderScreen({ registerStatus: statusHolding([]) });
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).not.toContain(BATTERY_CRITICAL_MEANING);
   });
 
@@ -61,14 +61,14 @@ describe("SaleScreen while the battery is critical", () => {
   ])("shows no battery notice for the condition %j", async (condition) => {
     const { screen } = await renderScreen({ registerStatus: statusHolding([condition]) });
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).not.toContain(BATTERY_CRITICAL_MEANING);
   });
 
   it("shows nothing of the battery while the status can't be read", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).not.toContain(BATTERY_CRITICAL_MEANING);
   });
 });

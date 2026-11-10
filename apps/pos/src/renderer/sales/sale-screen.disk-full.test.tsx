@@ -42,7 +42,7 @@ describe("SaleScreen while the disk is full", () => {
   it("shows nothing of the disk while the register holds no condition", async () => {
     const { screen } = await renderScreen({ registerStatus: statusHolding([]) });
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).not.toContain("ventas nuevas");
   });
 
@@ -64,14 +64,14 @@ describe("SaleScreen while the disk is full", () => {
   ])("shows no disk-full notice for the condition %j", async (condition) => {
     const { screen } = await renderScreen({ registerStatus: statusHolding([condition]) });
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).not.toContain(DISK_FULL_MEANING);
   });
 
   it("shows nothing of the disk while the status can't be read", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     expect(screen.container.textContent).not.toContain("ventas nuevas");
   });
 });

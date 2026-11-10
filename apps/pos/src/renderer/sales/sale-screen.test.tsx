@@ -20,10 +20,13 @@ import {
 } from "./test-support/sale-screen";
 
 describe("SaleScreen", () => {
-  it("says that the sale is underway", async () => {
+  it("draws no title of its own above the search field", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta en curso" }))
+      .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -109,9 +112,9 @@ describe("SaleScreen", () => {
   describe("keeping the scan field ready", () => {
     it.each([
       [
-        "the heading",
+        "the total's label",
         (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) =>
-          screen.getByRole("heading", { name: "Venta en curso" }),
+          screen.getByText("Total", { exact: true }),
       ],
       [
         "the lines",
