@@ -905,7 +905,7 @@ describe("SaleScreen", () => {
       await expect.element(field).toHaveValue("7790009");
     });
 
-    it("announces what happened without moving the lines", async () => {
+    it("shows the notice for an unknown code between the field and the lines, pushing them down", async () => {
       const { screen, field } = await renderScreen({
         currentSale: async () => SALE_OF_YERBA,
         scanProduct: async () => ({ kind: "unknown_code" }),
@@ -916,17 +916,27 @@ describe("SaleScreen", () => {
 
       await scan(field, "7790009");
 
-      const message = screen.getByRole("status").filter({
+      const notice = screen.getByRole("alert").filter({
         hasText: "No hay ningún producto con ese código",
       });
-      await expect.element(message).toBeInTheDocument();
-      expect(line.element().getBoundingClientRect().top).toBe(before);
+      await expect.element(notice).toBeInTheDocument();
+      await expect
+        .element(
+          screen.getByText(
+            "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+          ),
+        )
+        .toBeVisible();
       const fieldBox = field.element().getBoundingClientRect();
-      const messageBox = screen
+      const noticeBox = screen
         .getByText("No hay ningún producto con ese código")
         .element()
-        .getBoundingClientRect();
-      expect(messageBox.top).toBeGreaterThanOrEqual(fieldBox.bottom);
+        .closest("div")
+        ?.getBoundingClientRect();
+      const after = line.element().getBoundingClientRect().top;
+      expect(noticeBox?.top).toBeGreaterThanOrEqual(fieldBox.bottom);
+      expect(noticeBox?.bottom).toBeLessThanOrEqual(after);
+      expect(after).toBeGreaterThan(before);
     });
 
     it("takes the message away when the text in the field changes", async () => {
@@ -942,13 +952,17 @@ describe("SaleScreen", () => {
     });
 
     it("announces a refused scan in a status region that was already mounted and stays mounted", async () => {
-      const { screen, field } = await renderScreen();
+      const { screen, field } = await renderScreen({
+        scanProduct: async () => {
+          throw new Error("the core connection was replaced");
+        },
+      });
       const regionsBefore = Array.from(screen.container.querySelectorAll('[role="status"]'));
 
       await scan(field, "7790009");
 
       const message = screen.getByRole("status").filter({
-        hasText: "No hay ningún producto con ese código",
+        hasText: "No se pudo agregar el producto",
       });
       await expect.element(message).toBeInTheDocument();
       const region = message.element();

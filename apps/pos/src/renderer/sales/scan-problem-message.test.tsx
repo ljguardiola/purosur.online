@@ -88,4 +88,37 @@ describe("ScanProblemMessage", () => {
       .element(region.getByText("Escanealo o buscalo de nuevo para agregarlo.", { exact: true }))
       .toBeVisible();
   });
+
+  it("tells that no product has the code as a notice in the flow of the page, not floating over it", async () => {
+    const screen = await render(
+      <div>
+        <ScanProblemMessage problem={{ kind: "unknown_code" }} />
+        <p>Below</p>
+      </div>,
+    );
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent(
+        "No hay ningún producto con ese código Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+      );
+    await expect
+      .element(screen.getByText("No hay ningún producto con ese código", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    const noticeBox = screen
+      .getByText("No hay ningún producto con ese código")
+      .element()
+      .closest("div")
+      ?.getBoundingClientRect();
+    const below = screen.getByText("Below").element().getBoundingClientRect();
+    expect(noticeBox?.bottom).toBeLessThanOrEqual(below.top);
+  });
 });
