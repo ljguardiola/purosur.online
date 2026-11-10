@@ -1,7 +1,7 @@
 import type { Authorization, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "./signed-in-person";
 import {
   authorizationDialog,
@@ -160,10 +160,10 @@ describe("an action guarded by another person's PIN", () => {
       await userEvent.click(authorizationDialog().getByRole("button", { name: /USUARIO/ }));
 
       await expect
-        .element(authorizationDialog().getByRole("option", { name: "Grace" }))
+        .element(page.getByRole("option", { name: "Grace" }))
         .toBeVisible();
       await expect
-        .element(authorizationDialog().getByRole("option", { name: "Sofía" }))
+        .element(page.getByRole("option", { name: "Sofía" }))
         .toBeVisible();
     });
 
@@ -448,8 +448,8 @@ describe("an action guarded by another person's PIN", () => {
       await expect.element(dialog.getByText("Sofía no puede autorizar esto")).toBeVisible();
       await userEvent.click(dialog.getByRole("button", { name: /USUARIO/ }));
 
-      await expect.element(dialog.getByRole("option", { name: "Grace" })).toBeVisible();
-      await expect.element(dialog.getByRole("option", { name: "Sofía" })).not.toBeInTheDocument();
+      await expect.element(page.getByRole("option", { name: "Grace" })).toBeVisible();
+      await expect.element(page.getByRole("option", { name: "Sofía" })).not.toBeInTheDocument();
     });
 
     it("says the PIN could not be checked when the register cannot verify it", async () => {

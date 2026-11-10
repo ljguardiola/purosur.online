@@ -79,6 +79,14 @@ test("opens a list with each person and their avatar", async () => {
   await expect.element(items.nth(2)).toHaveTextContent("AAna");
 });
 
+test("names each person's option by their name alone, without the avatar's initial", async () => {
+  const screen = await render(<Harness />);
+
+  await userEvent.click(screen.getByRole("button", { name: /Usuario/ }));
+
+  await expect.element(page.getByRole("option", { name: "Lucas" })).toBeVisible();
+});
+
 test("opens the list with the keyboard", async () => {
   const screen = await render(<Harness />);
   screen
