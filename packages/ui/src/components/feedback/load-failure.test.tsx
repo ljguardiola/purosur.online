@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
+import type { Icon } from "../shared/icon";
 import { LoadFailure, type LoadFailureProps } from "./load-failure";
 import { Pill } from "./pill";
 
@@ -251,4 +252,65 @@ test("has no accessibility violations in the pill variant, with its tooltip clos
   await userEvent.tab();
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("centered: announces the failure under a red icon badge and offers no retry button of its own", async () => {
+  const screen = await render(
+    <LoadFailure
+      variant="centered"
+      icon={<ShieldX />}
+      title="No se pudo cargar la venta"
+      description="Volvé a intentarlo en unos segundos."
+    />,
+  );
+
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("No se pudo cargar la venta Volvé a intentarlo en unos segundos.");
+  expect(screen.getByRole("button").elements()).toHaveLength(0);
+  const badge = screen.container.querySelector("svg")?.parentElement?.parentElement as HTMLElement;
+  expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("error-subtle"));
+  expect(getComputedStyle(badge).borderRadius).not.toBe("0px");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("centered: stacks the badge, title and description on one centered axis", async () => {
+  const screen = await render(
+    <div style={{ width: 400 }}>
+      <LoadFailure
+        variant="centered"
+        icon={<ShieldX />}
+        title="No se pudo cargar la venta"
+        description="Volvé a intentarlo en unos segundos."
+      />
+    </div>,
+  );
+
+  const middle = (element: Element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.left + rect.width / 2;
+  };
+  const badge = screen.container.querySelector("svg")?.parentElement?.parentElement as HTMLElement;
+  const title = screen.getByText("No se pudo cargar la venta").element();
+  const description = screen.getByText("Volvé a intentarlo en unos segundos.").element();
+  expect(Math.abs(middle(badge) - middle(title))).toBeLessThanOrEqual(1);
+  expect(Math.abs(middle(description) - middle(title))).toBeLessThanOrEqual(1);
+  expect(title.getBoundingClientRect().top).toBeGreaterThan(badge.getBoundingClientRect().bottom);
+  expect(description.getBoundingClientRect().top).toBeGreaterThan(
+    title.getBoundingClientRect().bottom,
+  );
+});
+
+test("centered: refuses a retry callback, since its caller offers the retry elsewhere", () => {
+  expectTypeOf<{
+    variant: "centered";
+    icon: Icon;
+    title: string;
+    onRetry: () => void;
+  }>().not.toExtend<LoadFailureProps>();
+  expectTypeOf<{
+    variant: "centered";
+    icon: Icon;
+    title: string;
+  }>().toExtend<LoadFailureProps>();
 });

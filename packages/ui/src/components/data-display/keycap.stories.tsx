@@ -13,6 +13,10 @@ type Story = StoryObj<typeof Keycap>;
 
 export const FunctionKey: Story = {};
 
+export const FirstFunctionKey: Story = {
+  args: { keyName: "F1" },
+};
+
 export const Escape: Story = {
   args: { keyName: "Escape" },
 };
