@@ -141,7 +141,7 @@ function Crumbs({
               <span aria-hidden="true" className="text-border">
                 •
               </span>
-              <span className="font-medium">{crumb}</span>
+              <span>{crumb}</span>
             </>
           )}
         </Fragment>
