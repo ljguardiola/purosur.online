@@ -36,7 +36,7 @@ export function NavigationRail({
       aria-label="Menú de la caja"
       className="flex h-full w-18 shrink-0 flex-col items-center gap-2 overflow-hidden bg-surface-nav py-4"
     >
-      <PuroSurIsotype className="mb-2 size-10 object-contain" />
+      <PuroSurIsotype decorative className="mb-2 size-10 object-contain" />
       {home.to === undefined ? (
         <AreaNavButton
           rail="dark"
