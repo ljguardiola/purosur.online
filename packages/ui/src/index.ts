@@ -143,6 +143,8 @@ export { MenuButton } from "./components/forms/menu-button";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";
 export type { OptionCardGroupProps } from "./components/forms/option-card-group";
 export { OptionCardGroup } from "./components/forms/option-card-group";
+export type { PinDotsFieldProps } from "./components/forms/pin-dots-field";
+export { PinDotsField } from "./components/forms/pin-dots-field";
 export type { QuantityUnitFieldProps } from "./components/forms/quantity-unit-field";
 export { QuantityUnitField } from "./components/forms/quantity-unit-field";
 export type { RadioGroupProps } from "./components/forms/radio-group";
@@ -178,6 +180,8 @@ export type {
   ToggleChipOption,
 } from "./components/forms/toggle-chip-group";
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
+export type { UserSelectProps } from "./components/forms/user-select";
+export { UserSelect } from "./components/forms/user-select";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
@@ -206,6 +210,8 @@ export type { SectionNavItemProps } from "./components/navigation/section-nav-it
 export { SectionNavItem } from "./components/navigation/section-nav-item";
 export type { TabProps, TabsProps } from "./components/navigation/tabs";
 export { Tab, Tabs } from "./components/navigation/tabs";
+export type { CardModalProps } from "./components/overlays/card-modal";
+export { CardModal } from "./components/overlays/card-modal";
 export type {
   ModalBodyPadding,
   ModalHeaderLayout,
