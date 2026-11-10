@@ -1,4 +1,5 @@
 import { ShieldX } from "lucide-react";
+import type { ComponentProps } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -6,7 +7,7 @@ import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
-import { LoadFailure, type LoadFailureProps } from "./load-failure";
+import { type CenteredLoadFailureProps, LoadFailure, type LoadFailureProps } from "./load-failure";
 import { Pill } from "./pill";
 
 test("announces the failure and offers Reintentar", async () => {
@@ -301,16 +302,11 @@ test("centered: stacks the badge, title and description on one centered axis", a
   );
 });
 
-test("centered: refuses a retry callback, since its caller offers the retry elsewhere", () => {
+test("centered: takes no retry callback, since its caller offers the retry elsewhere", () => {
   expectTypeOf<{
     variant: "centered";
     icon: Icon;
     title: string;
-    onRetry: () => void;
-  }>().not.toExtend<LoadFailureProps>();
-  expectTypeOf<{
-    variant: "centered";
-    icon: Icon;
-    title: string;
-  }>().toExtend<LoadFailureProps>();
+  }>().toExtend<ComponentProps<typeof LoadFailure>>();
+  expectTypeOf<CenteredLoadFailureProps>().not.toHaveProperty("onRetry");
 });

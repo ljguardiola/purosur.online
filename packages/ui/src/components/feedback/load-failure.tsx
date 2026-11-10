@@ -5,22 +5,21 @@ import { InlineNotice } from "./inline-notice";
 import { NoticeLiveRegion } from "./notice-live-region";
 import { PillButton } from "./pill-button";
 
-export type LoadFailureVariant = "section" | "screen" | "pill" | "centered";
+export type LoadFailureVariant = "section" | "screen" | "pill";
 
-type LoadFailureContent = {
+export type LoadFailureProps = {
   icon: Icon;
   title: string;
   description?: string | undefined;
+  variant?: LoadFailureVariant | undefined;
+  onRetry: () => void;
 };
 
-export type LoadFailureProps =
-  | (LoadFailureContent & {
-      variant?: Exclude<LoadFailureVariant, "centered"> | undefined;
-      onRetry: () => void;
-    })
-  | (LoadFailureContent & { variant: "centered"; onRetry?: undefined });
+export type CenteredLoadFailureProps = Omit<LoadFailureProps, "variant" | "onRetry"> & {
+  variant: "centered";
+};
 
-export function LoadFailure(props: LoadFailureProps) {
+export function LoadFailure(props: LoadFailureProps | CenteredLoadFailureProps) {
   const { icon, title, description } = props;
 
   if (props.variant === "centered") {

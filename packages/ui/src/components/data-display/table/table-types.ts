@@ -1,7 +1,7 @@
 import type { ColumnDef, ReactTable, RowData } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import type { EmptyStateProps } from "../../feedback/empty-state";
-import type { LoadFailureProps } from "../../feedback/load-failure";
+import type { CenteredLoadFailureProps, LoadFailureProps } from "../../feedback/load-failure";
 import type { Icon } from "../../shared/icon";
 import type { KeyLegendItem } from "../key-legend";
 import type { RowMenuActions } from "./row-actions-menu";
@@ -82,7 +82,7 @@ export type TableLoadingState = false | "initial" | "updating";
 
 type TableLoadProps =
   | { loading?: TableLoadingState; failure?: never }
-  | { loading?: false; failure: LoadFailureProps };
+  | { loading?: false; failure: LoadFailureProps | CenteredLoadFailureProps };
 
 export type TableProps<T extends RowData> = {
   table: TableModel<T>;
