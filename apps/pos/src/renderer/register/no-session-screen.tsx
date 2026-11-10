@@ -8,7 +8,6 @@ import { CashOpeningPanel } from "./cash-opening-panel";
 
 export type NoSessionScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
   signOut: () => void;
   offers?: ReactNode | undefined;
   openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
@@ -16,7 +15,6 @@ export type NoSessionScreenProps = {
 
 export function NoSessionScreen({
   person,
-  registerName,
   signOut,
   offers,
   openCashSession,
@@ -34,7 +32,7 @@ export function NoSessionScreen({
       }
     >
       <main className="flex flex-1 flex-col gap-6 p-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="¿Qué querés hacer?" />
+        <ScreenHeader title="¿Qué querés hacer?" />
         {offers}
       </main>
     </RegisterFrame>

@@ -87,7 +87,7 @@ export function CashScreen({
       }
     >
       <main className="flex flex-1 flex-col gap-6 p-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Movimientos de efectivo" />
+        <ScreenHeader title="Movimientos de efectivo" />
         {clockGuard}
         <CashMovementsTable state={movements} />
       </main>

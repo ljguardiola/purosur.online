@@ -161,7 +161,7 @@ export function ReceiptPrinterScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Impresora de tickets" />
+        <ScreenHeader title="Impresora de tickets" />
         {printer.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}
         {printer.status === "failed" ? (
           <LoadFailure

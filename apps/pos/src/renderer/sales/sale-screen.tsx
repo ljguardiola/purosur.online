@@ -683,26 +683,29 @@ export function SaleScreen({
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
   const resultCount = found?.products.length ?? 0;
-  useKeys([
-    { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
-    {
-      key: "Enter",
-      run: () => {
-        if (chosen !== undefined) {
-          void add(chosen);
-        }
+  useKeys(
+    [
+      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
+      {
+        key: "Enter",
+        run: () => {
+          if (chosen !== undefined) {
+            void add(chosen);
+          }
+        },
+        enabled: chosen !== undefined,
       },
-      enabled: chosen !== undefined,
-    },
-    {
-      key: "ArrowUpDown",
-      run: (pressed) => {
-        const step = pressed === "ArrowDown" ? 1 : -1;
-        setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+      {
+        key: "ArrowUpDown",
+        run: (pressed) => {
+          const step = pressed === "ArrowDown" ? 1 : -1;
+          setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+        },
+        enabled: choosing,
       },
-      enabled: choosing,
-    },
-  ]);
+    ],
+    { within: field },
+  );
 
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
@@ -764,7 +767,7 @@ export function SaleScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Venta en curso" />
+        <ScreenHeader title="Venta en curso" />
         {diskFull === undefined ? null : (
           <InlineNotice
             tone={diskFull.level === "critical" ? "error" : "warning"}

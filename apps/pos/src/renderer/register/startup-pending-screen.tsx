@@ -71,8 +71,8 @@ const PRINT_PROBLEMS = {
   },
 } as const;
 
-const SEE_STATUS_BAR = "El motivo y qué hacer se muestran arriba de la pantalla.";
-const CANNOT_OPEN_SALE = { title: "No se puede abrir la venta", description: SEE_STATUS_BAR };
+const SEE_HEADER = "El motivo y qué hacer se muestran arriba de la pantalla.";
+const CANNOT_OPEN_SALE = { title: "No se puede abrir la venta", description: SEE_HEADER };
 
 const REBUILD_PROBLEMS = {
   another_sale_open: {

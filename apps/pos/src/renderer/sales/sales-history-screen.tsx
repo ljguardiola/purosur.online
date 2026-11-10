@@ -19,7 +19,6 @@ import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import type { SaleDetail, SaleDetailCreditNote } from "../shell/sale-receipt-text";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
-import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { voidedSaleNotice } from "./credit-note-text";
 import { originalPrintNotice } from "./original-print-text";
@@ -180,10 +179,7 @@ export function SalesHistoryScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader
-          eyebrow={sessionEyebrow(registerName, sessionOpen)}
-          title="Historial de ventas"
-        />
+        <ScreenHeader title="Historial de ventas" />
         {refusal?.kind === "lacks_permission" ? (
           <EmptyState
             variant="blank"

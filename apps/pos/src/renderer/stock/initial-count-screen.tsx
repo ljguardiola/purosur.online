@@ -283,26 +283,29 @@ export function InitialCountScreen({
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
   const resultCount = found?.products.length ?? 0;
-  useKeys([
-    { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
-    {
-      key: "Enter",
-      run: () => {
-        if (chosen !== undefined) {
-          choose(chosen);
-        }
+  useKeys(
+    [
+      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
+      {
+        key: "Enter",
+        run: () => {
+          if (chosen !== undefined) {
+            choose(chosen);
+          }
+        },
+        enabled: chosen !== undefined,
       },
-      enabled: chosen !== undefined,
-    },
-    {
-      key: "ArrowUpDown",
-      run: (pressed) => {
-        const step = pressed === "ArrowDown" ? 1 : -1;
-        setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+      {
+        key: "ArrowUpDown",
+        run: (pressed) => {
+          const step = pressed === "ArrowDown" ? 1 : -1;
+          setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+        },
+        enabled: choosing,
       },
-      enabled: choosing,
-    },
-  ]);
+    ],
+    { within: field },
+  );
 
   const answer = count.status === "loaded" ? count.value : undefined;
   const open = !retired && (answer === undefined || (answer.kind === "read" && answer.offered));

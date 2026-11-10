@@ -96,8 +96,6 @@ export type {
 export { ProgressSteps } from "./components/feedback/progress-steps";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
 export { StatusIndicator } from "./components/feedback/status-indicator";
-export type { StatusIndicatorButtonProps } from "./components/feedback/status-indicator-button";
-export { StatusIndicatorButton } from "./components/feedback/status-indicator-button";
 export type { StatusPillProps, StatusPillTone } from "./components/feedback/status-pill";
 export { StatusPill } from "./components/feedback/status-pill";
 export type { StatusPillButtonProps } from "./components/feedback/status-pill-button";

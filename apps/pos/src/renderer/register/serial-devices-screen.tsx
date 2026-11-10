@@ -247,7 +247,7 @@ export function SerialDevicesScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Balanza y lector" />
+        <ScreenHeader title="Balanza y lector" />
         {devices.status === "loading" ? <LoadingPlaceholder variant="form" fields={2} /> : null}
         {devices.status === "failed" ? (
           <LoadFailure

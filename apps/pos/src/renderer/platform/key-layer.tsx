@@ -1,6 +1,6 @@
 import type { KeyName } from "@purosur/ui";
-import type { ReactNode } from "react";
-import { createContext, useContext, useEffect, useRef } from "react";
+import type { ReactNode, RefObject } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 export type KeyBinding = {
   key: KeyName;
@@ -9,13 +9,20 @@ export type KeyBinding = {
   enabled?: boolean;
 };
 
-export type KeyOptions = { modal?: boolean; active?: boolean };
+export type KeyOptions = {
+  modal?: boolean;
+  active?: boolean;
+  within?: RefObject<Element | null>;
+  fallback?: boolean;
+};
 
 export type LegendItem = { keyName: KeyName; label: string };
 
 type Registration = {
   order: number;
   modal: boolean;
+  fallback: boolean;
+  within: RefObject<Element | null> | undefined;
   bindings: { current: readonly KeyBinding[] };
 };
 
@@ -62,20 +69,37 @@ function isInsideDialog(target: EventTarget | null): boolean {
   );
 }
 
-function bindingFor(
+function reaches(registration: Registration, target: EventTarget | null): boolean {
+  if (registration.within === undefined) {
+    return true;
+  }
+  const scope = registration.within.current;
+  return scope !== null && target instanceof Node && scope.contains(target);
+}
+
+function candidatesFor(
   registrations: readonly Registration[],
   event: KeyboardEvent,
-): KeyBinding | undefined {
+  fallback: boolean,
+): Registration[] {
   const modals = registrations.filter((registration) => registration.modal);
-  const candidates =
-    modals.length > 0
-      ? modals.slice(-1)
-      : isInsideDialog(event.target)
-        ? []
-        : [...registrations].reverse();
+  if (modals.length > 0) {
+    return fallback ? [] : modals.slice(-1);
+  }
+  if (isInsideDialog(event.target)) {
+    return [];
+  }
+  return registrations
+    .filter(
+      (registration) => registration.fallback === fallback && reaches(registration, event.target),
+    )
+    .reverse();
+}
+
+function bindingFor(candidates: readonly Registration[], pressed: string): KeyBinding | undefined {
   for (const registration of candidates) {
     const found = registration.bindings.current.find(
-      (binding) => binding.enabled !== false && matches(binding.key, event.key),
+      (binding) => binding.enabled !== false && matches(binding.key, pressed),
     );
     if (found !== undefined) {
       return found;
@@ -87,7 +111,7 @@ function bindingFor(
 export function KeyLayerProvider({ children }: { children: ReactNode }) {
   const registrations = useRef<Registration[]>([]);
   const counter = useRef(0);
-  const registry = useRef<Registry>({
+  const [registry] = useState<Registry>(() => ({
     add: (registration) => {
       counter.current += 1;
       const added = { ...registration, order: counter.current };
@@ -96,33 +120,40 @@ export function KeyLayerProvider({ children }: { children: ReactNode }) {
         registrations.current = registrations.current.filter((other) => other !== added);
       };
     },
-  });
+  }));
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.ctrlKey || event.altKey || event.metaKey) {
+    function handle(event: KeyboardEvent, fallback: boolean) {
+      if ((fallback && event.defaultPrevented) || event.ctrlKey || event.altKey || event.metaKey) {
         return;
       }
       if (event.key.length === 1 && isTextField(event.target)) {
         return;
       }
-      const binding = bindingFor(registrations.current, event);
+      const candidates = candidatesFor(registrations.current, event, fallback);
+      const binding = bindingFor(candidates, event.key);
       if (binding !== undefined) {
         event.preventDefault();
         event.stopPropagation();
         binding.run(event.key);
       }
     }
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
+    const onScreenKey = (event: KeyboardEvent) => handle(event, false);
+    const onUnhandledKey = (event: KeyboardEvent) => handle(event, true);
+    window.addEventListener("keydown", onScreenKey, true);
+    window.addEventListener("keydown", onUnhandledKey);
+    return () => {
+      window.removeEventListener("keydown", onScreenKey, true);
+      window.removeEventListener("keydown", onUnhandledKey);
+    };
   }, []);
 
-  return <KeyLayerContext value={registry.current}>{children}</KeyLayerContext>;
+  return <KeyLayerContext value={registry}>{children}</KeyLayerContext>;
 }
 
 export function useKeys(
   bindings: readonly KeyBinding[],
-  { modal = false, active = true }: KeyOptions = {},
+  { modal = false, active = true, within, fallback = false }: KeyOptions = {},
 ): LegendItem[] {
   const registry = useContext(KeyLayerContext);
   const latest = useRef(bindings);
@@ -133,8 +164,8 @@ export function useKeys(
     if (!active) {
       return undefined;
     }
-    return registry.add({ modal, bindings: latest });
-  }, [registry, modal, active]);
+    return registry.add({ modal, fallback, within, bindings: latest });
+  }, [registry, modal, active, fallback, within]);
 
   return bindings.flatMap((binding) =>
     binding.enabled !== false && binding.label !== undefined

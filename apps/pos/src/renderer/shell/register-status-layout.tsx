@@ -13,7 +13,7 @@ import { useRegisterNameQuery, useRegisterStatusQuery } from "../register/regist
 import { RegisterStatusProvider } from "./register-status-context";
 import type { SignedInPerson } from "./signed-in-person";
 
-export type StatusBarLayoutProps = {
+export type RegisterStatusLayoutProps = {
   person: SignedInPerson | undefined;
   readRegisterName: () => Promise<string | null>;
   cashSession: CashSessionState;
@@ -22,14 +22,14 @@ export type StatusBarLayoutProps = {
   discardBackupTickets: () => Promise<DiscardContingencyBackupTicketsAnswer>;
 };
 
-export function StatusBarLayout({
+export function RegisterStatusLayout({
   person,
   readRegisterName,
   cashSession,
   readStatus,
   readBackupTickets,
   discardBackupTickets,
-}: StatusBarLayoutProps) {
+}: RegisterStatusLayoutProps) {
   const registerName = useRegisterNameQuery(readRegisterName);
   const status = useRegisterStatusQuery(readStatus);
   const backupTickets = useContingencyBackupTicketsQuery(readBackupTickets);

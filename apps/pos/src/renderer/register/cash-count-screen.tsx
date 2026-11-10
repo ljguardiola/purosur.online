@@ -145,7 +145,7 @@ export function CashCountScreen({
         }
       >
         <main className="flex flex-1 flex-col gap-4 p-8">
-          <ScreenHeader eyebrow={registerName ?? undefined} title="Cerrar caja" />
+          <ScreenHeader title="Cerrar caja" />
           {openSaleTotal === undefined ? null : (
             <OpenSaleBlock
               total={openSaleTotal}

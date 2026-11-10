@@ -2,6 +2,7 @@ import type { RegisterAbility } from "@purosur/domain";
 import { useNavigate } from "@tanstack/react-router";
 import { ShoppingCart, Undo2, Wallet } from "lucide-react";
 import { useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import type { ActionEntry } from "./action-entries";
 import { ACTION_ENTRIES, entriesFor } from "./action-entries";
 import { LeavingTheRegisterModal } from "./leaving-the-register-modal";
@@ -31,6 +32,10 @@ export function OpenSessionRail({
 }) {
   const navigate = useNavigate();
   const [leaving, setLeaving] = useState(false);
+  useKeys(
+    [{ key: "Escape", run: () => void navigate({ to: "/session" }), enabled: current !== "sale" }],
+    { fallback: true },
+  );
   const linksTo = (
     routes: readonly ActionEntry["to"][],
   ): NonNullable<NavigationRailProps["links"]> =>
