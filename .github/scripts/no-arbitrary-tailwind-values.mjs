@@ -2,11 +2,11 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 // A value or modifier glued to a utility (`w-[1px]`, `w-(--x)`, `bg-ink/[0.5]`), a bracket glued to a
-// variant (`hover:[&>svg]:`), or a class that starts with `[`: an arbitrary variant (`[&>svg]:`) or
-// property (`[mask-type:luminance]`). The property form needs no space after its colon, which keeps
-// TypeScript index signatures such as `[key: string]` out.
+// variant (`hover:[&>svg]:`), or an arbitrary property that starts a class (`[mask-type:luminance]`).
+// The property form needs no space after its colon, which keeps TypeScript index signatures such as
+// `[key: string]` out.
 const ARBITRARY_VALUE =
-  /(?<=[a-z0-9])[-/](?:\[[^\]\s]*\]|\(--[^)\s]*\))|(?<=[a-z0-9]:)\[[^\]\s]*\]|(?<![^\s"'`])\[(?:&|[a-z-]+:[^\s\]])[^\]\s]*\]/gi;
+  /(?<=[a-z0-9])[-/](?:\[[^\]\s]*\]|\(--[^)\s]*\))|(?<=[a-z0-9]:)\[[^\]\s]*\]|(?<![^\s"'`])\[[a-z-]+:[^\s\]][^\]\s]*\]/gi;
 
 const CLASS_TOKEN = /[^\s"'`]+/g;
 
@@ -35,8 +35,36 @@ function utilityStart(token) {
   return start;
 }
 
+function closingBracketOf(token) {
+  let depth = 0;
+  for (let index = 0; index < token.length; index += 1) {
+    if (token[index] === "[") depth += 1;
+    else if (token[index] === "]") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+// A class that opens with a bracket closed right before a colon and a utility (`[.dark_&]:p-4`). A
+// computed property or an index signature is followed by a space after its colon, so it never qualifies.
+function findLeadingArbitraryVariants(source) {
+  return [...source.matchAll(CLASS_TOKEN)].flatMap((match) => {
+    const token = match[0];
+    if (!token.startsWith("[")) return [];
+    const close = closingBracketOf(token);
+    const isVariant = token[close + 1] === ":" && token.length > close + 2;
+    return isVariant ? [positionOf(source, match.index, token.slice(0, close + 1))] : [];
+  });
+}
+
 export function findArbitraryValues(source) {
-  return findMatches(source, ARBITRARY_VALUE);
+  const matches = [
+    ...findMatches(source, ARBITRARY_VALUE),
+    ...findLeadingArbitraryVariants(source),
+  ];
+  return matches.sort((a, b) => a.line - b.line || a.column - b.column);
 }
 
 export function findNumericZIndexUtilities(source) {
