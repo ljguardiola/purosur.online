@@ -26,11 +26,15 @@ jobs:
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const { validatePr, parseClosesReferences, isDependabotAuthor } = await import(
+            const { validatePr, parseClosesReferences, isDependabotAuthor, prContractApplies } = await import(
               `${process.env.GITHUB_WORKSPACE}/.github/scripts/validate-pr.mjs`
             );
 
             const pr = context.payload.pull_request;
+            if (!prContractApplies(pr)) {
+              core.info(`Pull request #${pr.number} is ${pr.state}; the PR contract applies only to an open pull request.`);
+              return;
+            }
             const body = pr.body ?? "";
             const references = parseClosesReferences(body);
             const author = {
