@@ -19,7 +19,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, CircleX, PackageCheck, ReceiptText, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import { comprobantePresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -92,7 +92,11 @@ export function VoidSaleModal({
   );
 
   async function confirm() {
-    if (submitting || refusalReason !== undefined || !allConfirmed || !authorization.ready) {
+    if (submitting || refusalReason !== undefined || !allConfirmed) {
+      return;
+    }
+    if (!authorization.ready) {
+      authorization.ask();
       return;
     }
     setSubmitting(true);
@@ -101,6 +105,7 @@ export function VoidSaleModal({
       (): "failed" => "failed",
     );
     setSubmitting(false);
+    authorization.dismiss();
     if (outcome === "failed") {
       setNotice(FAILED_MESSAGE);
       return;
@@ -173,7 +178,7 @@ export function VoidSaleModal({
             size="large"
             icon={<CircleX />}
             fullWidth
-            disabled={submitting || !allConfirmed || !authorization.ready}
+            disabled={submitting || !allConfirmed}
             {...(refusalReason === undefined ? {} : { disabledReason: refusalReason })}
             onPress={() => void confirm()}
           >
@@ -239,10 +244,12 @@ export function VoidSaleModal({
             La mercadería vuelve al stock.
           </li>
         </ul>
-        <AuthorizationSection
+        <AuthorizationModal
           authorization={authorization}
+          subtitle="Anular venta"
           action={AUTHORIZING}
-          disabled={submitting}
+          submitting={submitting}
+          onConfirm={() => void confirm()}
         />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

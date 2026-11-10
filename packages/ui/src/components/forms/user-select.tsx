@@ -96,7 +96,9 @@ export function UserSelect<V extends string>({
                 >
                   {({ isSelected }) => (
                     <>
-                      <Avatar label={option.label} />
+                      <span aria-hidden="true">
+                        <Avatar label={option.label} />
+                      </span>
                       <span className="min-w-0 flex-1 truncate">{option.label}</span>
                       {isSelected ? (
                         <Check

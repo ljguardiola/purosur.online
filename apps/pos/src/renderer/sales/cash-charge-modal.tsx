@@ -25,7 +25,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import {
@@ -110,6 +110,7 @@ export function CashChargeModal({
         ? charge(request.tendered)
         : chargeWithDiscount(request.tendered, request.discount_amount, authorization.value)
       ).catch((): ChargeSaleInCashWithChangeDiscountOutcome => ({ kind: "unavailable" }));
+      authorization.dismiss();
       switch (outcome.kind) {
         case "completed":
           authorization.performed();
@@ -241,7 +242,11 @@ export function CashChargeModal({
   }
 
   function handleSubmit() {
-    if ((covered === undefined && partial === undefined) || !authorization.ready) {
+    if (covered === undefined && partial === undefined) {
+      return;
+    }
+    if (!authorization.ready) {
+      authorization.ask();
       return;
     }
     setNotice(undefined);
@@ -279,7 +284,7 @@ export function CashChargeModal({
             fullWidth
             icon={<Check />}
             dataStatus={submitting ? "loading" : answer.status}
-            disabled={(covered === undefined && partial === undefined) || !authorization.ready}
+            disabled={covered === undefined && partial === undefined}
             onPress={handleSubmit}
           >
             {partial === undefined ? "Completar venta" : "Registrar pago parcial"}
@@ -414,10 +419,12 @@ export function CashChargeModal({
           </Card>
         )}
         {discountOffered ? (
-          <AuthorizationSection
+          <AuthorizationModal
             authorization={authorization}
+            subtitle="Falta de cambio"
             action={AUTHORIZING}
-            disabled={submitting}
+            submitting={submitting}
+            onConfirm={handleSubmit}
           />
         ) : null}
         {notice === undefined ? null : (
