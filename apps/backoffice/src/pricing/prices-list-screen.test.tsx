@@ -174,6 +174,28 @@ test("changing a product's price sends the current price id as expectedCurrentPr
   await expect.element(screen.getByText("Arroz pasa a $ 8.000,00 / kg.")).toBeVisible();
 });
 
+test("shows the empty state when nothing is pending review", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [],
+      pendingCount: 0,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Precios al día")).toBeVisible();
+  await expect
+    .element(screen.getByText("Todos los precios se revisaron en los últimos 30 días."))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: /Revisar/ }).query()).toBeNull();
+});
+
 test("keeps the previous rows and the Revisar button on screen while the list refreshes", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices)
@@ -192,12 +214,10 @@ test("keeps the previous rows and the Revisar button on screen while the list re
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await expect
-    .poll(() =>
-      vi.mocked(services.fetchPrices).mock.calls.some((call) => call[0].review === "overdue"),
-    )
+    .poll(() => vi.mocked(services.fetchPrices).mock.calls.some((call) => call[0].review === "all"))
     .toBe(true);
 
   await expect.element(screen.getByText("Arroz")).toBeVisible();
@@ -343,7 +363,7 @@ test("a price reload that throws ends in the reload-failed notice and the modal 
       },
     })
     .mockImplementation(({ review }) =>
-      review === "overdue"
+      review === "all"
         ? Promise.reject(new Error("network down"))
         : Promise.resolve({
             kind: "ok",
@@ -427,12 +447,12 @@ test("keeps the filters on screen while the list failed to load, and a retry sho
   await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
 
   await expect.element(screen.getByPlaceholder("Buscar un producto")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Revisión: Todos" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Revisión: Por revisar" })).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 });
 
-test("shows the blank empty state when the catalog has no active products", async () => {
+test("shows the blank empty state under Por revisar when the catalog has no active products", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
@@ -451,6 +471,7 @@ test("shows the blank empty state when the catalog has no active products", asyn
   await expect
     .element(screen.getByText("Creá uno en Productos para ponerle precio."))
     .toBeVisible();
+  expect(screen.getByText("Precios al día").query()).toBeNull();
 });
 
 test("the Revisar action is disabled while the list loads, and after it fails to load", async () => {
@@ -466,26 +487,32 @@ test("the Revisar action is disabled while the list loads, and after it fails to
   await expect.element(screen.getByRole("button", { name: "Revisar", exact: true })).toBeDisabled();
 });
 
-test("an empty list for a search shows its empty state and no count line under it", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPrices).mockResolvedValue({
-    kind: "ok",
-    value: {
-      products: [],
-      pendingCount: 1,
-      activeProductCount: 3,
-      reviewWindowDays: 30,
-      categories: [],
-    },
-  });
+test.each([
+  { filter: "under Por revisar", empty: "Precios al día", search: "" },
+  { filter: "for a search", empty: "Sin resultados", search: "zzz" },
+])(
+  "an empty list $filter shows its empty state and no count line under it",
+  async ({ empty, search }) => {
+    const services = createServices();
+    vi.mocked(services.fetchPrices).mockResolvedValue({
+      kind: "ok",
+      value: {
+        products: [],
+        pendingCount: search ? 1 : 0,
+        activeProductCount: 3,
+        reviewWindowDays: 30,
+        categories: [],
+      },
+    });
 
-  const screen = await renderScreen(services, undefined, {
-    filters: { review: "all", search: "zzz" },
-  });
+    const screen = await renderScreen(services, undefined, {
+      filters: pricesListFilters.parse({ search }),
+    });
 
-  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
-  expect(screen.getByText(/\d+ productos?/).query()).toBeNull();
-});
+    await expect.element(screen.getByText(empty)).toBeVisible();
+    expect(screen.getByText(/\d+ productos?/).query()).toBeNull();
+  },
+);
 
 test.each([
   {
@@ -557,9 +584,9 @@ test("a price modal open when the list fails to load closes, and does not open a
   const services = createServices();
   let listReads = 0;
   vi.mocked(services.fetchPrices).mockImplementation(({ review }) => {
-    listReads += review === "all" ? 1 : 0;
+    listReads += review === "pending" ? 1 : 0;
     return Promise.resolve(
-      listReads === 2 && review === "all"
+      listReads === 2 && review === "pending"
         ? { kind: "failed" }
         : {
             kind: "ok",
@@ -599,8 +626,8 @@ test("an earlier list load that settles after a later one does not replace it", 
     .mockReturnValueOnce(second.promise);
 
   const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(2);
 
   second.resolve({
@@ -712,8 +739,8 @@ test("a refresh that throws ends in the load error and offers to retry", async (
 
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
 
   await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();

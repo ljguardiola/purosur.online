@@ -6,7 +6,7 @@ import { pricesPastReviewDeadlineReport } from "../pricing/test-support/prices-p
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { typePeriodStart } from "./test-support/report-dates";
+import { periodSegments, typePeriodStart } from "./test-support/report-dates";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -335,7 +335,7 @@ test("writes the period typed under Por revisar into the prices URL, and strips 
   });
   window.history.pushState(null, "", "/products/prices");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
   expect(window.location.search).toBe("");
 
   await typePeriodStart(screen, "01092026");

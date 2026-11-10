@@ -10,6 +10,7 @@ import {
   renderScreen,
   rice,
   screenElement,
+  withoutPrice,
   yerbaMate,
 } from "./test-support/prices-list-screen";
 
@@ -35,8 +36,32 @@ test("the search field re-fetches with the typed search term", async () => {
     .poll(() =>
       vi
         .mocked(services.fetchPrices)
-        .mock.calls.some((call) => call[0].search === "arr" && call[0].review === "all"),
+        .mock.calls.some((call) => call[0].search === "arr" && call[0].review === "pending"),
     )
+    .toBe(true);
+});
+
+test("the review filter switches between pending and all, re-fetching each time", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice, withoutPrice],
+      pendingCount: 2,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+
+  await expect
+    .poll(() => vi.mocked(services.fetchPrices).mock.calls.some((call) => call[0].review === "all"))
     .toBe(true);
 });
 
@@ -57,7 +82,7 @@ test("the review filter offers the overdue prices, asking the cloud for review=o
   const screen = await renderScreen(services, () => {}, { onFiltersChange });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
   await expect.element(screen.getByRole("option", { name: "Vencidos" })).toBeVisible();
   await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
 
@@ -179,7 +204,7 @@ test("falls back to every category when the category it is given is not one the 
   const onFiltersChange = vi.fn();
 
   const screen = await renderScreen(services, () => {}, {
-    filters: { review: "all", category: "deleted-category" },
+    filters: { ...pricesListFilters.parse({}), category: "deleted-category" },
     onFiltersChange,
   });
 
@@ -187,9 +212,9 @@ test("falls back to every category when the category it is given is not one the 
   await expect
     .poll(() => vi.mocked(services.fetchPrices).mock.lastCall?.[0])
     .toEqual({
-      review: "all",
+      review: "pending",
     });
-  expect(onFiltersChange).toHaveBeenLastCalledWith(pricesListFilters.parse({ review: "all" }));
+  expect(onFiltersChange).toHaveBeenLastCalledWith(pricesListFilters.parse({}));
 });
 
 test("reports every change to its filters, so they can be kept for a reload", async () => {
@@ -208,14 +233,14 @@ test("reports every change to its filters, so they can be kept for a reload", as
   const screen = await renderScreen(services, () => {}, { onFiltersChange });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await userEvent.fill(screen.getByPlaceholder("Buscar un producto"), "arr");
 
   expect(onFiltersChange).toHaveBeenLastCalledWith({
     search: "arr",
     category: "ALL",
-    review: "overdue",
+    review: "all",
     from: "",
     to: "",
   });
@@ -234,11 +259,11 @@ test("does not report its filters again when the route hands it a new callback",
     },
   });
   const onFiltersChange = vi.fn();
-  const filters = pricesListFilters.parse({ review: "all" });
+  const filters = pricesListFilters.parse({});
   const screen = await renderScreen(services, () => {}, { filters, onFiltersChange });
   await expect.element(screen.getByText("Arroz")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await expect.poll(() => onFiltersChange.mock.calls.length).toBe(1);
 
   await screen.rerender(
@@ -354,7 +379,7 @@ test("typing in the category filter offers only the matching categories", async 
   ).toEqual(["Verdulería"]);
 });
 
-test("the footer count uses the thousands separator", async () => {
+test("the footer count uses the thousands separator for both review filters", async () => {
   const services = createServices();
   const manyProducts = Array.from({ length: 1000 }, (_, index) => ({
     ...rice,
@@ -373,6 +398,12 @@ test("the footer count uses the thousands separator", async () => {
   });
 
   const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByText("1.000 productos sin revisar, del más viejo al más nuevo"))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await expect.element(screen.getByText("1.000 productos")).toBeVisible();
 });
 

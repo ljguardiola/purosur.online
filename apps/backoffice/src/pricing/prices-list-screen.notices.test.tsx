@@ -369,8 +369,8 @@ test("an error notice leaves when the review filter changes", async () => {
   const services = createServices();
   const screen = await showRowConfirmFailure(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
 
   await expect
     .poll(() => screen.getByText("No se pudo confirmar el precio de Arroz").query())
@@ -461,8 +461,8 @@ test("an error notice leaves when Reintentar is pressed", async () => {
   vi.mocked(services.confirmPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Arroz")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
-  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await userEvent.click(
     screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
   );

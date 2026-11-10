@@ -93,7 +93,7 @@ export function screenElement(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
   {
-    filters = { review: "all" },
+    filters = {},
     onFiltersChange = () => {},
     purchasedProductsToReview = [],
     onPurchaseReviewTaken = () => {},
