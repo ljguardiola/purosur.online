@@ -763,13 +763,8 @@ describe("StartupPendingScreen", () => {
       await expectGoSellingLocked(screen);
 
       await expect
-        .element(
-          screen
-            .getByRole("complementary", { name: "Sesión abierta" })
-            .getByText(SELLING_BLOCKED_REASON, { exact: true })
-            .and(screen.getByRole("paragraph")),
-        )
-        .toBeVisible();
+        .element(screen.getByRole("complementary", { name: "Sesión abierta" }).getByRole("status"))
+        .toHaveTextContent(SELLING_BLOCKED_REASON);
       goSelling(screen)
         .element()
         .dispatchEvent(new MouseEvent("click", { bubbles: true }));
