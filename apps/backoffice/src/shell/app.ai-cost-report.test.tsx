@@ -1,33 +1,24 @@
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AI_COST_BY_SUPPLIER } from "../purchasing/test-support/ai-cost";
-import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
-import { createAppServices } from "./test-support/app-services";
+import { reportsServices as reportsServicesOf } from "./test-support/reports-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/reports", "/reports/ai-cost-by-period"]);
+opensOnlyScreens([
+  "/",
+  "/help",
+  "/location-settings",
+  "/reports/sales-by-day",
+  "/reports/ai-cost-by-period",
+]);
 
 beforeEach(resetPageState);
 
 function reportsServices(capabilities: Capability[]) {
-  const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue(
-      openSession({
-        userId: "user-2",
-        displayName: "Lucía Ferreyra",
-        isAdministrator: false,
-        capabilities,
-      }),
-    ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
+  const services = reportsServicesOf(capabilities);
   vi.mocked(services.aiCostReportScreen.fetchAiCostReport).mockResolvedValue({
     kind: "ok",
     value: AI_COST_BY_SUPPLIER,
@@ -35,19 +26,17 @@ function reportsServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens the report from the list and reads it from the cloud", async () => {
+test("opens the report at its address, under Configuración, and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
-  window.history.pushState(null, "", "/reports");
+  window.history.pushState(null, "", "/reports/ai-cost-by-period");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(
-    screen.getByRole("main").getByRole("link", { name: "Costo de IA por período" }),
-  );
 
   await expect
     .element(screen.getByRole("heading", { name: "Costo de IA por período", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/reports/ai-cost-by-period");
+  await expect.element(screen.getByText("Configuración", { exact: true }).first()).toBeVisible();
+  expect(screen.getByText("Reportes · Compras").query()).toBeNull();
   await expect.element(screen.getByText("Distribuidora Andina").first()).toBeVisible();
   expect(services.aiCostReportScreen.fetchAiCostReport).toHaveBeenCalledWith({
     group_by: "supplier",
@@ -55,31 +44,53 @@ test("opens the report from the list and reads it from the cloud", async () => {
   expect(document.title).toBe("Costo de IA por período · Puro Sur");
 });
 
-test("offers the report in the reports side column to who may change the branch's settings", async () => {
+test("offers the report in the Configuración column, after the other items, to who may see it", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
-  window.history.pushState(null, "", "/reports");
+  window.history.pushState(null, "", "/reports/ai-cost-by-period");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const sections = screen.getByRole("navigation", { name: "Configuración" });
+  await expect
+    .element(sections.getByRole("link", { name: "Costo de IA por período" }))
+    .toHaveAttribute("aria-current", "page");
+  await expect
+    .element(
+      screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Config" }),
+    )
+    .toHaveAttribute("aria-current", "page");
+  const labels = sections
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(labels.at(-1)).toBe("Costo de IA por período");
+});
+
+test("leaves the report out of the Configuración column without the reports area", async () => {
+  const services = reportsServices(["branch_area"]);
+  window.history.pushState(null, "", "/location-settings");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
     .element(
-      screen
-        .getByRole("navigation", { name: "Reportes" })
-        .getByRole("link", { name: "Costo de IA por período" }),
+      screen.getByRole("navigation", { name: "Configuración" }).getByRole("link", {
+        name: "Sucursal",
+      }),
     )
     .toBeVisible();
+  expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
 });
 
-test("leaves the report out of the side column and the list without the branch area", async () => {
-  const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports");
+test("leaves the report out of Reportes", async () => {
+  const services = reportsServices(["reports_area", "branch_area"]);
+  window.history.pushState(null, "", "/reports/sales-by-day");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("navigation", { name: "Reportes" }).getByRole("link").first())
-    .toBeVisible();
+  await expect.element(screen.getByRole("navigation", { name: "Reportes" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
+  expect(screen.getByRole("radio", { name: "Costo de IA por período" }).query()).toBeNull();
 });
 
 test("keeps the period and the grouping in the URL and asks the cloud for them", async () => {

@@ -88,12 +88,6 @@ function servicesAnswering(value: typeof manualDiscountsReport) {
 test("names the report and the figures of the period", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(
-      screen.getByRole("heading", { name: "Descuentos manuales y sobre el total", level: 1 }),
-    )
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Descontado").first()).toBeVisible();
   await expect.element(screen.getByText("$ 1.550,00")).toBeVisible();
   await expect.element(screen.getByText("Descuentos", { exact: true })).toBeVisible();

@@ -46,6 +46,7 @@ import {
   canSeeRegistersList,
   canSeeRegistersPage,
   canSeeReports,
+  canSeeReportsPage,
   canSeeReturnsReport,
   canSeeRolesArea,
   canSeeStockArea,
@@ -138,6 +139,14 @@ test("canSeeAiCostReport holds only when both the reports area and the branch ar
   expect(canSeeAiCostReport(accessWith("reports_area"))).toBe(false);
   expect(canSeeAiCostReport(accessWith("branch_area"))).toBe(false);
   expect(canSeeAiCostReport(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeeReportsPage holds with the reports area or with the Mercado Pago charge costs", () => {
+  expect(canSeeReportsPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeReportsPage(accessWith("reports_area"))).toBe(true);
+  expect(canSeeReportsPage(accessWith("mercado_pago_charge_costs"))).toBe(true);
+  expect(canSeeReportsPage(accessWith("returns_report", "branch_area"))).toBe(false);
+  expect(canSeeReportsPage(NO_CAPABILITIES_ACCESS)).toBe(false);
 });
 
 test("canSeePeopleArea holds when either the users area or the roles are granted", () => {

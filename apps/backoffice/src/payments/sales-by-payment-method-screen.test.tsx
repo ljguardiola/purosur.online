@@ -33,10 +33,6 @@ function shownMethods(screen: Screen) {
 test("shows the total sold, the number of sales and the average ticket of the period", async () => {
   const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por medio de pago", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Total vendido")).toBeVisible();
   await expect.element(screen.getByText("$ 14.000,00")).toBeVisible();
   await expect.element(screen.getByText("Ventas", { exact: true }).first()).toBeVisible();
