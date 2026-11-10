@@ -4,6 +4,10 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import {
+  authorizationDialog,
+  authorizeInModal,
+} from "../shell/test-support/authorization-modal-steps";
 import { render } from "../shell/test-support/render-with-router";
 import { deferred } from "./test-support/sale-screen";
 import type { VoidCreditNoteCorrects, VoidRefund } from "./void-sale-modal";
@@ -115,14 +119,6 @@ async function renderModal({
     />,
   );
   return { screen, send, requested, ...handlers };
-}
-
-type Screen = Awaited<ReturnType<typeof renderModal>>["screen"];
-
-async function authorizeAs(screen: Screen, firstName: string, pin: string) {
-  await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-  await userEvent.click(screen.getByRole("option", { name: firstName }));
-  await userEvent.type(screen.getByLabelText("PIN"), pin);
 }
 
 describe("VoidSaleModal", () => {
@@ -383,77 +379,105 @@ describe("VoidSaleModal", () => {
   });
 
   describe("when another person must authorize", () => {
-    it("asks for the people who hold the void sale permission and keeps the button disabled until one is chosen with a PIN", async () => {
-      const { screen, requested } = await renderModal({ authorizationRequired: true });
-
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-      await expect
-        .element(screen.getByText("Ada no tiene permiso para anular ventas."))
-        .toBeVisible();
-      await expect.element(screen.getByRole("button", { name: VOID })).toBeDisabled();
-      expect(requested).toEqual(["void_sale"]);
-    });
-
-    it("names who authorizes only in the authorization's own field once someone is chosen", async () => {
-      const { screen } = await renderModal({ authorizationRequired: true });
-
-      await authorizeAs(screen, "Sofía", "1234");
-
-      await expect
-        .element(screen.getByRole("combobox", { name: /Persona que autoriza/ }))
-        .toHaveValue("Sofía");
-      await expect.element(screen.getByText(/Autoriza: /)).not.toBeInTheDocument();
-    });
-
-    it("sends who authorizes and their PIN", async () => {
-      const { screen, send } = await renderModal({ authorizationRequired: true });
-      await authorizeAs(screen, "Sofía", "1234");
+    it("asks in the authorization modal, with the void's subtitle, instead of voiding", async () => {
+      const { screen, requested, send } = await renderModal({ authorizationRequired: true });
 
       await userEvent.click(screen.getByRole("button", { name: VOID }));
 
+      await expect.element(authorizationDialog()).toBeVisible();
+      await expect
+        .element(authorizationDialog().getByText("Anular venta", { exact: true }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
+        .not.toBeInTheDocument();
+      expect(requested).toEqual(["void_sale"]);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it("sends who authorizes and their PIN on Enter, and goes on", async () => {
+      const { screen, send, onVoided } = await renderModal({ authorizationRequired: true });
+      await userEvent.click(screen.getByRole("button", { name: VOID }));
+
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await vi.waitFor(() => expect(onVoided).toHaveBeenCalledOnce());
       expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", false, {
         user_id: "u3",
         pin: "1234",
       });
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
     });
 
-    it("shows a refused PIN and stays open", async () => {
+    it("does not void when the authorization modal is closed with Esc", async () => {
+      const { screen, send, onVoided, onClose } = await renderModal({
+        authorizationRequired: true,
+      });
+      await userEvent.click(screen.getByRole("button", { name: VOID }));
+      await expect.element(authorizationDialog()).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+      expect(send).not.toHaveBeenCalled();
+      expect(onVoided).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("shows a refused PIN inside the authorization modal and stays open", async () => {
       const { screen, onVoided } = await renderModal({
         authorizationRequired: true,
         voidSale: async () => ({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 6 }),
       });
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: VOID }));
 
-      await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await expect.element(authorizationDialog().getByText("PIN incorrecto")).toBeVisible();
       expect(onVoided).not.toHaveBeenCalled();
     });
 
-    it("says the chosen person cannot authorize it when the core refuses their permission", async () => {
+    it("says inside the modal that the chosen person cannot authorize it", async () => {
       const { screen } = await renderModal({
         authorizationRequired: true,
         voidSale: async () => ({ kind: "lacks_permission" }),
       });
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: VOID }));
 
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
       await expect
-        .element(screen.getByText("Sofía no puede autorizar esto", { exact: true }))
+        .element(authorizationDialog().getByText("Sofía no puede autorizar esto", { exact: true }))
         .toBeVisible();
     });
 
-    it("says who was locked out when the core locks the chosen person", async () => {
+    it("says inside the modal who was locked out", async () => {
       const { screen } = await renderModal({
         authorizationRequired: true,
         voidSale: async () => ({ kind: "locked", consecutive_failures: 8 }),
       });
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: VOID }));
 
-      await expect.element(screen.getByText("Sofía está bloqueado", { exact: true })).toBeVisible();
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await expect
+        .element(authorizationDialog().getByText("Sofía está bloqueado", { exact: true }))
+        .toBeVisible();
+    });
+
+    it("closes the authorization modal and shows the notice when the sale cannot be voided any more", async () => {
+      const { screen } = await renderModal({
+        authorizationRequired: true,
+        voidSale: async () => ({ kind: "session_closed" }),
+      });
+      await userEvent.click(screen.getByRole("button", { name: VOID }));
+
+      await authorizeInModal({ pin: "1234" });
+
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByText("La sesión de la venta ya cerró. Se tramita como devolución."))
+        .toBeVisible();
     });
   });
 
