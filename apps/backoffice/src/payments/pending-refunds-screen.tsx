@@ -69,7 +69,7 @@ const NO_REFUNDS: PendingRefund[] = [];
 const CHANNEL_OPTIONS: FilterOptions = [
   { value: "all", label: "Todos" },
   { value: "mercado-pago", label: "Mercado Pago" },
-  { value: "without-api", label: "Sin API" },
+  { value: "without-api", label: "Fuera de Mercado Pago" },
 ];
 
 function refundsOfChannel(refunds: PendingRefund[], channel: Channel): PendingRefund[] {
@@ -245,7 +245,8 @@ export function PendingRefundsScreen({
               )}
               {channelShown === "mercado-pago" ? null : (
                 <p>
-                  Los reembolsos sin API se hacen fuera del sistema y acá se marcan como hechos.
+                  Los reembolsos fuera de Mercado Pago se hacen por otro medio y acá se marcan como
+                  hechos.
                 </p>
               )}
             </div>
