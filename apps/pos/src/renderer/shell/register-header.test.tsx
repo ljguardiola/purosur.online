@@ -5,7 +5,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
-import { RegisterStatusBar } from "./register-status-bar";
+import { RegisterHeader } from "./register-header";
 import type { SignedInPerson } from "./signed-in-person";
 import { backupTickets } from "./test-support/contingency-backup-tickets";
 
@@ -52,6 +52,7 @@ function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> 
 function renderBar(
   props: {
     person?: SignedInPerson | undefined;
+    registerName?: string | null;
     cashSession?: CashSessionState;
     status?: CoreData<RegisterStatus>;
     backupTickets?: CoreData<ContingencyBackupTicketsAnswer>;
@@ -59,8 +60,9 @@ function renderBar(
   } = {},
 ) {
   return render(
-    <RegisterStatusBar
+    <RegisterHeader
       person={"person" in props ? props.person : PERSON}
+      registerName={"registerName" in props ? props.registerName : "Caja 1"}
       cashSession={props.cashSession ?? NO_SESSION}
       status={props.status ?? loaded()}
       backupTickets={props.backupTickets ?? loadedTickets()}
@@ -87,47 +89,63 @@ function barText(screen: Awaited<ReturnType<typeof renderBar>>): string {
   return screen.getByRole("region", { name: "Estado de la caja" }).element().textContent;
 }
 
-describe("RegisterStatusBar", () => {
-  it("shows the first name of the person signed in, and nothing of their role or abilities", async () => {
-    const screen = await renderBar();
+describe("RegisterHeader", () => {
+  it("shows the register's name in capitals, then the first name of the person signed in, and nothing of their role or abilities", async () => {
+    const screen = await renderBar({ cashSession: OPEN_SESSION });
 
-    expect(barText(screen)).toContain("Ada");
-    expect(barText(screen)).not.toContain("open_cash_session");
-    expect(barText(screen)).not.toMatch(/Administrador|Cajero/);
+    expect(barText(screen)).toBe("CAJA 1•Ada");
+    expect(barText(screen)).not.toMatch(/open_cash_session|Administrador|Cajero/);
   });
 
-  it("shows no name while nobody is signed in", async () => {
+  it("shows only the register's name while nobody is signed in", async () => {
     const screen = await renderBar({ person: undefined, cashSession: LOCKED_SESSION });
 
-    expect(barText(screen)).not.toContain("Ada");
+    expect(barText(screen)).toBe("CAJA 1");
   });
 
-  it.each([
-    [NO_SESSION, "Sin sesión abierta"],
-    [OPEN_SESSION, "Sesión abierta 09:02"],
-  ])("shows the cash session as %j", async (cashSession, text) => {
+  it("calls the register CAJA when it has no name yet", async () => {
+    const screen = await renderBar({ registerName: null, cashSession: OPEN_SESSION });
+
+    expect(barText(screen)).toBe("CAJA•Ada");
+  });
+
+  it("adds a third crumb while there is no cash session", async () => {
+    const screen = await renderBar({ cashSession: NO_SESSION });
+
+    expect(barText(screen)).toBe("CAJA 1•Ada•Sin sesión abierta");
+  });
+
+  it.each<CashSessionState>([
+    OPEN_SESSION,
+    LOCKED_SESSION,
+    { status: "unknown" },
+    { status: "unavailable" },
+  ])("adds no third crumb while the cash session is %j", async (cashSession) => {
     const screen = await renderBar({ cashSession });
 
-    expect(barText(screen)).toContain(text);
+    expect(barText(screen)).not.toMatch(/sesión/i);
   });
 
-  it.each<CashSessionState>([{ status: "unknown" }, { status: "unavailable" }, LOCKED_SESSION])(
-    "says nothing of the cash session while it is %j",
-    async (cashSession) => {
-      const screen = await renderBar({ cashSession });
+  it("shows no pill when the cloud, the fiscal mode, the scale, the reader and the notices are all fine", async () => {
+    const screen = await renderBar({ cashSession: OPEN_SESSION });
 
-      expect(barText(screen)).not.toMatch(/sesión|bloqueada/i);
+    expect(barText(screen)).toBe("CAJA 1•Ada");
+    await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
+  });
+
+  it.each(["reachable", "unknown"] as const)(
+    "shows no pill while the cloud is %s",
+    async (cloud) => {
+      const screen = await renderBar({ status: loaded({ cloud }) });
+
+      expect(barText(screen)).not.toMatch(/nube/i);
     },
   );
 
-  it.each([
-    ["reachable", "Nube conectada"],
-    ["unreachable", "Sin conexión con la nube"],
-    ["unknown", "Conectando con la nube"],
-  ] as const)("shows the cloud as %s with %s", async (cloud, text) => {
-    const screen = await renderBar({ status: loaded({ cloud }) });
+  it("shows the pill 'Sin conexión con la nube' while the cloud can't be reached", async () => {
+    const screen = await renderBar({ status: loaded({ cloud: "unreachable" }) });
 
-    expect(barText(screen)).toContain(text);
+    await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 
   it("shows a loading placeholder, and neither the cloud nor a condition, while the status is read", async () => {
@@ -411,13 +429,13 @@ describe("RegisterStatusBar", () => {
     expect(barText(screen)).toContain("Sin conexión con la nube");
   });
 
-  it("shows the standing of the scale and the reader", async () => {
+  it("shows a pill for a scale that is not connected, and none for a reader that matches", async () => {
     const screen = await renderBar({
       status: loaded({ serial_devices: { scale: "not_detected", reader: "matching" } }),
     });
 
     await expect.element(screen.getByText("Balanza sin conectar")).toBeVisible();
-    await expect.element(screen.getByText("Lector conectado")).toBeVisible();
+    expect(barText(screen)).not.toContain("Lector");
   });
 
   it("shows neither device while the status is read", async () => {
@@ -509,28 +527,28 @@ describe("RegisterStatusBar", () => {
     await expectNoAccessibilityViolations(failed.container);
   });
 
-  it("shows the contingency mode after the cloud", async () => {
+  it("shows the contingency mode as a pill", async () => {
     const screen = await renderBar({ status: loaded({ contingency: OFFLINE_CODE }) });
 
-    expect(barText(screen)).toMatch(/Nube conectada.*Contingencia CAEA/);
+    expect(barText(screen)).toContain("Contingencia CAEA");
   });
 
-  it("shows no fiscal indicator while there is no contingency", async () => {
+  it("shows no fiscal pill while there is no contingency", async () => {
     const screen = await renderBar({ status: loaded({ contingency: null }) });
 
     expect(barText(screen)).not.toMatch(/Venta diferida|Contingencia CAEA/);
   });
 
   it.each([[SOLD_LATER], [SOLD_LATER_WITHOUT_NOTICE]])(
-    "shows the deferred sale indicator after the cloud while the contingency is deferring (%j)",
+    "shows the deferred sale pill while the contingency is deferring (%j)",
     async (contingency) => {
       const screen = await renderBar({ status: loaded({ contingency }) });
 
-      expect(barText(screen)).toMatch(/Nube conectada.*Venta diferida/);
+      expect(barText(screen)).toContain("Venta diferida");
     },
   );
 
-  it("shows no fiscal indicator while the status is loading", async () => {
+  it("shows no fiscal pill while the status is loading", async () => {
     const screen = await renderBar({ status: { status: "loading" } });
 
     expect(barText(screen)).not.toMatch(/Contingencia CAEA/);
@@ -570,7 +588,7 @@ describe("RegisterStatusBar", () => {
       .not.toBeInTheDocument();
   });
 
-  it("shows the indicator but no notice for a deferring contingency without a notice", async () => {
+  it("shows the pill but no notice for a deferring contingency without a notice", async () => {
     const screen = await renderBar({
       status: loaded({ contingency: SOLD_LATER_WITHOUT_NOTICE }),
     });
