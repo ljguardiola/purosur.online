@@ -69,13 +69,7 @@ describe("SalesHistoryRail", () => {
     const items = Array.from(
       screen.getByRole("navigation").element().querySelectorAll("button, a"),
     ).map((item) => item.textContent);
-    expect(items).toEqual([
-      "Inicio",
-      "Historial",
-      "Impresora",
-      "Balanza y lector",
-      "Salir",
-    ]);
+    expect(items).toEqual(["Inicio", "Historial", "Impresora", "Balanza y lector", "Salir"]);
   });
 
   it("asks to confirm before signing out when no session is open", async () => {

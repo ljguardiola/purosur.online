@@ -221,11 +221,7 @@ describe("OpenSessionRail", () => {
         registerName="Caja 1"
         lock={() => {}}
         current="sale"
-        abilities={[
-          "view_sales_history",
-          "configure_receipt_printer",
-          "configure_serial_devices",
-        ]}
+        abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
       />,
     );
 
@@ -233,13 +229,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual([
-      "Historial",
-      "Devolver",
-      "Caja",
-      "Impresora",
-      "Balanza y lector",
-    ]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Impresora", "Balanza y lector"]);
   });
 
   describe("Salir", () => {
