@@ -3,21 +3,17 @@ import { Keycap } from "../data-display/keycap";
 import { escapeKeycapButtonClassName } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { IconOnlyButton } from "../shared/icon-only-button";
+import { type NoticeTone, toneClassName } from "../shared/tone";
 import { Eyebrow } from "./eyebrow";
 
 export type ElevatedPanelProps = {
   eyebrow: string;
   title: string;
   icon: Icon;
-  tone?: "info" | "error";
+  tone?: NoticeTone;
   escapeKey?: { name: string; onPress: () => void };
   children: ReactNode;
 };
-
-const badgeToneClassName = {
-  info: "bg-info-subtle text-info-strong",
-  error: "bg-error-subtle text-error-strong",
-} as const;
 
 export function ElevatedPanel({
   eyebrow,
@@ -34,7 +30,7 @@ export function ElevatedPanel({
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
-            className={`flex size-9 shrink-0 items-center justify-center rounded-full ${badgeToneClassName[tone]}`}
+            className={`flex size-9 shrink-0 items-center justify-center rounded-full ${toneClassName[tone].surface}`}
           >
             <span className={iconSlotClassName.md}>{icon}</span>
           </span>

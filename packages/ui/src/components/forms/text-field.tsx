@@ -266,7 +266,11 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
         <>
           <Tooltip description={readOnlyReason}>
             <AriaFocusable>
-              <ReadOnlyReasonInput className={inputClassName} {...labelledByProps} />
+              <ReadOnlyReasonInput
+                className={inputClassName}
+                {...(placeholder === undefined ? {} : { placeholder })}
+                {...labelledByProps}
+              />
             </AriaFocusable>
           </Tooltip>
           <span id={readOnlyReasonId} className="sr-only">

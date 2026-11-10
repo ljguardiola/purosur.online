@@ -130,6 +130,9 @@ export function KeyLayerProvider({ children }: { children: ReactNode }) {
       if (event.key.length === 1 && isTextField(event.target)) {
         return;
       }
+      if (event.key === "Enter" && event.target instanceof HTMLButtonElement) {
+        return;
+      }
       const candidates = candidatesFor(registrations.current, event, fallback);
       const binding = bindingFor(candidates, event.key);
       if (binding !== undefined) {
