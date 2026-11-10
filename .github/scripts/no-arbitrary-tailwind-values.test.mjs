@@ -295,9 +295,7 @@ test("reports the file of an arbitrary variant that starts a class", () => {
 
   const violations = checkFiles(Object.keys(files), (path) => files[path]);
 
-  assert.deepEqual(violations.map(describeViolation), [
-    "a.tsx:1:12: [@supports(display:grid)]",
-  ]);
+  assert.deepEqual(violations.map(describeViolation), ["a.tsx:1:12: [@supports(display:grid)]"]);
 });
 
 test("reports the file of every numeric z-index utility beside the arbitrary values", () => {
