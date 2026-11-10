@@ -11,7 +11,9 @@ describe("RegisterUpdatingNotice", () => {
     const screen = await render(<RegisterUpdatingNotice version={null} />);
 
     await expect.element(screen.getByText("Actualizando la caja")).toBeVisible();
-    await expect.element(screen.getByText("Vuelve a abrirse sola en un momento", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByText("Vuelve a abrirse sola en un momento", { exact: true }))
+      .toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
   });

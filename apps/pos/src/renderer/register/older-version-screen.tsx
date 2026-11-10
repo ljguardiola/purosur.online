@@ -2,14 +2,11 @@ import { InlineNotice, ScreenHeader } from "@purosur/ui";
 import { Download } from "lucide-react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 
-export function OlderVersionScreen() {
+export function OlderVersionScreen({ version }: { version: string | null }) {
   return (
-    <BrandPanelScreen>
+    <BrandPanelScreen version={version}>
       <main className="flex w-full max-w-110 flex-col gap-4">
-        <ScreenHeader
-          title="Hay que instalar la versión vigente"
-          description="Esta versión de la caja es anterior a la base de datos, así que no puede abrirla."
-        />
+        <ScreenHeader title="Hay que instalar la versión vigente" />
         <InlineNotice
           tone="info"
           icon={<Download />}
