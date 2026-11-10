@@ -20,6 +20,10 @@ opensOnlyScreens([
   "/products",
   "/sign-in",
   "/people/users",
+  "/purchases",
+  "/registers",
+  "/reports/sales-by-day",
+  "/stock",
 ]);
 
 beforeEach(resetPageState);
@@ -170,8 +174,14 @@ test("lists exactly the rail areas of a person with every capability, in order, 
   expect(labels[8]).toBe("Ayuda");
 });
 
-test("names the Configuración rail area like the title of its column", async () => {
-  window.history.pushState(null, "", "/people/users");
+test.each([
+  ["/registers", "Ventas y caja"],
+  ["/purchases", "Compras"],
+  ["/stock", "Stock"],
+  ["/reports/sales-by-day", "Reportes"],
+  ["/people/users", "Configuración"],
+])("opens %s with its column titled like the %s rail area", async (path, area) => {
+  window.history.pushState(null, "", path);
   const services = createAppServices();
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
     kind: "ok",
@@ -179,17 +189,15 @@ test("names the Configuración rail area like the title of its column", async ()
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const column = screen.getByRole("navigation", { name: "Configuración" });
-  await expect
-    .element(column.getByRole("heading", { name: "Configuración", level: 2 }))
-    .toBeVisible();
+  const column = screen.getByRole("navigation", { name: area, exact: true });
+  await expect.element(column.getByRole("heading", { name: area, level: 2 })).toBeVisible();
   await expect
     .element(
       screen
         .getByRole("navigation", { name: "Áreas" })
-        .getByRole("link", { name: "Configuración" }),
+        .getByRole("link", { name: area, exact: true }),
     )
-    .toHaveTextContent("Configuración");
+    .toHaveTextContent(area);
 });
 
 test.each(["/help", "/users", "/products/classification", "/products"])(
