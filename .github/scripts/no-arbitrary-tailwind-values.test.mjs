@@ -28,6 +28,119 @@ test("finds an arbitrary variant that starts a class", () => {
   assert.deepEqual(matchedTexts('"[&>svg]:h-full"'), ["[&>svg]"]);
 });
 
+test("finds an arbitrary variant that starts a class whatever its bracket opens with", () => {
+  assert.deepEqual(
+    matchedTexts('"[.dark_&]:p-4 [@supports(display:grid)]:p-4 [:hover>&]:p-4 [#a_&]:p-4"'),
+    ["[.dark_&]", "[@supports(display:grid)]", "[:hover>&]", "[#a_&]"],
+  );
+});
+
+test("finds an arbitrary variant holding nested brackets that starts a class", () => {
+  assert.deepEqual(matchedTexts('cn("[[data-side=left]_&]:p-4", `[.a_[b_[c=d]]_&]:p-4`)'), [
+    "[[data-side=left]_&]",
+    "[.a_[b_[c=d]]_&]",
+  ]);
+});
+
+test("finds an arbitrary variant holding a quote that starts a class", () => {
+  assert.deepEqual(
+    matchedTexts(`cn("[&[data-state='open']]:p-4", "[[data-state='open']_&]:p-4")`),
+    ["[&[data-state='open']]", "[[data-state='open']_&]"],
+  );
+});
+
+test("finds an arbitrary variant opening with a relative combinator that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[>svg]:p-4 [+p]:p-4 [~p]:p-4"'), ["[>svg]", "[+p]", "[~p]"]);
+});
+
+test("finds an arbitrary variant without a nesting selector that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[.dark]:p-4 [:hover]:p-4 [#app]:p-4 [*]:p-4 [[data-x]]:p-4"'), [
+    "[.dark]",
+    "[:hover]",
+    "[#app]",
+    "[*]",
+    "[[data-x]]",
+  ]);
+});
+
+test("finds an arbitrary attribute variant that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[data-slot]:p-4 [aria-expanded=true]:p-4"'), [
+    "[data-slot]",
+    "[aria-expanded=true]",
+  ]);
+});
+
+test("reports once an arbitrary variant starting a class whose bracket opens like a property", () => {
+  assert.deepEqual(matchedTexts('"[input:checked_&]:p-4 [input:checked_&[x]]:p-4"'), [
+    "[input:checked_&]",
+    "[input:checked_&[x]]",
+  ]);
+});
+
+test("finds an arbitrary variant before a variant named like a pseudo-class that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[data-slot]:hover:p-4 [data-x]:focus:hover:p-4"'), [
+    "[data-slot]",
+    "[data-x]",
+  ]);
+});
+
+test("does not flag a CSS selector string", () => {
+  const source = [
+    `const a = root.querySelector("[aria-live]:not([aria-live='off'])");`,
+    'const b = root.querySelectorAll("[role=switch]:checked");',
+    'const c = root.querySelector("[data-slot]:first-child");',
+    'const d = root.querySelector("[data-x]::before");',
+    'const e = root.querySelector("[data-x]:nth-child(2)");',
+    'const f = root.querySelector("[data-slot]:hover:focus");',
+    'const g = root.querySelector("[data-x]:not(.a):first-child");',
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
+test("does not flag a CSS selector string with a vendor-prefixed pseudo", () => {
+  const source = [
+    'const a = root.querySelector("[name=email]:-webkit-autofill");',
+    'const b = root.querySelector("[data-x]::-webkit-scrollbar");',
+    'const c = root.querySelector("[data-x]:-moz-focusring");',
+    'const d = root.querySelector("[type=search]::-webkit-search-cancel-button");',
+    'const e = root.querySelector("[data-x]::-ms-clear");',
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
+test("finds an arbitrary variant before a negative utility that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[data-x]:-ms-4 [data-x]:-mt-2 [data-x]:-z-1 [data-x]:-ms-px"'), [
+    "[data-x]",
+    "[data-x]",
+    "[data-x]",
+    "[data-x]",
+  ]);
+});
+
+test("reports the line and column where an arbitrary variant starting a class opens", () => {
+  const source = ["const a = 1;", 'const b = "flex [.dark_&]:p-4";'].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), [{ line: 2, column: 17, text: "[.dark_&]" }]);
+});
+
+test("does not flag computed properties, destructuring or index signatures on their own line", () => {
+  const source = [
+    "const a = {",
+    "  [Symbol.iterator]: () => x,",
+    '  ["data-x"]: 1,',
+    "  [keys.first]: [a, b],",
+    "};",
+    "const [first]: [string] = pair;",
+    "type B = {",
+    "  [K in Keys]: string;",
+    "};",
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
 test("finds an arbitrary property that starts a class", () => {
   assert.deepEqual(matchedTexts("`flex [mask-type:luminance]`"), ["[mask-type:luminance]"]);
 });
@@ -249,6 +362,17 @@ test("reports the file of every match across several files", () => {
   const violations = checkFiles(Object.keys(files), (path) => files[path]);
 
   assert.deepEqual(violations, [{ path: "a.tsx", line: 1, column: 16, text: "-[13px]" }]);
+});
+
+test("reports the file of an arbitrary variant that starts a class", () => {
+  const files = {
+    "a.tsx": 'const a = "[@supports(display:grid)]:p-4";\n',
+    "b.tsx": 'const b = "p-4";\n',
+  };
+
+  const violations = checkFiles(Object.keys(files), (path) => files[path]);
+
+  assert.deepEqual(violations.map(describeViolation), ["a.tsx:1:12: [@supports(display:grid)]"]);
 });
 
 test("reports the file of every numeric z-index utility beside the arbitrary values", () => {
