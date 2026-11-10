@@ -114,13 +114,14 @@ describe("NavigationRail", () => {
     expect(rail.getBoundingClientRect().width).toBe(72);
   });
 
-  it("shows the Puro Sur isotype above its items", async () => {
+  it("shows the Puro Sur isotype above its items, as decoration of the named menu", async () => {
     const screen = await renderRail({ entries: [HISTORY] });
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
-    const isotype = screen.getByRole("img", { name: "Puro Sur" }).element();
+    const isotype = rail.querySelector('img[src*="puro-sur-iso"]') as HTMLImageElement;
 
-    expect(rail.contains(isotype)).toBe(true);
+    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).not.toBeInTheDocument();
+    expect(isotype.alt).toBe("");
     const firstItem = rail.querySelector("button, a") as Element;
     expect(
       isotype.compareDocumentPosition(firstItem) & Node.DOCUMENT_POSITION_FOLLOWING,
