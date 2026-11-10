@@ -178,7 +178,7 @@ test("shows a load error with a retry action that starts again from the loading 
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los etiquetas")).toBeVisible();
+  await expect.element(screen.getByText("No pudimos abrir las etiquetas")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -233,7 +233,7 @@ test("the create action stays available while the tags load, and after they fail
   await expect.element(screen.getByRole("button", { name: "Nueva etiqueta" })).toBeEnabled();
 
   firstLoad.resolve({ kind: "failed" });
-  await expect.element(screen.getByText("No pudimos abrir los etiquetas")).toBeVisible();
+  await expect.element(screen.getByText("No pudimos abrir las etiquetas")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Nueva etiqueta" })).toBeEnabled();
 });
 

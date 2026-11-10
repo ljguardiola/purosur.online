@@ -103,7 +103,7 @@ test("requires a name, and refuses one longer than 100 characters, without calli
   const dialog = screen.getByRole("dialog");
 
   await save(screen, "");
-  await expect.element(dialog.getByText("Ingresá el nombre dla etiqueta.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá el nombre de la etiqueta.")).toBeVisible();
 
   await save(screen, "a".repeat(101));
   await expect

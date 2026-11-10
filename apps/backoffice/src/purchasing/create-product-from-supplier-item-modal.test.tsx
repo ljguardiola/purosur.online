@@ -377,7 +377,7 @@ test("says the tags could not be opened, and reading them again recovers", async
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
 
-  await expect.element(dialog.getByText("No pudimos abrir los etiquetas")).toBeVisible();
+  await expect.element(dialog.getByText("No pudimos abrir las etiquetas")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
   await expect.element(dialog.getByRole("group", { name: "Etiquetas" })).toBeVisible();
