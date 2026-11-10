@@ -6,13 +6,26 @@ import {
   formatCents,
   formatNumber,
   InlineNotice,
+  KeyTile,
   LoadingPlaceholder,
   plural,
   SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { BadgePercent, Banknote, Lock, OctagonAlert, TriangleAlert, X } from "lucide-react";
+import {
+  BadgePercent,
+  Banknote,
+  ChevronRight,
+  CreditCard,
+  Lock,
+  OctagonAlert,
+  QrCode,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import type { ReactNode } from "react";
+import type { KeyedChargeMethod } from "./charge-method-options";
+import { PaidOrderNotice } from "./rebuilt-paid-order-notice";
 import { saleDiscountLabel } from "./sale-discount-text";
 
 export type PaymentPanelProps = {
@@ -27,10 +40,15 @@ export type PaymentPanelProps = {
   cancellable: boolean;
   hasApprovedPayment: boolean;
   chargeRefusal: OpenSale["charge_refusal"];
+  paidOrderToApply:
+    | Pick<NonNullable<OpenSale["rebuilt_paid_order"]>, "method" | "amount">
+    | undefined;
+  canCharge: boolean;
   canCancel: boolean;
   canDiscount: boolean;
   onDiscount: () => void;
-  onCharge: () => void;
+  onCharge: (method: KeyedChargeMethod | undefined) => void;
+  onChargePaidOrder: () => void;
   onCancel: () => void;
 };
 
@@ -63,13 +81,15 @@ export function PaymentPanel({
   cancellable,
   hasApprovedPayment,
   chargeRefusal,
+  paidOrderToApply,
+  canCharge,
   canCancel,
   canDiscount,
   onDiscount,
   onCharge,
+  onChargePaidOrder,
   onCancel,
 }: PaymentPanelProps) {
-  const lines = plural(lineCount, { one: "línea", other: "líneas" });
   const isZeroTotal = lineCount > 0 && total === 0;
   return (
     <SidePanel
@@ -84,17 +104,25 @@ export function PaymentPanel({
             disabled={!canCancel}
             onPress={onCancel}
           >
-            {hasApprovedPayment ? "Cancelar venta" : "Vaciar carrito"}
+            {hasApprovedPayment ? "Cancelar venta" : "Vaciar"}
           </Button>
         ) : undefined
       }
     >
-      <FigureStat label="Total a cobrar" value={formatCents(total)} />
+      <FigureStat label="Total" value={formatCents(total)} />
       {saleStatus === "loading" ? <LoadingPlaceholder variant="card" lines={2} /> : null}
       {saleStatus === "loaded" ? (
         <SummaryRowGroup
           rows={[
-            { label: `${formatNumber(lineCount)} ${lines}`, value: formatCents(grossSubtotal) },
+            { label: "Artículos", value: formatNumber(lineCount) },
+            ...(promotionSavings > 0 || saleDiscount !== null
+              ? [
+                  {
+                    label: `${formatNumber(lineCount)} ${plural(lineCount, { one: "línea", other: "líneas" })}`,
+                    value: formatCents(grossSubtotal),
+                  },
+                ]
+              : []),
             ...(promotionSavings > 0
               ? [
                   {
@@ -134,21 +162,6 @@ export function PaymentPanel({
         />
       )}
       {chargeRefusal === null ? null : refusalNotice(chargeRefusal)}
-      {chargeRefusal === null ? (
-        <Button
-          size="sale"
-          fullWidth
-          icon={<Banknote />}
-          disabled={lineCount === 0 || isZeroTotal}
-          onPress={onCharge}
-        >
-          Cobrar
-        </Button>
-      ) : (
-        <Button size="sale" fullWidth icon={<Lock />} disabled onPress={onCharge}>
-          Cobro no habilitado
-        </Button>
-      )}
       {isZeroTotal ? (
         <InlineNotice
           tone="warning"
@@ -156,6 +169,65 @@ export function PaymentPanel({
           title="El total es $ 0,00: quitá el producto o cancelá la venta."
         />
       ) : null}
+      {paidOrderToApply === undefined ? null : <PaidOrderNotice paidOrder={paidOrderToApply} />}
+      <div className="mt-auto flex flex-col gap-3">
+        {paidOrderToApply === undefined ? (
+          <>
+            {chargeRefusal === null ? (
+              <Button
+                size="sale"
+                fullWidth
+                icon={<Banknote />}
+                keycap="F12"
+                disabled={!canCharge}
+                onPress={() => onCharge("CASH")}
+              >
+                Cobrar en efectivo
+              </Button>
+            ) : (
+              <Button size="sale" fullWidth icon={<Lock />} disabled onPress={() => {}}>
+                Cobro no habilitado
+              </Button>
+            )}
+            <div className="grid grid-cols-3 gap-3">
+              <KeyTile
+                label="Point débito"
+                icon={<CreditCard />}
+                keyName="F9"
+                disabled={!canCharge}
+                onPress={() => onCharge("POINT_DEBIT")}
+              />
+              <KeyTile
+                label="Point crédito"
+                icon={<CreditCard />}
+                keyName="F10"
+                disabled={!canCharge}
+                onPress={() => onCharge("POINT_CREDIT")}
+              />
+              <KeyTile
+                label="QR"
+                icon={<QrCode />}
+                keyName="F11"
+                disabled={!canCharge}
+                onPress={() => onCharge("QR")}
+              />
+            </div>
+            <Button
+              variant="text"
+              icon={<ChevronRight />}
+              keycap="F1"
+              disabled={!canCharge}
+              onPress={() => onCharge(undefined)}
+            >
+              Otros medios
+            </Button>
+          </>
+        ) : (
+          <Button size="large" fullWidth keycap="Enter" onPress={onChargePaidOrder}>
+            Cobrar con el pago de Mercado Pago
+          </Button>
+        )}
+      </div>
     </SidePanel>
   );
 }

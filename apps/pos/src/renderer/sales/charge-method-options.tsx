@@ -13,6 +13,7 @@ export type ChargeMethod =
   | "STANDALONE_TERMINAL";
 
 export const KEYED_CHARGE_METHODS = ["CASH", "POINT_DEBIT", "POINT_CREDIT", "QR"] as const;
+export type KeyedChargeMethod = (typeof KEYED_CHARGE_METHODS)[number];
 
 type MethodOption = {
   value: ChargeMethod;

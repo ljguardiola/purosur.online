@@ -1,14 +1,23 @@
 import type { OpenSale } from "@purosur/contracts";
-import { EmptyState, formatCents, formatWeight, IconButton, Tag } from "@purosur/ui";
+import type { KeyLegendItem } from "@purosur/ui";
 import {
-  Minus,
+  actionsColumn,
+  dataColumn,
+  formatCents,
+  formatNumber,
+  formatWeight,
+  Table,
+  Tag,
+  useTableModel,
+} from "@purosur/ui";
+import {
   Package,
   Percent,
-  Plus,
   Scale,
   ShoppingBasket,
   TagIcon,
   Trash2,
+  TriangleAlert,
 } from "lucide-react";
 import { lineAdjustmentText } from "./line-adjustment-text";
 import { linePromotionText } from "./line-promotion-text";
@@ -16,24 +25,11 @@ import { linePromotionText } from "./line-promotion-text";
 type SaleLine = OpenSale["lines"][number];
 
 export type SaleLineActions = {
-  busy: boolean;
   editable: boolean;
-  lockedReason: string | undefined;
-  onChangeQuantity: (line: SaleLine, quantity: number) => void;
   onChangeWeight: (line: SaleLine) => void;
   onAdjust: (line: SaleLine) => void;
   onRemove: (line: SaleLine) => void;
 };
-
-function availability(
-  actions: SaleLineActions,
-  unavailable: boolean,
-): { disabled: boolean } | { disabledReason: string } {
-  if (!actions.editable && actions.lockedReason !== undefined) {
-    return { disabledReason: actions.lockedReason };
-  }
-  return { disabled: actions.busy || !actions.editable || unavailable };
-}
 
 function lineMark(line: SaleLine): string | undefined {
   if (line.manual_adjustment !== null) {
@@ -42,39 +38,21 @@ function lineMark(line: SaleLine): string | undefined {
   return line.promotion === null ? undefined : linePromotionText(line.promotion);
 }
 
-function SaleLineRow({
-  line,
-  changed,
-  actions,
-}: {
-  line: SaleLine;
-  changed: boolean;
-  actions: SaleLineActions;
-}) {
+function ProductCell({ line }: { line: SaleLine }) {
   const mark = lineMark(line);
+  const TypeIcon = line.sale_unit === "KG" ? Scale : Package;
   return (
-    <li
-      aria-current={changed ? "true" : undefined}
-      className={[
-        "flex min-h-14 shrink-0 items-center gap-4 rounded-lg bg-surface px-4",
-        changed ? "inset-ring-2 inset-ring-action" : "",
-      ].join(" ")}
-    >
+    <span className="flex items-center gap-4">
       <span
         aria-hidden="true"
         className="flex size-control-sm shrink-0 items-center justify-center rounded-full bg-surface-soft text-text-eyebrow"
       >
-        <Package className="size-icon-md" />
+        <TypeIcon className="size-icon-md" />
       </span>
-      <span className="flex min-w-0 flex-1 flex-col">
+      <span className="flex min-w-0 flex-col">
         <span className="truncate text-subheading font-semibold text-text">
           {line.product_name}
         </span>
-        {line.sale_unit === "KG" ? (
-          <span className="text-detail text-text-subtle">
-            {formatCents(line.list_unit_price)} el kg
-          </span>
-        ) : null}
         {mark === undefined ? null : (
           <span>
             <Tag tone="success" icon={<TagIcon />}>
@@ -83,87 +61,116 @@ function SaleLineRow({
           </span>
         )}
       </span>
-      {line.sale_unit === "KG" ? (
-        <span className="flex w-37.5 shrink-0 items-center justify-between">
-          <span className="text-subheading text-text">{formatWeight(line.quantity)}</span>
-          <IconButton
-            aria-label={`Cambiar el peso de ${line.product_name}`}
-            icon={<Scale />}
-            {...availability(actions, false)}
-            onPress={() => actions.onChangeWeight(line)}
-          />
-        </span>
-      ) : (
-        <span className="flex w-27 shrink-0 items-center justify-between">
-          <IconButton
-            aria-label={`Bajar la cantidad de ${line.product_name}`}
-            icon={<Minus />}
-            {...availability(actions, line.quantity <= 1)}
-            onPress={() => actions.onChangeQuantity(line, line.quantity - 1)}
-          />
-          <span className="text-subheading text-text">{line.quantity}</span>
-          <IconButton
-            aria-label={`Subir la cantidad de ${line.product_name}`}
-            icon={<Plus />}
-            {...availability(actions, false)}
-            onPress={() => actions.onChangeQuantity(line, line.quantity + 1)}
-          />
-        </span>
+    </span>
+  );
+}
+
+function AmountCell({ line }: { line: SaleLine }) {
+  return (
+    <span className="flex flex-col items-end">
+      {line.discount_amount === 0 ? null : (
+        <s className="text-detail text-text-subtle">
+          {formatCents(line.line_total + line.discount_amount)}
+        </s>
       )}
-      <span className="flex w-37.5 shrink-0 flex-col text-right">
-        {line.discount_amount === 0 ? null : (
-          <s className="text-detail text-text-subtle">
-            {formatCents(line.line_total + line.discount_amount)}
-          </s>
-        )}
-        <span className="text-heading text-text">{formatCents(line.line_total)}</span>
-      </span>
-      <IconButton
-        aria-label={`Cambiar el precio de ${line.product_name}`}
-        icon={<Percent />}
-        {...availability(actions, false)}
-        onPress={() => actions.onAdjust(line)}
-      />
-      <IconButton
-        variant="subtle"
-        aria-label={`Quitar ${line.product_name}`}
-        icon={<Trash2 />}
-        {...availability(actions, false)}
-        onPress={() => actions.onRemove(line)}
-      />
-    </li>
+      <span className="text-heading text-text">{formatCents(line.line_total)}</span>
+    </span>
   );
 }
 
 export function SaleLines({
   lines,
-  changedLineId,
+  selectedLineId,
+  legend,
+  failed,
   actions,
+  onSelect,
 }: {
   lines: OpenSale["lines"];
-  changedLineId: string | undefined;
+  selectedLineId: string | undefined;
+  legend: readonly KeyLegendItem[];
+  failed: boolean;
   actions: SaleLineActions;
+  onSelect: (line: SaleLine) => void;
 }) {
-  if (lines.length === 0) {
-    return (
-      <EmptyState
-        variant="blank"
-        icon={<ShoppingBasket />}
-        title="La venta está vacía"
-        description="Escaneá un producto para agregarlo."
-      />
-    );
-  }
+  const columns = [
+    dataColumn({
+      id: "product",
+      header: "Producto",
+      render: (line: SaleLine) => <ProductCell line={line} />,
+    }),
+    dataColumn({
+      id: "price",
+      header: "Precio",
+      width: 170,
+      render: (line: SaleLine) =>
+        `${formatCents(line.list_unit_price)} / ${line.sale_unit === "KG" ? "kg" : "u"}`,
+    }),
+    dataColumn({
+      id: "quantity",
+      header: "Cantidad",
+      width: 110,
+      render: (line: SaleLine) =>
+        line.sale_unit === "KG" ? formatWeight(line.quantity) : `${formatNumber(line.quantity)} u`,
+    }),
+    dataColumn({
+      id: "amount",
+      header: "Importe",
+      align: "end",
+      width: 150,
+      render: (line: SaleLine) => <AmountCell line={line} />,
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Acciones",
+      actions: [
+        (line: SaleLine) =>
+          actions.editable && line.sale_unit === "KG"
+            ? {
+                icon: <Scale />,
+                "aria-label": `Cambiar el peso de ${line.product_name}`,
+                onPress: () => actions.onChangeWeight(line),
+              }
+            : undefined,
+        (line: SaleLine) =>
+          actions.editable
+            ? {
+                icon: <Percent />,
+                "aria-label": `Cambiar el precio de ${line.product_name}`,
+                onPress: () => actions.onAdjust(line),
+              }
+            : undefined,
+        (line: SaleLine) =>
+          actions.editable
+            ? {
+                icon: <Trash2 />,
+                "aria-label": `Quitar ${line.product_name}`,
+                onPress: () => actions.onRemove(line),
+              }
+            : undefined,
+      ],
+    }),
+  ] as const;
+  const table = useTableModel({ items: lines, id: (line) => line.id, columns });
   return (
-    <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-      {lines.map((line) => (
-        <SaleLineRow
-          key={line.id}
-          line={line}
-          changed={line.id === changedLineId}
-          actions={actions}
-        />
-      ))}
-    </ul>
+    <Table
+      table={table}
+      aria-label="Líneas de la venta"
+      fill
+      legend={legend}
+      rowState={(line) => (line.id === selectedLineId ? "selected" : undefined)}
+      onRowPress={onSelect}
+      empty={{ variant: "blank", icon: <ShoppingBasket />, title: "La venta está vacía" }}
+      {...(failed
+        ? {
+            failure: {
+              variant: "centered",
+              icon: <TriangleAlert />,
+              title: "No se pudo cargar la venta",
+              description: "Volvé a intentarlo en unos segundos.",
+            },
+          }
+        : {})}
+    />
   );
 }

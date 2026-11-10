@@ -1,5 +1,6 @@
 import type { FoundProduct } from "@purosur/contracts";
-import { EmptyState, formatCents, formatNumber, InlineNotice, plural } from "@purosur/ui";
+import type { KeyLegendItem } from "@purosur/ui";
+import { EmptyState, formatCents, formatNumber, InlineNotice, KeyLegend } from "@purosur/ui";
 import { Package, Scale, Search, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -24,6 +25,11 @@ export type ProductSearchResultsProps<Product extends SearchedProduct = FoundPro
 export function searchOptionId(listboxId: string, index: number) {
   return `${listboxId}-option-${index}`;
 }
+
+const KEY_LEGEND: readonly KeyLegendItem[] = [
+  { keyName: "ArrowUpDown", label: "Elegir" },
+  { keyName: "Enter", label: "Agregar" },
+];
 
 const PANEL_POSITION_CLASS_NAME = "absolute inset-x-0 top-full z-overlay mt-2";
 const PANEL_BOX_CLASS_NAME = "overflow-hidden rounded-lg border border-border bg-surface shadow-lg";
@@ -169,16 +175,10 @@ function FoundProducts<Product extends SearchedProduct>({
             description={`Se muestran los primeros ${formatNumber(products.length)} resultados y hay más. Escribí más letras para afinar la búsqueda.`}
           />
         </div>
-      ) : (
-        <div className="flex items-center justify-between gap-4 border-t border-border px-4 py-3 text-detail text-text-subtle">
-          <span>
-            {formatNumber(products.length)}{" "}
-            {plural(products.length, { one: "resultado", other: "resultados" })} · primero los más
-            vendidos en esta caja
-          </span>
-          <span>↑ ↓ elegir · Enter agregar · Esc cerrar</span>
-        </div>
-      )}
+      ) : null}
+      <div className="border-t border-border bg-surface-subtle px-4 py-3">
+        <KeyLegend items={KEY_LEGEND} />
+      </div>
     </div>
   );
 }
