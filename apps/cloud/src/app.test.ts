@@ -2805,11 +2805,6 @@ describe("the route access inventory", () => {
         access: capabilityAccess("branch_area"),
       },
       {
-        method: "PUT",
-        url: "/api/locations/current/settings",
-        access: capabilityAccess("branch_area"),
-      },
-      {
         method: "GET",
         url: "/api/locations/current/good-condition-return-days",
         access: anyCapabilityAccess("refunds_area", "returns_report"),
@@ -2818,6 +2813,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/locations/current/supplier-price-list-daily-cap",
         access: capabilityAccess("supplier_price_lists"),
+      },
+      {
+        method: "PUT",
+        url: "/api/locations/current/settings",
+        access: capabilityAccess("branch_area"),
       },
       { method: "GET", url: "/api/zone-rules/current", access: OPEN_SESSION_ACCESS },
       {
