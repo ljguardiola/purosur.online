@@ -110,7 +110,9 @@ test("announces a success toast politely, as a status", async () => {
 test("announces an error toast right away, as an alert", async () => {
   const screen = await render(toast({ tone: "error", icon: <TriangleAlert />, onDismiss: () => {} }));
 
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("Payment turned into a refund");
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Payment turned into a refund It is confirmed later in the back office.");
 });
 
 test("is gone once its screen stops showing it", async () => {
