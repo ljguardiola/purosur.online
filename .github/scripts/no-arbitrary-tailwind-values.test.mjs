@@ -182,6 +182,14 @@ test("finds a numeric z-index utility behind an arbitrary variant holding nested
   );
 });
 
+test("finds a numeric z-index utility behind a variant holding a character outside the basic plane", () => {
+  assert.deepEqual(numericZIndexTexts('"data-[label=😀]:z-10 [.😀_&]:z-10 [&_😀]:-z-1"'), [
+    "data-[label=😀]:z-10",
+    "[.😀_&]:z-10",
+    "[&_😀]:-z-1",
+  ]);
+});
+
 test("does not flag the z-index role utilities behind an arbitrary variant", () => {
   assert.deepEqual(
     numericZIndexTexts('"[.dark_&]:z-raised hover:[&>svg]:-z-raised [.a_[b_[c=d]]_&]:z-overlay"'),
