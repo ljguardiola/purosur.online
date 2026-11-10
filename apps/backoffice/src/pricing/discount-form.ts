@@ -222,7 +222,11 @@ export const WEEKDAY_OPTIONS = [
   { value: "7", label: "Dom", fullLabel: "Domingo" },
 ] as const;
 
-const INACTIVE_TARGET_STATUS = "Inactivo";
+const INACTIVE_TARGET_STATUS: Record<DiscountTargetKind, string> = {
+  PRODUCT: "Inactivo",
+  CATEGORY: "Inactiva",
+  TAG: "Inactiva",
+};
 const SOLD_BY_WEIGHT_TARGET_STATUS = "Por peso";
 
 type CurrentTarget = {
@@ -311,7 +315,7 @@ export function keptTarget(
   }
   const { target, benefit } = current;
   if (!listedTargets(target.kind, sources).some((listed) => listed.id === target.id)) {
-    return { ...target, status: INACTIVE_TARGET_STATUS };
+    return { ...target, status: INACTIVE_TARGET_STATUS[target.kind] };
   }
   return benefit.kind === "BUY_N_PAY_M" &&
     target.kind === "PRODUCT" &&
