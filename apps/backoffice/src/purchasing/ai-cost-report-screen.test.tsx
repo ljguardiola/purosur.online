@@ -68,7 +68,7 @@ function renderScreen(services: AiCostReportScreenServices, handlers: Handlers =
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-const TITLE = "Costo de IA por período";
+const TITLE = "Costo de IA";
 
 function costTable(screen: Screen) {
   return screen.getByRole("table", { name: TITLE, exact: true });
@@ -334,7 +334,7 @@ test("downloads a spreadsheet of the groups shown, for the grouping and the peri
     .poll(() => downloads.names)
     .toEqual(["costo-de-ia-por-periodo-2026-10-01-2026-10-31.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
-  expect(file.sheetNames).toEqual(["Resumen", "Costo de IA por período"]);
+  expect(file.sheetNames).toEqual(["Resumen", "Costo de IA"]);
   expect(file.sheet(0).get("B4")?.value).toBe("Proveedor");
   expect(file.sheet(0).get("B5")?.value).toBe("3");
   expect(file.sheet(0).get("B9")?.value).toBe("3");

@@ -33,7 +33,7 @@ test("opens the report at its address, under Configuración > Diagnóstico, and 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Costo de IA por período", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Costo de IA", level: 1 }))
     .toBeVisible();
   await expect
     .element(screen.getByText("Configuración · Diagnóstico", { exact: true }))
@@ -43,7 +43,7 @@ test("opens the report at its address, under Configuración > Diagnóstico, and 
   expect(services.aiCostReportScreen.fetchAiCostReport).toHaveBeenCalledWith({
     group_by: "supplier",
   });
-  expect(document.title).toBe("Costo de IA por período · Puro Sur");
+  expect(document.title).toBe("Costo de IA · Puro Sur");
 });
 
 test("offers the report under Diagnóstico in the Configuración column, after the other items, to who may see it", async () => {
@@ -60,7 +60,7 @@ test("offers the report under Diagnóstico in the Configuración column, after t
     .element(
       sections
         .getByRole("list", { name: "Diagnóstico" })
-        .getByRole("link", { name: "Costo de IA por período" }),
+        .getByRole("link", { name: "Costo de IA" }),
     )
     .toHaveAttribute("aria-current", "page");
   await expect
@@ -72,7 +72,7 @@ test("offers the report under Diagnóstico in the Configuración column, after t
     .getByRole("link")
     .elements()
     .map((link) => link.textContent);
-  expect(labels.at(-1)).toBe("Costo de IA por período");
+  expect(labels.at(-1)).toBe("Costo de IA");
 });
 
 test("leaves the report out of the Configuración column without the reports area", async () => {
@@ -88,7 +88,7 @@ test("leaves the report out of the Configuración column without the reports are
       }),
     )
     .toBeVisible();
-  expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Costo de IA" }).query()).toBeNull();
   expect(screen.getByRole("heading", { name: "Diagnóstico" }).query()).toBeNull();
 });
 
@@ -99,8 +99,8 @@ test("leaves the report out of Reportes", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Reportes" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
-  expect(screen.getByRole("radio", { name: "Costo de IA por período" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Costo de IA" }).query()).toBeNull();
+  expect(screen.getByRole("radio", { name: "Costo de IA" }).query()).toBeNull();
 });
 
 test("keeps the period and the grouping in the URL and asks the cloud for them", async () => {
