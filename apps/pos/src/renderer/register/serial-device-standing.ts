@@ -10,14 +10,14 @@ type Indicator = { tone: Tone; text: string };
 const ROLE_TEXTS: Record<SerialDeviceRole, Record<SerialDeviceStandingKind, string>> = {
   scale: {
     matching: "Balanza conectada",
-    not_detected: "Balanza no detectada",
+    not_detected: "Balanza sin conectar",
     mismatched: "Balanza no coincide con la registrada",
     not_registered: "Balanza sin registrar",
     unknown: "Balanza sin verificar",
   },
   reader: {
     matching: "Lector conectado",
-    not_detected: "Lector no detectado",
+    not_detected: "Lector sin conectar",
     mismatched: "Lector no coincide con el registrado",
     not_registered: "Lector sin registrar",
     unknown: "Lector sin verificar",
