@@ -16,7 +16,6 @@ const SCREEN_ROUTES = {
   deferred_sale: "/deferred-sale",
   receipt_printer: "/receipt-printer",
   serial_devices: "/serial-devices",
-  help: "/help",
 } as const satisfies Record<string, ActionEntry["to"]>;
 
 export function OpenSessionRail({
@@ -52,7 +51,7 @@ export function OpenSessionRail({
           ...linksTo(["/history", "/deferred-sale"]),
           { label: "Devolver", icon: Undo2, to: "/return", current: current === "return" },
           { label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" },
-          ...linksTo(["/receipt-printer", "/serial-devices", "/help"]),
+          ...linksTo(["/receipt-printer", "/serial-devices"]),
         ]}
         onSignOut={() => setLeaving(true)}
       />

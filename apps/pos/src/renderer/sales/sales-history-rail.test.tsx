@@ -58,7 +58,6 @@ describe("SalesHistoryRail", () => {
             "view_sales_history",
             "configure_receipt_printer",
             "configure_serial_devices",
-            "read_register_help",
           ],
         }}
         registerName="Caja 1"
@@ -70,14 +69,7 @@ describe("SalesHistoryRail", () => {
     const items = Array.from(
       screen.getByRole("navigation").element().querySelectorAll("button, a"),
     ).map((item) => item.textContent);
-    expect(items).toEqual([
-      "Inicio",
-      "Historial",
-      "Impresora",
-      "Balanza y lector",
-      "Ayuda",
-      "Salir",
-    ]);
+    expect(items).toEqual(["Inicio", "Historial", "Impresora", "Balanza y lector", "Salir"]);
   });
 
   it("asks to confirm before signing out when no session is open", async () => {

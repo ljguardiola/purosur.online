@@ -64,12 +64,6 @@ test("the first area (Caja) is selected by default, showing its permissions", as
     .toBeVisible();
 });
 
-test("the Caja area offers reading the register's help", async () => {
-  const screen = await render(<Harness />);
-
-  await expect.element(screen.getByText("Leer la ayuda de la caja")).toBeVisible();
-});
-
 test("the Dispositivos area offers loading and consulting the BitLocker recovery key", async () => {
   const screen = await render(<Harness initialArea="devices" />);
 
@@ -116,10 +110,10 @@ test("groups the area buttons under an accessible name that says what they choos
 test("checking a permission updates its area's n de m count", async () => {
   const screen = await render(<Harness />);
 
-  await expect.element(screen.getByText("0 de 8").first()).toBeVisible();
+  await expect.element(screen.getByText("0 de 7").first()).toBeVisible();
   await userEvent.click(screen.getByText("Reimprimir un ticket").element());
 
-  await expect.element(screen.getByText("1 de 8").first()).toBeVisible();
+  await expect.element(screen.getByText("1 de 7").first()).toBeVisible();
 });
 
 test("a permission used at the register shows a Caja tag, and one not used there shows none", async () => {

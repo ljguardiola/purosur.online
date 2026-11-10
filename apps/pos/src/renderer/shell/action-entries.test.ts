@@ -29,12 +29,6 @@ describe("entriesFor", () => {
   it("offers nothing when there are no entries", () => {
     expect(entriesFor([], ["correct_register_clock"])).toEqual([]);
   });
-
-  it("offers the help to a person who may read it, opening its screen", () => {
-    expect(entriesFor(ACTION_ENTRIES, ["read_register_help"])).toEqual([
-      expect.objectContaining({ label: "Ayuda", to: "/help" }),
-    ]);
-  });
 });
 
 describe("ACTION_ENTRIES", () => {
@@ -74,6 +68,11 @@ describe("ACTION_ENTRIES", () => {
     expect(
       entriesFor(ACTION_ENTRIES, ["invoice_deferred_sale"]).map(({ label, to }) => ({ label, to })),
     ).toEqual([{ label: "Venta diferida", to: "/deferred-sale" }]);
+  });
+
+  it("has no entry for the help", () => {
+    expect(ACTION_ENTRIES.map(({ label }) => label)).not.toContain("Ayuda");
+    expect(ACTION_ENTRIES.map(({ to }) => to)).not.toContain("/help");
   });
 
   it("offers nothing to a person who may not view the sales history", () => {
