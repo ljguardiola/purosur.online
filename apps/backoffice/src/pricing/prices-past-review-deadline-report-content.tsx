@@ -105,17 +105,53 @@ const columns = [
   }),
 ] as const;
 
-export function PricesPastReviewDeadlineReportContent({
+function useReport({
+  filters,
+  onSessionEnded,
+  services,
+}: Pick<PricesPastReviewDeadlineReportContentProps, "filters" | "onSessionEnded" | "services">) {
+  return usePricesPastReviewDeadlineReportQuery({
+    query: filters.from === "" ? {} : { from: filters.from, to: filters.to },
+    fetchPricesPastReviewDeadlineReport: services.fetchPricesPastReviewDeadlineReport,
+    onSessionEnded,
+  });
+}
+
+export function PricesPastReviewDeadlineReportPeriod({
   filters,
   onFiltersChange,
   onSessionEnded,
   services,
 }: PricesPastReviewDeadlineReportContentProps) {
-  const data = usePricesPastReviewDeadlineReportQuery({
-    query: filters.from === "" ? {} : { from: filters.from, to: filters.to },
-    fetchPricesPastReviewDeadlineReport: services.fetchPricesPastReviewDeadlineReport,
-    onSessionEnded,
-  });
+  const data = useReport({ filters, onSessionEnded, services });
+  const shown = data.status === "loaded" ? data.value : data.lastValue;
+
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <ReportFilters
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+        answeredPeriod={shown?.period}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() => (shown ? pricesPastReviewDeadlineReportSpreadsheet(shown) : null)}
+            fileName={
+              shown ? reportFileName(PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE, shown.period) : ""
+            }
+          />
+        }
+      />
+    </div>
+  );
+}
+
+export function PricesPastReviewDeadlineReportRows({
+  filters,
+  onSessionEnded,
+  services,
+}: Pick<PricesPastReviewDeadlineReportContentProps, "filters" | "onSessionEnded" | "services">) {
+  const data = useReport({ filters, onSessionEnded, services });
   const shown = data.status === "loaded" ? data.value : data.lastValue;
   const table = useTableModel({
     items: shown?.prices ?? NO_PRICES,
@@ -125,22 +161,6 @@ export function PricesPastReviewDeadlineReportContent({
 
   return (
     <>
-      <div className="flex flex-wrap items-end gap-3">
-        <ReportFilters
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          answeredPeriod={shown?.period}
-          trailing={
-            <ReportDownload
-              dataStatus={data.status}
-              workbook={() => (shown ? pricesPastReviewDeadlineReportSpreadsheet(shown) : null)}
-              fileName={
-                shown ? reportFileName(PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE, shown.period) : ""
-              }
-            />
-          }
-        />
-      </div>
       {data.status === "failed" || shown === undefined ? null : (
         <p className="text-detail text-text-subtle">{windowText(shown.window_days)}</p>
       )}
@@ -172,6 +192,17 @@ export function PricesPastReviewDeadlineReportContent({
           variant: filters.from === "" ? "blank" : "filtered",
         }}
       />
+    </>
+  );
+}
+
+export function PricesPastReviewDeadlineReportContent(
+  props: PricesPastReviewDeadlineReportContentProps,
+) {
+  return (
+    <>
+      <PricesPastReviewDeadlineReportPeriod {...props} />
+      <PricesPastReviewDeadlineReportRows {...props} />
     </>
   );
 }

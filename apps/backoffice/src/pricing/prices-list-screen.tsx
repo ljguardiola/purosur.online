@@ -17,7 +17,16 @@ import {
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
-import { Ban, Check, ListChecks, Package, Pencil, Search, TriangleAlert } from "lucide-react";
+import {
+  BadgeCheck,
+  Ban,
+  Check,
+  ListChecks,
+  Package,
+  Pencil,
+  Search,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -29,7 +38,10 @@ import { PriceChangeModal, type PriceModalOutcome, type ScreenNotice } from "./p
 import { emptyPendingDetail, reviewedCellText } from "./price-review-age";
 import type { ConfirmPriceOutcome, PricesReviewFilter } from "./prices-api";
 import type { PricesListScreenServices } from "./prices-list-services";
-import { PricesPastReviewDeadlineReportContent } from "./prices-past-review-deadline-report-content";
+import {
+  PricesPastReviewDeadlineReportPeriod,
+  PricesPastReviewDeadlineReportRows,
+} from "./prices-past-review-deadline-report-content";
 import {
   usePricesQuery,
   useReadReviewQueue,
@@ -54,12 +66,25 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const categoryNameOrder = textOrder((category: PriceCategory) => category.name);
 
-function emptyTableState(params: { activeProductCount: number }) {
+function emptyTableState(params: {
+  activeProductCount: number;
+  reviewFilter: PricesReviewFilter;
+  pendingCount: number;
+  reviewWindowDays: number;
+}) {
   if (params.activeProductCount === 0) {
     return {
       icon: <Package />,
       title: "No hay productos activos",
       description: "Creá uno en Productos para ponerle precio.",
+      variant: "blank" as const,
+    };
+  }
+  if (params.reviewFilter === "pending" && params.pendingCount === 0) {
+    return {
+      icon: <BadgeCheck />,
+      title: "Precios al día",
+      description: emptyPendingDetail({ days: params.reviewWindowDays }),
       variant: "blank" as const,
     };
   }
@@ -93,6 +118,9 @@ export function PricesListScreen({
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | string>(filters.category);
   const [reviewFilter, setReviewFilter] = useState<PricesReviewFilter>(filters.review);
+  const period = { from: filters.from, to: filters.to };
+  const reportsPeriod = reviewFilter === "pending";
+  const listsReportRows = reportsPeriod && period.from !== "";
   const [modal, setModal] = useState<{
     target: PriceProduct;
     previousProductNotice: ScreenNotice | null;
@@ -182,6 +210,7 @@ export function PricesListScreen({
   const products = loaded?.products ?? NO_PRODUCTS;
   const pendingCount = loaded?.pendingCount ?? 0;
   const activeProductCount = loaded?.activeProductCount ?? 0;
+  const reviewWindowDays = loaded?.reviewWindowDays ?? 30;
 
   const shownData =
     data.status === "failed"
@@ -562,9 +591,9 @@ export function PricesListScreen({
             )}
           </div>
         </div>
-        {reviewFilter === "pending" ? (
-          <PricesPastReviewDeadlineReportContent
-            filters={{ from: filters.from, to: filters.to }}
+        {reportsPeriod ? (
+          <PricesPastReviewDeadlineReportPeriod
+            filters={period}
             onFiltersChange={(next) =>
               onFiltersChange({
                 search,
@@ -576,19 +605,36 @@ export function PricesListScreen({
             onSessionEnded={onSessionEnded}
             services={services}
           />
+        ) : null}
+        {listsReportRows ? (
+          <PricesPastReviewDeadlineReportRows
+            filters={period}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
         ) : (
           <Table
             aria-label="Precios"
             table={table}
             {...cloudTableState(shownData, "los precios")}
-            empty={emptyTableState({ activeProductCount })}
+            empty={emptyTableState({
+              activeProductCount,
+              reviewFilter,
+              pendingCount,
+              reviewWindowDays,
+            })}
             footer={
               products.length === 0 ? undefined : (
                 <p className="text-text-subtle text-detail">
-                  {plural(products.length, {
-                    one: "1 producto",
-                    other: `${formatNumber(products.length)} productos`,
-                  })}
+                  {reviewFilter === "pending"
+                    ? plural(products.length, {
+                        one: "1 producto sin revisar, del más viejo al más nuevo",
+                        other: `${formatNumber(products.length)} productos sin revisar, del más viejo al más nuevo`,
+                      })
+                    : plural(products.length, {
+                        one: "1 producto",
+                        other: `${formatNumber(products.length)} productos`,
+                      })}
                 </p>
               )
             }
