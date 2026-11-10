@@ -104,12 +104,12 @@ export function TagsField({
   const field = useFieldContext<string[]>();
   return (
     <ChipListField
-      label="Distintivos"
+      label="Etiquetas"
       options={tagOptions(tags)}
       value={field.state.value}
       onChange={field.handleChange}
-      addLabel="Agregar distintivo"
-      {...(onCreateTag && { create: { label: "Crear distintivo…", onAction: onCreateTag } })}
+      addLabel="Agregar etiqueta"
+      {...(onCreateTag && { create: { label: "Crear etiqueta…", onAction: onCreateTag } })}
       disabled={disabled}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
       {...tagFieldHelp(tags, field.state.value)}

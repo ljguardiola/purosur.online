@@ -41,7 +41,7 @@ export function DeactivateTagModal({
 
   useEffect(() => {
     if (open && target) {
-      setTitle(`¿Desactivar el distintivo "${target.name}"?`);
+      setTitle(`¿Desactivar la etiqueta "${target.name}"?`);
       setNotice(null);
       setSubmitting(false);
     }
@@ -142,7 +142,7 @@ export function DeactivateTagModal({
         </p>
         {notice?.kind === "attemptFailed" && (
           <ActionFailureNotice
-            title="No se desactivó el distintivo"
+            title="No se desactivó la etiqueta"
             description="Volvé a intentarlo."
           />
         )}
@@ -150,11 +150,7 @@ export function DeactivateTagModal({
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba desactivado" />
         )}
         {notice?.kind === "notFound" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="Este distintivo ya no existe"
-          />
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Esta etiqueta ya no existe" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

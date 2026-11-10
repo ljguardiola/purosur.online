@@ -41,7 +41,7 @@ export function ReactivateTagModal({
 
   useEffect(() => {
     if (open && target) {
-      setTitle(`¿Reactivar el distintivo "${target.name}"?`);
+      setTitle(`¿Reactivar la etiqueta "${target.name}"?`);
       setNotice(null);
       setSubmitting(false);
     }
@@ -138,7 +138,7 @@ export function ReactivateTagModal({
         <p className="text-body text-text">Vuelve a ofrecerse para asignarlo a productos nuevos.</p>
         {notice?.kind === "attemptFailed" && (
           <ActionFailureNotice
-            title="No se reactivó el distintivo"
+            title="No se reactivó la etiqueta"
             description="Volvé a intentarlo."
           />
         )}
@@ -146,11 +146,7 @@ export function ReactivateTagModal({
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba activo" />
         )}
         {notice?.kind === "notFound" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="Este distintivo ya no existe"
-          />
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Esta etiqueta ya no existe" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
