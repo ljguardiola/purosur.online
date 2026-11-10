@@ -16,7 +16,7 @@ import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
-import type { PendingPurchaseOrdersReportScreenServices } from "./pending-purchase-orders-report-services";
+import type { PendingPurchaseOrdersReportContentServices } from "./pending-purchase-orders-report-content-services";
 import { pendingPurchaseOrdersReportSpreadsheet } from "./pending-purchase-orders-report-spreadsheet";
 import { formatPurchaseOrderSentDay } from "./purchase-order-day";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
@@ -29,7 +29,7 @@ export type PendingPurchaseOrdersReportContentProps = {
   onOpenOrder: ((orderId: string) => void) | undefined;
   openOrder?: string | undefined;
   onSessionEnded: () => void;
-  services: PendingPurchaseOrdersReportScreenServices;
+  services: PendingPurchaseOrdersReportContentServices;
 };
 
 const PENDING_PURCHASE_ORDERS_REPORT_TITLE = "Pedidos pendientes de recibir";

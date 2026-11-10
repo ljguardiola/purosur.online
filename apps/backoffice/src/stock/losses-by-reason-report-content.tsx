@@ -14,8 +14,8 @@ import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { lossCountText } from "./loss-count-text";
+import type { LossesByReasonReportContentServices } from "./losses-by-reason-report-content-services";
 import { LossesByReasonReportReasonSection } from "./losses-by-reason-report-reason-section";
-import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
 import { lossesByReasonReportSpreadsheet } from "./losses-by-reason-report-spreadsheet";
 import { useLossesByReasonReportQuery } from "./stock-queries";
 
@@ -23,7 +23,7 @@ export type LossesByReasonReportContentProps = {
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
-  services: LossesByReasonReportScreenServices;
+  services: LossesByReasonReportContentServices;
 };
 
 const REPORT_TITLE = "Mermas por motivo";

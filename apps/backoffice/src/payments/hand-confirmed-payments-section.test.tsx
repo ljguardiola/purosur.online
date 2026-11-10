@@ -18,13 +18,13 @@ import {
   handConfirmedPaymentsFilters,
 } from "./hand-confirmed-payments-filters";
 import { HandConfirmedPaymentsSection } from "./hand-confirmed-payments-section";
-import type { HandConfirmedPaymentsScreenServices } from "./hand-confirmed-payments-services";
+import type { HandConfirmedPaymentsSectionServices } from "./hand-confirmed-payments-section-services";
 import {
   emptyHandConfirmedReport,
   weekHandConfirmedReport,
 } from "./test-support/payments-report-fixtures";
 
-function createServices(): HandConfirmedPaymentsScreenServices {
+function createServices(): HandConfirmedPaymentsSectionServices {
   const services = { fetchHandConfirmedPayments: vi.fn() };
   services.fetchHandConfirmedPayments.mockResolvedValue({
     kind: "ok",
@@ -46,7 +46,7 @@ function ControlledScreen({
   onSessionEnded = () => {},
   registerServices,
 }: Handlers & {
-  services: HandConfirmedPaymentsScreenServices;
+  services: HandConfirmedPaymentsSectionServices;
   registerServices: ReportRegisterFilterServices;
 }) {
   const [filters, setFilters] = useState(initial);
@@ -70,7 +70,7 @@ function ControlledScreen({
 }
 
 function renderScreen(
-  services: HandConfirmedPaymentsScreenServices,
+  services: HandConfirmedPaymentsSectionServices,
   {
     registerServices = createReportRegisterFilterServices(),
     ...handlers

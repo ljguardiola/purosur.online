@@ -18,7 +18,6 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { schemaText } from "../platform/schema-text";
 import { ReportFilters } from "../shell/report-filters";
-import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { MercadoPagoChargeCostsFilters } from "./mercado-pago-charge-costs-filters";
 import type { MercadoPagoChargeCostsScreenServices } from "./mercado-pago-charge-costs-services";
 import { useMercadoPagoChargeCostsQuery } from "./payments-queries";
@@ -30,7 +29,6 @@ export type MercadoPagoChargeCostsScreenProps = {
   services: MercadoPagoChargeCostsScreenServices;
 };
 
-const _SCREEN_TITLE = REPORT_VIEW_TITLES["mercado-pago-charge-costs"];
 const OTHER_CHARGES = "Otros cobros";
 const PENDING = "Pendiente";
 const OTHER_CHARGES_NOTE =

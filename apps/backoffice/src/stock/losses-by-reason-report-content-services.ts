@@ -1,9 +1,9 @@
 import { fetchLossesByReasonReport } from "./losses-by-reason-report-api";
 
-export type LossesByReasonReportScreenServices = {
+export type LossesByReasonReportContentServices = {
   fetchLossesByReasonReport: typeof fetchLossesByReasonReport;
 };
 
-export const defaultLossesByReasonReportScreenServices: LossesByReasonReportScreenServices = {
+export const defaultLossesByReasonReportContentServices: LossesByReasonReportContentServices = {
   fetchLossesByReasonReport,
 };

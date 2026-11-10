@@ -16,13 +16,13 @@ import {
   splitPurchaseLineExpiry,
 } from "./purchases-api";
 import { fetchPurchasesReport } from "./purchases-report-api";
-import type { PurchasesReportScreenServices } from "./purchases-report-services";
+import type { PurchasesReportContentServices } from "./purchases-report-content-services";
 import type { SupplierFilterServices } from "./purchasing-screen-parts";
 import { fetchSupplierName } from "./suppliers-api";
 
 export type PurchasesListScreenServices = {
   fetchPurchases: typeof fetchPurchases;
-} & PurchasesReportScreenServices &
+} & PurchasesReportContentServices &
   SupplierFilterServices &
   PurchaseChangesModalServices &
   AddPurchaseLinesModalServices &

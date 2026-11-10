@@ -1,5 +1,5 @@
 import type { fetchFreightReport } from "./freight-report-api";
 
-export type FreightReportScreenServices = {
+export type FreightReportContentServices = {
   fetchFreightReport: typeof fetchFreightReport;
 };

@@ -27,7 +27,7 @@ import {
   handConfirmedPaymentsQueryOf,
 } from "./hand-confirmed-payments-filters";
 import { METHOD_OPTIONS } from "./hand-confirmed-payments-method-options";
-import type { HandConfirmedPaymentsScreenServices } from "./hand-confirmed-payments-services";
+import type { HandConfirmedPaymentsSectionServices } from "./hand-confirmed-payments-section-services";
 import { handConfirmedPaymentsSpreadsheet } from "./hand-confirmed-payments-spreadsheet";
 import { useHandConfirmedPaymentsQuery } from "./payments-queries";
 
@@ -36,7 +36,7 @@ export type HandConfirmedPaymentsSectionProps = {
   onFiltersChange: (filters: HandConfirmedPaymentsFilters) => void;
   onSessionEnded: () => void;
   registerFilter: ReportRegisterField;
-  services: HandConfirmedPaymentsScreenServices;
+  services: HandConfirmedPaymentsSectionServices;
   extraFilter?: ReactNode;
 };
 

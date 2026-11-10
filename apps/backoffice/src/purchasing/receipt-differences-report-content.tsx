@@ -19,7 +19,7 @@ import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { useReceiptDifferencesReportQuery } from "./purchasing-queries";
-import type { ReceiptDifferencesReportScreenServices } from "./receipt-differences-report-services";
+import type { ReceiptDifferencesReportContentServices } from "./receipt-differences-report-content-services";
 import { receiptDifferencesReportSpreadsheet } from "./receipt-differences-report-spreadsheet";
 import { reportMonthText } from "./report-month-text";
 
@@ -29,7 +29,7 @@ export type ReceiptDifferencesReportContentProps = {
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
-  services: ReceiptDifferencesReportScreenServices;
+  services: ReceiptDifferencesReportContentServices;
 };
 
 const RECEIPT_DIFFERENCES_REPORT_TITLE = "Diferencias de recepción";

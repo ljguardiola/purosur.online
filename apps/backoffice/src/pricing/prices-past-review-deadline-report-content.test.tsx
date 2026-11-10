@@ -9,8 +9,11 @@ import { render } from "../shell/test-support/render-with-router";
 import { periodSegments, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { formatCentsWithUnit } from "./money";
-import { PricesPastReviewDeadlineReportContent } from "./prices-past-review-deadline-report-content";
-import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
+import {
+  PricesPastReviewDeadlineReportPeriod,
+  PricesPastReviewDeadlineReportRows,
+} from "./prices-past-review-deadline-report-content";
+import type { PricesPastReviewDeadlineReportContentServices } from "./prices-past-review-deadline-report-content-services";
 import {
   neverReviewedOil,
   overdueCheese,
@@ -26,7 +29,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function createServices(): PricesPastReviewDeadlineReportScreenServices {
+function createServices(): PricesPastReviewDeadlineReportContentServices {
   return { fetchPricesPastReviewDeadlineReport: vi.fn() };
 }
 
@@ -45,7 +48,7 @@ function Harness({
   onFiltersChange = () => {},
   onSessionEnded = () => {},
 }: {
-  services: PricesPastReviewDeadlineReportScreenServices;
+  services: PricesPastReviewDeadlineReportContentServices;
   initial?: ReportPeriodFilters;
   onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onSessionEnded?: () => void;
@@ -54,7 +57,7 @@ function Harness({
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <PricesPastReviewDeadlineReportContent
+        <PricesPastReviewDeadlineReportPeriod
           services={services}
           filters={filters}
           onFiltersChange={(next) => {
@@ -63,13 +66,18 @@ function Harness({
           }}
           onSessionEnded={onSessionEnded}
         />
+        <PricesPastReviewDeadlineReportRows
+          services={services}
+          filters={filters}
+          onSessionEnded={onSessionEnded}
+        />
       </main>
     </FieldSizeProvider>
   );
 }
 
 function renderScreen(
-  services: PricesPastReviewDeadlineReportScreenServices,
+  services: PricesPastReviewDeadlineReportContentServices,
   props: Omit<Parameters<typeof Harness>[0], "services"> = {},
 ) {
   return render(<Harness services={services} {...props} />);

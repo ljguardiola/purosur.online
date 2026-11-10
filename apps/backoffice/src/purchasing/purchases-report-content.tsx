@@ -14,7 +14,7 @@ import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
-import type { PurchasesReportScreenServices } from "./purchases-report-services";
+import type { PurchasesReportContentServices } from "./purchases-report-content-services";
 import { purchasesReportSpreadsheet } from "./purchases-report-spreadsheet";
 import { usePurchasesReportQuery } from "./purchasing-queries";
 import { reportMonthText } from "./report-month-text";
@@ -23,7 +23,7 @@ export type PurchasesReportContentProps = {
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
-  services: PurchasesReportScreenServices;
+  services: PurchasesReportContentServices;
 };
 
 const PURCHASES_REPORT_TITLE = "Compras por proveedor";

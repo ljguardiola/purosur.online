@@ -1,5 +1,5 @@
 import type { fetchPurchasesReport } from "./purchases-report-api";
 
-export type PurchasesReportScreenServices = {
+export type PurchasesReportContentServices = {
   fetchPurchasesReport: typeof fetchPurchasesReport;
 };

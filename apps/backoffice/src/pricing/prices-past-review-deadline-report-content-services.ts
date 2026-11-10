@@ -1,5 +1,5 @@
 import type { fetchPricesPastReviewDeadlineReport } from "./prices-past-review-deadline-report-api";
 
-export type PricesPastReviewDeadlineReportScreenServices = {
+export type PricesPastReviewDeadlineReportContentServices = {
   fetchPricesPastReviewDeadlineReport: typeof fetchPricesPastReviewDeadlineReport;
 };

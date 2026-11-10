@@ -20,7 +20,7 @@ import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { formatCentsWithUnit } from "./money";
 import { lastReviewedText } from "./prices-past-review-deadline-moments";
 import { REASON_TEXT } from "./prices-past-review-deadline-reason-text";
-import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
+import type { PricesPastReviewDeadlineReportContentServices } from "./prices-past-review-deadline-report-content-services";
 import { pricesPastReviewDeadlineReportSpreadsheet } from "./prices-past-review-deadline-report-spreadsheet";
 import { usePricesPastReviewDeadlineReportQuery } from "./pricing-queries";
 
@@ -28,7 +28,7 @@ export type PricesPastReviewDeadlineReportContentProps = {
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
-  services: PricesPastReviewDeadlineReportScreenServices;
+  services: PricesPastReviewDeadlineReportContentServices;
 };
 
 type Price = PricesPastReviewDeadlineReportBody["prices"][number];
@@ -192,17 +192,6 @@ export function PricesPastReviewDeadlineReportRows({
           variant: filters.from === "" ? "blank" : "filtered",
         }}
       />
-    </>
-  );
-}
-
-export function PricesPastReviewDeadlineReportContent(
-  props: PricesPastReviewDeadlineReportContentProps,
-) {
-  return (
-    <>
-      <PricesPastReviewDeadlineReportPeriod {...props} />
-      <PricesPastReviewDeadlineReportRows {...props} />
     </>
   );
 }

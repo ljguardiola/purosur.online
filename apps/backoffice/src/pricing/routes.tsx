@@ -17,7 +17,12 @@ export const pricesListFilters = z
     from: reportFiltersFields.from,
     to: reportFiltersFields.to,
   })
-  .transform(withoutRefusedPeriod);
+  .transform(withoutRefusedPeriod)
+  .transform((filters) =>
+    filters.review === "pending" && filters.from !== ""
+      ? { ...filters, search: "", category: "ALL" }
+      : filters,
+  );
 
 export type PricesListFilters = z.output<typeof pricesListFilters>;
 

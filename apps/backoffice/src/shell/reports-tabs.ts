@@ -48,16 +48,19 @@ export const REPORT_VIEW_TABS: Record<ReportView, ReportsTab> = {
   "mercado-pago-charge-costs": "profitability",
 };
 
-export const REPORTS_TABS: readonly PagePart<BackofficeAccess, ReportsTab>[] = (
-  ["sales", "discounts", "profitability"] as const
-).map((key) => ({
-  key,
-  isVisibleTo: (access) =>
-    REPORT_VIEWS.some((view) => REPORT_VIEW_TABS[view.key] === key && view.isVisibleTo(access)),
-}));
-
 export function reportViewsOfTab(views: readonly ReportView[], tab: ReportsTab): ReportView[] {
   return views.filter((view) => REPORT_VIEW_TABS[view] === tab);
+}
+
+const TABS: readonly ReportsTab[] = ["sales", "discounts", "profitability"];
+
+export function reportsTabsOf(
+  views: readonly ReportView[],
+): { tab: ReportsTab; firstView: ReportView }[] {
+  return TABS.flatMap((tab) => {
+    const [firstView] = reportViewsOfTab(views, tab);
+    return firstView === undefined ? [] : [{ tab, firstView }];
+  });
 }
 
 export const REPORT_VIEW_TARGETS = {

@@ -538,28 +538,32 @@ export function PricesListScreen({
     <>
       <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={(value) => {
-                clearErrorNotice();
-                setSearch(value);
-              }}
-              placeholder="Buscar un producto"
-              icon={<Search />}
-            />
-          </div>
-          <ListFilter
-            name="category"
-            label="Categoría:"
-            searchable
-            options={categoryFilterOptions}
-            value={categoryFilter}
-            onChange={(value) => {
-              clearErrorNotice();
-              setCategoryFilter(value);
-            }}
-          />
+          {listsReportRows ? null : (
+            <>
+              <div className="w-105">
+                <SearchField
+                  value={search}
+                  onChange={(value) => {
+                    clearErrorNotice();
+                    setSearch(value);
+                  }}
+                  placeholder="Buscar un producto"
+                  icon={<Search />}
+                />
+              </div>
+              <ListFilter
+                name="category"
+                label="Categoría:"
+                searchable
+                options={categoryFilterOptions}
+                value={categoryFilter}
+                onChange={(value) => {
+                  clearErrorNotice();
+                  setCategoryFilter(value);
+                }}
+              />
+            </>
+          )}
           <ListFilter
             name="review"
             label="Revisión:"
@@ -594,14 +598,21 @@ export function PricesListScreen({
         {reportsPeriod ? (
           <PricesPastReviewDeadlineReportPeriod
             filters={period}
-            onFiltersChange={(next) =>
-              onFiltersChange({
-                search,
-                category: categoryFilter,
-                review: reviewFilter,
-                ...next,
-              })
-            }
+            onFiltersChange={(next) => {
+              if (next.from === "") {
+                onFiltersChange({
+                  search,
+                  category: categoryFilter,
+                  review: reviewFilter,
+                  ...next,
+                });
+                return;
+              }
+              setSearch("");
+              setDebouncedSearch("");
+              setCategoryFilter("ALL");
+              onFiltersChange({ search: "", category: "ALL", review: reviewFilter, ...next });
+            }}
             onSessionEnded={onSessionEnded}
             services={services}
           />

@@ -1,5 +1,6 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Bot, PackageX, Store, Users } from "lucide-react";
+import { useId } from "react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canSeeAiCostReport,
@@ -18,6 +19,7 @@ export const settingsAreaRoute = createRoute({
 function SettingsArea() {
   const { session } = settingsAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
+  const diagnosticsHeadingId = useId();
   return (
     <AreaLayout
       area="settings"
@@ -57,17 +59,27 @@ function SettingsArea() {
                 />
               </li>
             )}
-            {canSeeAiCostReport(session) && (
-              <li>
-                <SectionLink
-                  to="/reports/ai-cost-by-period"
-                  label="Costo de IA por período"
-                  icon={<Bot />}
-                  active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
-                />
-              </li>
-            )}
           </ul>
+          {canSeeAiCostReport(session) && (
+            <>
+              <h3
+                id={diagnosticsHeadingId}
+                className="mt-4 mb-1 px-3 font-bold text-caption text-text-eyebrow uppercase"
+              >
+                Diagnóstico
+              </h3>
+              <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
+                <li>
+                  <SectionLink
+                    to="/reports/ai-cost-by-period"
+                    label="Costo de IA por período"
+                    icon={<Bot />}
+                    active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
+                  />
+                </li>
+              </ul>
+            </>
+          )}
         </>
       }
     >
