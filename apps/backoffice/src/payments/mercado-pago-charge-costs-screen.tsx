@@ -17,9 +17,8 @@ import { Landmark } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { schemaText } from "../platform/schema-text";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportFilters } from "../shell/report-filters";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { MercadoPagoChargeCostsFilters } from "./mercado-pago-charge-costs-filters";
 import type { MercadoPagoChargeCostsScreenServices } from "./mercado-pago-charge-costs-services";
 import { useMercadoPagoChargeCostsQuery } from "./payments-queries";
@@ -31,7 +30,7 @@ export type MercadoPagoChargeCostsScreenProps = {
   services: MercadoPagoChargeCostsScreenServices;
 };
 
-const SCREEN_TITLE = "Costos de Mercado Pago";
+const _SCREEN_TITLE = REPORT_VIEW_TITLES["mercado-pago-charge-costs"];
 const OTHER_CHARGES = "Otros cobros";
 const PENDING = "Pendiente";
 const OTHER_CHARGES_NOTE =
@@ -265,10 +264,7 @@ export function MercadoPagoChargeCostsScreen({
   };
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Cobros" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -322,6 +318,6 @@ export function MercadoPagoChargeCostsScreen({
           )}
         </>
       )}
-    </ScreenLayout>
+    </>
   );
 }

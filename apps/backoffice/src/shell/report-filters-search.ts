@@ -39,3 +39,12 @@ export function reportQueryOf(filters: ReportFilters): ReportQuery {
     ...(filters.register === "ALL" ? {} : { register_id: filters.register }),
   };
 }
+
+export function sharedReportFilters(search: object): Partial<ReportFilters> {
+  const { from, to, register } = search as Partial<Record<keyof ReportFilters, unknown>>;
+  return {
+    ...(typeof from === "string" && from !== "" ? { from } : {}),
+    ...(typeof to === "string" && to !== "" ? { to } : {}),
+    ...(typeof register === "string" && register !== "ALL" ? { register } : {}),
+  };
+}

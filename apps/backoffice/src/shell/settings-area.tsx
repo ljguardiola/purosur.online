@@ -1,7 +1,12 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { PackageX, Store, Users } from "lucide-react";
+import { Bot, PackageX, Store, Users } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeBranchArea, canSeePeopleArea, canSeeQuarantinedEvents } from "./backoffice-access";
+import {
+  canSeeAiCostReport,
+  canSeeBranchArea,
+  canSeePeopleArea,
+  canSeeQuarantinedEvents,
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const settingsAreaRoute = createRoute({
@@ -49,6 +54,16 @@ function SettingsArea() {
                   label="Eventos en cuarentena"
                   icon={<PackageX />}
                   active={Boolean(matchRoute({ to: "/quarantined-events" }))}
+                />
+              </li>
+            )}
+            {canSeeAiCostReport(session) && (
+              <li>
+                <SectionLink
+                  to="/reports/ai-cost-by-period"
+                  label="Costo de IA por período"
+                  icon={<Bot />}
+                  active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
                 />
               </li>
             )}

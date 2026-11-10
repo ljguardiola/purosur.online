@@ -1,35 +1,28 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
-import { canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { reportFiltersSearch } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { reportsRoute, reportViewRedirect } from "../shell/reports-route";
 import { averageTicketFilters } from "./average-ticket-filters";
 import { manualDiscountsFilters } from "./manual-discounts-filters";
 import { salesByCashierFilters } from "./sales-by-cashier-filters";
 import { salesByProductAndCategoryFilters } from "./sales-by-product-and-category-filters";
 import { salesByPromotionFilters } from "./sales-by-promotion-filters";
 
-export const reportsIndexRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
-  component: lazyScreen(() => import("./reports-index-page"), "ReportsIndexPage"),
-});
-
 export const salesByDayRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/sales-by-day",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "sales-by-day",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "sales-by-day", search),
   validateSearch: reportFiltersSearch,
   search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
   component: lazyScreen(() => import("./sales-by-day-page"), "SalesByDayPage"),
 });
 
 export const salesByProductAndCategoryRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/sales-by-product-and-category",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "sales-by-product-and-category",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "sales-by-product-and-category", search),
   validateSearch: salesByProductAndCategoryFilters,
   search: { middlewares: [stripSearchParams(salesByProductAndCategoryFilters.parse({}))] },
   component: lazyScreen(
@@ -39,54 +32,60 @@ export const salesByProductAndCategoryRoute = createRoute({
 });
 
 export const salesByCashierRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/sales-by-cashier",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "sales-by-cashier",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "sales-by-cashier", search),
   validateSearch: salesByCashierFilters,
   search: { middlewares: [stripSearchParams(salesByCashierFilters.parse({}))] },
   component: lazyScreen(() => import("./sales-by-cashier-page"), "SalesByCashierPage"),
 });
 
 export const salesByPromotionRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/sales-by-promotion",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "sales-by-promotion",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "sales-by-promotion", search),
   validateSearch: salesByPromotionFilters,
   search: { middlewares: [stripSearchParams(salesByPromotionFilters.parse({}))] },
   component: lazyScreen(() => import("./sales-by-promotion-page"), "SalesByPromotionPage"),
 });
 
 export const manualDiscountsRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/manual-discounts",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "manual-discounts",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "manual-discounts", search),
   validateSearch: manualDiscountsFilters,
   search: { middlewares: [stripSearchParams(manualDiscountsFilters.parse({}))] },
   component: lazyScreen(() => import("./manual-discounts-page"), "ManualDiscountsPage"),
 });
 
 export const cashRoundingRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/cash-rounding",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "cash-rounding",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "cash-rounding", search),
   validateSearch: reportFiltersSearch,
   search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
   component: lazyScreen(() => import("./cash-rounding-page"), "CashRoundingPage"),
 });
 
 export const averageTicketRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/average-ticket",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "average-ticket",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "average-ticket", search),
   validateSearch: averageTicketFilters,
   search: { middlewares: [stripSearchParams(averageTicketFilters.parse({}))] },
   component: lazyScreen(() => import("./average-ticket-page"), "AverageTicketPage"),
 });
 
 export const handTypedWeightsRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/hand-typed-weights",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "hand-typed-weights",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "hand-typed-weights", search),
   validateSearch: reportFiltersSearch,
   search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
   component: lazyScreen(() => import("./hand-typed-weights-page"), "HandTypedWeightsPage"),

@@ -17,13 +17,12 @@ import { type ReactNode, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { shareOfTotal } from "../platform/share-of-total";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import { HandConfirmedPaymentsSection } from "./hand-confirmed-payments-section";
 import { useSalesByPaymentMethodQuery } from "./payments-queries";
 import type { SalesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
@@ -40,7 +39,7 @@ export type SalesByPaymentMethodScreenProps = {
 
 type SalesOfMethod = SalesByPaymentMethodBody["methods"][number];
 
-const SCREEN_TITLE = "Ventas por medio de pago";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["sales-by-payment-method"];
 
 const NO_METHODS: SalesOfMethod[] = [];
 
@@ -90,10 +89,7 @@ export function SalesByPaymentMethodScreen(props: SalesByPaymentMethodScreenProp
     </Toggle>
   );
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       {filters.handConfirmed ? (
         <HandConfirmedPaymentsSection
           filters={filters}
@@ -106,7 +102,7 @@ export function SalesByPaymentMethodScreen(props: SalesByPaymentMethodScreenProp
       ) : (
         <SalesByMethodSection {...props} handConfirmedToggle={handConfirmedToggle} />
       )}
-    </ScreenLayout>
+    </>
   );
 }
 

@@ -17,7 +17,7 @@ import {
   reportPeriodSearch,
   withoutRefusedPeriod,
 } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
+import { settingsAreaRoute } from "../shell/settings-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { orderSuggestionFilters } from "./order-suggestion-filters";
@@ -301,7 +301,7 @@ export const legacyFreightReportRoute = createRoute({
 });
 
 export const aiCostReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+  getParentRoute: () => settingsAreaRoute,
   path: "reports/ai-cost-by-period",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeAiCostReport),
   validateSearch: aiCostReportFilters,

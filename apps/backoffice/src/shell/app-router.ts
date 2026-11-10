@@ -86,7 +86,6 @@ import {
   cashRoundingRoute,
   handTypedWeightsRoute,
   manualDiscountsRoute,
-  reportsIndexRoute,
   salesByCashierRoute,
   salesByDayRoute,
   salesByProductAndCategoryRoute,
@@ -127,6 +126,7 @@ import { purchasingAreaRoute } from "./purchasing-area";
 import { refundsRoute } from "./refunds-route";
 import { registersRoute } from "./registers-route";
 import { reportsAreaRoute } from "./reports-area";
+import { reportsLandingRoute, reportsRoute } from "./reports-route";
 import { type RouterContext, rootRoute } from "./root-route";
 import { salesAndCashAreaRoute } from "./sales-and-cash-area";
 import { ScreenFailure } from "./screen-failure";
@@ -188,24 +188,26 @@ const routeTree = rootRoute.addChildren([
       ]),
     ]),
     reportsAreaRoute.addChildren([
-      reportsIndexRoute,
-      salesByDayRoute,
-      salesByPaymentMethodRoute,
-      mercadoPagoChargeCostsRoute,
-      salesByProductAndCategoryRoute,
-      salesByCashierRoute,
-      handTypedWeightsRoute,
-      averageTicketRoute,
-      marginReportRoute,
-      aiCostReportRoute,
-      salesByPromotionRoute,
-      manualDiscountsRoute,
-      cashRoundingRoute,
+      reportsRoute.addChildren([
+        reportsLandingRoute,
+        salesByDayRoute,
+        salesByPaymentMethodRoute,
+        salesByProductAndCategoryRoute,
+        salesByCashierRoute,
+        averageTicketRoute,
+        salesByPromotionRoute,
+        manualDiscountsRoute,
+        cashRoundingRoute,
+        handTypedWeightsRoute,
+        marginReportRoute,
+        mercadoPagoChargeCostsRoute,
+      ]),
     ]),
     settingsAreaRoute.addChildren([
       peopleRoute.addChildren([peopleLandingRoute, usersListRoute, rolesListRoute]),
       branchSettingsRoute,
       quarantinedEventsRoute,
+      aiCostReportRoute,
     ]),
     legacyAccountRoute,
     legacyCategoriesRoute,

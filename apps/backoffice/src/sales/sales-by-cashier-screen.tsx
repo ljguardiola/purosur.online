@@ -14,13 +14,12 @@ import {
 import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { SalesByCashierFilters } from "./sales-by-cashier-filters";
 import type { SalesByCashierScreenServices } from "./sales-by-cashier-services";
 import { salesByCashierSpreadsheet } from "./sales-by-cashier-spreadsheet";
@@ -38,7 +37,7 @@ type CashierRow = SalesByCashierBody["rows"][number];
 
 const NO_ROWS: CashierRow[] = [];
 
-const SCREEN_TITLE = "Ventas por cajero";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["sales-by-cashier"];
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
@@ -117,10 +116,7 @@ export function SalesByCashierScreen({
   const topRow = shown?.rows[0];
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -207,6 +203,6 @@ export function SalesByCashierScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }

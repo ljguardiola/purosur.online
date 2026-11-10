@@ -1,10 +1,9 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeMercadoPagoChargeCosts, canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refundsRoute, refundsTabRedirect } from "../shell/refunds-route";
-import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
+import { reportsRoute, reportViewRedirect } from "../shell/reports-route";
+import { signedInRoute } from "../shell/signed-in-route";
 import { handConfirmedPaymentsFilters } from "./hand-confirmed-payments-filters";
 import { mercadoPagoChargeCostsFilters } from "./mercado-pago-charge-costs-filters";
 import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
@@ -59,9 +58,10 @@ export const legacyOutsideRefundsRoute = createRoute({
 });
 
 export const salesByPaymentMethodRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/sales-by-payment-method",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "sales-by-payment-method",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "sales-by-payment-method", search),
   validateSearch: salesByPaymentMethodFilters,
   search: { middlewares: [stripSearchParams(salesByPaymentMethodFilters.parse({}))] },
   component: lazyScreen(() => import("./sales-by-payment-method-page"), "SalesByPaymentMethodPage"),
@@ -80,9 +80,10 @@ export const legacyHandConfirmedPaymentsRoute = createRoute({
 });
 
 export const mercadoPagoChargeCostsRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/mercado-pago-charge-costs",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeMercadoPagoChargeCosts),
+  getParentRoute: () => reportsRoute,
+  path: "mercado-pago-charge-costs",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "mercado-pago-charge-costs", search),
   validateSearch: mercadoPagoChargeCostsFilters,
   search: { middlewares: [stripSearchParams(mercadoPagoChargeCostsFilters.parse({}))] },
   component: lazyScreen(

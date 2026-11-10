@@ -18,7 +18,6 @@ import {
   canSeeBranchArea,
   canSeeFiscalInformation,
   canSeeFiscalPage,
-  canSeeMercadoPagoChargeCosts,
   canSeePeopleArea,
   canSeeProductsPage,
   canSeePurchaseOrdersPage,
@@ -27,7 +26,7 @@ import {
   canSeeRefundsArea,
   canSeeRefundsPage,
   canSeeRegistersPage,
-  canSeeReports,
+  canSeeReportsPage,
   canSeeStockArea,
   canSeeSuppliersPage,
 } from "./backoffice-access";
@@ -83,11 +82,6 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       : canSeeQuarantinedEvents(session)
         ? "/quarantined-events"
         : null;
-  const reportsTarget = canSeeReports(session)
-    ? "/reports"
-    : canSeeMercadoPagoChargeCosts(session)
-      ? "/reports/mercado-pago-charge-costs"
-      : null;
   const stockShown = Boolean(matchRoute({ to: "/stock" }));
   return (
     <Shell
@@ -132,9 +126,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           {canSeeFiscalPage(session) && (
             <AreaLink to="/fiscal" label="Fiscal" icon={<Landmark />} active={area === "fiscal"} />
           )}
-          {reportsTarget !== null && (
+          {canSeeReportsPage(session) && (
             <AreaLink
-              to={reportsTarget}
+              to="/reports"
               label="Reportes"
               icon={<ChartColumn />}
               active={area === "reports"}

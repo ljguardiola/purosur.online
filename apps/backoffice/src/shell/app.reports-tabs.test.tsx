@@ -74,9 +74,9 @@ test("shows the three tabs, in order, to a person with the reports area", async 
   const tabs = screen.getByRole("tablist", { name: "Secciones de Reportes" });
   await expect.element(tabs).toBeVisible();
   expect(tabs.getByRole("tab").elements()).toHaveLength(3);
-  await expect.element(tabs.getByRole("tab").nth(0)).toHaveTextContent("Ventas");
-  await expect.element(tabs.getByRole("tab").nth(1)).toHaveTextContent("Descuentos y control");
-  await expect.element(tabs.getByRole("tab").nth(2)).toHaveTextContent("Rentabilidad");
+  await expect.element(tabs.getByRole("tab").nth(0)).toHaveAccessibleName("Ventas");
+  await expect.element(tabs.getByRole("tab").nth(1)).toHaveAccessibleName("Descuentos y control");
+  await expect.element(tabs.getByRole("tab").nth(2)).toHaveAccessibleName("Rentabilidad");
 });
 
 test("holds the rail's Reportes column to a single Reportes item", async () => {
@@ -161,7 +161,7 @@ test("opens the view a segmented control option names", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("radio", { name: "Por medio de pago" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Por medio de pago" }), { force: true });
 
   await expect
     .element(screen.getByRole("heading", { name: "Ventas por medio de pago", level: 1 }))
@@ -223,7 +223,7 @@ test("keeps the period and the register when moving to another view", async () =
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }), { force: true });
 
   await expect
     .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
@@ -242,7 +242,7 @@ test("drops what only the view left uses when moving to another view", async () 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("Fiambres")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }), { force: true });
 
   await expect
     .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
@@ -408,7 +408,9 @@ test("keeps the charge costs in the segmented control of Rentabilidad for who ho
     .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
     .toBeVisible();
 
-  await userEvent.click(screen.getByRole("radio", { name: "Costos de Mercado Pago" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Costos de Mercado Pago" }), {
+    force: true,
+  });
 
   await expect
     .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))

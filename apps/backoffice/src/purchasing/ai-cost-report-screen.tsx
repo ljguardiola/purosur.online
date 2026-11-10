@@ -106,7 +106,7 @@ export function AiCostReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Configuración" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

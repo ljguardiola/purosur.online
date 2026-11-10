@@ -1,12 +1,7 @@
 import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import {
-  canManageBatches,
-  canManageRecipes,
-  canSeeReports,
-  canSeeStockPage,
-} from "../shell/backoffice-access";
+import { canManageBatches, canManageRecipes, canSeeStockPage } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
 import {
@@ -14,7 +9,7 @@ import {
   reportPeriodSearch,
   withoutRefusedPeriod,
 } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
+import { reportsRoute, reportViewRedirect } from "../shell/reports-route";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 import { ASSEMBLIES_SECTION_TARGETS, ASSEMBLIES_SECTIONS } from "./assemblies-sections";
@@ -191,9 +186,10 @@ export const legacyLossesByReasonReportRoute = createRoute({
 });
 
 export const marginReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/margin",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  getParentRoute: () => reportsRoute,
+  path: "margin",
+  beforeLoad: ({ context: { reportViews }, search }) =>
+    reportViewRedirect(reportViews, "margin", search),
   validateSearch: marginReportFilters,
   search: { middlewares: [stripSearchParams(marginReportFilters.parse({}))] },
   component: lazyScreen(() => import("./margin-report-page"), "MarginReportPage"),
