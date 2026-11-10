@@ -25,6 +25,14 @@ export const Arrows: Story = {
   args: { keyName: "ArrowUpDown" },
 };
 
+export const ArrowUp: Story = {
+  args: { keyName: "ArrowUp" },
+};
+
+export const ArrowDown: Story = {
+  args: { keyName: "ArrowDown" },
+};
+
 export const Digits: Story = {
   args: { keyName: "Digits" },
 };
