@@ -72,7 +72,7 @@ function bindingFor(
       ? modals.slice(-1)
       : isInsideDialog(event.target)
         ? []
-        : registrations.toReversed();
+        : [...registrations].reverse();
   for (const registration of candidates) {
     const found = registration.bindings.current.find(
       (binding) => binding.enabled !== false && matches(binding.key, event.key),
