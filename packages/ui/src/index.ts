@@ -182,6 +182,8 @@ export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
+export type { ElevatedPanelProps } from "./components/layout/elevated-panel";
+export { ElevatedPanel } from "./components/layout/elevated-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
