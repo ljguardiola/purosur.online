@@ -1268,6 +1268,13 @@
       "when": 1794109712566,
       "tag": "0187_mercado_pago_settlement_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 188,
+      "version": "7",
+      "when": 1794280638117,
+      "tag": "0188_remove_register_help_grants",
+      "breakpoints": true
     }
   ]
 }
