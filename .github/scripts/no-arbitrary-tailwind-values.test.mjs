@@ -98,6 +98,27 @@ test("does not flag a CSS selector string", () => {
   assert.deepEqual(findArbitraryValues(source), []);
 });
 
+test("does not flag a CSS selector string with a vendor-prefixed pseudo", () => {
+  const source = [
+    'const a = root.querySelector("[name=email]:-webkit-autofill");',
+    'const b = root.querySelector("[data-x]::-webkit-scrollbar");',
+    'const c = root.querySelector("[data-x]:-moz-focusring");',
+    'const d = root.querySelector("[type=search]::-webkit-search-cancel-button");',
+    'const e = root.querySelector("[data-x]::-ms-clear");',
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
+test("finds an arbitrary variant before a negative utility that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[data-x]:-ms-4 [data-x]:-mt-2 [data-x]:-z-1 [data-x]:-ms-px"'), [
+    "[data-x]",
+    "[data-x]",
+    "[data-x]",
+    "[data-x]",
+  ]);
+});
+
 test("reports the line and column where an arbitrary variant starting a class opens", () => {
   const source = ["const a = 1;", 'const b = "flex [.dark_&]:p-4";'].join("\n");
 
