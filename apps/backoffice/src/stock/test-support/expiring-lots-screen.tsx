@@ -3,6 +3,9 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { useState } from "react";
 import { vi } from "vitest";
 import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
+import { createBranchTermServices } from "../../shell/test-support/branch-term";
 import { render } from "../../shell/test-support/render-with-router";
 import { ExpiringLotsScreen } from "../expiring-lots-screen";
 import type { ExpiringLotsScreenServices } from "../expiring-lots-services";
@@ -29,6 +32,7 @@ export function createServices(): ExpiringLotsScreenServices {
     fetchExpiringLots: vi.fn(),
     fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     discardExpiredLot: vi.fn(),
+    branchTerm: createBranchTermServices(),
   };
 }
 
@@ -43,11 +47,13 @@ export function listed(lots = EVERY_LOT) {
 
 function Harness({
   services,
+  access,
   initial,
   onFiltersChange,
   onSessionEnded,
 }: {
   services: ExpiringLotsScreenServices;
+  access: BackofficeAccess;
   initial: ExpiringLotsFilters;
   onFiltersChange: (filters: ExpiringLotsFilters) => void;
   onSessionEnded: () => void;
@@ -57,6 +63,7 @@ function Harness({
     <FieldSizeProvider size="backoffice">
       <main>
         <ExpiringLotsScreen
+          access={access}
           services={services}
           filters={filters}
           onFiltersChange={(next) => {
@@ -77,7 +84,9 @@ export function renderScreen(
     onFiltersChange = () => {},
     onSessionEnded = () => {},
     releaseMonitor,
+    access = ADMINISTRATOR_ACCESS,
   }: {
+    access?: BackofficeAccess;
     filters?: ExpiringLotsFilters;
     onFiltersChange?: (filters: ExpiringLotsFilters) => void;
     onSessionEnded?: () => void;
@@ -87,6 +96,7 @@ export function renderScreen(
   const screen = (
     <Harness
       services={services}
+      access={access}
       initial={filters}
       onFiltersChange={onFiltersChange}
       onSessionEnded={onSessionEnded}

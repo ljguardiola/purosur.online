@@ -4,6 +4,7 @@ import {
   parseClosesReferences,
   parseConventionalCommitType,
   parseDeliveryImpactChecks,
+  prContractApplies,
   validatePr,
   validatePrBodyLocal,
 } from "./validate-pr.mjs";
@@ -292,4 +293,13 @@ test("validatePr still requires the issue and sections when author type is missi
     author: { login: "dependabot[bot]" },
   });
   assert.ok(problems.some((p) => p.toLowerCase().includes("exactly one")));
+});
+
+test("prContractApplies to an open pull request", () => {
+  assert.equal(prContractApplies({ state: "open" }), true);
+});
+
+test("prContractApplies to no pull request that is closed, merged or not", () => {
+  assert.equal(prContractApplies({ state: "closed", merged: true }), false);
+  assert.equal(prContractApplies({ state: "closed", merged: false }), false);
 });
