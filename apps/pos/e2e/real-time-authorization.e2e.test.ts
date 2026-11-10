@@ -103,7 +103,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
     await page
-      .getByRole("listitem")
+      .getByRole("row")
       .filter({ hasText: "Yerba mate 1 kg" })
       .getByText("$ 2.380,00")
       .waitFor();
@@ -122,7 +122,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
     await scanYerba();
 
-    await page.getByRole("button", { name: "Cobrar" }).click();
+    await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
     await page.getByText("Efectivo", { exact: true }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("2.380,00");
     await page.getByRole("button", { name: "Completar venta" }).click();
@@ -150,7 +150,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     const { page } = register;
     await scanYerba();
 
-    await page.getByRole("button", { name: "Cobrar" }).click();
+    await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
     await page.getByText("Transferencia", { exact: true }).click();
     await page.getByRole("button", { name: "Vi el ingreso" }).click();
     await until(() => cloud.authorizationRequests.length === 2, {

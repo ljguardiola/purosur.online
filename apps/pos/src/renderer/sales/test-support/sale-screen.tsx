@@ -29,7 +29,7 @@ const PERSON: SaleScreenProps["person"] = {
   abilities: ["open_cash_session"],
 };
 const FIELD_NAME = "Producto";
-export const PLACEHOLDER = "Escaneá o escribí el nombre del producto";
+export const PLACEHOLDER = "Escaneá o escribí el nombre";
 export const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";
 export const NOT_PERMITTED_HELP = "Quien administra los roles te lo puede dar en el backoffice.";
 
@@ -244,3 +244,59 @@ export async function scan(field: ReturnType<typeof page.getByRole>, code: strin
   await field.fill(code);
   await userEvent.keyboard("{Enter}");
 }
+
+export function pressKeypad(key: "+" | "-") {
+  (document.activeElement ?? document.body).dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key,
+      code: key === "+" ? "NumpadAdd" : "NumpadSubtract",
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
+const ALMENDRAS = {
+  ...QUESO,
+  id: "line-a",
+  product_id: "p-almendras",
+  product_name: "Almendras peladas",
+  quantity: 325,
+  list_unit_price: 1_890_000,
+  line_total: 614_250,
+};
+const AVENA = {
+  ...QUESO,
+  id: "line-b",
+  product_id: "p-avena",
+  product_name: "Avena arrollada",
+  quantity: 1000,
+  list_unit_price: 320_000,
+  line_total: 320_000,
+};
+const YERBA_ORGANICA = {
+  ...YERBA,
+  id: "line-c",
+  product_id: "p-yerba",
+  product_name: "Yerba mate orgánica 1 kg",
+  quantity: 2,
+  list_unit_price: 695_000,
+  line_total: 1_390_000,
+};
+const PASAS = {
+  ...QUESO,
+  id: "line-d",
+  product_id: "p-pasas",
+  product_name: "Pasas de uva",
+  quantity: 250,
+  list_unit_price: 780_000,
+  line_total: 195_000,
+};
+export const SALE_OF_FOUR_LINES: OpenSale = {
+  ...SALE_OF_YERBA,
+  lines: [ALMENDRAS, AVENA, YERBA_ORGANICA, PASAS],
+  total: 2_519_250,
+  pending: 2_519_250,
+  gross_subtotal: 2_519_250,
+  subtotal: 2_519_250,
+};

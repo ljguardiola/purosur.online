@@ -75,7 +75,7 @@ describe("searching products by name into a sale on the register", () => {
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
 
     const field = page.getByRole("combobox", { name: "Producto" });
-    const cafe = page.getByRole("listitem").filter({ hasText: "Café molido 500 g" });
+    const cafe = page.getByRole("row").filter({ hasText: "Café molido 500 g" });
 
     await field.fill("CAFE mol");
     await page.getByRole("option", { name: /Café molido 500 g/ }).waitFor();

@@ -212,7 +212,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
       cancelPaidSale,
     });
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await expect.element(screen.getByText(/no se cobra nada/)).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();

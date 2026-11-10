@@ -1,6 +1,6 @@
 import type { OpenSale } from "@purosur/contracts";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { SaleLineActions } from "./sale-lines";
 import { SaleLines } from "./sale-lines";
@@ -18,14 +18,6 @@ const YERBA: OpenSale["lines"][number] = {
   manual_adjustment: null,
   line_total: 476_000,
 };
-const LOCKED_REASON = "La venta ya no se puede cambiar porque tiene un pago aprobado.";
-const CONTROLS = [
-  "Bajar la cantidad de Yerba mate 1 kg",
-  "Subir la cantidad de Yerba mate 1 kg",
-  "Cambiar el precio de Yerba mate 1 kg",
-  "Quitar Yerba mate 1 kg",
-];
-
 const QUESO: OpenSale["lines"][number] = {
   id: "line-3",
   product_id: "p3",
@@ -40,56 +32,148 @@ const QUESO: OpenSale["lines"][number] = {
   line_total: 1_562_500,
 };
 
-async function renderLines(
-  actions: Partial<SaleLineActions> = {},
-  lines: OpenSale["lines"] = [YERBA],
-) {
+const LEGEND = [
+  { keyName: "ArrowUpDown", label: "Líneas" },
+  { keyName: "F2", label: "Buscar" },
+] as const;
+
+async function renderLines({
+  actions = {},
+  lines = [YERBA],
+  selectedLineId = undefined,
+  failed = false,
+}: {
+  actions?: Partial<SaleLineActions>;
+  lines?: OpenSale["lines"];
+  selectedLineId?: string | undefined;
+  failed?: boolean;
+} = {}) {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
-  const onChangeQuantity = vi.fn();
   const onChangeWeight = vi.fn();
   const onAdjust = vi.fn();
   const onRemove = vi.fn();
+  const onSelect = vi.fn();
   const screen = await render(
     <SaleLines
       lines={lines}
-      changedLineId={undefined}
-      actions={{
-        busy: false,
-        editable: true,
-        lockedReason: undefined,
-        onChangeQuantity,
-        onChangeWeight,
-        onAdjust,
-        onRemove,
-        ...actions,
-      }}
+      selectedLineId={selectedLineId}
+      legend={LEGEND}
+      failed={failed}
+      onSelect={onSelect}
+      actions={{ editable: true, onChangeWeight, onAdjust, onRemove, ...actions }}
     />,
   );
-  return { screen, onChangeQuantity, onChangeWeight, onAdjust, onRemove };
+  return { screen, onChangeWeight, onAdjust, onRemove, onSelect };
 }
 
 describe("SaleLines", () => {
-  it("raises, lowers and removes a line while the sale can be changed", async () => {
-    const { screen, onChangeQuantity, onRemove } = await renderLines();
+  it("shows each line in the columns Producto, Precio, Cantidad and Importe", async () => {
+    const { screen } = await renderLines({ lines: [YERBA, QUESO] });
 
-    await screen.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }).click();
-    await screen.getByRole("button", { name: "Bajar la cantidad de Yerba mate 1 kg" }).click();
+    const headers = screen.getByRole("columnheader");
+    await expect.element(headers.nth(0)).toHaveTextContent("Producto");
+    await expect.element(headers.nth(1)).toHaveTextContent("Precio");
+    await expect.element(headers.nth(2)).toHaveTextContent("Cantidad");
+    await expect.element(headers.nth(3)).toHaveTextContent("Importe");
+    const yerba = screen.getByRole("row").nth(1);
+    await expect.element(yerba).toHaveTextContent("Yerba mate 1 kg");
+    await expect.element(yerba).toHaveTextContent("$ 2.380,00 / u");
+    await expect.element(yerba).toHaveTextContent("2 u");
+    await expect.element(yerba).toHaveTextContent("$ 4.760,00");
+    const queso = screen.getByRole("row").nth(2);
+    await expect.element(queso).toHaveTextContent("$ 12.500,00 / kg");
+    await expect.element(queso).toHaveTextContent("1,250 kg");
+    await expect.element(queso).toHaveTextContent("$ 15.625,00");
+  });
+
+  it("marks the selected line only and gives it the same height as the others", async () => {
+    const { screen } = await renderLines({ lines: [YERBA, QUESO], selectedLineId: "line-3" });
+
+    const rows = screen.getByRole("row");
+    await expect.element(rows.nth(2)).toHaveAttribute("aria-current", "true");
+    await expect.element(rows.nth(1)).not.toHaveAttribute("aria-current");
+    const heights = [rows.nth(1), rows.nth(2)].map(
+      (row) => row.element().getBoundingClientRect().height,
+    );
+    expect(heights[0]).toBe(heights[1]);
+  });
+
+  it("keeps the height of a row when the selection moves to it", async () => {
+    const lines = [YERBA, QUESO];
+    const first = await renderLines({ lines, selectedLineId: "line-1" });
+    const before = first.screen.getByRole("row").nth(1).element().getBoundingClientRect().height;
+    await first.screen.unmount();
+
+    const second = await renderLines({ lines, selectedLineId: "line-3" });
+
+    const after = second.screen.getByRole("row").nth(1).element().getBoundingClientRect().height;
+    expect(after).toBe(before);
+  });
+
+  it("asks to select the line that is pressed", async () => {
+    const { screen, onSelect } = await renderLines({ lines: [YERBA, QUESO] });
+
+    await screen.getByText("Queso cremoso").click();
+
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(QUESO);
+  });
+
+  it("draws a scale on a weighed line and a box on a unit line", async () => {
+    const { screen } = await renderLines({ lines: [YERBA, QUESO] });
+
+    const unit = screen.getByRole("row").nth(1).element();
+    const weighed = screen.getByRole("row").nth(2).element();
+    expect(unit.querySelector("svg.lucide-package")).not.toBeNull();
+    expect(unit.querySelector("svg.lucide-scale")).toBeNull();
+    expect(weighed.querySelector("svg.lucide-scale")).not.toBeNull();
+    expect(weighed.querySelector("svg.lucide-package")).toBeNull();
+  });
+
+  it("shows the legend inside the card", async () => {
+    const { screen } = await renderLines();
+
+    await expect.element(screen.getByText("Líneas")).toBeVisible();
+    await expect.element(screen.getByText("Buscar")).toBeVisible();
+  });
+
+  it("says the sale is empty, with the legend and no column header, when there are no lines", async () => {
+    const { screen } = await renderLines({ lines: [] });
+
+    await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
+    await expect.element(screen.getByText("Buscar")).toBeVisible();
+    await expect.element(screen.getByRole("columnheader")).not.toBeInTheDocument();
+  });
+
+  it("says the sale could not be loaded, with no button to try again", async () => {
+    const { screen } = await renderLines({ lines: [], failed: true });
+
+    await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+    await expect.element(screen.getByText("Volvé a intentarlo en unos segundos.")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("removes a line and asks to change its price while the sale can be changed", async () => {
+    const { screen, onRemove, onAdjust } = await renderLines();
+
+    await screen.getByRole("button", { name: "Cambiar el precio de Yerba mate 1 kg" }).click();
     await screen.getByRole("button", { name: "Quitar Yerba mate 1 kg" }).click();
 
-    expect(onChangeQuantity.mock.calls).toEqual([
-      [YERBA, 3],
-      [YERBA, 1],
-    ]);
+    expect(onAdjust).toHaveBeenCalledExactlyOnceWith(YERBA);
     expect(onRemove).toHaveBeenCalledExactlyOnceWith(YERBA);
   });
 
-  it("asks to change the price of the line", async () => {
-    const { screen, onAdjust } = await renderLines();
+  it("has no buttons to raise or lower the quantity, which the keypad's plus and minus change", async () => {
+    const { screen } = await renderLines();
 
-    await screen.getByRole("button", { name: "Cambiar el precio de Yerba mate 1 kg" }).click();
-
-    expect(onAdjust).toHaveBeenCalledExactlyOnceWith(YERBA);
+    await expect
+      .element(screen.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Bajar la cantidad de Yerba mate 1 kg" }))
+      .not.toBeInTheDocument();
   });
 
   describe("a line with a manual adjustment", () => {
@@ -103,7 +187,7 @@ describe("SaleLines", () => {
         },
         line_total: 428_400,
       };
-      const { screen } = await renderLines({}, [discounted]);
+      const { screen } = await renderLines({ lines: [discounted] });
 
       await expect.element(screen.getByText("Descuento manual 10 %")).toBeVisible();
       const before = screen.getByText("$ 4.760,00");
@@ -121,7 +205,7 @@ describe("SaleLines", () => {
         },
         line_total: 426_000,
       };
-      const { screen } = await renderLines({}, [discounted]);
+      const { screen } = await renderLines({ lines: [discounted] });
 
       await expect.element(screen.getByText("Descuento manual $ 500,00")).toBeVisible();
     });
@@ -135,7 +219,7 @@ describe("SaleLines", () => {
         },
         line_total: 400_000,
       };
-      const { screen } = await renderLines({}, [repriced]);
+      const { screen } = await renderLines({ lines: [repriced] });
 
       await expect.element(screen.getByText("Precio modificado: $ 2.000,00")).toBeVisible();
       await expect.element(screen.getByText("$ 4.000,00")).toBeVisible();
@@ -143,77 +227,39 @@ describe("SaleLines", () => {
     });
   });
 
-  it("locks every control of a line while a change is answering", async () => {
-    const { screen } = await renderLines({ busy: true });
-
-    for (const name of CONTROLS) {
-      await expect.element(screen.getByRole("button", { name })).toBeDisabled();
-    }
-  });
-
-  it("locks every control of a line, saying why in a tooltip, when the sale can no longer be changed", async () => {
-    const { screen, onChangeQuantity, onRemove } = await renderLines({
-      editable: false,
-      lockedReason: LOCKED_REASON,
+  it("offers no control on a line once the sale can no longer be changed", async () => {
+    const { screen } = await renderLines({
+      actions: { editable: false },
+      lines: [YERBA, QUESO],
     });
 
-    for (const name of CONTROLS) {
-      const control = screen.getByRole("button", { name });
-      await expect.element(control).toHaveAttribute("aria-disabled", "true");
-      control.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    }
-    window.focus();
-    await userEvent.tab();
-
-    await expect.element(screen.getByRole("tooltip")).toHaveTextContent(LOCKED_REASON);
-    expect(onChangeQuantity).not.toHaveBeenCalled();
-    expect(onRemove).not.toHaveBeenCalled();
-  });
-
-  it("locks every control of a line with no tooltip when the sale can no longer be changed but no reason is given", async () => {
-    const { screen } = await renderLines({ editable: false });
-
-    for (const name of CONTROLS) {
-      await expect.element(screen.getByRole("button", { name })).toBeDisabled();
-    }
+    await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
   });
 
   describe("a line sold by the kilogram", () => {
-    it("shows its weight and its price per kilogram, with no quantity steppers and nothing about where the weight came from", async () => {
-      const { screen } = await renderLines({}, [QUESO]);
+    it("shows its weight and its price per kilogram, with nothing about where the weight came from", async () => {
+      const { screen } = await renderLines({ lines: [QUESO] });
 
       await expect.element(screen.getByText("1,250 kg")).toBeVisible();
-      await expect.element(screen.getByText("$ 12.500,00 el kg")).toBeVisible();
+      await expect.element(screen.getByText("$ 12.500,00 / kg")).toBeVisible();
       await expect.element(screen.getByText("Peso tipeado")).not.toBeInTheDocument();
       await expect.element(screen.getByText("$ 15.625,00")).toBeVisible();
-      await expect
-        .element(screen.getByRole("button", { name: "Subir la cantidad de Queso cremoso" }))
-        .not.toBeInTheDocument();
-      await expect
-        .element(screen.getByRole("button", { name: "Bajar la cantidad de Queso cremoso" }))
-        .not.toBeInTheDocument();
     });
 
     it("asks to change the weight of the line", async () => {
-      const { screen, onChangeWeight } = await renderLines({}, [QUESO]);
+      const { screen, onChangeWeight } = await renderLines({ lines: [QUESO] });
 
       await screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();
 
       expect(onChangeWeight).toHaveBeenCalledExactlyOnceWith(QUESO);
     });
-
-    it("locks the change of weight like the other controls", async () => {
-      const { screen } = await renderLines({ busy: true }, [QUESO]);
-
-      await expect
-        .element(screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }))
-        .toBeDisabled();
-    });
   });
 
-  it("shows a unit line with no price per kilogram", async () => {
+  it("shows a unit line with no button to change its weight", async () => {
     const { screen } = await renderLines();
 
-    await expect.element(screen.getByText(/el kg/)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Cambiar el peso de Yerba mate 1 kg" }))
+      .not.toBeInTheDocument();
   });
 });
