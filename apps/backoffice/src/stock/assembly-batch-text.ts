@@ -27,7 +27,7 @@ export function batchLotExpiryText(expiresOn: string | null): string {
 }
 
 export function batchDayText(assembledAt: string): string {
-  return `Tanda del ${formatStockDay(assembledAt)}`;
+  return `Producción del ${formatStockDay(assembledAt)}`;
 }
 
 export function batchExpiryText(expiresOn: string | null): string {
@@ -35,6 +35,9 @@ export function batchExpiryText(expiresOn: string | null): string {
 }
 
 export function assemblyBatchesCountText(count: number, days: number): string {
-  const batches = plural(count, { one: "1 tanda", other: `${formatNumber(count)} tandas` });
+  const batches = plural(count, {
+    one: "1 producción",
+    other: `${formatNumber(count)} producciones`,
+  });
   return `${batches} en los últimos ${formatNumber(days)} días`;
 }

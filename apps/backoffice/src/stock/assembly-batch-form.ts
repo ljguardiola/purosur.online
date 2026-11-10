@@ -178,7 +178,7 @@ function withLowercaseInitial(message: string): string {
 
 export function batchSizeMessage(size: string, saleUnit: SaleUnit, proposed: boolean): string {
   if (size.trim() === "") {
-    return "Ingresá el tamaño de la tanda.";
+    return "Ingresá el tamaño de la producción.";
   }
   const parsed = parseStockQuantity(size, saleUnit);
   if (parsed === undefined) {
@@ -188,8 +188,8 @@ export function batchSizeMessage(size: string, saleUnit: SaleUnit, proposed: boo
     return `Ingresá un tamaño mayor a cero, de hasta ${formatStockQuantityLimit(MAX_SIZE, saleUnit)}.`;
   }
   return proposed
-    ? "Revisá el tamaño de la tanda."
-    : `Todavía no se calcularon las cantidades de la tanda. Probá de nuevo.`;
+    ? "Revisá el tamaño de la producción."
+    : `Todavía no se calcularon las cantidades de la producción. Probá de nuevo.`;
 }
 
 export function batchUsedMessage(

@@ -9,7 +9,7 @@ const AssembliesTabLink = createLink(Tab);
 
 const SECTION_LABELS: Record<AssembliesSection, string> = {
   recipes: "Recetas",
-  batches: "Tandas",
+  batches: "Producciones",
 };
 
 export function AssembliesLayout(): ReactElement {

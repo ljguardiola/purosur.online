@@ -36,7 +36,7 @@ export function ProductStockSection({
       <EmptyState
         icon={<Boxes />}
         title="Sin stock registrado"
-        description="El producto aparece acá cuando tenga una compra, una tanda o un recuento."
+        description="El producto aparece acá cuando tenga una compra, una producción o un recuento."
         variant="blank"
       />
     );
