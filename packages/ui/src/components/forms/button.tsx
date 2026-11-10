@@ -26,7 +26,6 @@ type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type">
   children: Exclude<ReactNode, null | undefined | boolean>;
   fullWidth?: boolean;
   keycap?: KeyName;
-  iconPosition?: ButtonIconPosition;
 };
 
 export type ButtonProps = ButtonCommonProps &
@@ -36,6 +35,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        iconPosition?: ButtonIconPosition;
         onTintedSurface?: undefined;
       }
     | {
@@ -43,6 +43,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        iconPosition?: undefined;
         onTintedSurface?: boolean;
       }
     | {
@@ -50,6 +51,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: false;
         size?: ButtonTextSize;
         icon?: Icon;
+        iconPosition?: undefined;
         onTintedSurface?: undefined;
       }
     | {
@@ -57,6 +59,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive: true;
         size?: ButtonTextSize;
         icon?: undefined;
+        iconPosition?: undefined;
         onTintedSurface?: undefined;
       }
   );
