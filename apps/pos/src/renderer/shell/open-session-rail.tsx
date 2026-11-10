@@ -22,7 +22,6 @@ export function OpenSessionRail({
   current,
   abilities,
 }: {
-  registerName: string | null;
   lock: () => void;
   current: keyof typeof SCREEN_ROUTES;
   abilities: readonly RegisterAbility[];

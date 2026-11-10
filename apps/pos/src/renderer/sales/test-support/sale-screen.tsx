@@ -136,9 +136,9 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   promotion_savings: 0,
 };
 
-export type Overrides = Partial<SaleScreenProps> & { registerName?: string | null };
+export type Overrides = Partial<SaleScreenProps>;
 
-export async function renderScreen({ registerName = "Caja 1", ...overrides }: Overrides = {}) {
+export async function renderScreen(overrides: Overrides = {}) {
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
   const currentSale = overrides.currentSale ?? vi.fn(async () => null);
@@ -205,7 +205,6 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
       <SaleScreen
         sessionId="s1"
         person={overrides.person ?? PERSON}
-        registerName={registerName}
         lock={() => {}}
         currentSale={currentSale}
         scanProduct={scanProduct}

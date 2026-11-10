@@ -18,14 +18,7 @@ async function renderRail(sessionOpen: boolean) {
   const screen = await render(
     <RegisterFrame
       background="surface"
-      rail={
-        <SalesHistoryRail
-          person={PERSON}
-          registerName="Caja 1"
-          sessionOpen={sessionOpen}
-          lock={lock}
-        />
-      }
+      rail={<SalesHistoryRail person={PERSON} sessionOpen={sessionOpen} lock={lock} />}
     >
       <main>contenido</main>
     </RegisterFrame>,
@@ -68,7 +61,6 @@ describe("SalesHistoryRail", () => {
             "configure_serial_devices",
           ],
         }}
-        registerName="Caja 1"
         sessionOpen={false}
         lock={vi.fn()}
       />,
