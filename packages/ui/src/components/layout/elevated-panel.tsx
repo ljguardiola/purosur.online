@@ -3,14 +3,14 @@ import { Keycap } from "../data-display/keycap";
 import { escapeKeycapButtonClassName } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { IconOnlyButton } from "../shared/icon-only-button";
-import { type NoticeTone, toneClassName } from "../shared/tone";
+import { type Tone, toneClassName } from "../shared/tone";
 import { Eyebrow } from "./eyebrow";
 
 export type ElevatedPanelProps = {
   eyebrow: string;
   title: string;
   icon: Icon;
-  tone?: NoticeTone;
+  tone?: Extract<Tone, "info" | "error">;
   escapeKey?: { name: string; onPress: () => void };
   children: ReactNode;
 };
