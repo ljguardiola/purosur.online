@@ -1,7 +1,6 @@
 import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
-  formatClockTime,
   formatDayAndTime,
   LoadFailure,
   LoadingPlaceholder,
@@ -9,8 +8,8 @@ import {
   NotificationCard,
   NotificationPanel,
   plural,
-  StatusIndicator,
-  StatusIndicatorButton,
+  StatusPill,
+  StatusPillButton,
 } from "@purosur/ui";
 import {
   Ban,
@@ -27,47 +26,15 @@ import {
   TriangleAlert,
   Unplug,
 } from "lucide-react";
+import { Fragment } from "react";
 import { ContingencyBackupTicketsNoticeCard } from "../backups/contingency-backup-tickets-notice-card";
 import { contingencyBackupTicketsNoticeCount } from "../backups/contingency-backup-tickets-notice-count";
 import { ContingencyNoticeCard } from "../fiscal/contingency-notice-card";
 import { FiscalModeIndicator } from "../fiscal/fiscal-mode-indicator";
-import type { CoreData } from "../platform/use-core-query";
-import type { CashSessionState } from "../register/cash-session-state";
 import type { SerialDeviceRole } from "../register/serial-device-standing";
 import { serialDeviceStandingIndicator } from "../register/serial-device-standing";
-import type { SignedInPerson } from "./signed-in-person";
-
-export type RegisterStatusBarProps = {
-  person: SignedInPerson | undefined;
-  cashSession: CashSessionState;
-  status: CoreData<RegisterStatus>;
-  backupTickets: CoreData<ContingencyBackupTicketsAnswer>;
-  onDiscardBackupTickets: () => void;
-};
-
-function sessionText(cashSession: CashSessionState): string | undefined {
-  if (cashSession.status === "none") {
-    return "Sin sesión abierta";
-  }
-  if (cashSession.status === "open" && !cashSession.locked) {
-    return `Sesión abierta ${formatClockTime(cashSession.openedAt)}`;
-  }
-  return undefined;
-}
-
-function CloudIndicator({ cloud }: { cloud: RegisterStatus["cloud"] }) {
-  if (cloud === "reachable") {
-    return <StatusIndicator tone="success">Nube conectada</StatusIndicator>;
-  }
-  if (cloud === "unreachable") {
-    return <StatusIndicator tone="error">Sin conexión con la nube</StatusIndicator>;
-  }
-  return (
-    <StatusIndicator tone="neutral" busy>
-      Conectando con la nube
-    </StatusIndicator>
-  );
-}
+import { registerEyebrow } from "./register-eyebrow";
+import type { RegisterStatusData } from "./register-status-context";
 
 type Condition = RegisterStatus["conditions"][number];
 
@@ -89,6 +56,8 @@ const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
 function conditionTone(condition: Condition): "error" | "warning" {
   return condition.level === "critical" ? "error" : "warning";
 }
+
+const openedByTheNotificationPanel = () => {};
 
 function NoticesPill({
   conditions,
@@ -114,9 +83,9 @@ function NoticesPill({
     <NotificationPanel
       title="Avisos de esta caja"
       trigger={
-        <StatusIndicatorButton tone={tone}>
+        <StatusPillButton tone={tone} onPress={openedByTheNotificationPanel}>
           {`${count} ${plural(count, { one: "aviso", other: "avisos" })}`}
-        </StatusIndicatorButton>
+        </StatusPillButton>
       }
     >
       {conditions.map((condition) => {
@@ -144,25 +113,43 @@ function NoticesPill({
   );
 }
 
-function SerialDeviceIndicator({
-  device,
-  standing,
-}: {
-  device: SerialDeviceRole;
-  standing: RegisterStatus["serial_devices"][SerialDeviceRole];
-}) {
-  const { tone, text } = serialDeviceStandingIndicator(device, standing);
-  return <StatusIndicator tone={tone}>{text}</StatusIndicator>;
+const SERIAL_DEVICE_ROLES = ["scale", "reader"] as const;
+
+const PROBLEM_STANDINGS: readonly RegisterStatus["serial_devices"][SerialDeviceRole][] = [
+  "not_detected",
+  "mismatched",
+];
+
+function Crumbs({
+  person,
+  registerName,
+  cashSession,
+}: Pick<RegisterStatusData, "person" | "registerName" | "cashSession">) {
+  const crumbs = [
+    registerEyebrow(registerName),
+    ...(person === undefined ? [] : [person.first_name]),
+    ...(cashSession.status === "none" ? ["Sin sesión abierta"] : []),
+  ];
+  return (
+    <p className="flex items-center gap-2 font-bold text-caption text-text-subtle tracking-sm">
+      {crumbs.map((crumb, position) => (
+        <Fragment key={crumb}>
+          {position === 0 ? null : <span aria-hidden="true">•</span>}
+          <span>{crumb}</span>
+        </Fragment>
+      ))}
+    </p>
+  );
 }
 
-export function RegisterStatusBar({
+export function RegisterHeader({
   person,
+  registerName,
   cashSession,
   status,
   backupTickets,
   onDiscardBackupTickets,
-}: RegisterStatusBarProps) {
-  const session = sessionText(cashSession);
+}: RegisterStatusData) {
   const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
   const noticeCount =
     (status.status === "loaded"
@@ -172,33 +159,37 @@ export function RegisterStatusBar({
       ? 0
       : contingencyBackupTicketsNoticeCount(loadedBackupTickets));
   return (
-    <section
-      aria-label="Estado de la caja"
-      className="flex shrink-0 flex-col gap-3 border-b border-border bg-surface px-6 py-3"
-    >
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        {person === undefined ? null : (
-          <p className="font-semibold text-text text-detail">{person.first_name}</p>
-        )}
-        {session === undefined ? null : <p className="text-text-subtle text-detail">{session}</p>}
-        {status.status === "loaded" ? <CloudIndicator cloud={status.value.cloud} /> : null}
-        {status.status === "loaded" ? (
-          <FiscalModeIndicator contingency={status.value.contingency} />
-        ) : null}
-        {status.status === "loaded" ? (
-          <>
-            <SerialDeviceIndicator device="scale" standing={status.value.serial_devices.scale} />
-            <SerialDeviceIndicator device="reader" standing={status.value.serial_devices.reader} />
-          </>
-        ) : null}
-        {noticeCount > 0 ? (
-          <NoticesPill
-            conditions={status.status === "loaded" ? status.value.conditions : []}
-            contingency={status.status === "loaded" ? status.value.contingency : null}
-            backupTickets={loadedBackupTickets}
-            onDiscardBackupTickets={onDiscardBackupTickets}
-          />
-        ) : null}
+    <section aria-label="Estado de la caja" className="flex shrink-0 flex-col gap-3 px-8 pt-6 pb-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <Crumbs person={person} registerName={registerName} cashSession={cashSession} />
+        <div className="flex flex-wrap items-center gap-2">
+          {status.status === "loaded" && status.value.cloud === "unreachable" ? (
+            <StatusPill tone="error">Sin conexión con la nube</StatusPill>
+          ) : null}
+          {status.status === "loaded" ? (
+            <FiscalModeIndicator contingency={status.value.contingency} />
+          ) : null}
+          {status.status === "loaded"
+            ? SERIAL_DEVICE_ROLES.map((device) =>
+                PROBLEM_STANDINGS.includes(status.value.serial_devices[device]) ? (
+                  <StatusPill key={device} tone="warning">
+                    {
+                      serialDeviceStandingIndicator(device, status.value.serial_devices[device])
+                        .text
+                    }
+                  </StatusPill>
+                ) : null,
+              )
+            : null}
+          {noticeCount > 0 ? (
+            <NoticesPill
+              conditions={status.status === "loaded" ? status.value.conditions : []}
+              contingency={status.status === "loaded" ? status.value.contingency : null}
+              backupTickets={loadedBackupTickets}
+              onDiscardBackupTickets={onDiscardBackupTickets}
+            />
+          ) : null}
+        </div>
       </div>
       {status.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}
       {status.status === "failed" ? (

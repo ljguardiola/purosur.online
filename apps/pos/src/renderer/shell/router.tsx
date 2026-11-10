@@ -531,6 +531,7 @@ const statusBarRoute = createRoute({
   component: function StatusBarRoute() {
     const {
       person,
+      registerName,
       cashSession,
       registerStatus,
       contingencyBackupTickets,
@@ -539,6 +540,7 @@ const statusBarRoute = createRoute({
     return (
       <StatusBarLayout
         person={person}
+        readRegisterName={registerName}
         cashSession={cashSession}
         readStatus={registerStatus}
         readBackupTickets={contingencyBackupTickets}
