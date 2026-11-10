@@ -77,7 +77,7 @@ test("moves focus to the new area's screen title after switching area from the r
     .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
     .toBeVisible();
 
-  await pressEnterOn(screen.getByRole("link", { name: "Config" }).element() as HTMLElement);
+  await pressEnterOn(screen.getByRole("link", { name: "Configuración" }).element() as HTMLElement);
 
   await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toHaveFocus();
 });

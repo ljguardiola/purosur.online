@@ -73,7 +73,7 @@ test("opens Personas on its Usuarios tab, with the Roles tab and the assistant's
   await expect.poll(() => document.title).toBe("Personas · Puro Sur");
   const personas = screen.getByRole("link", { name: "Personas" }).element();
   expect(personas.getAttribute("aria-current")).toBe("page");
-  const config = screen.getByRole("link", { name: "Config" }).element();
+  const config = screen.getByRole("link", { name: "Configuración" }).element();
   expect(config.getAttribute("aria-current")).toBe("page");
 });
 
@@ -313,13 +313,13 @@ test("the own account panel stays open over a list page that writes its filters 
 test("the Config entry of the rail opens Personas, the first Configuración page, and falls back to the own account panel when there is none", async () => {
   window.history.pushState(null, "", "/help");
   const withPeople = await render(<App help={emptyHelp} services={servicesFor()} />);
-  const config = withPeople.getByRole("link", { name: "Config" });
+  const config = withPeople.getByRole("link", { name: "Configuración" });
   await expect.element(config).toBeVisible();
   expect(config.element().getAttribute("href")).toBe("/people");
   await withPeople.unmount();
 
   const withNothing = await render(<App help={emptyHelp} services={servicesFor([])} />);
-  const fallbackConfig = withNothing.getByRole("link", { name: "Config" });
+  const fallbackConfig = withNothing.getByRole("link", { name: "Configuración" });
   await expect.element(fallbackConfig).toBeVisible();
   expect(fallbackConfig.element().getAttribute("href")).toBe("/?account=credentials");
 });

@@ -65,7 +65,7 @@ test("offers the report under Diagnóstico in the Configuración column, after t
     .toHaveAttribute("aria-current", "page");
   await expect
     .element(
-      screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Config" }),
+      screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Configuración" }),
     )
     .toHaveAttribute("aria-current", "page");
   const labels = sections

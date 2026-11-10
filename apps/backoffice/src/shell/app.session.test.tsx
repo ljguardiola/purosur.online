@@ -252,7 +252,7 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
   window.history.pushState(null, "", "/");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect
-    .element(screen.getByRole("link", { name: "Config" }))
+    .element(screen.getByRole("link", { name: "Configuración" }))
     .toHaveAttribute("href", "/?account=credentials");
 
   vi.mocked(services.fetchSession).mockResolvedValue(
@@ -263,7 +263,7 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
     await expect
-      .element(screen.getByRole("link", { name: "Config" }))
+      .element(screen.getByRole("link", { name: "Configuración" }))
       .toHaveAttribute("href", "/people");
   } finally {
     vi.useRealTimers();

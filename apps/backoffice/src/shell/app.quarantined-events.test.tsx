@@ -32,7 +32,7 @@ test("shows the Eventos en cuarentena item to a user holding quarantined_events,
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await userEvent.click(screen.getByRole("link", { name: "Config" }));
+  await userEvent.click(screen.getByRole("link", { name: "Configuración" }));
 
   await expect
     .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))

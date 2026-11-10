@@ -55,7 +55,7 @@ test("a rail item is a real link to its screen, and a plain click opens that scr
   });
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  const configItem = screen.getByRole("link", { name: "Config" });
+  const configItem = screen.getByRole("link", { name: "Configuración" });
   await expect.element(configItem).toBeVisible();
 
   expect(configItem.element().getAttribute("href")).toBe("/people");
@@ -72,7 +72,7 @@ test("a rail item is a real link to its screen, and a plain click opens that scr
 test("a rail item leaves a modifier click to the browser", async () => {
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
-  const configItem = screen.getByRole("link", { name: "Config" });
+  const configItem = screen.getByRole("link", { name: "Configuración" });
   await expect.element(configItem).toBeVisible();
 
   const cancelRealNavigation = (event: Event) => event.preventDefault();
@@ -147,8 +147,53 @@ test.each(["/help", "/users", "/products/classification", "/products"])(
   },
 );
 
+test("lists exactly the rail areas of a person with every capability, in order, with Ayuda and the account in the footer", async () => {
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
+
+  const rail = screen.getByRole("navigation", { name: "Áreas" });
+  await expect.element(rail.getByRole("link", { name: "Inicio" })).toBeVisible();
+  const labels = rail
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(labels.slice(0, 8)).toEqual([
+    "Inicio",
+    "Ventas y caja",
+    "Productos",
+    "Compras",
+    "Stock",
+    "Fiscal",
+    "Reportes",
+    "Configuración",
+  ]);
+  expect(labels[8]).toBe("Ayuda");
+});
+
+test("names the Configuración rail area like the title of its column", async () => {
+  window.history.pushState(null, "", "/people/users");
+  const services = createAppServices();
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const column = screen.getByRole("navigation", { name: "Configuración" });
+  await expect
+    .element(column.getByRole("heading", { name: "Configuración", level: 2 }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("navigation", { name: "Áreas" })
+        .getByRole("link", { name: "Configuración" }),
+    )
+    .toHaveTextContent("Configuración");
+});
+
 test.each(["/help", "/users", "/products/classification", "/products"])(
-  "lists Productos above Config in the rail on %s",
+  "lists Productos above Configuración in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -173,12 +218,12 @@ test.each(["/help", "/users", "/products/classification", "/products"])(
       .getByRole("link")
       .elements()
       .map((link) => link.textContent);
-    expect(labels.indexOf("Productos")).toBeLessThan(labels.indexOf("Config"));
+    expect(labels.indexOf("Productos")).toBeLessThan(labels.indexOf("Configuración"));
   },
 );
 
 test.each(["/help", "/users", "/products", "/fiscal/settings"])(
-  "lists Productos, then Fiscal, then Config in the rail on %s",
+  "lists Productos, then Fiscal, then Configuración in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -211,6 +256,6 @@ test.each(["/help", "/users", "/products", "/fiscal/settings"])(
       .elements()
       .map((link) => link.textContent);
     expect(labels.indexOf("Productos")).toBeLessThan(labels.indexOf("Fiscal"));
-    expect(labels.indexOf("Fiscal")).toBeLessThan(labels.indexOf("Config"));
+    expect(labels.indexOf("Fiscal")).toBeLessThan(labels.indexOf("Configuración"));
   },
 );
