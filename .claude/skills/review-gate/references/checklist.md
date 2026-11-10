@@ -136,12 +136,15 @@ how a new one is judged.
   `text-display` figure where `FigureStat` exists), or giving a piece more
   items than its layout is made for (an unbounded list of supplier prices in
   `OptionCardGroup`'s non-wrapping row).
-- A screen standing in for an answer it does not have: an action the cloud
-  answers for shown disabled from a defaulted flag while the record loads, a
-  URL filter rewritten as not offered because its options failed to load, or
-  an item shown as being checked, with a busy indicator, while the only
-  attempt already failed, or a row action left enabled that does nothing,
-  with no request or notice, while another row's request is out.
+- A screen standing in for an answer it does not have or a state it is not
+  in: an action the cloud answers for shown disabled from a defaulted flag
+  while the record loads, a URL filter rewritten as not offered because its
+  options failed to load, an item shown as being checked, with a busy
+  indicator, while the only attempt already failed, a row action left enabled
+  that does nothing, with no request or notice, while another row's request
+  is out, or a filter left shown with its value over rows it does not narrow
+  (a list's search and "Categoría:" kept over a report's rows that the
+  report's read does not filter).
 - A query out of step with what changes it: a value left stale by an
   operation that changes it (a register status no charge outcome
   invalidates); a key invalidated again beside one that already contains
