@@ -54,7 +54,6 @@ export type {
   CorrectPurchasedLotQuantityTransaction,
 } from "./correct-purchased-lot-quantity.js";
 export { correctPurchasedLotQuantity } from "./correct-purchased-lot-quantity.js";
-export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
   DiscardExpiredLotOutcome,
@@ -131,14 +130,6 @@ export type {
   PurchasedLotStoreTransaction,
   SplittableLot,
 } from "./purchased-lot-store.js";
-export type {
-  CurrentStockCategory,
-  CurrentStockLot,
-  CurrentStockProduct,
-  CurrentStockReport,
-  ReadCurrentStockReportInput,
-} from "./read-current-stock-report.js";
-export { readCurrentStockReport } from "./read-current-stock-report.js";
 export type { ExpiringLotsView, ReadExpiringLotsInput } from "./read-expiring-lots.js";
 export { readExpiringLots } from "./read-expiring-lots.js";
 export type {
