@@ -69,14 +69,14 @@ const NO_REFUNDS: PendingRefund[] = [];
 const CHANNEL_OPTIONS: FilterOptions = [
   { value: "all", label: "Todos" },
   { value: "mercado-pago", label: "Mercado Pago" },
-  { value: "without-api", label: "Fuera de Mercado Pago" },
+  { value: "outside-mercado-pago", label: "Fuera de Mercado Pago" },
 ];
 
 function refundsOfChannel(refunds: PendingRefund[], channel: Channel): PendingRefund[] {
   switch (channel) {
     case "mercado-pago":
       return sentToMercadoPago(refunds);
-    case "without-api":
+    case "outside-mercado-pago":
       return madeOutsideTheSystem(refunds);
     case "all":
       return refunds;
@@ -235,7 +235,7 @@ export function PendingRefundsScreen({
           }
           footer={
             <div className="flex flex-col gap-2 text-text-subtle text-detail">
-              {channelShown === "without-api" ? null : (
+              {channelShown === "outside-mercado-pago" ? null : (
                 <p>
                   Los reembolsos con QR o Point de ventas canceladas, y con QR de aprobaciones
                   tardías, se envían a Mercado Pago recién cuando se confirman acá. Los de ventas
