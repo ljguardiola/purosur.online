@@ -40,7 +40,54 @@ describe("PaymentPanel", () => {
     await expectDrawnAsFigureStat(
       screen.getByText("Total", { exact: true }).element(),
       screen.getByText("$ 4.760,00").first().element(),
+      "hero",
     );
+  });
+
+  describe("laying out the panel", () => {
+    it("keeps the ways to charge at the bottom, below Vaciar and the discount", async () => {
+      const screen = await renderPanel();
+
+      const top = (name: string) =>
+        screen.getByRole("button", { name }).element().getBoundingClientRect().top;
+      const bottom = (name: string) =>
+        screen.getByRole("button", { name }).element().getBoundingClientRect().bottom;
+      expect(top("Vaciar")).toBeLessThan(top("Cobrar en efectivo"));
+      expect(top("Aplicar descuento al total")).toBeLessThan(top("Cobrar en efectivo"));
+      expect(bottom("Otros medios")).toBeGreaterThan(bottom("Vaciar"));
+      expect(bottom("Otros medios")).toBeGreaterThan(bottom("QR"));
+    });
+
+    it("keeps Cancelar venta above the ways to charge as well", async () => {
+      const screen = await renderPanel({ hasApprovedPayment: true });
+
+      const cancel = screen.getByRole("button", { name: "Cancelar venta" }).element();
+      const cash = screen.getByRole("button", { name: "Cobrar en efectivo" }).element();
+      expect(cancel.getBoundingClientRect().top).toBeLessThan(cash.getBoundingClientRect().top);
+    });
+
+    it("draws the arrow of Otros medios to the right of its text, before the F1 key", async () => {
+      const screen = await renderPanel();
+
+      const button = screen.getByRole("button", { name: "Otros medios" }).element();
+      const label = Array.from(button.querySelectorAll("span")).find(
+        (span) => span.textContent?.trim() === "Otros medios",
+      );
+      const arrow = button.querySelector("svg");
+      const key = Array.from(button.querySelectorAll("span")).find(
+        (span) => span.textContent === "F1",
+      );
+      expect(label).toBeDefined();
+      expect(arrow).not.toBeNull();
+      expect(key).toBeDefined();
+      const text = document.createRange();
+      text.selectNodeContents((label as HTMLElement).firstChild as Node);
+      const labelBox = text.getBoundingClientRect();
+      const arrowBox = (arrow as SVGElement).getBoundingClientRect();
+      const keyBox = (key as HTMLElement).getBoundingClientRect();
+      expect(arrowBox.left).toBeGreaterThanOrEqual(labelBox.right - 1);
+      expect(keyBox.left).toBeGreaterThanOrEqual(arrowBox.right);
+    });
   });
 
   it("shows what is paid and the pending balance once part of the sale is paid", async () => {
