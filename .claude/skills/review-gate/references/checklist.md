@@ -222,10 +222,11 @@ how a new one is judged.
   baseline taken while the app it started may still be working, a wait ended
   only by events a broken run may never raise, or a cleanup that ends a hung
   process with a signal it handles as the same quit that hung.
-- A test removed while nothing else verifies its rule: a case deleted with
-  the code it covered while the replacing code applies the same rule (an
-  adapter's ordering case dropped while the new adapter keeps the same
-  `ORDER BY`).
+- A test left out of step with the code it covers: removed while nothing
+  else verifies its rule (an adapter's ordering case dropped while the new
+  adapter keeps the same `ORDER BY`), or an end-to-end journey still driving
+  a control or a window the change removed (clicking "Dejar bloqueada" after
+  Salir stopped asking).
 - A migration that leaves data or rights other than the schema means: a
   backfill that guesses what old rows cannot prove (every recovery link
   marked sent while some failed and await a retry), a column for a shown
