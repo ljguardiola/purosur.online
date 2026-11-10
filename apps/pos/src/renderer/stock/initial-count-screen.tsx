@@ -17,9 +17,10 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, Lock, ScanBarcode, TriangleAlert, UserX } from "lucide-react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useKeys } from "../platform/key-layer";
 import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
 import { useBarcodeReadings } from "../shell/barcode-readings";
@@ -280,23 +281,27 @@ export function InitialCountScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
-  function driveResults(event: KeyboardEvent) {
-    if (found === undefined) {
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      setDismissed(true);
-    } else if (chosen !== undefined && event.key === "Enter") {
-      event.preventDefault();
-      choose(chosen);
-    } else if (choosing && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-      event.preventDefault();
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setActiveIndex(Math.min(found.products.length - 1, Math.max(0, activeIndex + step)));
-    }
-  }
+  const resultCount = found?.products.length ?? 0;
+  useKeys([
+    { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
+    {
+      key: "Enter",
+      run: () => {
+        if (chosen !== undefined) {
+          choose(chosen);
+        }
+      },
+      enabled: chosen !== undefined,
+    },
+    {
+      key: "ArrowUpDown",
+      run: (pressed) => {
+        const step = pressed === "ArrowDown" ? 1 : -1;
+        setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+      },
+      enabled: choosing,
+    },
+  ]);
 
   const answer = count.status === "loaded" ? count.value : undefined;
   const open = !retired && (answer === undefined || (answer.kind === "read" && answer.offered));
@@ -310,13 +315,7 @@ export function InitialCountScreen({
         <ScreenHeader eyebrow="Puesta en marcha · Sin sesión de caja" title="Inventario inicial" />
         {open ? (
           <>
-            <form
-              ref={field}
-              noValidate
-              className="relative"
-              onSubmit={submit}
-              onKeyDownCapture={driveResults}
-            >
+            <form ref={field} noValidate className="relative" onSubmit={submit}>
               <SearchField
                 label="Producto"
                 placeholder="Escaneá el producto o buscalo por nombre"
