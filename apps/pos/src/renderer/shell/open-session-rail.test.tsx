@@ -13,6 +13,33 @@ describe("OpenSessionRail", () => {
     }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
   });
 
+  it("shows the isotype, then Venta, Historial, Devolver and Caja, and Salir last", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="sale"
+        abilities={["view_sales_history"]}
+      />,
+    );
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
+    const items = Array.from(rail.querySelectorAll("img, button, a")).map(
+      (item) => item.getAttribute("alt") ?? item.textContent,
+    );
+    expect(items).toEqual(["Puro Sur", "Venta", "Historial", "Devolver", "Caja", "Salir"]);
+  });
+
+  it("draws Venta with a shopping cart", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+
+    const icon = screen.getByRole("button", { name: "Venta" }).element().querySelector("svg");
+    expect(icon?.classList.contains("lucide-shopping-cart")).toBe(true);
+  });
+
   it("marks Venta as current on the sale screen", async () => {
     const screen = await render(
       <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,

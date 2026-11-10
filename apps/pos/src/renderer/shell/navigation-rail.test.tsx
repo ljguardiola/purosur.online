@@ -106,12 +106,39 @@ describe("NavigationRail", () => {
       .toHaveAttribute("aria-current", "page");
   });
 
-  it("is 88px wide", async () => {
+  it("is 72px wide", async () => {
     const screen = await renderRail();
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
 
-    expect(rail.getBoundingClientRect().width).toBe(88);
+    expect(rail.getBoundingClientRect().width).toBe(72);
+  });
+
+  it("shows the Puro Sur isotype above its items", async () => {
+    const screen = await renderRail({ entries: [HISTORY] });
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+    const isotype = screen.getByRole("img", { name: "Puro Sur" }).element();
+
+    expect(rail.contains(isotype)).toBe(true);
+    const firstItem = rail.querySelector("button, a") as Element;
+    expect(
+      isotype.compareDocumentPosition(firstItem) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("is drawn on the navigation surface", async () => {
+    const screen = await renderRail();
+    const reference = document.createElement("div");
+    reference.className = "bg-surface-nav";
+    document.body.append(reference);
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+
+    expect(getComputedStyle(rail).backgroundColor).toBe(
+      getComputedStyle(reference).backgroundColor,
+    );
+    reference.remove();
   });
 
   it("names the current screen after the one it is given instead of Inicio", async () => {
@@ -199,7 +226,7 @@ describe("NavigationRail", () => {
     expect(screen.router.state.location.pathname).toBe("/session");
   });
 
-  it("draws its links and buttons as the design system's light rail items, current or not", async () => {
+  it("draws its links and buttons as the design system's dark rail items, current or not", async () => {
     const screen = await render(
       <>
         <NavigationRail
@@ -208,8 +235,8 @@ describe("NavigationRail", () => {
           links={[{ label: "Caja", icon: Wallet, to: "/cash", current: true }]}
           onSignOut={vi.fn()}
         />
-        <AreaNavItem rail="light" label="Actual" icon={<Wallet />} active href="/current" />
-        <AreaNavItem rail="light" label="Otro" icon={<History />} active={false} href="/other" />
+        <AreaNavItem rail="dark" label="Actual" icon={<Wallet />} active href="/current" />
+        <AreaNavItem rail="dark" label="Otro" icon={<History />} active={false} href="/other" />
       </>,
     );
     const item = (role: "link" | "button", name: string) =>

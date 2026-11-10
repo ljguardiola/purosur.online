@@ -51,6 +51,12 @@ describe("NoSessionRail", () => {
     },
   );
 
+  it("shows the isotype", async () => {
+    const screen = await render(<NoSessionRail person={personWith([])} signOut={vi.fn()} />);
+
+    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
+  });
+
   it("leaves out the entries the person may not use", async () => {
     const screen = await render(
       <NoSessionRail person={personWith(["view_sales_history"])} signOut={vi.fn()} />,
