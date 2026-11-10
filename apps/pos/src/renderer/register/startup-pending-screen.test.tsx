@@ -13,6 +13,8 @@ import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
+import type { RegisterStatusData } from "../shell/register-status-context";
+import { RegisterStatusProvider } from "../shell/register-status-context";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { StartupPendingScreen } from "./startup-pending-screen";
@@ -24,6 +26,14 @@ const CASHIER: SignedInPerson = {
 };
 const OWNER: SignedInPerson = { user_id: "u2", first_name: "Grace", abilities: [] };
 const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
+const REGISTER_STATUS: RegisterStatusData = {
+  person: CASHIER,
+  registerName: "Caja 1",
+  cashSession: { status: "open", id: "s1", openedAt: OPENED_AT, openedBy: OWNER, locked: false },
+  status: { status: "loading" },
+  backupTickets: { status: "loading" },
+  onDiscardBackupTickets: () => {},
+};
 const BALANCE: CashBalance = {
   opening_float: { amount: 2_000_000, direction: "in" },
   cash_sales: { amount: 0, direction: "in" },
@@ -181,26 +191,28 @@ async function renderScreen(overrides: Overrides = {}) {
   const onNothingLeft = vi.fn();
   const onSessionInvalid = vi.fn();
   const screen = await render(
-    <StartupPendingScreen
-      sessionId="s1"
-      person={overrides.person ?? CASHIER}
-      sessionOwner={OWNER}
-      openedAt={OPENED_AT}
-      registerName="Caja 1"
-      lock={() => {}}
-      loadStartupPending={loadStartupPending}
-      loadCashBalance={overrides.loadCashBalance ?? (async () => BALANCE)}
-      printOriginalReceipt={printOriginalReceipt}
-      reprintSaleReceipt={reprintSaleReceipt}
-      convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
-      rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
-      loadAuthorizers={async () => []}
-      clockGuard={overrides.clockGuard}
-      onGoSelling={onGoSelling}
-      onGoToSale={onGoToSale}
-      onNothingLeft={onNothingLeft}
-      onSessionInvalid={onSessionInvalid}
-    />,
+    <RegisterStatusProvider value={REGISTER_STATUS}>
+      <StartupPendingScreen
+        sessionId="s1"
+        person={overrides.person ?? CASHIER}
+        sessionOwner={OWNER}
+        openedAt={OPENED_AT}
+        registerName="Caja 1"
+        lock={() => {}}
+        loadStartupPending={loadStartupPending}
+        loadCashBalance={overrides.loadCashBalance ?? (async () => BALANCE)}
+        printOriginalReceipt={printOriginalReceipt}
+        reprintSaleReceipt={reprintSaleReceipt}
+        convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+        rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
+        loadAuthorizers={async () => []}
+        clockGuard={overrides.clockGuard}
+        onGoSelling={onGoSelling}
+        onGoToSale={onGoToSale}
+        onNothingLeft={onNothingLeft}
+        onSessionInvalid={onSessionInvalid}
+      />
+    </RegisterStatusProvider>,
   );
   return {
     screen,
@@ -236,21 +248,21 @@ describe("StartupPendingScreen", () => {
     await expectGoSellingOpen(screen);
   });
 
-  it("is headed Hay cosas para resolver before starting, leaving the register's name to the frame's header", async () => {
+  it("names the step Antes de empezar as the header's last crumb, with no heading of its own", async () => {
     const { screen } = await renderScreen();
 
     await expect
-      .element(screen.getByRole("heading", { name: "Hay cosas para resolver", exact: true }))
-      .toBeVisible();
-    await expect.element(screen.getByText("Antes de empezar", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
+      .element(screen.getByRole("region", { name: "Estado de la caja" }))
+      .toMatchTextContent(/^CAJA 1•Ada•Antes de empezar/);
+    await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+    expect(screen.getByRole("heading").elements()).toEqual([]);
     await expect
       .element(
         screen.getByText(
           "La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó.",
         ),
       )
-      .toBeVisible();
+      .not.toBeInTheDocument();
   });
 
   it("offers a sale never printed with its time and total, to print as the original", async () => {
@@ -363,6 +375,15 @@ describe("StartupPendingScreen", () => {
     expect(onGoSelling).toHaveBeenCalledOnce();
   });
 
+  it("goes to selling with Enter, the key Ir a vender shows", async () => {
+    const { screen, onGoSelling } = await renderScreen();
+    await expect.element(goSelling(screen).getByText("Enter", { exact: true })).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(onGoSelling).toHaveBeenCalledOnce();
+  });
+
   it("keeps Ir a vender enabled while the pending items load", async () => {
     const reading = deferred<StartupPending>();
     const { screen, onGoSelling } = await renderScreen({
@@ -425,24 +446,28 @@ describe("StartupPendingScreen", () => {
     expect(onNothingLeft).not.toHaveBeenCalled();
   });
 
-  it("names who opened the session, since when and with how much cash", async () => {
+  it("names who opened the session, since when and with how much opening cash", async () => {
     const { screen } = await renderScreen();
+    const panel = screen.getByRole("complementary", { name: "Sesión abierta" });
 
-    await expect.element(screen.getByText("Sesión abierta", { exact: true })).toBeVisible();
-    await expect
-      .element(screen.getByRole("complementary", { name: "Sesión abierta" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("Grace", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Desde las 09:02 · fondo $ 20.000,00")).toBeVisible();
+    await expect.element(panel.getByText("Sesión abierta", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Abierta por", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Grace", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Desde las", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("09:02", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Fondo inicial", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("$ 20.000,00", { exact: true })).toBeVisible();
     await expect
       .element(screen.getByText("Lo que quedó pendiente se puede resolver después."))
-      .toBeVisible();
+      .not.toBeInTheDocument();
   });
 
   it("gives only the opening time while the opening cash is unknown", async () => {
     const { screen } = await renderScreen({ loadCashBalance: async () => "unavailable" });
+    const panel = screen.getByRole("complementary", { name: "Sesión abierta" });
 
-    await expect.element(screen.getByText("Desde las 09:02", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("09:02", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Fondo inicial", { exact: true })).not.toBeInTheDocument();
   });
 
   describe("printing the ticket of a sale never printed", () => {
@@ -460,7 +485,8 @@ describe("StartupPendingScreen", () => {
       expect(reprintSaleReceipt).not.toHaveBeenCalled();
     });
 
-    it("keeps the printing notice on the screen until it is dismissed before telling the route nothing is left", async () => {
+    it("keeps the printing notice on the screen for five seconds before telling the route nothing is left", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
       const load = vi
         .fn<() => Promise<StartupPending>>()
         .mockResolvedValueOnce({ ...NOTHING, sales_to_print: [NEVER_PRINTED] })
@@ -474,9 +500,12 @@ describe("StartupPendingScreen", () => {
         .toBeVisible();
       expect(onNothingLeft).not.toHaveBeenCalled();
 
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+      await vi.advanceTimersByTimeAsync(5000);
 
       await vi.waitFor(() => expect(onNothingLeft).toHaveBeenCalledOnce());
+      await expect
+        .element(screen.getByText("El ticket sale en cuanto la impresora esté lista"))
+        .not.toBeInTheDocument();
     });
 
     it("reads the items again after printing and drops the item once the core no longer lists it", async () => {
@@ -719,19 +748,23 @@ describe("StartupPendingScreen", () => {
       await expect.element(screen.getByText("Bloquea la venta").first()).toBeVisible();
     });
 
-    it("locks Ir a vender while the core keeps the cashier from selling, saying why only in its tooltip", async () => {
+    it("locks Ir a vender and its Enter while the core keeps the cashier from selling, saying why in a notice above it", async () => {
       const { screen, onGoSelling } = await renderScreen({
         loadStartupPending: async () => BLOCKED_BY_QR,
       });
       await expectGoSellingLocked(screen);
-      await expect.element(screen.getByText(SELLING_BLOCKED_REASON)).not.toBeInTheDocument();
 
-      await hoverGoSelling(screen);
-
-      await expect.element(screen.getByRole("tooltip")).toHaveTextContent(SELLING_BLOCKED_REASON);
+      await expect
+        .element(
+          screen
+            .getByRole("complementary", { name: "Sesión abierta" })
+            .getByText(SELLING_BLOCKED_REASON),
+        )
+        .toBeVisible();
       goSelling(screen)
         .element()
         .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await userEvent.keyboard("{Enter}");
       expect(onGoSelling).not.toHaveBeenCalled();
     });
 
@@ -816,7 +849,8 @@ describe("StartupPendingScreen", () => {
       await expectGoSellingOpen(screen);
     });
 
-    it("keeps the refund notice on the screen until it is dismissed before telling the route nothing is left", async () => {
+    it("keeps the refund notice on the screen for five seconds before telling the route nothing is left", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
       const load = vi
         .fn<() => Promise<StartupPending>>()
         .mockResolvedValueOnce(BLOCKED_BY_QR)
@@ -834,9 +868,12 @@ describe("StartupPendingScreen", () => {
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
       expect(onNothingLeft).not.toHaveBeenCalled();
 
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+      await vi.advanceTimersByTimeAsync(5000);
 
       await vi.waitFor(() => expect(onNothingLeft).toHaveBeenCalledOnce());
+      await expect
+        .element(screen.getByText("El cobro quedó como reembolso"))
+        .not.toBeInTheDocument();
     });
 
     it("closes the confirmation and reads the items again when the core no longer finds the order", async () => {
