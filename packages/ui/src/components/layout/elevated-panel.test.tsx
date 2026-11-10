@@ -68,14 +68,15 @@ test("tints the badge with the subtle info tone unless told otherwise", async ()
   expect(getComputedStyle(badgeOf(screen)).backgroundColor).toBe(tokenRgb("info-subtle"));
 });
 
-test.each([
-  ["success", "success-subtle"],
-  ["warning", "warning-subtle"],
-  ["error", "error-subtle"],
-] as const)("tints the badge with the subtle %s tone when asked", async (tone, token) => {
-  const screen = await renderPanel({ tone });
+test("tints the badge with the subtle error tone when asked", async () => {
+  const screen = await renderPanel({ tone: "error" });
 
-  expect(getComputedStyle(badgeOf(screen)).backgroundColor).toBe(tokenRgb(token));
+  expect(getComputedStyle(badgeOf(screen)).backgroundColor).toBe(tokenRgb("error-subtle"));
+});
+
+test("takes only the info and error tones", () => {
+  expectTypeOf<"success">().not.toExtend<NonNullable<ElevatedPanelProps["tone"]>>();
+  expectTypeOf<"warning">().not.toExtend<NonNullable<ElevatedPanelProps["tone"]>>();
 });
 
 test("offers no Esc key unless it is given one", async () => {
