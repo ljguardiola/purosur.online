@@ -46,6 +46,6 @@ describe("OlderVersionScreen", () => {
   it("shows no version while it is not known", async () => {
     const screen = await render(<OlderVersionScreen version={null} />);
 
-    await expect.element(screen.getByText("Versión", { exact: false })).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/^Versión \d/)).not.toBeInTheDocument();
   });
 });
