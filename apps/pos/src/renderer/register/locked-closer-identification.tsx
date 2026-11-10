@@ -33,6 +33,7 @@ export type ReturnedCloser = {
 export type LockedCloserIdentificationProps = {
   sessionId: string;
   registerName: string | null;
+  version: string | null;
   loadClosers: () => Promise<SignInUser[]>;
   identify: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   returned: ReturnedCloser | undefined;
@@ -193,7 +194,7 @@ function IdentificationPanel({
 
 export function LockedCloserIdentification(props: LockedCloserIdentificationProps) {
   return (
-    <BrandPanelScreen>
+    <BrandPanelScreen version={props.version}>
       <IdentificationPanel {...props} />
     </BrandPanelScreen>
   );

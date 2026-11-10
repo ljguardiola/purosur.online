@@ -1,10 +1,11 @@
 import type { OpenCashSessionOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import type { ReactNode } from "react";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
+import type { NoSessionScreenProps } from "./no-session-screen";
 import { NoSessionScreen } from "./no-session-screen";
 
 const PERSON: SignedInPerson = {
@@ -14,11 +15,9 @@ const PERSON: SignedInPerson = {
 };
 
 async function renderScreen({
-  registerName = null,
   person = PERSON,
   offers,
 }: {
-  registerName?: string | null;
   person?: SignedInPerson;
   offers?: ReactNode;
 } = {}) {
@@ -31,7 +30,6 @@ async function renderScreen({
   const screen = await render(
     <NoSessionScreen
       person={person}
-      registerName={registerName}
       signOut={signOut}
       openCashSession={openCashSession}
       offers={offers}
@@ -54,10 +52,8 @@ describe("NoSessionScreen", () => {
     await expect.element(screen.getByText("Una oferta")).toBeVisible();
   });
 
-  it("names the register in the eyebrow", async () => {
-    const { screen } = await renderScreen({ registerName: "Caja 1" });
-
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  it("takes no register name, which the frame's header shows", () => {
+    expectTypeOf<NoSessionScreenProps>().not.toHaveProperty("registerName");
   });
 
   it("shows only the first name of the person who is in", async () => {
@@ -136,7 +132,6 @@ describe("NoSessionScreen", () => {
     const screen = await render(
       <NoSessionScreen
         person={{ ...PERSON, abilities: ["open_cash_session"] }}
-        registerName={null}
         signOut={vi.fn()}
         openCashSession={openCashSession}
       />,

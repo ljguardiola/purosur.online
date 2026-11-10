@@ -1,7 +1,8 @@
 import type { RegisterAbility } from "@purosur/domain";
-import { useNavigate } from "@tanstack/react-router";
-import { ShoppingBasket, Undo2, Wallet } from "lucide-react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { ShoppingCart, Undo2, Wallet } from "lucide-react";
 import { useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import type { ActionEntry } from "./action-entries";
 import { ACTION_ENTRIES, entriesFor } from "./action-entries";
 import { LeavingTheRegisterModal } from "./leaving-the-register-modal";
@@ -30,7 +31,11 @@ export function OpenSessionRail({
   abilities: readonly RegisterAbility[];
 }) {
   const navigate = useNavigate();
+  const atHome = useLocation({ select: ({ pathname }) => pathname === "/session" });
   const [leaving, setLeaving] = useState(false);
+  useKeys([{ key: "Escape", run: () => void navigate({ to: "/session" }), enabled: !atHome }], {
+    fallback: true,
+  });
   const linksTo = (
     routes: readonly ActionEntry["to"][],
   ): NonNullable<NavigationRailProps["links"]> =>
@@ -44,8 +49,8 @@ export function OpenSessionRail({
         entries={[]}
         home={
           current === "sale"
-            ? { label: "Venta", icon: ShoppingBasket }
-            : { label: "Venta", icon: ShoppingBasket, to: "/session" }
+            ? { label: "Venta", icon: ShoppingCart }
+            : { label: "Venta", icon: ShoppingCart, to: "/session" }
         }
         links={[
           ...linksTo(["/history", "/deferred-sale"]),

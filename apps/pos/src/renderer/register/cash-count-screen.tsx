@@ -6,6 +6,7 @@ import { ArrowLeft, Lock, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import { differenceNotice } from "./cash-amounts";
 import { CashCountStrip } from "./cash-count-strip";
 import {
@@ -107,16 +108,44 @@ export function CashCountScreen({
   }
 
   return (
-    <div className="flex h-full w-full bg-surface">
-      <OpenSessionRail
-        registerName={registerName}
-        lock={lock}
-        current="cash"
-        abilities={abilities}
-      />
-      <form className="flex flex-1" noValidate onSubmit={handleSubmit}>
+    <form className="h-full w-full" noValidate onSubmit={handleSubmit}>
+      <RegisterFrame
+        background="surface"
+        rail={
+          <OpenSessionRail
+            registerName={registerName}
+            lock={lock}
+            current="cash"
+            abilities={abilities}
+          />
+        }
+        aside={
+          <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
+            <Button
+              type="submit"
+              size="large"
+              fullWidth
+              icon={<Lock />}
+              dataStatus={balance.status}
+              disabled={submitting}
+            >
+              Cerrar caja
+            </Button>
+            <Button
+              variant="secondary"
+              size="large"
+              fullWidth
+              icon={<ArrowLeft />}
+              disabled={submitting}
+              onPress={() => void navigate({ to: "/cash" })}
+            >
+              Volver
+            </Button>
+          </ExpectedCashPanel>
+        }
+      >
         <main className="flex flex-1 flex-col gap-4 p-8">
-          <ScreenHeader eyebrow={registerName ?? undefined} title="Cerrar caja" />
+          <ScreenHeader title="Cerrar caja" />
           {openSaleTotal === undefined ? null : (
             <OpenSaleBlock
               total={openSaleTotal}
@@ -153,29 +182,7 @@ export function CashCountScreen({
             )}
           </Card>
         </main>
-        <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
-          <Button
-            type="submit"
-            size="large"
-            fullWidth
-            icon={<Lock />}
-            dataStatus={balance.status}
-            disabled={submitting}
-          >
-            Cerrar caja
-          </Button>
-          <Button
-            variant="secondary"
-            size="large"
-            fullWidth
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={() => void navigate({ to: "/cash" })}
-          >
-            Volver
-          </Button>
-        </ExpectedCashPanel>
-      </form>
-    </div>
+      </RegisterFrame>
+    </form>
   );
 }

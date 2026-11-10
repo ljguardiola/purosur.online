@@ -15,10 +15,10 @@ import { EmptyState, FloatingNotification, ScreenHeader } from "@purosur/ui";
 import { CircleX, Lock, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
+import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import type { SaleDetail, SaleDetailCreditNote } from "../shell/sale-receipt-text";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
-import { sessionEyebrow } from "../shell/session-eyebrow";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { voidedSaleNotice } from "./credit-note-text";
 import { originalPrintNotice } from "./original-print-text";
@@ -147,18 +147,39 @@ export function SalesHistoryScreen({
     history.status === "loaded" && history.value.kind !== "found" ? history.value : undefined;
 
   return (
-    <div className="flex h-full w-full bg-surface">
-      <SalesHistoryRail
-        person={person}
-        registerName={registerName}
-        sessionOpen={sessionOpen}
-        lock={lock}
-      />
-      <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader
-          eyebrow={sessionEyebrow(registerName, sessionOpen)}
-          title="Historial de ventas"
+    <RegisterFrame
+      background="surface"
+      rail={
+        <SalesHistoryRail
+          person={person}
+          registerName={registerName}
+          sessionOpen={sessionOpen}
+          lock={lock}
         />
+      }
+      aside={
+        <SaleHistoryDetailPanel
+          saleId={selectedSaleId}
+          readDetail={saleHistoryDetail}
+          onReprint={setReprinting}
+          onPrintOriginal={(sale) =>
+            void printOriginalOf("sale_receipt", `sale_receipt:${sale.sale_id}`, () =>
+              printOriginalReceipt(sale.sale_id),
+            )
+          }
+          onVoid={setVoiding}
+          onPrintCreditNote={(sale, creditNote) =>
+            void printOriginalOf("credit_note", `credit_note:${creditNote.credit_note_id}`, () =>
+              printCreditNote(sale.sale_id, creditNote.credit_note_id),
+            )
+          }
+          onReprintCreditNote={(sale, creditNote) => setReprintingCreditNote({ sale, creditNote })}
+          onReprintDeferredInvoice={setReprintingInvoice}
+        />
+      }
+    >
+      <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
+        <ScreenHeader title="Historial de ventas" />
         {refusal?.kind === "lacks_permission" ? (
           <EmptyState
             variant="blank"
@@ -187,24 +208,6 @@ export function SalesHistoryScreen({
           />
         ) : null}
       </main>
-      <SaleHistoryDetailPanel
-        saleId={selectedSaleId}
-        readDetail={saleHistoryDetail}
-        onReprint={setReprinting}
-        onPrintOriginal={(sale) =>
-          void printOriginalOf("sale_receipt", `sale_receipt:${sale.sale_id}`, () =>
-            printOriginalReceipt(sale.sale_id),
-          )
-        }
-        onVoid={setVoiding}
-        onPrintCreditNote={(sale, creditNote) =>
-          void printOriginalOf("credit_note", `credit_note:${creditNote.credit_note_id}`, () =>
-            printCreditNote(sale.sale_id, creditNote.credit_note_id),
-          )
-        }
-        onReprintCreditNote={(sale, creditNote) => setReprintingCreditNote({ sale, creditNote })}
-        onReprintDeferredInvoice={setReprintingInvoice}
-      />
       {reprinting === undefined || reprinting.next_copy.kind !== "duplicate" ? null : (
         <ReprintReceiptModal
           document="sale_receipt"
@@ -326,6 +329,6 @@ export function SalesHistoryScreen({
           onDismiss={() => setSent(undefined)}
         />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

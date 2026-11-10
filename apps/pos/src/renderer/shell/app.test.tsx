@@ -946,7 +946,7 @@ describe("App", () => {
     await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
   });
 
-  it("shows the status bar once someone is signed in, and not on the sign-in screen", async () => {
+  it("shows the register header once someone is signed in, and not on the sign-in screen", async () => {
     const screen = await render(<App core={coreAnswering(true).core} />);
     postCoreStatus("up");
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
@@ -959,9 +959,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    const bar = screen.getByRole("region", { name: "Estado de la caja" });
-    await expect.element(bar).toBeVisible();
-    await expect.element(bar.getByText("Nube conectada")).toBeVisible();
+    const header = screen.getByRole("region", { name: "Estado de la caja" });
+    await expect.element(header).toBeVisible();
+    await expect.element(header.getByText("Ada")).toBeVisible();
   });
 
   it("reads the register's status again whenever a pull finishes", async () => {
@@ -971,7 +971,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
     const readsBefore = statusAsks.length;
 
     finishPull(null);
@@ -1012,7 +1012,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
     const readsBefore = statusAsks.length;
 
     changeSerialDevices();
@@ -1027,7 +1027,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
     const readsBefore = statusAsks.length;
 
     changeStorageStanding();
@@ -1042,7 +1042,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
     const readsBefore = statusAsks.length;
 
     changeBatteryStanding();
@@ -1057,7 +1057,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect.element(screen.getByText("Nube conectada")).toBeVisible();
+    await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
     const readsBefore = statusAsks.length;
 
     changeFiscalMode();
@@ -1788,7 +1788,6 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
-    await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -2288,7 +2287,7 @@ describe("App", () => {
       .toBeVisible();
   });
 
-  it("shows the contingency backup tickets notice the core reports in the status bar, and discards them when it is closed", async () => {
+  it("shows the contingency backup tickets notice the core reports in the register header, and discards them when it is closed", async () => {
     const discard = vi.fn(
       async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
     );
@@ -3076,7 +3075,6 @@ describe("App", () => {
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
       .toBeVisible();
-    await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
     expect(opened).toEqual([10_000]);
   });
 
@@ -3278,7 +3276,7 @@ describe("App", () => {
 
       finishPull("Caja 1");
 
-      await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
       expect(cashBalance).toHaveBeenCalledTimes(1);
       expect(cashMovements).toHaveBeenCalledTimes(1);
     });
@@ -4026,7 +4024,7 @@ describe("App", () => {
 
       finishPull("Caja 1");
 
-      await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
       expect(authorizers).toHaveBeenCalledTimes(2);
     });
 

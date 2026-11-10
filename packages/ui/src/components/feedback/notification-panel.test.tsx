@@ -4,13 +4,13 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import { NotificationPanel, type NotificationPanelProps } from "./notification-panel";
-import { StatusIndicatorButton } from "./status-indicator-button";
+import { StatusPillButton } from "./status-pill-button";
 
 function renderPanel() {
   return render(
     <NotificationPanel
       title="Avisos de esta caja"
-      trigger={<StatusIndicatorButton tone="warning">2 avisos</StatusIndicatorButton>}
+      trigger={<StatusPillButton tone="warning">2 avisos</StatusPillButton>}
     >
       <p>Primer aviso</p>
       <p>Segundo aviso</p>

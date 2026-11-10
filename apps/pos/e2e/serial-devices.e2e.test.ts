@@ -60,9 +60,6 @@ describe("the register's serial devices", () => {
       const devices = page.getByRole("main");
       await devices.getByText("Balanza sin registrar", { exact: true }).waitFor();
       await devices.getByText("Lector sin registrar", { exact: true }).waitFor();
-      const status = page.getByRole("region", { name: "Estado de la caja" });
-      await status.getByText("Balanza sin registrar", { exact: true }).waitFor();
-      await status.getByText("Lector sin registrar", { exact: true }).waitFor();
     } finally {
       try {
         await register.close();

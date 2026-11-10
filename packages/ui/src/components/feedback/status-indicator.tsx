@@ -8,13 +8,13 @@ export type StatusIndicatorProps = {
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
-export const statusIndicatorClassName =
+const statusIndicatorClassName =
   "inline-flex h-7 items-center gap-2 rounded-full px-3 font-sans text-detail font-semibold";
 
 const spinnerBaseClassName = "size-icon-xs shrink-0 animate-spin motion-reduce:animate-none";
 const dotBaseClassName = "size-2 shrink-0 rounded-full";
 
-export function StatusIndicatorContent({ tone, busy = false, children }: StatusIndicatorProps) {
+function StatusIndicatorContent({ tone, busy = false, children }: StatusIndicatorProps) {
   return (
     <>
       {busy ? (

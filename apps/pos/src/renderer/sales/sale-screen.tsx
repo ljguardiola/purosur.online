@@ -35,9 +35,10 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, ScanBarcode, TriangleAlert } from "lucide-react";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { useKeys } from "../platform/key-layer";
 import type { SearchResults } from "../platform/product-search-results";
 import { ProductSearchResults, searchOptionId } from "../platform/product-search-results";
 import type { CoreData } from "../platform/use-core-query";
@@ -46,6 +47,7 @@ import { useBarcodeReadings } from "../shell/barcode-readings";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { AdjustLineModal } from "./adjust-line-modal";
 import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
@@ -680,25 +682,30 @@ export function SaleScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
-  // The field is the only thing with the keyboard, so the list is driven from it before the field's
-  // own handling: Escape would otherwise clear the text it should keep.
-  function driveResults(event: KeyboardEvent) {
-    if (found === undefined) {
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      event.stopPropagation();
-      setDismissed(true);
-    } else if (chosen !== undefined && event.key === "Enter") {
-      event.preventDefault();
-      void add(chosen);
-    } else if (choosing && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
-      event.preventDefault();
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setActiveIndex(Math.min(found.products.length - 1, Math.max(0, activeIndex + step)));
-    }
-  }
+  const resultCount = found?.products.length ?? 0;
+  useKeys(
+    [
+      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
+      {
+        key: "Enter",
+        run: () => {
+          if (chosen !== undefined) {
+            void add(chosen);
+          }
+        },
+        enabled: chosen !== undefined,
+      },
+      {
+        key: "ArrowUpDown",
+        run: (pressed) => {
+          const step = pressed === "ArrowDown" ? 1 : -1;
+          setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+        },
+        enabled: choosing,
+      },
+    ],
+    { within: field },
+  );
 
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
@@ -728,15 +735,39 @@ export function SaleScreen({
   }
 
   return (
-    <div className="flex h-full w-full bg-surface-subtle">
-      <OpenSessionRail
-        registerName={registerName}
-        lock={lock}
-        current="sale"
-        abilities={person.abilities}
-      />
+    <RegisterFrame
+      background="subtle"
+      rail={
+        <OpenSessionRail
+          registerName={registerName}
+          lock={lock}
+          current="sale"
+          abilities={person.abilities}
+        />
+      }
+      aside={
+        <PaymentPanel
+          saleStatus={current.status}
+          lineCount={sale?.lines.length ?? 0}
+          grossSubtotal={sale?.gross_subtotal ?? 0}
+          promotionSavings={sale?.promotion_savings ?? 0}
+          saleDiscount={sale?.sale_discount ?? null}
+          total={sale?.total ?? 0}
+          paid={sale?.paid ?? 0}
+          pending={sale?.pending ?? 0}
+          cancellable={answer !== undefined}
+          hasApprovedPayment={sale?.lines_lock === "approved_payment"}
+          chargeRefusal={sale?.charge_refusal ?? null}
+          canCancel={sale !== null && !editing}
+          canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
+          onDiscount={() => askToDiscount(true)}
+          onCharge={() => void navigate({ to: "/charge" })}
+          onCancel={() => void askToCancelSale()}
+        />
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Venta en curso" />
+        <ScreenHeader title="Venta en curso" />
         {diskFull === undefined ? null : (
           <InlineNotice
             tone={diskFull.level === "critical" ? "error" : "warning"}
@@ -753,13 +784,7 @@ export function SaleScreen({
             description={localAlertText(batteryCritical).meaning}
           />
         )}
-        <form
-          ref={field}
-          noValidate
-          className="relative"
-          onSubmit={submit}
-          onKeyDownCapture={driveResults}
-        >
+        <form ref={field} noValidate className="relative" onSubmit={submit}>
           <SearchField
             label="Producto"
             {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
@@ -823,24 +848,6 @@ export function SaleScreen({
           />
         ) : null}
       </main>
-      <PaymentPanel
-        saleStatus={current.status}
-        lineCount={sale?.lines.length ?? 0}
-        grossSubtotal={sale?.gross_subtotal ?? 0}
-        promotionSavings={sale?.promotion_savings ?? 0}
-        saleDiscount={sale?.sale_discount ?? null}
-        total={sale?.total ?? 0}
-        paid={sale?.paid ?? 0}
-        pending={sale?.pending ?? 0}
-        cancellable={answer !== undefined}
-        hasApprovedPayment={sale?.lines_lock === "approved_payment"}
-        chargeRefusal={sale?.charge_refusal ?? null}
-        canCancel={sale !== null && !editing}
-        canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
-        onDiscount={() => askToDiscount(true)}
-        onCharge={() => void navigate({ to: "/charge" })}
-        onCancel={() => void askToCancelSale()}
-      />
       <CancelSaleModal
         open={confirmingCancel}
         lineCount={sale?.lines.length ?? 0}
@@ -922,6 +929,6 @@ export function SaleScreen({
       {cancelledRefunds === undefined ? null : (
         <PaidSaleCancelledModal refunds={cancelledRefunds} onClose={closeCancelledPaidSale} />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

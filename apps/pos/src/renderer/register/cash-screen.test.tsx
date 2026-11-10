@@ -123,13 +123,13 @@ describe("CashScreen", () => {
     expect(panel.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
   });
 
-  it("is headed Movimientos de efectivo and names the register and when the session opened in the eyebrow", async () => {
+  it("is headed Movimientos de efectivo, leaving the register's name to the frame's header", async () => {
     const screen = await renderScreen();
 
     await expect
       .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 

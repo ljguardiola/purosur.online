@@ -3,14 +3,14 @@ import { Ban, CloudOff } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { NotificationCard } from "./notification-card";
 import { NotificationPanel } from "./notification-panel";
-import { StatusIndicatorButton } from "./status-indicator-button";
+import { StatusPillButton } from "./status-pill-button";
 
 const meta: Meta<typeof NotificationPanel> = {
   title: "Components/NotificationPanel",
   component: NotificationPanel,
   args: {
     title: "Avisos de esta caja",
-    trigger: <StatusIndicatorButton tone="error">2 avisos</StatusIndicatorButton>,
+    trigger: <StatusPillButton tone="error">2 avisos</StatusPillButton>,
     children: (
       <>
         <NotificationCard

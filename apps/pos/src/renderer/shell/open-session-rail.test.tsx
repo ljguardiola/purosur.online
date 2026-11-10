@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { OpenSessionRail } from "./open-session-rail";
+import { escapeHandled } from "./test-support/escape-handled";
 import { render } from "./test-support/render-with-router";
 
 describe("OpenSessionRail", () => {
@@ -11,6 +12,30 @@ describe("OpenSessionRail", () => {
       lock: () => void;
       current: "cash";
     }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
+  });
+
+  it("shows Venta, Historial, Devolver and Caja, and Salir last", async () => {
+    const screen = await render(
+      <OpenSessionRail
+        registerName="Caja 1"
+        lock={() => {}}
+        current="sale"
+        abilities={["view_sales_history"]}
+      />,
+    );
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+    const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
+    expect(items).toEqual(["Venta", "Historial", "Devolver", "Caja", "Salir"]);
+  });
+
+  it("draws Venta with a shopping cart", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+
+    const icon = screen.getByRole("button", { name: "Venta" }).element().querySelector("svg");
+    expect(icon?.classList.contains("lucide-shopping-cart")).toBe(true);
   });
 
   it("marks Venta as current on the sale screen", async () => {
@@ -37,6 +62,55 @@ describe("OpenSessionRail", () => {
     const venta = screen.getByRole("link", { name: "Venta" });
     await expect.element(venta).not.toHaveAttribute("aria-current");
     expect(venta.element().getAttribute("href")).toBe("/session");
+  });
+
+  it("goes back to the sale on Escape from another screen", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
+    );
+    await screen.router.navigate({ to: "/cash" });
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("goes back to the sale on Escape from the charge, though Venta is marked there", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+    await screen.router.navigate({ to: "/charge" });
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("leaves Escape unhandled on the sale", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+    await screen.router.navigate({ to: "/session" });
+    const handled = escapeHandled();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(handled()).toBe(false);
+    expect(screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("closes the leaving modal on Escape without leaving the screen", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
+    );
+    await screen.router.navigate({ to: "/cash" });
+    await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.router.state.location.pathname).toBe("/cash");
   });
 
   it("offers the sales history, between Venta and Caja, to a person who may view it", async () => {

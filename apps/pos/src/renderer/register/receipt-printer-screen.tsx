@@ -16,6 +16,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { OpenSessionRail } from "../shell/open-session-rail";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   receiptPrinterAddressText,
@@ -144,19 +145,23 @@ export function ReceiptPrinterScreen({
       : null;
 
   return (
-    <div className="flex h-full w-full bg-surface">
-      {sessionOpen ? (
-        <OpenSessionRail
-          registerName={registerName}
-          lock={signOut}
-          current="receipt_printer"
-          abilities={person.abilities}
-        />
-      ) : (
-        <NoSessionRail person={person} current="/receipt-printer" signOut={signOut} />
-      )}
+    <RegisterFrame
+      background="surface"
+      rail={
+        sessionOpen ? (
+          <OpenSessionRail
+            registerName={registerName}
+            lock={signOut}
+            current="receipt_printer"
+            abilities={person.abilities}
+          />
+        ) : (
+          <NoSessionRail person={person} current="/receipt-printer" signOut={signOut} />
+        )
+      }
+    >
       <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader eyebrow={registerName ?? undefined} title="Impresora de tickets" />
+        <ScreenHeader title="Impresora de tickets" />
         {printer.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}
         {printer.status === "failed" ? (
           <LoadFailure
@@ -206,6 +211,6 @@ export function ReceiptPrinterScreen({
           onDismiss={() => setSaved(undefined)}
         />
       )}
-    </div>
+    </RegisterFrame>
   );
 }

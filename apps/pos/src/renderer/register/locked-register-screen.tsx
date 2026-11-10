@@ -12,10 +12,16 @@ import { ResumePinForm } from "./resume-pin-form";
 export type LockedRegisterScreenProps = {
   opener: SignedInPerson;
   registerName: string | null;
+  version: string | null;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
 };
 
-export function LockedRegisterScreen({ opener, registerName, signIn }: LockedRegisterScreenProps) {
+export function LockedRegisterScreen({
+  opener,
+  registerName,
+  version,
+  signIn,
+}: LockedRegisterScreenProps) {
   const headingId = useId();
   const attempt = usePinAttempt({
     id: opener.user_id,
@@ -25,7 +31,7 @@ export function LockedRegisterScreen({ opener, registerName, signIn }: LockedReg
   const { refusal, heading, reset } = attempt;
 
   return (
-    <BrandPanelScreen>
+    <BrandPanelScreen version={version}>
       <main className="flex w-full max-w-110 flex-col gap-6">
         <ScreenHeader
           eyebrow={registerName ?? undefined}

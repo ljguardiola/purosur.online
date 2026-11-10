@@ -14,6 +14,10 @@ export type { HelpArticleBodyProps } from "./components/data-display/help-articl
 export { HelpArticleBody } from "./components/data-display/help-article-body";
 export type { HighlightedFigureProps } from "./components/data-display/highlighted-figure";
 export { HighlightedFigure } from "./components/data-display/highlighted-figure";
+export type { KeyLegendItem, KeyLegendProps } from "./components/data-display/key-legend";
+export { KeyLegend } from "./components/data-display/key-legend";
+export type { KeycapProps, KeyName } from "./components/data-display/keycap";
+export { Keycap } from "./components/data-display/keycap";
 export type { PercentBarProps } from "./components/data-display/percent-bar";
 export { PercentBar } from "./components/data-display/percent-bar";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
@@ -92,8 +96,10 @@ export type {
 export { ProgressSteps } from "./components/feedback/progress-steps";
 export type { StatusIndicatorProps } from "./components/feedback/status-indicator";
 export { StatusIndicator } from "./components/feedback/status-indicator";
-export type { StatusIndicatorButtonProps } from "./components/feedback/status-indicator-button";
-export { StatusIndicatorButton } from "./components/feedback/status-indicator-button";
+export type { StatusPillProps, StatusPillTone } from "./components/feedback/status-pill";
+export { StatusPill } from "./components/feedback/status-pill";
+export type { StatusPillButtonProps } from "./components/feedback/status-pill-button";
+export { StatusPillButton } from "./components/feedback/status-pill-button";
 export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
 export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {
