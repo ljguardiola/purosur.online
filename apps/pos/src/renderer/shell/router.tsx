@@ -135,6 +135,7 @@ import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ReturnScreen } from "../returns/return-screen";
+import { KEYED_CHARGE_METHODS } from "../sales/charge-method-options";
 import { ChargeScreen } from "../sales/charge-screen";
 import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -870,6 +871,10 @@ function StartupPendingRoute() {
 const chargeRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/charge",
+  validateSearch: (search: { method?: unknown }) => {
+    const method = KEYED_CHARGE_METHODS.find((keyed) => keyed === search.method);
+    return method === undefined ? {} : { method };
+  },
   beforeLoad: ({ context }) => {
     const { id, person } = requireOpenSession(context);
     return { id, person };
@@ -898,10 +903,12 @@ const chargeRoute = createRoute({
       contingencyBackupTickets,
       refreshCashSession,
     } = chargeRoute.useRouteContext();
+    const { method } = chargeRoute.useSearch();
     const registerName = useRegisterName();
     return (
       <ChargeScreen
         sessionId={id}
+        {...(method === undefined ? {} : { method })}
         person={person}
         registerName={registerName}
         lock={signOut}
