@@ -5,6 +5,7 @@ import {
   type ButtonProps as AriaButtonProps,
   Focusable as AriaFocusable,
 } from "react-aria-components";
+import { Keycap, type KeyName } from "../data-display/keycap";
 import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import type { LoadStatus } from "../shared/load-status";
@@ -22,6 +23,7 @@ type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type">
   // children still compiles; icon-only actions belong to IconButton, which requires an aria-label.
   children: Exclude<ReactNode, null | undefined | boolean>;
   fullWidth?: boolean;
+  keycap?: KeyName;
 };
 
 export type ButtonProps = ButtonCommonProps &
@@ -153,6 +155,7 @@ export function Button({
   disabledReason,
   dataStatus,
   onTintedSurface = false,
+  keycap,
   ...props
 }: ButtonProps) {
   const color = destructive ? "destructive" : "regular";
@@ -180,6 +183,11 @@ export function Button({
           ellipsis; it needs its own box to truncate correctly. */}
       <span className="truncate">{children}</span>
       {variant === "primary" && sizedIcon}
+      {keycap === undefined ? null : (
+        <span aria-hidden="true" className="ml-auto flex shrink-0">
+          <Keycap keyName={keycap} variant={variant === "primary" ? "onPrimary" : "default"} />
+        </span>
+      )}
     </>
   );
 
