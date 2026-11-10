@@ -2960,22 +2960,22 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/purchases-by-supplier",
-        access: anyCapabilityAccess("reports_area", "purchases"),
+        access: capabilityAccess("purchases"),
       },
       {
         method: "GET",
         url: "/api/reports/pending-purchase-orders",
-        access: anyCapabilityAccess("reports_area", "purchase_order_reads"),
+        access: capabilityAccess("purchase_order_reads"),
       },
       {
         method: "GET",
         url: "/api/reports/receipt-differences",
-        access: anyCapabilityAccess("reports_area", "purchase_order_reads"),
+        access: capabilityAccess("purchase_order_reads"),
       },
       {
         method: "GET",
         url: "/api/reports/freight-by-period",
-        access: anyCapabilityAccess("reports_area", "freights"),
+        access: capabilityAccess("freights"),
       },
       {
         method: "GET",
@@ -3256,7 +3256,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/prices-past-review-deadline",
-        access: capabilityAccess("reports_area"),
+        access: capabilityAccess("prices_area"),
       },
       {
         method: "GET",
@@ -3311,12 +3311,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/expiring-lots",
-        access: anyCapabilityAccess("reports_area", "stock_expiries"),
+        access: capabilityAccess("stock_expiries"),
       },
       {
         method: "GET",
         url: "/api/reports/losses-by-reason",
-        access: anyCapabilityAccess("reports_area", "stock_losses"),
+        access: capabilityAccess("stock_losses"),
       },
       {
         method: "GET",
@@ -3676,7 +3676,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/fiscal-documents",
-        access: anyCapabilityAccess("fiscal_information", "reports_area"),
+        access: capabilityAccess("fiscal_information"),
       },
       {
         method: "GET",

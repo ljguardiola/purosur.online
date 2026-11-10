@@ -78,7 +78,7 @@ describe("GET /reports/freight-by-period access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
 
     const response = await freightByPeriod({ ...headers, origin: "https://attacker.example" });
 
@@ -86,24 +86,19 @@ describe("GET /reports/freight-by-period access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may neither view reports nor manage freights", async () => {
-    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
+  it.each(["view_reports", "record_purchases"] as const)(
+    "rejects a user holding %s but not manage_freight",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOW);
 
-    const response = await freightByPeriod(headers);
+      const response = await freightByPeriod(headers);
 
-    expect(response.statusCode).toBe(403);
-  });
+      expect(response.statusCode).toBe(403);
+    },
+  );
 
-  it("answers a user who may manage freights without viewing reports", async () => {
+  it("answers a user who may manage freights", async () => {
     const { headers } = await signedInWith(db, ["manage_freight"], NOW);
-
-    const response = await freightByPeriod(headers);
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
 
     const response = await freightByPeriod(headers);
 
@@ -113,7 +108,7 @@ describe("GET /reports/freight-by-period access", () => {
 
 describe("GET /reports/freight-by-period", () => {
   it("answers 400 to a range the contract refuses", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
 
     const response = await freightByPeriod(headers, "?from=2026-10-09&to=2026-10-01");
 
@@ -122,7 +117,7 @@ describe("GET /reports/freight-by-period", () => {
   });
 
   it("reports the current Argentina day when no range is asked", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
 
     const response = await freightByPeriod(headers);
 
@@ -134,7 +129,7 @@ describe("GET /reports/freight-by-period", () => {
   });
 
   it("reports the freight of the branch of the session by month", async () => {
-    const { headers, userId, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, userId, locationId } = await signedInWith(db, ["manage_freight"], NOW);
     await freightAt({ locationId, actorId: userId, date: "2026-09-30", amountCents: 3_000 });
     await freightAt({ locationId, actorId: userId, date: "2026-10-02", amountCents: 12_000 });
     await freightAt({ locationId, actorId: userId, date: "2026-10-04", amountCents: 500 });
@@ -158,11 +153,7 @@ describe("GET /reports/freight-by-period", () => {
   });
 
   it("includes a freight from the moment it is registered", async () => {
-    const { headers, userId, locationId } = await signedInWith(
-      db,
-      ["view_reports", "manage_freight"],
-      NOW,
-    );
+    const { headers, userId, locationId } = await signedInWith(db, ["manage_freight"], NOW);
     const { productId } = await insertProduct(db);
     const { purchaseId } = await insertPurchaseWithLines(db, {
       locationId,

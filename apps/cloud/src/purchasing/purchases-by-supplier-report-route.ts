@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
-  anyCapabilityAccess,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -26,7 +26,7 @@ export function registerPurchasesBySupplierReportRoute<TQueryResult extends PgQu
     "/reports/purchases-by-supplier",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: anyCapabilityAccess("reports_area", "purchases"), sessionSource },
+      config: { access: capabilityAccess("purchases"), sessionSource },
     },
     async (request, reply) => {
       const query = await readValidatedBody(reply, purchasesBySupplierQuerySchema, request.query);

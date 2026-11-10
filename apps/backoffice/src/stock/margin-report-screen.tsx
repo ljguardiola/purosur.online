@@ -19,13 +19,12 @@ import {
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import type { MarginReportFilters } from "./margin-report-filters";
 import type { MarginReportScreenServices } from "./margin-report-services";
 import { marginReportSpreadsheet } from "./margin-report-spreadsheet";
@@ -49,7 +48,7 @@ const GROUP_OPTIONS = [
   { value: "product" as const, label: "Por producto" },
 ] as const;
 
-const SCREEN_TITLE = "Margen por producto y por categoría";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["margin"];
 
 const labelOrder = textOrder(marginRowLabel);
 
@@ -146,10 +145,7 @@ export function MarginReportScreen({
   }
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Rentabilidad" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -266,6 +262,6 @@ export function MarginReportScreen({
           )
         }
       />
-    </ScreenLayout>
+    </>
   );
 }

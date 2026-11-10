@@ -1,14 +1,9 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import {
-  canSeeContingencyTicketRescue,
-  canSeeFiscalPage,
-  canSeeReports,
-} from "../shell/backoffice-access";
+import { canSeeContingencyTicketRescue, canSeeFiscalPage } from "../shell/backoffice-access";
 import { fiscalAreaRoute } from "../shell/fiscal-area";
 import { lazyScreen } from "../shell/lazy-screen";
 import { reportFiltersSearch } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { exceptionalityFilters } from "./exceptionality-filters";
 import {
@@ -91,16 +86,13 @@ export const fiscalSettingsRoute = createRoute({
   component: lazyScreen(() => import("./fiscal-settings-page"), "FiscalSettingsPage"),
 });
 
-export const issuedFiscalDocumentsReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyIssuedFiscalDocumentsReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/fiscal-documents",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportFiltersSearch,
-  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
-  component: lazyScreen(
-    () => import("./issued-fiscal-documents-report-page"),
-    "IssuedFiscalDocumentsReportPage",
-  ),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/fiscal/documents", search });
+  },
 });
 
 export const legacyFiscalTasksRoute = createRoute({

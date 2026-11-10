@@ -9,7 +9,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { periodSegments, typePeriodEnd, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { ReceiptDifferencesReportContent } from "./receipt-differences-report-content";
-import type { ReceiptDifferencesReportScreenServices } from "./receipt-differences-report-services";
+import type { ReceiptDifferencesReportContentServices } from "./receipt-differences-report-content-services";
 import {
   emptyReceiptDifferencesReport,
   receiptDifferencesReport,
@@ -23,7 +23,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function createServices(): ReceiptDifferencesReportScreenServices {
+function createServices(): ReceiptDifferencesReportContentServices {
   const services = { fetchReceiptDifferencesReport: vi.fn() };
   services.fetchReceiptDifferencesReport.mockResolvedValue({
     kind: "ok",
@@ -47,7 +47,7 @@ function ControlledContent({
   onOpenOrder,
   openOrder,
   onSessionEnded = () => {},
-}: Handlers & { services: ReceiptDifferencesReportScreenServices }) {
+}: Handlers & { services: ReceiptDifferencesReportContentServices }) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
@@ -68,7 +68,7 @@ function ControlledContent({
   );
 }
 
-function renderContent(services: ReceiptDifferencesReportScreenServices, handlers: Handlers = {}) {
+function renderContent(services: ReceiptDifferencesReportContentServices, handlers: Handlers = {}) {
   return render(<ControlledContent services={services} {...handlers} />);
 }
 

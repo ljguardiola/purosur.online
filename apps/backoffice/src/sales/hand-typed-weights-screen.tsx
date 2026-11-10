@@ -16,7 +16,6 @@ import { useId, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -25,7 +24,7 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import { OPENED_TIME_ZONE } from "./hand-typed-weights-opened-time-zone";
 import type { HandTypedWeightsScreenServices } from "./hand-typed-weights-services";
 import { handTypedWeightsSpreadsheet } from "./hand-typed-weights-spreadsheet";
@@ -45,7 +44,7 @@ type SessionRow = HandTypedWeightsBody["sessions"][number];
 const NO_CASHIERS: CashierRow[] = [];
 const NO_SESSIONS: SessionRow[] = [];
 
-const SCREEN_TITLE = "Pesos tipeados a mano";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["hand-typed-weights"];
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
@@ -136,10 +135,7 @@ export function HandTypedWeightsScreen({
     sessionsTable.getRowModel().rows.length === 0;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -246,6 +242,6 @@ export function HandTypedWeightsScreen({
           )}
         </>
       )}
-    </ScreenLayout>
+    </>
   );
 }

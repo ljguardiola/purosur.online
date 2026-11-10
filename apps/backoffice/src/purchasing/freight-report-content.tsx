@@ -14,7 +14,7 @@ import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
-import type { FreightReportScreenServices } from "./freight-report-services";
+import type { FreightReportContentServices } from "./freight-report-content-services";
 import { freightReportSpreadsheet } from "./freight-report-spreadsheet";
 import { useFreightReportQuery } from "./purchasing-queries";
 import { reportMonthText } from "./report-month-text";
@@ -23,10 +23,10 @@ export type FreightReportContentProps = {
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
-  services: FreightReportScreenServices;
+  services: FreightReportContentServices;
 };
 
-export const FREIGHT_REPORT_TITLE = "Flete por período";
+const FREIGHT_REPORT_TITLE = "Flete por período";
 
 type FreightRow = FreightByPeriodBody["months"][number];
 

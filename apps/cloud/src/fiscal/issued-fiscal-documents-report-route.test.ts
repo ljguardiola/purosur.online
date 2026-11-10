@@ -53,7 +53,7 @@ describe("GET /reports/fiscal-documents access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
 
     const response = await report({ ...headers, origin: "https://attacker.example" });
 
@@ -61,15 +61,18 @@ describe("GET /reports/fiscal-documents access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may neither view reports nor view fiscal documents", async () => {
-    const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
+  it.each(["view_reports", "adjust_stock"] as const)(
+    "rejects a user holding %s but not view_fiscal_documents",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOW);
 
-    const response = await report(headers);
+      const response = await report(headers);
 
-    expect(response.statusCode).toBe(403);
-  });
+      expect(response.statusCode).toBe(403);
+    },
+  );
 
-  it("answers a user who may only view fiscal documents", async () => {
+  it("answers a user who may view fiscal documents", async () => {
     const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
 
     const response = await report(headers);
@@ -77,16 +80,8 @@ describe("GET /reports/fiscal-documents access", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
-
-    const response = await report(headers);
-
-    expect(response.statusCode).toBe(200);
-  });
-
   it("answers 400 to half a period", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
 
     const response = await report(headers, "?from=2026-10-01");
 
@@ -99,7 +94,7 @@ describe("GET /reports/fiscal-documents", () => {
   const range = "?from=2026-10-01&to=2026-10-31";
 
   it("answers an empty report when the branch issued nothing", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
 
     const response = await report(headers, range);
 
@@ -116,7 +111,7 @@ describe("GET /reports/fiscal-documents", () => {
   });
 
   it("answers a row for each type, point of sale and authorization kind, with the credit note subtracting", async () => {
-    const { headers, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId } = await signedInWith(db, ["view_fiscal_documents"], NOW);
     const registerId = await insertRegisterOf(db, locationId, "Caja 1");
     await insertReceiptRequest(db, registerId, { pointOfSale: 7, total: 6_000 });
     await insertCaeaDocument(db, registerId, { pointOfSale: 8, total: 2_000 });
@@ -162,7 +157,7 @@ describe("GET /reports/fiscal-documents", () => {
   });
 
   it("counts only the register asked for", async () => {
-    const { headers, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId } = await signedInWith(db, ["view_fiscal_documents"], NOW);
     const first = await insertRegisterOf(db, locationId, "Caja 1");
     const second = await insertRegisterOf(db, locationId, "Caja 2");
     await insertReceiptRequest(db, first, { total: 100 });

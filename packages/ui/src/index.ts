@@ -117,6 +117,8 @@ export type { CheckboxProps } from "./components/forms/checkbox";
 export { Checkbox } from "./components/forms/checkbox";
 export type { ChipListFieldProps } from "./components/forms/chip-list-field";
 export { ChipListField } from "./components/forms/chip-list-field";
+export type { CollapsibleSegmentedControlProps } from "./components/forms/collapsible-segmented-control";
+export { CollapsibleSegmentedControl } from "./components/forms/collapsible-segmented-control";
 export type { ComboBoxOption, ComboBoxProps } from "./components/forms/combo-box";
 export { ComboBox } from "./components/forms/combo-box";
 export type { DateFieldProps } from "./components/forms/date-field";

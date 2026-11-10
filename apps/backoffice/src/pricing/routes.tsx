@@ -1,17 +1,28 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
-import { reportPeriodSearch } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
+import {
+  reportFiltersFields,
+  reportPeriodSearch,
+  withoutRefusedPeriod,
+} from "../shell/report-filters-search";
+import { signedInRoute } from "../shell/signed-in-route";
 
-export const pricesListFilters = z.object({
-  search: z.string().default("").catch(""),
-  category: z.string().default("ALL").catch("ALL"),
-  review: z.enum(["pending", "overdue", "all"]).default("pending").catch("pending"),
-});
+export const pricesListFilters = z
+  .object({
+    search: z.string().default("").catch(""),
+    category: z.string().default("ALL").catch("ALL"),
+    review: z.enum(["pending", "overdue", "all"]).default("pending").catch("pending"),
+    from: reportFiltersFields.from,
+    to: reportFiltersFields.to,
+  })
+  .transform(withoutRefusedPeriod)
+  .transform((filters) =>
+    filters.review === "pending" && filters.from !== ""
+      ? { ...filters, search: "", category: "ALL" }
+      : filters,
+  );
 
 export type PricesListFilters = z.output<typeof pricesListFilters>;
 
@@ -46,18 +57,13 @@ export const discountsListRoute = createRoute({
   component: lazyScreen(() => import("./discounts-list-page"), "DiscountsListPage"),
 });
 
-export const pricesPastReviewDeadlineReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
+export const legacyPricesPastReviewDeadlineReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "reports/prices-past-review-deadline",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
   validateSearch: reportPeriodSearch,
-  search: {
-    middlewares: [stripSearchParams(reportPeriodSearch.parse({}))],
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/products/prices", search: { ...search, review: "pending" } });
   },
-  component: lazyScreen(
-    () => import("./prices-past-review-deadline-report-page"),
-    "PricesPastReviewDeadlineReportPage",
-  ),
 });
 
 export const legacyPricesRoute = createRoute({

@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { reportFiltersSearch, reportPeriodSearch, reportQueryOf } from "./report-filters-search";
+import {
+  reportFiltersSearch,
+  reportPeriodSearch,
+  reportQueryOf,
+  sharedReportFilters,
+} from "./report-filters-search";
 import { FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 test("opens on no range and every register", () => {
@@ -75,4 +80,25 @@ test.each([
   ["a period whose bounds are not days", { from: "2026-02-30", to: "mañana" }],
 ])("falls back to no period in a period-only report for %s", (_name, search) => {
   expect(reportPeriodSearch.parse(search)).toEqual({ from: "", to: "" });
+});
+
+test("shares the period and the register a view's address names", () => {
+  expect(
+    sharedReportFilters({
+      from: "2026-10-01",
+      to: "2026-10-07",
+      register: FRONT_REGISTER_ID,
+      group: "product",
+      sortBy: "name",
+    }),
+  ).toEqual({ from: "2026-10-01", to: "2026-10-07", register: FRONT_REGISTER_ID });
+});
+
+test("shares nothing for an empty period and every register", () => {
+  expect(sharedReportFilters({ from: "", to: "", register: "ALL" })).toEqual({});
+  expect(sharedReportFilters({})).toEqual({});
+});
+
+test("shares only the values that are text", () => {
+  expect(sharedReportFilters({ from: 1, to: false, register: 3 })).toEqual({});
 });

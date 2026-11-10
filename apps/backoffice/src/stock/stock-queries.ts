@@ -1,8 +1,6 @@
 import type {
   AssemblyBatchList,
   AssemblyBatchPreview,
-  CurrentStockReportBody,
-  CurrentStockReportQuery,
   ExpiringLotList,
   ExpiringLotsReportBody,
   ExpiringLotsReportQuery,
@@ -31,7 +29,6 @@ import type {
   fetchAssemblyBatches,
   fetchAssemblyBatchPreview,
 } from "./assembly-batches-api";
-import type { fetchCurrentStockReport } from "./current-stock-report-api";
 import type { fetchExpiringLotsReport } from "./expiring-lots-report-api";
 import type { fetchLossesByReasonReport } from "./losses-by-reason-report-api";
 import type { fetchMarginReport } from "./margin-report-api";
@@ -51,8 +48,6 @@ export const stockKey = ["stock"] as const;
 
 export const stockKeys = {
   balances: [...stockKey, "balances"] as const,
-  currentReport: (query: CurrentStockReportQuery) =>
-    [...stockKey, "current-report", query.category_id ?? ""] as const,
   products: [...stockKey, "products"] as const,
   expiringLots: [...stockKey, "expiring-lots"] as const,
   expiringLotsReport: (query: ExpiringLotsReportQuery) =>
@@ -93,22 +88,6 @@ export function useStockBalancesQuery(
   return useCloudQuery<StockBalanceList>({
     queryKey: stockKeys.balances,
     read: params.fetchStockBalances,
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export function useCurrentStockReportQuery(
-  params: ReadParams & {
-    query: CurrentStockReportQuery;
-    fetchCurrentStockReport: typeof fetchCurrentStockReport;
-  },
-) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<CurrentStockReportBody>({
-    queryKey: stockKeys.currentReport(params.query),
-    keepPreviousData: true,
-    read: () => params.fetchCurrentStockReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

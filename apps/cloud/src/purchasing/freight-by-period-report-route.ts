@@ -5,7 +5,7 @@ import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
-  anyCapabilityAccess,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -26,7 +26,7 @@ export function registerFreightByPeriodReportRoute<TQueryResult extends PgQueryR
     "/reports/freight-by-period",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: anyCapabilityAccess("reports_area", "freights"), sessionSource },
+      config: { access: capabilityAccess("freights"), sessionSource },
     },
     async (request, reply) => {
       const query = await readValidatedBody(reply, freightByPeriodQuerySchema, request.query);

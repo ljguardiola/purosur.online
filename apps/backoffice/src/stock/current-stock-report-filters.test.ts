@@ -1,6 +1,7 @@
 import { expect, test } from "vitest";
 import { currentStockReportFilters } from "./current-stock-report-filters";
-import { NUTS_CATEGORY_ID } from "./test-support/current-stock-report-fixtures";
+
+const NUTS_CATEGORY_ID = "9a3f6c52-1d84-4b07-8c1e-5e7a2b9d4f10";
 
 test("opens on every category with the most valuable product first", () => {
   expect(currentStockReportFilters.parse({})).toEqual({

@@ -1,7 +1,14 @@
+import { Eyebrow } from "@purosur/ui";
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { PackageX, Store, Users } from "lucide-react";
+import { Bot, PackageX, Store, Users } from "lucide-react";
+import { useId } from "react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeBranchArea, canSeePeopleArea, canSeeQuarantinedEvents } from "./backoffice-access";
+import {
+  canSeeAiCostReport,
+  canSeeBranchArea,
+  canSeePeopleArea,
+  canSeeQuarantinedEvents,
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const settingsAreaRoute = createRoute({
@@ -13,6 +20,7 @@ export const settingsAreaRoute = createRoute({
 function SettingsArea() {
   const { session } = settingsAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
+  const diagnosticsHeadingId = useId();
   return (
     <AreaLayout
       area="settings"
@@ -53,6 +61,23 @@ function SettingsArea() {
               </li>
             )}
           </ul>
+          {canSeeAiCostReport(session) && (
+            <>
+              <div id={diagnosticsHeadingId} className="mt-4 mb-1 px-3">
+                <Eyebrow text="Diagnóstico" headingLevel={3} />
+              </div>
+              <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
+                <li>
+                  <SectionLink
+                    to="/reports/ai-cost-by-period"
+                    label="Costo de IA por período"
+                    icon={<Bot />}
+                    active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
+                  />
+                </li>
+              </ul>
+            </>
+          )}
         </>
       }
     >

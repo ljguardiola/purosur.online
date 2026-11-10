@@ -9,7 +9,7 @@ import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
-  anyCapabilityAccess,
+  capabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -36,7 +36,7 @@ export function registerIssuedFiscalDocumentsReportRoute<TQueryResult extends Pg
     "/reports/fiscal-documents",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: anyCapabilityAccess("fiscal_information", "reports_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_information"), sessionSource },
     },
     async (request, reply) => {
       const query = await readValidatedBody(

@@ -71,7 +71,7 @@ describe("GET /reports/expiring-lots access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_expiration_dates"], NOW);
 
     const response = await expiringLotsReport({ ...headers, origin: "https://attacker.example" });
 
@@ -79,8 +79,8 @@ describe("GET /reports/expiring-lots access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it.each(["view_stock_balances", "record_stock_losses"] as const)(
-    "rejects a user holding %s but neither view_reports nor manage_expiration_dates",
+  it.each(["view_reports", "view_stock_balances", "record_stock_losses"] as const)(
+    "rejects a user holding %s but not manage_expiration_dates",
     async (permission) => {
       const { headers } = await signedInWith(db, [permission], NOW);
 
@@ -90,22 +90,19 @@ describe("GET /reports/expiring-lots access", () => {
     },
   );
 
-  it.each(["view_reports", "manage_expiration_dates"] as const)(
-    "answers a user holding %s",
-    async (permission) => {
-      const { headers } = await signedInWith(db, [permission], NOW);
+  it("answers a user holding manage_expiration_dates", async () => {
+    const { headers } = await signedInWith(db, ["manage_expiration_dates"], NOW);
 
-      const response = await expiringLotsReport(headers);
+    const response = await expiringLotsReport(headers);
 
-      expect(response.statusCode).toBe(200);
-    },
-  );
+    expect(response.statusCode).toBe(200);
+  });
 
   it.each([
     ["a period that ends before it starts", "?from=2026-12-31&to=2026-12-01"],
     ["a parameter given twice", "?from=2026-12-01&from=2026-12-02&to=2026-12-31"],
   ])("answers 400 to %s", async (_name, query) => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_expiration_dates"], NOW);
 
     const response = await expiringLotsReport(headers, query);
 
@@ -116,7 +113,7 @@ describe("GET /reports/expiring-lots access", () => {
 
 describe("GET /reports/expiring-lots", () => {
   it("answers an empty report for the branch's window when it holds no lot", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["manage_expiration_dates"], NOW);
 
     const response = await expiringLotsReport(headers);
 
@@ -129,7 +126,11 @@ describe("GET /reports/expiring-lots", () => {
   });
 
   it("lists the lots of the branch within the window its settings configure, soonest first", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["manage_expiration_dates"],
+      NOW,
+    );
     await db
       .update(branchSettings)
       .set({ expiringLotAlertDays: 45 })
@@ -209,7 +210,11 @@ describe("GET /reports/expiring-lots", () => {
   });
 
   it("reports only the lots of the user's branch", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["manage_expiration_dates"],
+      NOW,
+    );
     const otherLocationId = await insertLocation(db);
     const { productId } = await insertProduct(db);
     const own = await insertPurchasedLot(db, {
@@ -232,7 +237,11 @@ describe("GET /reports/expiring-lots", () => {
   });
 
   it("lists the lots of an asked period beyond the window", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["manage_expiration_dates"],
+      NOW,
+    );
     const { productId } = await insertProduct(db);
     const inPeriod = await insertPurchasedLot(db, {
       productId,
@@ -255,7 +264,11 @@ describe("GET /reports/expiring-lots", () => {
   });
 
   it("lists the lots already expired that still hold stock when the asked period is in the past", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["manage_expiration_dates"],
+      NOW,
+    );
     const { productId } = await insertProduct(db);
     const expired = await insertPurchasedLot(db, {
       productId,
@@ -304,7 +317,7 @@ describe("GET /reports/expiring-lots after a register's sale is applied", () => 
       expiresOn: "2026-10-10",
       remaining: 4_000,
     });
-    const { headers } = await signedInWith(route.db, ["view_reports"], EVENTS_NOW, {
+    const { headers } = await signedInWith(route.db, ["manage_expiration_dates"], EVENTS_NOW, {
       locationId: installation.locationId,
     });
     const read = () =>

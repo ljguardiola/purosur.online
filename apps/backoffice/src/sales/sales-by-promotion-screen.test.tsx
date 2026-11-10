@@ -93,13 +93,9 @@ function shownPromotions(screen: Screen) {
     .filter((name) => name !== undefined);
 }
 
-test("names the report and the figures of the period", async () => {
+test("shows the figures of the period", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Descuentos por promoción", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Descontado").first()).toBeVisible();
   await expect.element(screen.getByText("$ 2.130,00")).toBeVisible();
   await expect.element(screen.getByText("Líneas con promoción")).toBeVisible();

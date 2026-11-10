@@ -102,13 +102,9 @@ function withReport(report: typeof averageTicketReport) {
   return services;
 }
 
-test("names the report, the average ticket of the period and how it compares with the one before", async () => {
+test("shows the average ticket of the period and how it compares with the one before", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ticket promedio", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Ticket promedio").first()).toBeVisible();
   await expect.element(screen.getByText("$ 250,00")).toBeVisible();
   await expect.element(screen.getByText("70 ventas")).toBeVisible();

@@ -14,12 +14,11 @@ import {
 import { HandCoins } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import { REPORT_VIEW_TITLES } from "../shell/reports-tabs";
 import { manualDiscountKindText } from "./manual-discount-kind-text";
 import { manualDiscountMoment } from "./manual-discount-moment";
 import { ManualDiscountsAuthorizerFilter } from "./manual-discounts-authorizer-filter";
@@ -42,7 +41,7 @@ const NO_ROWS: DiscountRow[] = [];
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
-const SCREEN_TITLE = "Descuentos manuales y sobre el total";
+const SCREEN_TITLE = REPORT_VIEW_TITLES["manual-discounts"];
 
 function authorizerName(name: string | null): string {
   return name ?? UNIDENTIFIED;
@@ -117,10 +116,7 @@ export function ManualDiscountsScreen({
   const mostAuthorized = shown?.totals.most_authorized ?? null;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <>
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -215,6 +211,6 @@ export function ManualDiscountsScreen({
           variant: filtered ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }

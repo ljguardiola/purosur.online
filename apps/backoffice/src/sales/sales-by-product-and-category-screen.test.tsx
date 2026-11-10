@@ -96,13 +96,9 @@ function shownCategories(screen: Screen) {
     .filter((name) => name !== undefined);
 }
 
-test("names the report, the grouping and the figures of the period", async () => {
+test("shows the figures of the period and its main category", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por producto y por categoría", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("Total vendido")).toBeVisible();
   await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
   await expect.element(screen.getByText("Cantidad", { exact: true }).first()).toBeVisible();
