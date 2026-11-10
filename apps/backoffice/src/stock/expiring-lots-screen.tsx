@@ -402,6 +402,7 @@ export function ExpiringLotsScreen({
             <BranchTermChange
               term="expiringLotAlertDays"
               value={windowDays}
+              status={data.status}
               access={access}
               onSessionEnded={onSessionEnded}
               onChanged={() => void refreshStock()}

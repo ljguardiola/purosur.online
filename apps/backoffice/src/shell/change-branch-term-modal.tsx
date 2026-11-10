@@ -121,7 +121,7 @@ export function ChangeBranchTermModal({
       icon={<Settings2 />}
       context="Sucursal"
       title={BRANCH_TERMS[term].modalTitle}
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button

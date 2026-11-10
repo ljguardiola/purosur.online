@@ -1,9 +1,11 @@
-import { Button } from "@purosur/ui";
+import { Button, LoadFailure, type LoadFailureProps, LoadingPlaceholder } from "@purosur/ui";
 import { useState } from "react";
 import {
   useGoodConditionReturnDaysQuery,
   useSupplierPriceListDailyCapQuery,
 } from "../branch/branch-queries";
+import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import type { CloudData } from "../platform/use-cloud-query";
 import { type BackofficeAccess, canSeeBranchArea } from "./backoffice-access";
 import type { BranchTermServices } from "./branch-term-services";
 import { BRANCH_TERMS, type BranchTerm } from "./branch-terms";
@@ -12,6 +14,8 @@ import { ChangeBranchTermModal } from "./change-branch-term-modal";
 type BranchTermChangeProps = {
   term: BranchTerm;
   value: number | undefined;
+  status: CloudData<unknown>["status"];
+  failure?: LoadFailureProps | undefined;
   access: BackofficeAccess;
   onSessionEnded: () => void;
   onChanged?: () => void;
@@ -21,6 +25,8 @@ type BranchTermChangeProps = {
 export function BranchTermChange({
   term,
   value,
+  status,
+  failure,
   access,
   onSessionEnded,
   onChanged,
@@ -31,16 +37,24 @@ export function BranchTermChange({
 
   return (
     <>
-      {value === undefined ? null : (
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1">
+        {value !== undefined ? (
           <p className="text-text-subtle text-detail">{`${label}: ${shown(value)}`}</p>
-          {canSeeBranchArea(access) ? (
-            <Button variant="text" onPress={() => setChanging(true)}>
-              Cambiar
-            </Button>
-          ) : null}
-        </div>
-      )}
+        ) : status === "failed" ? (
+          failure === undefined ? null : (
+            <LoadFailure variant="pill" {...failure} />
+          )
+        ) : (
+          <div className="w-40">
+            <LoadingPlaceholder variant="rows" rows={1} />
+          </div>
+        )}
+        {canSeeBranchArea(access) ? (
+          <Button variant="text" onPress={() => setChanging(true)}>
+            Cambiar
+          </Button>
+        ) : null}
+      </div>
       {changing ? (
         <ChangeBranchTermModal
           term={term}
@@ -57,7 +71,10 @@ export function BranchTermChange({
   );
 }
 
-type ReadBranchTermChangeProps = Omit<BranchTermChangeProps, "term" | "value" | "onChanged"> & {
+type ReadBranchTermChangeProps = Omit<
+  BranchTermChangeProps,
+  "term" | "value" | "status" | "failure" | "onChanged"
+> & {
   term: "goodConditionReturnDays" | "supplierPriceListDailyExtractionCap";
 };
 
@@ -71,6 +88,12 @@ function GoodConditionReturnDaysChange(props: Omit<ReadBranchTermChangeProps, "t
       {...props}
       term="goodConditionReturnDays"
       value={data.status === "loaded" ? data.value : undefined}
+      status={data.status}
+      failure={
+        data.status === "failed"
+          ? cloudLoadFailure(data, "el plazo de cambio en buen estado")
+          : undefined
+      }
     />
   );
 }
@@ -85,6 +108,10 @@ function SupplierPriceListDailyCapChange(props: Omit<ReadBranchTermChangeProps, 
       {...props}
       term="supplierPriceListDailyExtractionCap"
       value={data.status === "loaded" ? data.value : undefined}
+      status={data.status}
+      failure={
+        data.status === "failed" ? cloudLoadFailure(data, "el tope diario de listas") : undefined
+      }
     />
   );
 }

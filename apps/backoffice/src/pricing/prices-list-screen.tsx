@@ -591,6 +591,7 @@ export function PricesListScreen({
             <BranchTermChange
               term="unreviewedPriceAlertDays"
               value={loaded?.reviewWindowDays}
+              status={data.status}
               access={access}
               onSessionEnded={onSessionEnded}
               onChanged={() => void refreshPrices()}
