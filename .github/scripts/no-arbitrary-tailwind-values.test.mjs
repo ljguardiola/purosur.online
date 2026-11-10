@@ -168,8 +168,25 @@ test("finds a numeric z-index utility behind an arbitrary variant, naming it wit
   );
 });
 
+test("finds a numeric z-index utility behind an arbitrary variant holding nested brackets", () => {
+  assert.deepEqual(
+    numericZIndexTexts(
+      '"[[data-side=left]_&]:z-10 [[data-state=open]_&]:z-10 [.dark_&_[data-x]]:-z-1 hover:[.a_[b_[c=d]]_&]:z-20"',
+    ),
+    [
+      "[[data-side=left]_&]:z-10",
+      "[[data-state=open]_&]:z-10",
+      "[.dark_&_[data-x]]:-z-1",
+      "hover:[.a_[b_[c=d]]_&]:z-20",
+    ],
+  );
+});
+
 test("does not flag the z-index role utilities behind an arbitrary variant", () => {
-  assert.deepEqual(numericZIndexTexts('"[.dark_&]:z-raised hover:[&>svg]:-z-raised"'), []);
+  assert.deepEqual(
+    numericZIndexTexts('"[.dark_&]:z-raised hover:[&>svg]:-z-raised [.a_[b_[c=d]]_&]:z-overlay"'),
+    [],
+  );
 });
 
 test("does not flag the z-index role utilities behind a child, named group or container variant", () => {
