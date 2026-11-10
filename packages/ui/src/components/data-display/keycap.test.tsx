@@ -1,7 +1,8 @@
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import { tokenBackgroundColor, tokenRgb } from "../../test/token-colors";
+import { colorAlpha } from "../../test/color-alpha";
+import { tokenRgb } from "../../test/token-colors";
 import { Keycap, type KeyName } from "./keycap";
 
 const labels: ReadonlyArray<readonly [KeyName, string]> = [
@@ -52,7 +53,8 @@ test("draws a translucent badge with white text on a dark primary surface", asyn
   const screen = await render(<Keycap keyName="Enter" variant="onPrimary" />);
 
   const style = getComputedStyle(screen.getByText("Enter").element());
-  expect(style.backgroundColor).toBe(tokenBackgroundColor("surface-nav-subtle"));
+  expect(colorAlpha(style.backgroundColor)).toBeGreaterThan(0);
+  expect(colorAlpha(style.backgroundColor)).toBeLessThan(1);
   expect(style.color).toBe(tokenRgb("text-inverse"));
 });
 

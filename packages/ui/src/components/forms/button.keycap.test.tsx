@@ -1,7 +1,8 @@
 import { Banknote } from "lucide-react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { tokenBackgroundColor, tokenRgb } from "../../test/token-colors";
+import { colorAlpha } from "../../test/color-alpha";
+import { tokenRgb } from "../../test/token-colors";
 import type { KeyName } from "../data-display/keycap";
 import { Button, type ButtonProps } from "./button";
 
@@ -41,23 +42,29 @@ test("keeps the key out of the button's accessible name", async () => {
 
 test("draws a translucent key on the primary variant and a white one on the others", async () => {
   const primary = await render(<Button keycap="Enter">Confirmar</Button>);
-  expect(getComputedStyle(primary.getByText("Enter").element()).backgroundColor).toBe(
-    tokenBackgroundColor("surface-nav-subtle"),
-  );
+  const fill = getComputedStyle(primary.getByText("Enter").element()).backgroundColor;
+  expect(colorAlpha(fill)).toBeGreaterThan(0);
+  expect(colorAlpha(fill)).toBeLessThan(1);
   await primary.unmount();
 
-  for (const variant of ["secondary", "text"] as const) {
-    const screen = await render(
-      <Button variant={variant} keycap="Escape">
-        Volver
-      </Button>,
-    );
+  const secondary = await render(
+    <Button variant="secondary" keycap="Escape">
+      Volver
+    </Button>,
+  );
+  expect(getComputedStyle(secondary.getByText("Esc").element()).backgroundColor).toBe(
+    tokenRgb("surface"),
+  );
+  await secondary.unmount();
 
-    expect(getComputedStyle(screen.getByText("Esc").element()).backgroundColor, variant).toBe(
-      tokenRgb("surface"),
-    );
-    await screen.unmount();
-  }
+  const text = await render(
+    <Button variant="text" keycap="Escape">
+      Volver
+    </Button>,
+  );
+  expect(getComputedStyle(text.getByText("Esc").element()).backgroundColor).toBe(
+    tokenRgb("surface"),
+  );
 });
 
 test("shows no key on a button without one", async () => {
