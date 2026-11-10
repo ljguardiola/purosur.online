@@ -3,15 +3,23 @@ import { z } from "zod";
 import { canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
-import { reportPeriodSearch } from "../shell/report-filters-search";
+import {
+  reportFiltersFields,
+  reportPeriodSearch,
+  withoutRefusedPeriod,
+} from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 
-export const pricesListFilters = z.object({
-  search: z.string().default("").catch(""),
-  category: z.string().default("ALL").catch("ALL"),
-  review: z.enum(["pending", "overdue", "all"]).default("pending").catch("pending"),
-});
+export const pricesListFilters = z
+  .object({
+    search: z.string().default("").catch(""),
+    category: z.string().default("ALL").catch("ALL"),
+    review: z.enum(["pending", "overdue", "all"]).default("pending").catch("pending"),
+    from: reportFiltersFields.from,
+    to: reportFiltersFields.to,
+  })
+  .transform(withoutRefusedPeriod);
 
 export type PricesListFilters = z.output<typeof pricesListFilters>;
 

@@ -17,16 +17,7 @@ import {
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
-import {
-  BadgeCheck,
-  Ban,
-  Check,
-  ListChecks,
-  Package,
-  Pencil,
-  Search,
-  TriangleAlert,
-} from "lucide-react";
+import { Ban, Check, ListChecks, Package, Pencil, Search, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -38,6 +29,7 @@ import { PriceChangeModal, type PriceModalOutcome, type ScreenNotice } from "./p
 import { emptyPendingDetail, reviewedCellText } from "./price-review-age";
 import type { ConfirmPriceOutcome, PricesReviewFilter } from "./prices-api";
 import type { PricesListScreenServices } from "./prices-list-services";
+import { PricesPastReviewDeadlineReportContent } from "./prices-past-review-deadline-report-content";
 import {
   usePricesQuery,
   useReadReviewQueue,
@@ -62,25 +54,12 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const categoryNameOrder = textOrder((category: PriceCategory) => category.name);
 
-function emptyTableState(params: {
-  activeProductCount: number;
-  reviewFilter: PricesReviewFilter;
-  pendingCount: number;
-  reviewWindowDays: number;
-}) {
+function emptyTableState(params: { activeProductCount: number }) {
   if (params.activeProductCount === 0) {
     return {
       icon: <Package />,
       title: "No hay productos activos",
       description: "Creá uno en Productos para ponerle precio.",
-      variant: "blank" as const,
-    };
-  }
-  if (params.reviewFilter === "pending" && params.pendingCount === 0) {
-    return {
-      icon: <BadgeCheck />,
-      title: "Precios al día",
-      description: emptyPendingDetail({ days: params.reviewWindowDays }),
       variant: "blank" as const,
     };
   }
@@ -129,12 +108,27 @@ export function PricesListScreen({
 
   const reportFilters = useEffectEvent(onFiltersChange);
 
+  const { from, to, search: urlSearch, category: urlCategory, review: urlReview } = filters;
+
   useEffect(() => {
-    const shown: PricesListFilters = { search, category: categoryFilter, review: reviewFilter };
-    if (!deepEqual(shown, filters)) {
+    const shown: PricesListFilters = {
+      search,
+      category: categoryFilter,
+      review: reviewFilter,
+      from,
+      to,
+    };
+    const kept: PricesListFilters = {
+      search: urlSearch,
+      category: urlCategory,
+      review: urlReview,
+      from,
+      to,
+    };
+    if (!deepEqual(shown, kept)) {
       reportFilters(shown);
     }
-  }, [search, categoryFilter, reviewFilter, filters]);
+  }, [search, categoryFilter, reviewFilter, from, to, urlSearch, urlCategory, urlReview]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
@@ -188,7 +182,6 @@ export function PricesListScreen({
   const products = loaded?.products ?? NO_PRODUCTS;
   const pendingCount = loaded?.pendingCount ?? 0;
   const activeProductCount = loaded?.activeProductCount ?? 0;
-  const reviewWindowDays = loaded?.reviewWindowDays ?? 30;
 
   const shownData =
     data.status === "failed"
@@ -569,32 +562,38 @@ export function PricesListScreen({
             )}
           </div>
         </div>
-        <Table
-          aria-label="Precios"
-          table={table}
-          {...cloudTableState(shownData, "los precios")}
-          empty={emptyTableState({
-            activeProductCount,
-            reviewFilter,
-            pendingCount,
-            reviewWindowDays,
-          })}
-          footer={
-            products.length === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {reviewFilter === "pending"
-                  ? plural(products.length, {
-                      one: "1 producto sin revisar, del más viejo al más nuevo",
-                      other: `${formatNumber(products.length)} productos sin revisar, del más viejo al más nuevo`,
-                    })
-                  : plural(products.length, {
-                      one: "1 producto",
-                      other: `${formatNumber(products.length)} productos`,
-                    })}
-              </p>
-            )
-          }
-        />
+        {reviewFilter === "pending" ? (
+          <PricesPastReviewDeadlineReportContent
+            filters={{ from: filters.from, to: filters.to }}
+            onFiltersChange={(next) =>
+              onFiltersChange({
+                search,
+                category: categoryFilter,
+                review: reviewFilter,
+                ...next,
+              })
+            }
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        ) : (
+          <Table
+            aria-label="Precios"
+            table={table}
+            {...cloudTableState(shownData, "los precios")}
+            empty={emptyTableState({ activeProductCount })}
+            footer={
+              products.length === 0 ? undefined : (
+                <p className="text-text-subtle text-detail">
+                  {plural(products.length, {
+                    one: "1 producto",
+                    other: `${formatNumber(products.length)} productos`,
+                  })}
+                </p>
+              )
+            }
+          />
+        )}
       </div>
       <PriceChangeModal
         target={modal?.target ?? null}
