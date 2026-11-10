@@ -58,7 +58,6 @@ describe("SalesHistoryRail", () => {
             "view_sales_history",
             "configure_receipt_printer",
             "configure_serial_devices",
-            "read_register_help",
           ],
         }}
         registerName="Caja 1"
@@ -75,7 +74,6 @@ describe("SalesHistoryRail", () => {
       "Historial",
       "Impresora",
       "Balanza y lector",
-      "Ayuda",
       "Salir",
     ]);
   });

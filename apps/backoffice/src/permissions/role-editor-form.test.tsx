@@ -64,12 +64,6 @@ test("the first area (Caja) is selected by default, showing its permissions", as
     .toBeVisible();
 });
 
-test("the Caja area offers reading the register's help", async () => {
-  const screen = await render(<Harness />);
-
-  await expect.element(screen.getByText("Leer la ayuda de la caja")).toBeVisible();
-});
-
 test("the Dispositivos area offers loading and consulting the BitLocker recovery key", async () => {
   const screen = await render(<Harness initialArea="devices" />);
 

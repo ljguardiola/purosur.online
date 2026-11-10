@@ -16,7 +16,6 @@ const STOCK_MOVEMENTS: PermissionKey[] = [
 const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?, PermissionKey[]?][] = [
   ["cashRegister", "sell_and_charge", REGISTER],
   ["cashRegister", "view_sales_history", REGISTER],
-  ["cashRegister", "read_register_help", REGISTER],
   ["cashRegister", "close_anothers_register_session", PIN],
   ["cashRegister", "reprint_receipt", PIN],
   ["cashRegister", "record_cash_in", PIN],

@@ -51,7 +51,6 @@ type RoutePath =
   | "/history"
   | "/deferred-sale"
   | "/return"
-  | "/help"
   | "/receipt-printer"
   | "/serial-devices"
   | "/initial-count"
@@ -120,11 +119,6 @@ const SALE_TO_PRINT_PENDING: StartupPending = {
   ],
 };
 const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
-const HELP_READER: SignedInPerson = {
-  user_id: "u3",
-  first_name: "Ada",
-  abilities: ["read_register_help"],
-};
 const PRINTER_CONFIGURER: SignedInPerson = {
   user_id: "u4",
   first_name: "Linus",
@@ -185,7 +179,6 @@ const screenFor: Record<
   "/deferred-sale": (screen) =>
     screen.getByRole("heading", { name: "Escaneá el documento del cliente" }),
   "/return": (screen) => screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }),
-  "/help": (screen) => screen.getByRole("heading", { level: 1, name: "Ayuda" }),
   "/receipt-printer": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
   "/serial-devices": (screen) =>
@@ -887,21 +880,6 @@ describe("the register's router", () => {
     { path: "/return", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/charge", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
-    { path: "/help", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
-    {
-      path: "/help",
-      coreStatus: "up",
-      enrollment: "enrolled",
-      cashSession: OPEN_SESSION,
-      redirectedTo: "/session",
-    },
-    {
-      path: "/help",
-      coreStatus: "up",
-      enrollment: "enrolled",
-      person: null,
-      redirectedTo: "/sign-in",
-    },
     { path: "/receipt-printer", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
       path: "/receipt-printer",
@@ -1474,24 +1452,7 @@ describe("the register's router", () => {
       .toBeVisible();
   });
 
-  it("renders the help for a person who may read it", async () => {
-    const router = routerAt("/help", "up", "enrolled", HELP_READER);
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screenFor["/help"](screen)).toBeVisible();
-  });
-
-  it("opens the help from the no-session screen for a person who may read it", async () => {
-    const router = routerAt("/", "up", "enrolled", HELP_READER);
-    const screen = await render(<RouterProvider router={router} />);
-
-    await userEvent.click(screen.getByRole("link", { name: "Ayuda" }));
-
-    await expect.element(screenFor["/help"](screen)).toBeVisible();
-  });
-
-  it("offers no help on the no-session screen to a person who may not read it", async () => {
+  it("offers no help on the no-session screen", async () => {
     const router = routerAt("/", "up");
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1500,81 +1461,16 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
   });
 
-  it("renders the help with a session open, with the open-session menu, for a person who may read it", async () => {
-    const router = routerAt("/help", "up", "enrolled", HELP_READER, OPEN_SESSION);
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screenFor["/help"](screen)).toBeVisible();
-    expect(router.state.location.pathname).toBe("/help");
-    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: "Ayuda" }))
-      .toHaveAttribute("aria-current", "page");
-  });
-
-  it("sends a person who may not read the help to the sale while a session is open", async () => {
-    const router = routerAt("/help", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
-
-    await render(<RouterProvider router={router} />);
-
-    await expect.poll(() => router.state.location.pathname).toBe("/session");
-  });
-
-  it("opens the help from the sale and goes back to Venta with the session open and its sale as it was", async () => {
-    const signOut = vi.fn();
+  it("shows the router's not-found page at the path the help used to have", async () => {
     const router = createRegisterRouter(
       routeTree,
-      {
-        ...contextWith("up", "enrolled", HELP_READER, signOut, OPEN_SESSION),
-        currentSale: async () => ({
-          id: "sale-1",
-          lines: [
-            {
-              id: "line-1",
-              product_id: "p1",
-              product_name: "Yerba mate 1 kg",
-              sale_unit: "UNIT" as const,
-              weight_source: null,
-              quantity: 1,
-              list_unit_price: 238_000,
-              discount_amount: 0,
-              promotion: null,
-              manual_adjustment: null,
-              line_total: 238_000,
-            },
-          ],
-          total: 238_000,
-          paid: 0,
-          pending: 238_000,
-          lines_lock: null,
-          cancel_refusal: null,
-          charge_refusal: null,
-          rebuilt_paid_order: null,
-          mercado_pago_charge_in_progress: null,
-          refunds_on_cancel: [],
-          cancel_authorization_required: false,
-          adjust_authorization_required: false,
-          sale_discount_authorization_required: false,
-          sale_discount_refusal: null,
-          sale_discount: null,
-          gross_subtotal: 238_000,
-          subtotal: 238_000,
-          promotion_savings: 0,
-        }),
-      },
-      "/session",
+      contextWith("up", "enrolled", PRINTER_CONFIGURER),
+      "/help",
     );
+
     const screen = await render(<RouterProvider router={router} />);
-    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
-    await userEvent.click(screen.getByRole("link", { name: "Ayuda" }));
-    await expect.element(screenFor["/help"](screen)).toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Venta" }));
-
-    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
-    expect(router.state.location.pathname).toBe("/session");
-    expect(signOut).not.toHaveBeenCalled();
+    await expect.element(screen.getByText("Not Found")).toBeVisible();
   });
 
   it("renders the receipt printer screen for a person who may configure it", async () => {

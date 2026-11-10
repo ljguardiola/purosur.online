@@ -84,7 +84,6 @@ describe("NoSessionScreen", () => {
     const { screen } = await renderScreen();
 
     await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
   });
 
   it("asks for confirmation before leaving, without signing out yet", async () => {
