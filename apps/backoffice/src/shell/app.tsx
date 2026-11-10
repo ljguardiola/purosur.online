@@ -87,6 +87,7 @@ import type { UsersListEndEverySessionSectionProps } from "../users/users-list-s
 import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
+import type { BranchTermServices } from "./branch-term-services";
 import type { HomeScreenServices } from "./home-screen-services";
 import { LazyProductRecipeLookup } from "./lazy-product-recipe-lookup";
 import { lazyScreen } from "./lazy-screen";
@@ -152,6 +153,7 @@ export type AppServices = {
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
+  refundsBranchTerm: BranchTermServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
   marginReportScreen: MarginReportScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;

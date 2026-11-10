@@ -7,7 +7,7 @@ import { defaultPricesListScreenServices } from "./prices-list-services";
 const route = getRouteApi("/signed-in/products-area/products/prices");
 
 export function PricesListPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   const purchasedProductsToReview = useRouterState({
@@ -15,6 +15,7 @@ export function PricesListPage(): ReactElement {
   });
   return (
     <PricesListScreen
+      access={session}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       purchasedProductsToReview={purchasedProductsToReview}

@@ -72,6 +72,14 @@ export { offsiteDumpManifestSchema } from "./backups/offsite-dump-manifest.js";
 export type { BranchSettingsEditBody } from "./branch/branch-settings-edit.js";
 export { branchSettingsEditBodySchema } from "./branch/branch-settings-edit.js";
 export type {
+  GoodConditionReturnDaysBody,
+  SupplierPriceListDailyCapBody,
+} from "./branch/branch-terms.js";
+export {
+  goodConditionReturnDaysBodySchema,
+  supplierPriceListDailyCapBodySchema,
+} from "./branch/branch-terms.js";
+export type {
   BranchSettingsReadBody,
   EditableBranchSettingsBody,
 } from "./branch/editable-branch-settings.js";
