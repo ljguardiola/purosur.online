@@ -87,13 +87,12 @@ describe("SalesHistoryRail", () => {
     expect(lock).toHaveBeenCalledOnce();
   });
 
-  it("asks to close the register or leave it locked before leaving while a session is open", async () => {
-    const { screen } = await renderRail(true);
+  it("locks the register straight away when Salir is chosen while a session is open", async () => {
+    const { screen, lock } = await renderRail(true);
 
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    await expect
-      .element(screen.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" }))
-      .toBeVisible();
+    expect(lock).toHaveBeenCalledOnce();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 });

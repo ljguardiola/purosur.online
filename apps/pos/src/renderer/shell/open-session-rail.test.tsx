@@ -99,20 +99,6 @@ describe("OpenSessionRail", () => {
     expect(screen.router.state.location.pathname).toBe("/session");
   });
 
-  it("closes the leaving modal on Escape without leaving the screen", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
-    );
-    await screen.router.navigate({ to: "/cash" });
-    await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
-
-    await userEvent.keyboard("{Escape}");
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.router.state.location.pathname).toBe("/cash");
-  });
-
   it("offers the sales history, between Venta and Caja, to a person who may view it", async () => {
     const screen = await render(
       <OpenSessionRail
@@ -322,46 +308,21 @@ describe("OpenSessionRail", () => {
       return Object.assign(screen, { locked });
     }
 
-    it("asks to close the register first instead of leaving", async () => {
+    it("locks the register straight away, with no dialog to answer", async () => {
       const screen = await renderRail();
 
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-
-      await expect
-        .element(screen.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" }))
-        .toBeVisible();
-      expect(screen.router.state.location.pathname).toBe("/");
-    });
-
-    it("keeps the session untouched when the modal is dismissed", async () => {
-      const screen = await renderRail();
-      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-
-      await userEvent.keyboard("{Escape}");
-
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-      expect(screen.router.state.location.pathname).toBe("/");
-      expect(screen.locked).toEqual([]);
-    });
-
-    it("leaves the register locked on Dejar bloqueada", async () => {
-      const screen = await renderRail();
-      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-
-      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
 
       expect(screen.locked).toEqual(["locked"]);
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     });
 
-    it("goes to the cash count in leaving mode on Cerrar caja", async () => {
+    it("stays on the screen it was on when it locks the register", async () => {
       const screen = await renderRail();
+
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-      await expect.poll(() => screen.router.state.location.pathname).toBe("/cash-count");
-      expect(screen.router.state.location.search).toEqual({ leaving: true });
+      expect(screen.router.state.location.pathname).toBe("/");
     });
   });
 });
