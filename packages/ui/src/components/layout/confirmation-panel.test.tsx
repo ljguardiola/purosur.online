@@ -39,7 +39,7 @@ test("shows the field label and its value large", async () => {
 
   await expect.element(screen.getByText("Persona")).toBeVisible();
   const value = screen.getByText("Lucas").element();
-  expect(parseFloat(getComputedStyle(value).fontSize)).toBeGreaterThanOrEqual(32);
+  expect(getComputedStyle(value).fontSize).toBe("48px");
 });
 
 test("shows the Esc keycap at the top right as a button that closes the panel", async () => {
@@ -68,6 +68,15 @@ test("shows the action at the bottom with the Enter keycap and confirms when pre
   await userEvent.click(action);
 
   expect(onConfirm).toHaveBeenCalledOnce();
+});
+
+test("shows the action's icon to the left of its label", async () => {
+  const screen = await render(panel());
+  const action = screen.getByRole("button", { name: "Salir" }).element();
+  const iconRect = (action.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const labelRect = (action.querySelector("span.truncate") as HTMLElement).getBoundingClientRect();
+
+  expect(iconRect.right).toBeLessThanOrEqual(labelRect.left);
 });
 
 test("does not confirm or close until a button is pressed", async () => {
