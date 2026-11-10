@@ -1,6 +1,6 @@
 import type { RegisterAbility } from "@purosur/domain";
 import { useNavigate } from "@tanstack/react-router";
-import { ShoppingBasket, Undo2, Wallet } from "lucide-react";
+import { ShoppingCart, Undo2, Wallet } from "lucide-react";
 import { useState } from "react";
 import type { ActionEntry } from "./action-entries";
 import { ACTION_ENTRIES, entriesFor } from "./action-entries";
@@ -44,8 +44,8 @@ export function OpenSessionRail({
         entries={[]}
         home={
           current === "sale"
-            ? { label: "Venta", icon: ShoppingBasket }
-            : { label: "Venta", icon: ShoppingBasket, to: "/session" }
+            ? { label: "Venta", icon: ShoppingCart }
+            : { label: "Venta", icon: ShoppingCart, to: "/session" }
         }
         links={[
           ...linksTo(["/history", "/deferred-sale"]),

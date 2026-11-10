@@ -1122,7 +1122,15 @@ const lockedRoute = createRoute({
   component: function LockedRoute() {
     const { openedBy, signIn } = lockedRoute.useRouteContext();
     const registerName = useRegisterName();
-    return <LockedRegisterScreen opener={openedBy} registerName={registerName} signIn={signIn} />;
+    const version = useRegisterVersion();
+    return (
+      <LockedRegisterScreen
+        opener={openedBy}
+        registerName={registerName}
+        version={version}
+        signIn={signIn}
+      />
+    );
   },
 });
 
@@ -1146,11 +1154,13 @@ const lockedCloseRoute = createRoute({
       cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
     const registerName = useRegisterName();
+    const version = useRegisterVersion();
     return (
       <LockedCloseScreen
         sessionId={id}
         opener={openedBy}
         registerName={registerName}
+        version={version}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}

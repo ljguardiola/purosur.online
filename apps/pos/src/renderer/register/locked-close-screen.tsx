@@ -22,6 +22,7 @@ export type LockedCloseScreenProps = {
   sessionId: string;
   opener: SignedInPerson;
   registerName: string | null;
+  version: string | null;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
@@ -38,6 +39,7 @@ export function LockedCloseScreen({
   sessionId,
   opener,
   registerName,
+  version,
   loadCashBalance,
   loadCashCountPreview,
   loadOpenSale,
@@ -75,6 +77,7 @@ export function LockedCloseScreen({
     <LockedCloserIdentification
       sessionId={sessionId}
       registerName={registerName}
+      version={version}
       loadClosers={loadClosers}
       identify={identifyLockedCloser}
       returned={step.returned}
