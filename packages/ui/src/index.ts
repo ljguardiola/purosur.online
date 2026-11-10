@@ -98,6 +98,10 @@ export type { StatusIndicatorProps } from "./components/feedback/status-indicato
 export { StatusIndicator } from "./components/feedback/status-indicator";
 export type { StatusIndicatorButtonProps } from "./components/feedback/status-indicator-button";
 export { StatusIndicatorButton } from "./components/feedback/status-indicator-button";
+export type { StatusPillProps, StatusPillTone } from "./components/feedback/status-pill";
+export { StatusPill } from "./components/feedback/status-pill";
+export type { StatusPillButtonProps } from "./components/feedback/status-pill-button";
+export { StatusPillButton } from "./components/feedback/status-pill-button";
 export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
 export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {
