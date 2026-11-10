@@ -210,6 +210,29 @@ test("closes without saving on Cancelar", async () => {
   expect(services.saveBranchSettings).not.toHaveBeenCalled();
 });
 
+test("cannot be closed, by its close button or by Escape, while the value is saved", async () => {
+  let answerSave: (outcome: { kind: "ok" }) => void = () => {};
+  const save = new Promise((resolve) => {
+    answerSave = resolve;
+  });
+  const services = createBranchTermServices({
+    saveBranchSettings: vi.fn().mockReturnValue(save),
+  });
+  const onClose = vi.fn();
+  const { screen, dialog } = await renderModal("expiringLotAlertDays", services, { onClose });
+  await expect.element(field(dialog, "Aviso de vencimiento")).toHaveValue("30");
+  await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  await userEvent.keyboard("{Escape}");
+
+  expect(onClose).not.toHaveBeenCalled();
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  answerSave({ kind: "ok" });
+});
+
 test("offers to read the branch again when it cannot be loaded", async () => {
   const services = createBranchTermServices({
     fetchBranchSettings: vi.fn().mockResolvedValue({ kind: "failed" }),

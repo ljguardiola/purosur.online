@@ -30,6 +30,7 @@ test.each([
     <BranchTermChange
       term={term}
       value={value}
+      status="loaded"
       access={ADMINISTRATOR_ACCESS}
       onSessionEnded={() => {}}
       services={createBranchTermServices()}
@@ -40,44 +41,39 @@ test.each([
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("writes a single day in the singular and thousands with the Argentine separator", async () => {
-  const one = await inPage(
-    <BranchTermChange
-      term="expiringLotAlertDays"
-      value={1}
-      access={ADMINISTRATOR_ACCESS}
-      onSessionEnded={() => {}}
-      services={createBranchTermServices()}
-    />,
-  );
-  await expect.element(one.getByText("Aviso de vencimiento: 1 día")).toBeVisible();
-  one.unmount();
-
-  const many = await inPage(
-    <BranchTermChange
-      term="supplierPriceListDailyExtractionCap"
-      value={1500}
-      access={ADMINISTRATOR_ACCESS}
-      onSessionEnded={() => {}}
-      services={createBranchTermServices()}
-    />,
-  );
-  await expect.element(many.getByText("Tope diario de listas: 1.500")).toBeVisible();
-});
-
-test("shows nothing while the value is not known", async () => {
+test("keeps Cambiar beside the line's loading shape while the value is not known", async () => {
   const screen = await inPage(
     <BranchTermChange
       term="expiringLotAlertDays"
       value={undefined}
+      status="loading"
       access={ADMINISTRATOR_ACCESS}
       onSessionEnded={() => {}}
       services={createBranchTermServices()}
     />,
   );
 
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeEnabled();
   expect(screen.getByText(/Aviso de vencimiento/).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Cambiar" }).query()).toBeNull();
+});
+
+test("keeps Cambiar and leaves the failure to the screen when the screen's read fails", async () => {
+  const screen = await inPage(
+    <BranchTermChange
+      term="expiringLotAlertDays"
+      value={undefined}
+      status="failed"
+      access={ADMINISTRATOR_ACCESS}
+      onSessionEnded={() => {}}
+      services={createBranchTermServices()}
+    />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeEnabled();
+  expect(screen.getByText(/Aviso de vencimiento/).query()).toBeNull();
+  expect(screen.getByRole("status").query()).toBeNull();
+  expect(screen.getByRole("button", { name: /Reintentar/ }).query()).toBeNull();
 });
 
 test("offers Cambiar to someone with the branch capability", async () => {
@@ -85,6 +81,7 @@ test("offers Cambiar to someone with the branch capability", async () => {
     <BranchTermChange
       term="expiringLotAlertDays"
       value={30}
+      status="loaded"
       access={accessWith("branch_area")}
       onSessionEnded={() => {}}
       services={createBranchTermServices()}
@@ -99,6 +96,7 @@ test("shows the value without Cambiar to someone without the branch capability",
     <BranchTermChange
       term="expiringLotAlertDays"
       value={30}
+      status="loaded"
       access={accessWith("stock_expiries")}
       onSessionEnded={() => {}}
       services={createBranchTermServices()}
@@ -115,6 +113,7 @@ test("does not read the branch settings until Cambiar is pressed", async () => {
     <BranchTermChange
       term="expiringLotAlertDays"
       value={30}
+      status="loaded"
       access={accessWith("branch_area")}
       onSessionEnded={() => {}}
       services={services}
@@ -130,6 +129,7 @@ test("opens the modal on Cambiar and closes it on Cancelar", async () => {
     <BranchTermChange
       term="expiringLotAlertDays"
       value={30}
+      status="loaded"
       access={accessWith("branch_area")}
       onSessionEnded={() => {}}
       services={createBranchTermServices()}
@@ -152,6 +152,7 @@ test("closes the modal and tells the screen once the value is saved", async () =
     <BranchTermChange
       term="expiringLotAlertDays"
       value={30}
+      status="loaded"
       access={accessWith("branch_area")}
       onSessionEnded={() => {}}
       onChanged={onChanged}
@@ -205,8 +206,8 @@ test("reads the daily cap of supplier lists from the cloud", async () => {
   await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
 });
 
-test("shows nothing while the value loads and when it cannot be read", async () => {
-  const loading = await inPage(
+test("shows the line's loading shape and Cambiar while the value is read", async () => {
+  const screen = await inPage(
     <ReadBranchTermChange
       term="goodConditionReturnDays"
       access={ADMINISTRATOR_ACCESS}
@@ -216,20 +217,74 @@ test("shows nothing while the value loads and when it cannot be read", async () 
       })}
     />,
   );
-  expect(loading.getByText(/Cambio en buen estado/).query()).toBeNull();
-  loading.unmount();
 
-  const failed = await inPage(
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeEnabled();
+  expect(screen.getByText(/Cambio en buen estado/).query()).toBeNull();
+});
+
+test.each([
+  [
+    "goodConditionReturnDays",
+    "fetchGoodConditionReturnDays",
+    "No pudimos abrir el plazo de cambio en buen estado",
+    "Cambio en buen estado: 7 días",
+  ],
+  [
+    "supplierPriceListDailyExtractionCap",
+    "fetchSupplierPriceListDailyCap",
+    "No pudimos abrir el tope diario de listas",
+    "Tope diario de listas: 7",
+  ],
+] as const)(
+  "offers to read %s again when it cannot be read, starting from the loading shape",
+  async (term, fetch, title, sentence) => {
+    let answerReread: (outcome: { kind: "ok"; value: number }) => void = () => {};
+    const reread = new Promise((resolve) => {
+      answerReread = resolve;
+    });
+    const screen = await inPage(
+      <ReadBranchTermChange
+        term={term}
+        access={ADMINISTRATOR_ACCESS}
+        onSessionEnded={() => {}}
+        services={createBranchTermServices({
+          [fetch]: vi.fn().mockResolvedValueOnce({ kind: "failed" }).mockReturnValueOnce(reread),
+        })}
+      />,
+    );
+    const retry = screen.getByRole("button", { name: `${title}. Reintentar` });
+    await expect.element(retry).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeEnabled();
+
+    await userEvent.click(retry);
+
+    await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+    answerReread({ kind: "ok", value: 7 });
+    await expect.element(screen.getByText(sentence)).toBeVisible();
+  },
+);
+
+test.each([
+  ["goodConditionReturnDays", "fetchGoodConditionReturnDays"],
+  ["supplierPriceListDailyExtractionCap", "fetchSupplierPriceListDailyCap"],
+] as const)("navigates to Mi cuenta when %s is read forbidden", async (term, fetch) => {
+  window.history.pushState(null, "", "/stock");
+
+  await inPage(
     <ReadBranchTermChange
-      term="goodConditionReturnDays"
+      term={term}
       access={ADMINISTRATOR_ACCESS}
       onSessionEnded={() => {}}
       services={createBranchTermServices({
-        fetchGoodConditionReturnDays: vi.fn().mockResolvedValue({ kind: "failed" }),
+        [fetch]: vi.fn().mockResolvedValue({ kind: "forbidden" }),
       })}
     />,
   );
-  await expect.poll(() => failed.getByText(/Cambio en buen estado/).query()).toBeNull();
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("reports the end of the session when the value is read unauthenticated", async () => {

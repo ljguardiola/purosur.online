@@ -40,13 +40,25 @@ test("shows the days without Cambiar to who cannot change the branch", async () 
   expect(screen.getByRole("button", { name: "Cambiar", exact: true }).query()).toBeNull();
 });
 
-test("shows nothing of the term while the prices load", async () => {
+test("keeps Cambiar while the prices load, without the term", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services, () => {}, { access: accessWith("branch_area") });
 
   await expect.element(screen.getByRole("table")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar", exact: true })).toBeEnabled();
+  expect(screen.getByText(/Precio sin revisar/).query()).toBeNull();
+});
+
+test("keeps Cambiar when the prices cannot be read, with the list's own failure", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services, () => {}, { access: accessWith("branch_area") });
+
+  await expect.element(screen.getByText("No pudimos abrir los precios")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar", exact: true })).toBeEnabled();
   expect(screen.getByText(/Precio sin revisar/).query()).toBeNull();
 });
 

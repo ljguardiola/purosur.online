@@ -22,15 +22,26 @@ test("shows the days of warning without Cambiar to who cannot change the branch"
   expect(screen.getByRole("button", { name: "Cambiar" }).query()).toBeNull();
 });
 
-test("shows nothing of the warning while the lots load", async () => {
+test("keeps Cambiar while the lots load, without the days of warning", async () => {
   const services = listed();
   vi.mocked(services.fetchExpiringLots).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderScreen(services, { access: accessWith("branch_area") });
 
   await expect.element(screen.getByRole("table", { name: "Vencimientos" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeEnabled();
   expect(screen.getByText(/Aviso de vencimiento/).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Cambiar" }).query()).toBeNull();
+});
+
+test("keeps Cambiar when the lots cannot be read, with the list's own failure", async () => {
+  const services = listed();
+  vi.mocked(services.fetchExpiringLots).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderScreen(services, { access: accessWith("branch_area") });
+
+  await expect.element(screen.getByText("No pudimos abrir los vencimientos")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeEnabled();
+  expect(screen.getByText(/Aviso de vencimiento/).query()).toBeNull();
 });
 
 test("shows the new days of warning, answered by the cloud, once they are saved", async () => {
