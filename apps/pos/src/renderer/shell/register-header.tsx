@@ -129,11 +129,21 @@ function Crumbs({
     ...(cashSession.status === "none" ? ["Sin sesión abierta"] : []),
   ];
   return (
-    <p className="flex items-center gap-2 font-bold text-caption text-text-subtle tracking-sm">
+    <p className="flex items-center gap-2 text-detail text-text">
       {crumbs.map((crumb, position) => (
         <Fragment key={crumb}>
-          {position === 0 ? null : <span aria-hidden="true">•</span>}
-          <span>{crumb}</span>
+          {position === 0 ? (
+            <span className="font-bold text-caption text-text-eyebrow uppercase tracking-sm">
+              {crumb}
+            </span>
+          ) : (
+            <>
+              <span aria-hidden="true" className="text-border">
+                •
+              </span>
+              <span className="font-medium">{crumb}</span>
+            </>
+          )}
         </Fragment>
       ))}
     </p>
