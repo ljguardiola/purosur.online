@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 const ARBITRARY_VALUE =
   /(?<=[a-z0-9])[-/](?:\[[^\]\s]*\]|\(--[^)\s]*\))|(?<=[a-z0-9]:)\[[^\]\s]*\]|(?<![^\s"'`])\[(?:&|[a-z-]+:[^\s\]])[^\]\s]*\]/gi;
 
-const NUMERIC_Z_INDEX = /(?<![^\s"'`])(?:[a-z0-9*@/-]+:)*!?-?z-\d+(?![\w.-])/gi;
+const NUMERIC_Z_INDEX = /(?<![^\s"'`])(?:(?:[a-z0-9*@/-]|\[[^\]\s]*\])+:)*!?-?z-\d+(?![\w.-])/gi;
 
 const SCANNED_ROOTS = ["packages/ui/src/", "apps/backoffice/src/", "apps/pos/src/renderer/"];
 
