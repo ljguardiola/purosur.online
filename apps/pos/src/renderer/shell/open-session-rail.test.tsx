@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, expectTypeOf, it, onTestFinished } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { OpenSessionRail } from "./open-session-rail";
+import { escapeHandled } from "./test-support/escape-handled";
 import { render } from "./test-support/render-with-router";
 
 describe("OpenSessionRail", () => {
@@ -74,14 +75,28 @@ describe("OpenSessionRail", () => {
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
   });
 
-  it("goes nowhere on Escape from the sale", async () => {
+  it("goes back to the sale on Escape from the charge, though Venta is marked there", async () => {
     const screen = await render(
       <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
     );
+    await screen.router.navigate({ to: "/charge" });
 
     await userEvent.keyboard("{Escape}");
 
-    expect(screen.router.state.location.pathname).toBe("/");
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("leaves Escape unhandled on the sale", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+    await screen.router.navigate({ to: "/session" });
+    const handled = escapeHandled();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(handled()).toBe(false);
+    expect(screen.router.state.location.pathname).toBe("/session");
   });
 
   it("closes the leaving modal on Escape without leaving the screen", async () => {

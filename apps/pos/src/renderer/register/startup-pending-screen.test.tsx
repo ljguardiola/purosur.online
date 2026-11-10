@@ -144,7 +144,6 @@ type Overrides = {
   rebuildSaleAgainstPaidOrder?: (
     paymentTransactionId: string,
   ) => Promise<RebuildSaleAgainstPaidOrderOutcome>;
-  registerName?: string | null;
   clockGuard?: ReactNode;
 };
 
@@ -187,7 +186,7 @@ async function renderScreen(overrides: Overrides = {}) {
       person={overrides.person ?? CASHIER}
       sessionOwner={OWNER}
       openedAt={OPENED_AT}
-      registerName={overrides.registerName === undefined ? "Caja 1" : overrides.registerName}
+      registerName="Caja 1"
       lock={() => {}}
       loadStartupPending={loadStartupPending}
       loadCashBalance={overrides.loadCashBalance ?? (async () => BALANCE)}
@@ -237,13 +236,14 @@ describe("StartupPendingScreen", () => {
     await expectGoSellingOpen(screen);
   });
 
-  it("is headed Hay cosas para resolver, naming the register before starting", async () => {
+  it("is headed Hay cosas para resolver before starting, leaving the register's name to the frame's header", async () => {
     const { screen } = await renderScreen();
 
     await expect
       .element(screen.getByRole("heading", { name: "Hay cosas para resolver", exact: true }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Antes de empezar")).toBeVisible();
+    await expect.element(screen.getByText("Antes de empezar", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     await expect
       .element(
         screen.getByText(
@@ -251,12 +251,6 @@ describe("StartupPendingScreen", () => {
         ),
       )
       .toBeVisible();
-  });
-
-  it("names only the moment when the register has no name", async () => {
-    const { screen } = await renderScreen({ registerName: null });
-
-    await expect.element(screen.getByText("Antes de empezar", { exact: true })).toBeVisible();
   });
 
   it("offers a sale never printed with its time and total, to print as the original", async () => {

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { NoSessionRail } from "./no-session-rail";
 import type { SignedInPerson } from "./signed-in-person";
+import { escapeHandled } from "./test-support/escape-handled";
 import { render } from "./test-support/render-with-router";
 
 const EVERY_ENTRY: readonly RegisterAbility[] = [
@@ -78,15 +79,16 @@ describe("NoSessionRail", () => {
     await expect.poll(() => screen.router.state.location.pathname).toBe("/");
   });
 
-  it("goes nowhere on Escape from home", async () => {
+  it("leaves Escape unhandled at home", async () => {
     const screen = await render(
       <NoSessionRail person={personWith(EVERY_ENTRY)} signOut={vi.fn()} />,
     );
-    await screen.router.navigate({ to: "/history" });
+    const handled = escapeHandled();
 
     await userEvent.keyboard("{Escape}");
 
-    expect(screen.router.state.location.pathname).toBe("/history");
+    expect(handled()).toBe(false);
+    expect(screen.router.state.location.pathname).toBe("/");
   });
 
   it("asks to confirm before signing out", async () => {
