@@ -8,7 +8,7 @@ const route = getRouteApi("/signed-in/settings-area/quarantined-events");
 
 export function QuarantinedEventsPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
-  useDocumentTitle("Eventos en cuarentena · Puro Sur");
+  useDocumentTitle("Cambios de cajas retenidos · Puro Sur");
   return (
     <QuarantinedEventsScreen
       onSessionEnded={sessionActions.sessionEnded}
