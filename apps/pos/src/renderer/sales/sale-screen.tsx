@@ -33,7 +33,7 @@ import {
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Ban, ScanBarcode } from "lucide-react";
+import { Ban, BatteryLow, ScanBarcode } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -676,31 +676,6 @@ export function SaleScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
-  const resultCount = found?.products.length ?? 0;
-  useKeys(
-    [
-      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
-      {
-        key: "Enter",
-        run: () => {
-          if (chosen !== undefined) {
-            void add(chosen);
-          }
-        },
-        enabled: chosen !== undefined,
-      },
-      {
-        key: "ArrowUpDown",
-        run: (pressed) => {
-          const step = pressed === "ArrowDown" ? 1 : -1;
-          setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
-        },
-        enabled: choosing,
-      },
-    ],
-    { within: field },
-  );
-
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const linesLock = sale?.lines_lock ?? null;
@@ -717,6 +692,7 @@ export function SaleScreen({
     !isZeroTotal &&
     sale.charge_refusal === null &&
     paidOrderToApply === null;
+  const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
   const searchEmpty = code === "";
 
   function moveSelection(pressed: string) {
@@ -747,6 +723,36 @@ export function SaleScreen({
     void navigate({ to: "/charge", search: method === undefined ? {} : { method } });
   }
 
+  function chargePaidOrder() {
+    charge(paidOrderToApply?.method === "QR" ? "QR" : undefined);
+  }
+
+  const resultCount = found?.products.length ?? 0;
+  useKeys(
+    [
+      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
+      {
+        key: "Enter",
+        run: () => {
+          if (chosen !== undefined) {
+            void add(chosen);
+          }
+        },
+        enabled: chosen !== undefined,
+      },
+      {
+        key: "ArrowUpDown",
+        run: (pressed) => {
+          const step = pressed === "ArrowDown" ? 1 : -1;
+          setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
+        },
+        enabled: choosing,
+      },
+      { key: "Enter", run: chargePaidOrder, enabled: canChargePaidOrder && searchEmpty },
+    ],
+    { within: field },
+  );
+
   const unitLineSelected = selectedLine?.sale_unit === "UNIT";
   const legend = useKeys([
     {
@@ -769,14 +775,14 @@ export function SaleScreen({
           void edit(() => removeSaleLine(selectedLine.id), { kind: "remove_failed" });
         }
       },
-      enabled: selectedLine !== undefined && editable && searchEmpty,
+      enabled: selectedLine !== undefined && editable && !editing,
     },
     {
       key: "NumpadAddSubtract",
       label: "Cantidad",
       whileTyping: true,
       run: stepSelectedQuantity,
-      enabled: unitLineSelected && editable,
+      enabled: unitLineSelected && editable && !editing,
     },
     {
       key: "R",
@@ -795,11 +801,6 @@ export function SaleScreen({
     { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canCharge },
     { key: "F11", run: () => charge("QR"), enabled: canCharge },
     { key: "F1", run: () => charge(undefined), enabled: canCharge },
-    {
-      key: "Enter",
-      run: () => charge(paidOrderToApply?.method === "QR" ? "QR" : undefined),
-      enabled: paidOrderToApply !== null && searchEmpty,
-    },
   ]);
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
@@ -853,7 +854,7 @@ export function SaleScreen({
           canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
           onDiscount={() => askToDiscount(true)}
           onCharge={charge}
-          onChargePaidOrder={() => charge(paidOrderToApply?.method === "QR" ? "QR" : undefined)}
+          onChargePaidOrder={chargePaidOrder}
           onCancel={() => void askToCancelSale()}
         />
       }
@@ -871,7 +872,7 @@ export function SaleScreen({
         {batteryCritical === undefined ? null : (
           <InlineNotice
             tone="error"
-            icon={<Ban />}
+            icon={<BatteryLow />}
             title={localAlertText(batteryCritical).title}
             description={localAlertText(batteryCritical).meaning}
           />
@@ -927,6 +928,7 @@ export function SaleScreen({
             legend={legend}
             failed={current.status === "failed"}
             actions={{
+              busy: editing,
               editable,
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
               onAdjust: askToAdjust,

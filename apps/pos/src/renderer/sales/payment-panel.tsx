@@ -1,5 +1,5 @@
 import type { OpenSale } from "@purosur/contracts";
-import type { LoadStatus } from "@purosur/ui";
+import type { LoadStatus, SummaryRowProps } from "@purosur/ui";
 import {
   Button,
   FigureStat,
@@ -8,7 +8,6 @@ import {
   InlineNotice,
   KeyTile,
   LoadingPlaceholder,
-  plural,
   SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
@@ -91,6 +90,27 @@ export function PaymentPanel({
   onCancel,
 }: PaymentPanelProps) {
   const isZeroTotal = lineCount > 0 && total === 0;
+  const saleRows: SummaryRowProps[] = [
+    ...(promotionSavings > 0 || saleDiscount !== null
+      ? [{ label: "Subtotal", value: formatCents(grossSubtotal) }]
+      : []),
+    ...(promotionSavings > 0
+      ? [
+          {
+            label: "Ahorro en promociones",
+            value: `− ${formatCents(promotionSavings)}`,
+            saving: true,
+          },
+        ]
+      : []),
+    saleDiscount === null
+      ? { label: "Descuento sobre el total", value: "Sin aplicar" }
+      : {
+          label: saleDiscountLabel(saleDiscount),
+          value: `− ${formatCents(saleDiscount.amount)}`,
+          tone: "error",
+        },
+  ];
   return (
     <SidePanel
       label="Panel de cobro"
@@ -110,38 +130,16 @@ export function PaymentPanel({
       }
     >
       <FigureStat label="Total" value={formatCents(total)} />
-      {saleStatus === "loading" ? <LoadingPlaceholder variant="card" lines={2} /> : null}
-      {saleStatus === "loaded" ? (
+      {saleStatus === "loading" ? (
+        <LoadingPlaceholder variant="card" lines={2} />
+      ) : (
         <SummaryRowGroup
           rows={[
             { label: "Artículos", value: formatNumber(lineCount) },
-            ...(promotionSavings > 0 || saleDiscount !== null
-              ? [
-                  {
-                    label: `${formatNumber(lineCount)} ${plural(lineCount, { one: "línea", other: "líneas" })}`,
-                    value: formatCents(grossSubtotal),
-                  },
-                ]
-              : []),
-            ...(promotionSavings > 0
-              ? [
-                  {
-                    label: "Ahorro en promociones",
-                    value: `− ${formatCents(promotionSavings)}`,
-                    saving: true,
-                  },
-                ]
-              : []),
-            saleDiscount === null
-              ? { label: "Descuento sobre el total", value: "Sin aplicar" }
-              : {
-                  label: saleDiscountLabel(saleDiscount),
-                  value: `− ${formatCents(saleDiscount.amount)}`,
-                  tone: "error",
-                },
+            ...(saleStatus === "loaded" ? saleRows : []),
           ]}
         />
-      ) : null}
+      )}
       {saleStatus === "loaded" ? (
         <Button
           variant="secondary"
@@ -223,7 +221,13 @@ export function PaymentPanel({
             </Button>
           </>
         ) : (
-          <Button size="large" fullWidth keycap="Enter" onPress={onChargePaidOrder}>
+          <Button
+            size="large"
+            fullWidth
+            keycap="Enter"
+            disabled={chargeRefusal !== null}
+            onPress={onChargePaidOrder}
+          >
             Cobrar con el pago de Mercado Pago
           </Button>
         )}

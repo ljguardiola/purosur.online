@@ -48,6 +48,7 @@ export type TableAction<T> = (item: T) =>
   | {
       icon: Icon;
       "aria-label": string;
+      disabled?: boolean;
       onPress: () => void;
     }
   | undefined;
