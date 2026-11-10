@@ -9,5 +9,6 @@ export function createRegisterWindow<Window>(
   electron: WindowElectron<Window>,
   preloadPath: string,
 ): Window {
+  electron.Menu.setApplicationMenu(null);
   return new electron.BrowserWindow(createWindowOptions(preloadPath));
 }
