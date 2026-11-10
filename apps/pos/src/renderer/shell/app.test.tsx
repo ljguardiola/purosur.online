@@ -1219,7 +1219,7 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Salir de la caja?" })
+          .getByRole("complementary", { name: "¿Salir de la caja?" })
           .getByRole("button", { name: "Salir" }),
       );
       await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
@@ -1483,7 +1483,7 @@ describe("App", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
@@ -1519,7 +1519,7 @@ describe("App", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
@@ -1541,7 +1541,7 @@ describe("App", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 

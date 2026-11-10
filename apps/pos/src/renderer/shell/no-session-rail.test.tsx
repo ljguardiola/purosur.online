@@ -1,7 +1,9 @@
 import type { RegisterAbility } from "@purosur/domain";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { NoSessionRail } from "./no-session-rail";
+import { RegisterFrame } from "./register-frame";
 import type { SignedInPerson } from "./signed-in-person";
 import { escapeHandled } from "./test-support/escape-handled";
 import { render } from "./test-support/render-with-router";
@@ -14,6 +16,20 @@ const EVERY_ENTRY: readonly RegisterAbility[] = [
 
 function personWith(abilities: readonly RegisterAbility[]): SignedInPerson {
   return { user_id: "u1", first_name: "Ada", abilities: [...abilities] };
+}
+
+function renderInFrame(rail: ReactNode) {
+  return render(
+    <div data-testid="frame" style={{ height: "600px", width: "1024px" }}>
+      <RegisterFrame
+        background="surface"
+        rail={rail}
+        aside={<aside aria-label="Panel">panel</aside>}
+      >
+        <main>contenido</main>
+      </RegisterFrame>
+    </div>,
+  );
 }
 
 function railItems(screen: Awaited<ReturnType<typeof render>>) {
@@ -91,16 +107,126 @@ describe("NoSessionRail", () => {
     expect(screen.router.state.location.pathname).toBe("/");
   });
 
-  it("asks to confirm before signing out", async () => {
-    const signOut = vi.fn();
-    const screen = await render(<NoSessionRail person={personWith([])} signOut={signOut} />);
+  it("shows no confirmation until Salir is pressed, and Salir is not the current item", async () => {
+    const screen = await renderInFrame(<NoSessionRail person={personWith([])} signOut={vi.fn()} />);
 
-    await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
-    const dialog = screen.getByRole("dialog", { name: "¿Salir de la caja?" });
-    await expect.element(dialog).toBeVisible();
-    expect(signOut).not.toHaveBeenCalled();
-    await userEvent.click(dialog.getByRole("button", { name: "Salir" }));
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("navigation").getByRole("button", { name: "Salir" }))
+      .not.toHaveAttribute("aria-current");
+  });
 
-    expect(signOut).toHaveBeenCalledOnce();
+  describe("confirming Salir", () => {
+    async function openConfirmation(signOut = vi.fn(), current?: "/history") {
+      const screen = await renderInFrame(
+        <NoSessionRail
+          person={personWith(["view_sales_history"])}
+          current={current}
+          signOut={signOut}
+        />,
+      );
+      await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+        .toBeVisible();
+      return screen;
+    }
+
+    it("opens the panel over the frame's aside, with the person's first name and Salir selected in the rail", async () => {
+      const screen = await openConfirmation();
+
+      const panel = screen.getByRole("complementary", { name: "¿Salir de la caja?" });
+      await expect.element(panel).toBeVisible();
+      await expect
+        .element(panel.getByRole("heading", { name: "¿Salir de la caja?" }))
+        .toBeVisible();
+      await expect.element(panel.getByText("Persona")).toBeVisible();
+      await expect.element(panel.getByText("Ada")).toBeVisible();
+      await expect
+        .element(screen.getByRole("navigation").getByRole("button", { name: "Salir" }))
+        .toHaveAttribute("aria-current", "page");
+      expect(screen.getByRole("dialog").elements()).toHaveLength(0);
+      const box = panel.element().getBoundingClientRect();
+      const frame = screen.getByTestId("frame").element().getBoundingClientRect();
+      expect(box.right).toBeCloseTo(frame.right, 0);
+      expect(box.top).toBeCloseTo(frame.top, 0);
+      expect(box.bottom).toBeCloseTo(frame.bottom, 0);
+    });
+
+    it("shows the Esc key at the top right and the Enter key on Salir at the bottom", async () => {
+      const screen = await openConfirmation();
+
+      const panel = screen.getByRole("complementary", { name: "¿Salir de la caja?" });
+      expect(
+        panel.getByRole("button", { name: "Cerrar con Esc" }).element().querySelector("kbd")
+          ?.textContent,
+      ).toBe("Esc");
+      expect(
+        panel.getByRole("button", { name: "Salir" }).element().querySelector("kbd")?.textContent,
+      ).toBe("Enter");
+    });
+
+    it("leaves when Salir is pressed in the panel", async () => {
+      const signOut = vi.fn();
+      const screen = await openConfirmation(signOut);
+
+      await userEvent.click(
+        screen
+          .getByRole("complementary", { name: "¿Salir de la caja?" })
+          .getByRole("button", { name: "Salir" }),
+      );
+
+      expect(signOut).toHaveBeenCalledOnce();
+    });
+
+    it("leaves on Enter with no other key pressed first", async () => {
+      const signOut = vi.fn();
+      await openConfirmation(signOut);
+
+      await userEvent.keyboard("{Enter}");
+
+      expect(signOut).toHaveBeenCalledOnce();
+    });
+
+    it("closes on Escape without leaving and without leaving the screen it is on", async () => {
+      const signOut = vi.fn();
+      const screen = await openConfirmation(signOut, "/history");
+      await screen.router.navigate({ to: "/history" });
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+        .not.toBeInTheDocument();
+      expect(signOut).not.toHaveBeenCalled();
+      expect(screen.router.state.location.pathname).toBe("/history");
+      await expect
+        .element(screen.getByRole("navigation").getByRole("button", { name: "Salir" }))
+        .not.toHaveAttribute("aria-current");
+    });
+
+    it("closes when the Esc key is pressed with the pointer, without leaving", async () => {
+      const signOut = vi.fn();
+      const screen = await openConfirmation(signOut);
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+        .not.toBeInTheDocument();
+      expect(signOut).not.toHaveBeenCalled();
+    });
+
+    it("ignores Enter once the panel is closed", async () => {
+      const signOut = vi.fn();
+      await openConfirmation(signOut);
+      await userEvent.keyboard("{Escape}");
+
+      await userEvent.keyboard("{Enter}");
+
+      expect(signOut).not.toHaveBeenCalled();
+    });
   });
 });

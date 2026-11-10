@@ -1,5 +1,6 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import { SalesHistoryRail } from "./sales-history-rail";
@@ -15,12 +16,19 @@ async function renderRail(sessionOpen: boolean) {
   onTestFinished(() => page.viewport(414, 896));
   const lock = vi.fn();
   const screen = await render(
-    <SalesHistoryRail
-      person={PERSON}
-      registerName="Caja 1"
-      sessionOpen={sessionOpen}
-      lock={lock}
-    />,
+    <RegisterFrame
+      background="surface"
+      rail={
+        <SalesHistoryRail
+          person={PERSON}
+          registerName="Caja 1"
+          sessionOpen={sessionOpen}
+          lock={lock}
+        />
+      }
+    >
+      <main>contenido</main>
+    </RegisterFrame>,
   );
   return { screen, lock };
 }
@@ -76,11 +84,13 @@ describe("SalesHistoryRail", () => {
     const { screen, lock } = await renderRail(false);
 
     await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
-    await expect.element(screen.getByRole("dialog", { name: "¿Salir de la caja?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .toBeVisible();
     expect(lock).not.toHaveBeenCalled();
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 

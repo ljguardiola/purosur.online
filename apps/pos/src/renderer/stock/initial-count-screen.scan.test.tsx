@@ -190,7 +190,9 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     screen.getByRole("navigation").getByRole("button", { name: "Salir" }).element().focus();
     await userEvent.keyboard("{ArrowDown}{Enter}");
 
-    await expect.element(screen.getByRole("dialog", { name: "¿Salir de la caja?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("option").nth(0))
       .toHaveAttribute("aria-selected", "true");
