@@ -152,7 +152,7 @@ test("shows the unit cost of the last batch with the day it was assembled", asyn
 
   await expect
     .poll(() => rowTexts(screen).map((text) => text.replace(/.*componentes.*?(\$)/, "$1")))
-    .toEqual(["$ 120,00Tanda del 10/09/2026", "$ 9.912,00 / kgTanda del 15/09/2026"]);
+    .toEqual(["$ 120,00Producción del 10/09/2026", "$ 9.912,00 / kgProducción del 15/09/2026"]);
 });
 
 test("says the cost of the last batch is incomplete when the cloud could not complete it", async () => {
