@@ -173,14 +173,18 @@ how a new one is judged.
 - A locked control left plainly disabled: its tooltip dropped while a
   refusal shows elsewhere, so the control itself no longer says why it is
   locked.
-- A text saying more or other than what happened or what the domain does: a
-  success notice naming every role while only some saved, a cause the
-  answer does not carry ("La tarjeta no se aprobó" for a decline that may be
-  a QR payment), or a consequence nothing produces ("El Administrador ya
-  fue avisado" for a condition no alert reports).
-- A text that names what the app does not show or have: a help step telling
-  the person to press "Reimprimir como duplicado" on an icon-only button, or
-  a refusal sending the cashier to a returns screen the register lacks.
+- A text saying more or other than what happened, what the domain does or
+  what the app has: a success notice naming every role while only some
+  saved, a cause the answer does not carry ("La tarjeta no se aprobó" for a
+  decline that may be a QR payment), a consequence nothing produces ("El
+  Administrador ya fue avisado" for a condition no alert reports), or a help
+  step telling the person to press "Reimprimir como duplicado" on an
+  icon-only button.
+- A text left in the grammar of a word the change replaced: pronouns,
+  participles and adjectives still agreeing with the old noun after a rename
+  to one of another gender or number, such as "Ya estaba desactivado" and
+  "lo conservan" for an etiqueta that was a distintivo, filter options
+  "Activos" or a row's status badge "Inactivo" over a list of etiquetas.
 - Texts shown together that repeat or contradict each other: a refusal
   beside a standing notice saying the same, or "Seguir vendiendo igual" in
   the status bar that says "La caja no puede vender".
