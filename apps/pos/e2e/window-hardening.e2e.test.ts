@@ -73,6 +73,43 @@ describe("the register's hardened window", () => {
     expect(await windowState()).toEqual({ maximized: true, fullScreen: false });
   });
 
+  it("has no application menu", async () => {
+    const hasMenu = await app.evaluate(({ Menu }) => Menu.getApplicationMenu() !== null);
+
+    expect(hasMenu).toBe(false);
+  });
+
+  it("hands F5, F10, F11 and F12 to the page without reloading, toggling full screen or opening developer tools", async () => {
+    const functionKeys = ["F5", "F10", "F11", "F12"];
+    const pressed = await page.evaluateHandle(() => {
+      const keys: string[] = [];
+      document.addEventListener("keydown", (event) => keys.push(event.key));
+      Object.defineProperty(window, "__functionKeysSeen", { value: keys });
+      return keys;
+    });
+    const urlBefore = page.url();
+
+    for (const key of functionKeys) {
+      await page.keyboard.press(key);
+    }
+    await until(async () => (await pressed.jsonValue()).length >= functionKeys.length, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the function keys to reach the page",
+    });
+
+    const state = await app.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0];
+      return {
+        fullScreen: window?.isFullScreen(),
+        devToolsOpened: window?.webContents.isDevToolsOpened(),
+      };
+    });
+    expect(await pressed.jsonValue()).toEqual(functionKeys);
+    expect(await page.evaluate(() => "__functionKeysSeen" in window)).toBe(true);
+    expect(page.url()).toBe(urlBefore);
+    expect(state).toEqual({ fullScreen: false, devToolsOpened: false });
+  });
+
   it("renders the app", async () => {
     await page.waitForFunction(
       () => (document.querySelector("#root")?.textContent ?? "").trim().length > 0,
