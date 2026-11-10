@@ -60,7 +60,7 @@ const keycapClassName =
 
 const variantClassName = {
   default: "border-border bg-surface text-text",
-  onPrimary: "border-transparent bg-surface-nav-subtle text-text-inverse",
+  onPrimary: "border-transparent bg-surface-inverse/25 text-text-inverse",
 } as const;
 
 export function Keycap({ keyName, variant = "default" }: KeycapProps) {
