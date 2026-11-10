@@ -34,7 +34,7 @@ export function RegisterFrame({ background, rail, aside, children }: RegisterFra
         {aside}
         <div
           ref={setPanelSlot}
-          className="absolute inset-y-0 right-0 z-10 flex w-98 empty:hidden"
+          className="absolute inset-y-0 right-0 z-raised flex w-98 empty:hidden"
         />
       </div>
     </PanelSlotContext>

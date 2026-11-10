@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { Button } from "../forms/button";
 import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
@@ -26,7 +25,6 @@ export function ConfirmationPanel({
   onClose,
   onConfirm,
 }: ConfirmationPanelProps) {
-  const titleId = useId();
   return (
     <SidePanel
       label={title}
@@ -38,9 +36,7 @@ export function ConfirmationPanel({
           >
             <span className={iconSlotClassName.lg}>{icon}</span>
           </span>
-          <h2 id={titleId} className="flex-1 text-subheading font-bold text-text">
-            {title}
-          </h2>
+          <h2 className="flex-1 text-subheading font-bold text-text">{title}</h2>
           <CloseButton onPress={onClose} escapeKeycap />
         </div>
       }

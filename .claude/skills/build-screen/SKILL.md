@@ -115,7 +115,9 @@ offers:
   scan's refusal: `ElevatedNotice`. A failure that fills a whole screen:
   `LoadFailure`'s `variant="screen"`.
 - A question before an action goes ahead: `Modal` with
-  `width="confirmation"`.
+  `width="confirmation"`; on a register screen whose question covers the
+  frame's aside, `ConfirmationPanel`, placed over the aside through
+  `FramePanel` (`apps/pos/src/renderer/shell/register-frame.tsx`).
 - A label read beside an amount, such as a breakdown of a total:
   `SummaryRowGroup`. A short mark on an item, such as the promotion a line
   was charged with: `Tag`. A figure with its label and an optional detail
