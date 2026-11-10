@@ -20,6 +20,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 import { spyOnDownloads } from "./test-support/spy-on-downloads";
@@ -165,6 +166,7 @@ test("opens Fiscal from the rail with the status strip and the four tabs for a p
   await expect.element(screen.getByRole("heading", { name: "Fiscal", level: 1 })).toBeVisible();
   expect(location()).toBe("/fiscal");
   expect(document.title).toBe("Fiscal · Puro Sur");
+  expect(shownEyebrow()).toBeNull();
   const tabs = screen.getByRole("tablist", { name: "Secciones de Fiscal" });
   await expect
     .element(tabs.getByRole("tab", { name: "Tareas fiscales", selected: true }))

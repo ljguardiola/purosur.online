@@ -3,6 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 import { reportsServices } from "./test-support/reports-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
@@ -48,7 +49,7 @@ test("opens Ventas > Por día from the rail's Reportes item", async () => {
     .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
     .toBeVisible();
   expect(location()).toBe("/reports/sales-by-day");
-  await expect.element(screen.getByText("Reportes · Ventas", { exact: true })).toBeVisible();
+  expect(shownEyebrow()).toBe("Reportes");
   await expect.element(screen.getByRole("tab", { name: "Ventas", selected: true })).toBeVisible();
   await expect.element(screen.getByRole("radio", { name: "Por día" })).toBeChecked();
 });
@@ -225,9 +226,7 @@ test("opens a tab on its first view", async () => {
   await expect
     .element(screen.getByRole("tab", { name: "Descuentos y control", selected: true }))
     .toBeVisible();
-  await expect
-    .element(screen.getByText("Reportes · Descuentos y control", { exact: true }))
-    .toBeVisible();
+  expect(shownEyebrow()).toBe("Reportes");
 });
 
 test("keeps the period and the register when moving to another tab", async () => {
@@ -382,7 +381,7 @@ test.each([
 
   await expect.element(screen.getByRole("heading", { name: title, level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe(path);
-  await expect.element(screen.getByText(`Reportes · ${tab}`, { exact: true })).toBeVisible();
+  expect(shownEyebrow()).toBe("Reportes");
   await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
   await expect.element(screen.getByRole("radio", { name: option })).toBeChecked();
 });
@@ -402,7 +401,7 @@ test("shows only Rentabilidad, on the charge costs, to a person with only that p
     .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))
     .toBeVisible();
   expect(location()).toBe("/reports/mercado-pago-charge-costs");
-  await expect.element(screen.getByText("Reportes · Rentabilidad", { exact: true })).toBeVisible();
+  expect(shownEyebrow()).toBe("Reportes");
   expect(
     screen.getByRole("tablist", { name: "Secciones de Reportes" }).getByRole("tab").elements(),
   ).toHaveLength(1);

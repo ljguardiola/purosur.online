@@ -4,16 +4,11 @@ import { render } from "vitest-browser-react";
 import { AI_COST_BY_SUPPLIER } from "../purchasing/test-support/ai-cost";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { reportsServices as reportsServicesOf } from "./test-support/reports-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/help",
-  "/branch",
-  "/reports/sales-by-day",
-  "/ai-cost",
-]);
+opensOnlyScreens(["/", "/help", "/branch", "/reports/sales-by-day", "/ai-cost"]);
 
 beforeEach(resetPageState);
 
@@ -35,9 +30,7 @@ test("opens the report at its address, under Configuración > Diagnóstico, and 
   await expect
     .element(screen.getByRole("heading", { name: "Costo de IA", level: 1 }))
     .toBeVisible();
-  await expect
-    .element(screen.getByText("Configuración · Diagnóstico", { exact: true }))
-    .toBeVisible();
+  expect(shownEyebrow()).toBe("Configuración");
   expect(screen.getByText("Reportes · Compras").query()).toBeNull();
   await expect.element(screen.getByText("Distribuidora Andina").first()).toBeVisible();
   expect(services.aiCostReportScreen.fetchAiCostReport).toHaveBeenCalledWith({
@@ -107,11 +100,7 @@ test("leaves the report out of Reportes", async () => {
 
 test("keeps the period and the grouping in the URL and asks the cloud for them", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
-  window.history.pushState(
-    null,
-    "",
-    "/ai-cost?from=2026-10-01&group=day&to=2026-10-31",
-  );
+  window.history.pushState(null, "", "/ai-cost?from=2026-10-01&group=day&to=2026-10-31");
 
   await render(<App help={emptyHelp} services={services} />);
 

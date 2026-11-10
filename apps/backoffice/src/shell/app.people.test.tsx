@@ -6,6 +6,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/products"]);
@@ -71,6 +72,7 @@ test("opens Personas on its Usuarios tab, with the Roles tab and the assistant's
     .toBeVisible();
   expect(location()).toBe("/people/users");
   await expect.poll(() => document.title).toBe("Personas · Puro Sur");
+  expect(shownEyebrow()).toBe("Configuración");
   const personas = screen.getByRole("link", { name: "Personas" }).element();
   expect(personas.getAttribute("aria-current")).toBe("page");
   const config = screen.getByRole("link", { name: "Configuración" }).element();

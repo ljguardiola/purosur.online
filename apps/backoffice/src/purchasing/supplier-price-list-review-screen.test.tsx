@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { shownEyebrow } from "../shell/test-support/eyebrow";
 import { supplierPriceListReviewFilters } from "./supplier-price-lists-filters";
 import { LINK_CHOICES, NO_PROPOSAL, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
 import {
@@ -60,13 +61,13 @@ const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, true,
   linkedAutomatically: 12,
 });
 
-test("shows the supplier's name in the title, under Compras · Listas de precios", async () => {
+test("shows the supplier's name in the title, under Compras", async () => {
   const screen = await loaded(createServices(), extracted);
 
-  await expect.element(screen.getByText("Compras · Listas de precios")).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Lista de Distribuidora Andina", level: 1 }))
     .toBeVisible();
+  expect(shownEyebrow()).toBe("Compras");
 });
 
 test("shows each item with its code, presentation and source page, and its price as printed", async () => {

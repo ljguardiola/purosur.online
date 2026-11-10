@@ -11,6 +11,7 @@ import { almendras, cajaDeInfusiones, mixDeFrutosSecos } from "../stock/test-sup
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -75,6 +76,7 @@ test("opens Productos from the rail with its five tabs for a person with every c
   await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
   expect(location()).toBe("/products");
   expect(document.title).toBe("Productos · Puro Sur");
+  expect(shownEyebrow()).toBeNull();
   const tabs = screen.getByRole("tablist", { name: "Secciones de Productos" });
   await expect.element(tabs.getByRole("tab", { name: "Productos", selected: true })).toBeVisible();
   for (const [index, name] of TAB_NAMES.entries()) {
