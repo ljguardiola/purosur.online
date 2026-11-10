@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Banknote, Check } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -174,4 +174,28 @@ export const FullWidth: Story = {
       </div>
     ),
   ],
+};
+
+export const PrimaryWithKeycap: Story = {
+  args: { size: "large", fullWidth: true, icon: <Banknote />, keycap: "F12" },
+  decorators: [
+    (Story) => (
+      <div className="flex w-[351px]">
+        <Story />
+      </div>
+    ),
+  ],
+  render: (args) => <Button {...args}>Cobrar en efectivo</Button>,
+};
+
+export const PrimaryWithKeycapAndNoIcon: Story = {
+  args: { keycap: "Enter", children: "Confirmar" },
+};
+
+export const SecondaryWithKeycap: Story = {
+  args: { variant: "secondary", keycap: "Escape", children: "Cancelar" },
+};
+
+export const TextWithKeycap: Story = {
+  args: { variant: "text", keycap: "Escape", icon: <ArrowLeft />, children: "Volver" },
 };
