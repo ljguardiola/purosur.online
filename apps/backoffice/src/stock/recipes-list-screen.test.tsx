@@ -129,6 +129,14 @@ test("shows each recipe with its product, components and no batch yet", async ()
     ]);
 });
 
+test("names the column of the last batch's cost after the production", async () => {
+  const screen = await loaded(createServices(), [mixDeFrutosSecos]);
+
+  await expect
+    .element(screen.getByRole("columnheader", { name: "Costo de la última producción" }))
+    .toBeVisible();
+});
+
 test("shows the unit cost of the last batch with the day it was assembled", async () => {
   const services = createServices();
   const screen = await loaded(services, [

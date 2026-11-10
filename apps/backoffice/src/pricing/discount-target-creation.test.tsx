@@ -65,6 +65,12 @@ function CreationHost({
       </Button>
       <Button
         variant="secondary"
+        onPress={() => creation.creationOf("CATEGORY")?.onCreate("Frutas secas")}
+      >
+        Crear la categoría tipeada
+      </Button>
+      <Button
+        variant="secondary"
         onPress={() => creation.creationOf("TAG")?.onCreate("Sin colorantes")}
       >
         Crear la etiqueta tipeada
@@ -309,6 +315,25 @@ test("says a created tag could not be loaded to choose it in the feminine", asyn
     .element(
       screen
         .getByText("Se creó la etiqueta «Sin colorantes», pero no pudimos cargarla para elegirla.")
+        .first(),
+    )
+    .toBeVisible();
+});
+
+test("says a created category could not be loaded to choose it in the feminine", async () => {
+  const { screen } = await hosted(vi.fn().mockResolvedValue({ kind: "failed" }));
+
+  await userEvent.click(screen.getByRole("button", { name: "Crear la categoría tipeada" }));
+  await userEvent.click(
+    page
+      .getByRole("dialog", { name: "Nueva categoría" })
+      .getByRole("button", { name: "Guardar lo creado" }),
+  );
+
+  await expect
+    .element(
+      screen
+        .getByText("Se creó la categoría «Frutas secas», pero no pudimos cargarla para elegirla.")
         .first(),
     )
     .toBeVisible();

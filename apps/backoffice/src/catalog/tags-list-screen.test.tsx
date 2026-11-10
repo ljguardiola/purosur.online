@@ -100,13 +100,21 @@ test("the state filter shows the inactive tags, or every tag, counting the inact
   const screen = await loaded(services, [sinTacc, sinColorantes], {}, 37);
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("option")
+        .elements()
+        .map((option) => option.textContent),
+    )
+    .toEqual(["Activas", "Inactivas", "Todas"]);
+  await userEvent.click(screen.getByRole("option", { name: "Inactivas" }));
 
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactivo"]);
   await expect.element(screen.getByText("1 etiqueta · 1 inactiva · 37 productos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Todas" }));
 
   await expect.element(screen.getByText("2 etiquetas · 1 inactiva · 37 productos")).toBeVisible();
 });

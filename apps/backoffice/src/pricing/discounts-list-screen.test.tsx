@@ -409,6 +409,13 @@ test("shows the blank empty state when there are no promotions yet, with no foot
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Todavía no hay promociones")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se cargan para ofrecer un descuento sobre un producto, una categoría o una etiqueta.",
+      ),
+    )
+    .toBeVisible();
   expect(screen.getByText(/promociones · /).query()).toBeNull();
 });
 

@@ -312,7 +312,7 @@ test("the own account panel stays open over a list page that writes its filters 
   await expect.element(screen.getByRole("complementary", { name: "Lucas Medrano" })).toBeVisible();
 });
 
-test("the Config entry of the rail opens Personas, the first Configuración page, and falls back to the own account panel when there is none", async () => {
+test("the Configuración entry of the rail opens Personas, the first Configuración page, and falls back to the own account panel when there is none", async () => {
   window.history.pushState(null, "", "/help");
   const withPeople = await render(<App help={emptyHelp} services={servicesFor()} />);
   const config = withPeople.getByRole("link", { name: "Configuración" });

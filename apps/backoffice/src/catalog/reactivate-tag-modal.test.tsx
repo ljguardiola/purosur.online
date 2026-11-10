@@ -50,7 +50,7 @@ test("asks about the tag by name, saying what happens to the products that have 
     .element(dialog.getByRole("heading", { name: '¿Reactivar la etiqueta "Sin colorantes"?' }))
     .toBeVisible();
   await expect
-    .element(dialog.getByText("Vuelve a ofrecerse para asignarlo a productos nuevos."))
+    .element(dialog.getByText("Vuelve a ofrecerse para asignarla a productos nuevos."))
     .toBeVisible();
 });
 
@@ -86,7 +86,7 @@ test("tells when the tag was already changed, and updating the list reports it",
   const screen = await renderModal({ reactivateTag, onReactivated });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba activo");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba activa");
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   expect(onReactivated).toHaveBeenCalledTimes(1);

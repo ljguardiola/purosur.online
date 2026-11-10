@@ -99,3 +99,40 @@ test("shows only the recipe to a person without the batches capability, never as
   expect(screen.getByRole("button", { name: "Registrar producción" }).query()).toBeNull();
   expect(services.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
+
+test("titles the batches as the productions of the last 90 days, with a column for each one's actions", async () => {
+  const screen = await renderSection(createServices());
+
+  await expect.element(screen.getByText("Producciones de los últimos 90 días")).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Producciones" })
+        .getByRole("columnheader", { name: "Acciones de la producción" }),
+    )
+    .toBeInTheDocument();
+});
+
+test("says there were no productions in the last 90 days when the product has none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAssemblyBatches).mockResolvedValue({
+    kind: "ok",
+    value: assemblyBatchList([infusionsBatch]),
+  });
+
+  const screen = await renderSection(services);
+
+  await expect.element(screen.getByText("Sin producciones en los últimos 90 días")).toBeVisible();
+  await expect
+    .element(screen.getByText("Cada producción registra lo que se usó y lo que se obtuvo."))
+    .toBeVisible();
+});
+
+test("says it could not open the productions when they fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAssemblyBatches).mockResolvedValue({ kind: "failed" });
+
+  const screen = await renderSection(services);
+
+  await expect.element(screen.getByText("No pudimos abrir las producciones")).toBeVisible();
+});

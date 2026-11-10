@@ -37,6 +37,18 @@ test("shows each batch with its moment, product, output, cost and expiry", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("names the column of each batch's actions after the production", async () => {
+  const screen = await loaded(createServices(), [mixBatch]);
+
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Producciones" })
+        .getByRole("columnheader", { name: "Acciones de la producción" }),
+    )
+    .toBeInTheDocument();
+});
+
 test("counts the batches of the period under the table", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixBatch, infusionsBatch]);

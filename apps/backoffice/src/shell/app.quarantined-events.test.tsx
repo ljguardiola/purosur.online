@@ -17,7 +17,7 @@ function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });
 }
 
-test("shows the Cambios de cajas retenidos item to a user holding quarantined_events, opening its screen from the Config rail", async () => {
+test("shows the Cambios de cajas retenidos item under Diagnóstico to a user holding quarantined_events, opening its screen, titled after it, from the Configuración rail", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
@@ -38,10 +38,18 @@ test("shows the Cambios de cajas retenidos item to a user holding quarantined_ev
     .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/held-register-changes");
-  const item = screen
-    .getByRole("link", { name: "Cambios de cajas retenidos" })
-    .element() as HTMLAnchorElement;
-  expect(item.getAttribute("aria-current")).toBe("page");
+  expect(document.title).toBe("Cambios de cajas retenidos · Puro Sur");
+  const sections = screen.getByRole("navigation", { name: "Configuración" });
+  await expect
+    .element(sections.getByRole("heading", { name: "Diagnóstico", level: 3 }))
+    .toBeVisible();
+  await expect
+    .element(
+      sections
+        .getByRole("list", { name: "Diagnóstico" })
+        .getByRole("link", { name: "Cambios de cajas retenidos" }),
+    )
+    .toHaveAttribute("aria-current", "page");
 });
 
 test("hides the Cambios de cajas retenidos item from a user without quarantined_events", async () => {

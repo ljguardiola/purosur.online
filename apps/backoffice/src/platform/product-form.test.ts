@@ -149,7 +149,7 @@ describe("the product's tags", () => {
 
   it("says a chosen tag was deactivated when the form does not know the refused one", () => {
     expect(tagInactiveError([sinTacc], vegano.id)).toBe(
-      "Una etiqueta elegida se dio de baja. Quitalo para guardar.",
+      "Una etiqueta elegida se dio de baja. Quitala para guardar.",
     );
   });
 });

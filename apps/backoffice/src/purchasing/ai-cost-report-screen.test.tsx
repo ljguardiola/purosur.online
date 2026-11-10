@@ -288,6 +288,9 @@ test("shows a failed load with a retry that loads the report again, and no figur
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("button", { name: "Reintentar" }).first()).toBeVisible();
+  await expect
+    .element(screen.getByText("No pudimos abrir el costo de IA", { exact: true }).first())
+    .toBeVisible();
   expect(screen.getByText("Costo total", { exact: true }).query()).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 

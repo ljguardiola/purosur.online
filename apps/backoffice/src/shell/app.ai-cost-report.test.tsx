@@ -70,6 +70,24 @@ test("offers the report under Diagnóstico in the Configuración column, after t
   expect(labels.at(-1)).toBe("Costo de IA");
 });
 
+test("groups Cambios de cajas retenidos and Costo de IA under Diagnóstico, in that order", async () => {
+  const services = reportsServices(["reports_area", "branch_area", "quarantined_events"]);
+  window.history.pushState(null, "", "/ai-cost");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const diagnostics = screen
+    .getByRole("navigation", { name: "Configuración" })
+    .getByRole("list", { name: "Diagnóstico" });
+  await expect.element(diagnostics.getByRole("link", { name: "Costo de IA" })).toBeVisible();
+  expect(
+    diagnostics
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent),
+  ).toEqual(["Cambios de cajas retenidos", "Costo de IA"]);
+});
+
 test("leaves the report out of the Configuración column without the reports area", async () => {
   const services = reportsServices(["branch_area"]);
   window.history.pushState(null, "", "/branch");

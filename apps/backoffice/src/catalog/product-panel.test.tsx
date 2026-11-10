@@ -47,6 +47,14 @@ test("is titled with the product's name and opens on Datos with the product's da
   await expect.element(screen.getByText(honey.barcodes[0] ?? "")).toBeVisible();
 });
 
+test("lists the product's tags under Etiquetas", async () => {
+  const screen = await renderPanel();
+
+  const label = screen.getByText("Etiquetas", { exact: true });
+  await expect.element(label).toBeVisible();
+  expect(label.element().parentElement?.textContent).toBe("EtiquetasSin TACC");
+});
+
 test("offers Datos, Precio y costo and Stock y lotes for a simple product, without Receta y producciones", async () => {
   const screen = await renderPanel();
 

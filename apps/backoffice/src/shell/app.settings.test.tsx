@@ -64,7 +64,7 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
   expect(screen.getByRole("link", { name: "Sucursal" }).query()).toBeNull();
 });
 
-test("following the sidebar's Sucursal item opens the branch settings screen, with Config and Sucursal active", async () => {
+test("following the sidebar's Sucursal item opens the branch settings screen, with Configuración and Sucursal active", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({

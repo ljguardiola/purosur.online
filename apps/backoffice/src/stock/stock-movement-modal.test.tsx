@@ -110,6 +110,14 @@ test.each(["loss", "adjustment"] as const)(
   },
 );
 
+test("describes an adjustment as correcting the stock of a purchase or a production", async () => {
+  const rendered = await renderForm(createServices());
+
+  expect(cardLabel(rendered, "Ajuste").textContent).toContain(
+    "Corrige el stock de una compra o una producción",
+  );
+});
+
 test("shows the balance an adjustment that adds leaves", async () => {
   const rendered = await renderForm(createServices());
   const { dialog } = rendered;

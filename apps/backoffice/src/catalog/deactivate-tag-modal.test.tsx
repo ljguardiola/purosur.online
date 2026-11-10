@@ -52,7 +52,7 @@ test("asks about the tag by name, saying what happens to the products that have 
   await expect
     .element(
       dialog.getByText(
-        "Deja de ofrecerse para asignar a un producto nuevo. Los productos que ya lo tienen lo conservan.",
+        "Deja de ofrecerse para asignar a un producto nuevo. Los productos que ya la tienen la conservan.",
       ),
     )
     .toBeVisible();
@@ -90,7 +90,7 @@ test("tells when the tag was already changed, and updating the list reports it",
   const screen = await renderModal({ deactivateTag, onDeactivated });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivado");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivada");
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   expect(onDeactivated).toHaveBeenCalledTimes(1);
