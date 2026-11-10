@@ -7,7 +7,6 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   authorizationDialog,
   authorizeInModal,
@@ -16,7 +15,6 @@ import { render } from "../shell/test-support/render-with-router";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { deferred } from "./test-support/sale-screen";
 
-const ADA: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
@@ -76,7 +74,6 @@ async function renderModal({
       paid={350_000}
       refunds={refunds}
       authorizationRequired={authorizationRequired}
-      person={ADA}
       loadAuthorizers={loadAuthorizers}
       cancelPaidSale={cancel}
       {...handlers}

@@ -3,7 +3,6 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SaleDetail } from "../shell/sale-receipt-text";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   authorizationDialog,
   authorizeInModal,
@@ -13,7 +12,6 @@ import { deferred } from "./test-support/sale-screen";
 import type { VoidCreditNoteCorrects, VoidRefund } from "./void-sale-modal";
 import { VoidSaleModal } from "./void-sale-modal";
 
-const ADA: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
@@ -112,7 +110,6 @@ async function renderModal({
       refunds={refunds}
       creditNoteCorrects={creditNoteCorrects}
       authorizationRequired={authorizationRequired}
-      person={ADA}
       loadAuthorizers={loadAuthorizers}
       voidSale={send}
       {...handlers}

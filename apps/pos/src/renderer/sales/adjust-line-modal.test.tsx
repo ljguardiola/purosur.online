@@ -11,7 +11,6 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderReference } from "vitest-browser-react";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   authorizationDialog,
   authorizeInModal,
@@ -21,7 +20,6 @@ import { render } from "../shell/test-support/render-with-router";
 import { AdjustLineModal } from "./adjust-line-modal";
 import { deferred, SALE_OF_YERBA } from "./test-support/sale-screen";
 
-const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
@@ -80,7 +78,6 @@ async function renderModal({
       quantity={quantity}
       saleUnit={saleUnit}
       authorizationRequired={authorizationRequired}
-      person={PERSON}
       loadAuthorizers={loadAuthorizers}
       adjustSaleLine={adjust}
       previewAdjustment={preview}
@@ -329,6 +326,18 @@ describe("AdjustLineModal", () => {
         .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
         .not.toBeInTheDocument();
       expect(requested).toEqual(["override_line_price_or_discount"]);
+      expect(adjust).not.toHaveBeenCalled();
+    });
+
+    it("shows the form's own refusal and asks for no authorization while the form is not valid", async () => {
+      const { screen, adjust } = await renderModal({ authorizationRequired: true });
+      await typePrice(screen, "1500");
+      await typeReason(screen, "   ");
+
+      await apply(screen);
+
+      await expect.element(screen.getByText("Escribí un motivo.")).toBeVisible();
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
       expect(adjust).not.toHaveBeenCalled();
     });
 

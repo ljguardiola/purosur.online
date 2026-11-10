@@ -1,15 +1,10 @@
 import type { SignInUser } from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { SignedInPerson } from "./signed-in-person";
 import { render } from "./test-support/render-with-router";
 import { useAuthorization } from "./use-authorization";
-
-const PERSON: SignedInPerson = {
-  user_id: "u1",
-  first_name: "Tomás",
-  abilities: ["open_cash_session"],
-};
 
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
@@ -23,9 +18,9 @@ function Probe({
   required: boolean;
   loadAuthorizers?: () => Promise<SignInUser[]>;
 }) {
+  const [permission, setPermission] = useState<AuthorizablePermissionKey>("record_cash_in");
   const authorization = useAuthorization({
-    person: PERSON,
-    permission: "record_cash_in",
+    permission,
     loadAuthorizers,
     required,
   });
@@ -37,6 +32,12 @@ function Probe({
       <p>{`pin: ${authorization.pin}`}</p>
       <button type="button" onClick={() => authorization.type("1234")}>
         Type
+      </button>
+      <button type="button" onClick={() => authorization.choose("u3")}>
+        Choose Sofía
+      </button>
+      <button type="button" onClick={() => setPermission("withdraw_cash")}>
+        Change permission
       </button>
       <button type="button" onClick={authorization.dismiss}>
         Dismiss
@@ -119,6 +120,21 @@ describe("useAuthorization", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
+    await expect.element(screen.getByText("pin:", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("not asking")).toBeVisible();
+  });
+
+  it("forgets who was chosen and the typed PIN, and stops asking, when the permission changes", async () => {
+    const screen = await render(<Probe required loadAuthorizers={async () => AUTHORIZERS} />);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: "Choose Sofía" }));
+    await userEvent.click(screen.getByRole("button", { name: "Type" }));
+    await expect.element(screen.getByText("chosen: u3")).toBeVisible();
+    await expect.element(screen.getByText("pin: 1234")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Change permission" }));
+
+    await expect.element(screen.getByText("chosen: u2")).toBeVisible();
     await expect.element(screen.getByText("pin:", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("not asking")).toBeVisible();
   });

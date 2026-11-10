@@ -12,7 +12,6 @@ import { TriangleAlert } from "lucide-react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderReference } from "vitest-browser-react";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import {
   authorizationDialog,
   authorizeInModal,
@@ -22,7 +21,6 @@ import { render } from "../shell/test-support/render-with-router";
 import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { deferred, SALE_OF_YERBA } from "./test-support/sale-screen";
 
-const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
   { id: "u3", first_name: "Sofía" },
   { id: "u2", first_name: "Grace" },
@@ -74,7 +72,6 @@ async function renderModal({
       lineCount={lineCount}
       subtotal={5_070_000}
       authorizationRequired={authorizationRequired}
-      person={PERSON}
       loadAuthorizers={loadAuthorizers}
       applySaleDiscount={apply}
       previewSaleDiscount={preview}
@@ -321,6 +318,18 @@ describe("ApplySaleDiscountModal", () => {
         .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
         .not.toBeInTheDocument();
       expect(requested).toEqual(["apply_total_discount"]);
+      expect(apply).not.toHaveBeenCalled();
+    });
+
+    it("shows the form's own refusal and asks for no authorization while the form is not valid", async () => {
+      const { screen, apply } = await renderModal({ authorizationRequired: true });
+      await typeValue(screen, "Porcentaje de descuento", "5");
+      await typeReason(screen, "   ");
+
+      await submit(screen);
+
+      await expect.element(screen.getByText("Escribí un motivo.")).toBeVisible();
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
       expect(apply).not.toHaveBeenCalled();
     });
 

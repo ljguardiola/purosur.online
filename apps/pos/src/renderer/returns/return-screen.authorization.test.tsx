@@ -1,5 +1,6 @@
+import type { FindSaleForReturnOutcome } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import {
   authorizationDialog,
   authorizeInModal,
@@ -75,6 +76,62 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
 
     await expect.element(authorizationDialog()).not.toBeInTheDocument();
     expect(findSaleForReturn).toHaveBeenCalledOnce();
+  });
+
+  it("shows no notice of its own behind the modal while the modal asks", async () => {
+    const { screen } = await renderScreen({
+      findSaleForReturn: lackingPermissionUntilAuthorized(),
+    });
+
+    await typeTicket(screen);
+
+    await expect.element(authorizationDialog()).toBeVisible();
+    await expect
+      .element(screen.getByText("Hacer devoluciones necesita permiso"))
+      .not.toBeInTheDocument();
+  });
+
+  it("asks again, refusing nobody, when the ticket is looked up again after the modal was closed with Esc", async () => {
+    const { screen } = await renderScreen({
+      findSaleForReturn: lackingPermissionUntilAuthorized(),
+    });
+    await typeTicket(screen);
+    await expect.element(authorizationDialog()).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(authorizationDialog()).not.toBeInTheDocument();
+
+    await typeTicket(screen);
+
+    await expect.element(authorizationDialog()).toBeVisible();
+    await expect.element(authorizationDialog().getByLabelText("PIN")).toBeEnabled();
+    await expect.element(page.getByText("Grace no puede autorizar esto")).not.toBeInTheDocument();
+  });
+
+  it("holds Esc and Autorizar while the ticket is looked up again with the authorization", async () => {
+    let answer: (outcome: FindSaleForReturnOutcome) => void = () => {};
+    const findSaleForReturn = vi.fn(
+      (_reading: unknown, authorization: unknown): Promise<FindSaleForReturnOutcome> =>
+        authorization === undefined
+          ? Promise.resolve({ kind: "lacks_permission" })
+          : new Promise((resolve) => {
+              answer = resolve;
+            }),
+    );
+    const { screen } = await renderScreen({ findSaleForReturn });
+    await typeTicket(screen);
+
+    await authorizeInModal({ as: "Grace", pin: "1234" });
+
+    await vi.waitFor(() => expect(findSaleForReturn).toHaveBeenCalledTimes(2));
+    await expect
+      .element(authorizationDialog().getByRole("button", { name: "Autorizar" }))
+      .toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(authorizationDialog()).toBeVisible();
+    answer({ kind: "found", sale: SALE });
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Coincide con el ticket en papel?" }))
+      .toBeVisible();
   });
 
   it("shows who authorized on the screen where the return is built, and sends it to complete", async () => {

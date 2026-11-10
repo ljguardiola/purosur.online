@@ -575,6 +575,18 @@ describe("RecordCashMovementModal", () => {
       },
     );
 
+    it("shows the form's own refusal and asks for no authorization while the form is not valid", async () => {
+      const { screen, recordCashMovement } = await renderModal({ lacking: ["WITHDRAWAL"] });
+      await choose(screen, "Retiro");
+      await fill(screen, "", "Fin de turno");
+
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+      await expect.element(screen.getByText("Ingresá el importe.")).toBeVisible();
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+      expect(recordCashMovement).not.toHaveBeenCalled();
+    });
+
     it("asks for someone with that permission only for the kind that needs it", async () => {
       const { screen, requested } = await renderModal({
         lacking: ["WITHDRAWAL"],

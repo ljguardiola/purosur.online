@@ -31,7 +31,6 @@ export function GuardedCashInForm({
   submit,
 }: GuardedCashInFormProps) {
   const authorization = useAuthorization({
-    person,
     permission: "record_cash_in",
     loadAuthorizers,
     required,
