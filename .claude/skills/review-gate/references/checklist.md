@@ -72,12 +72,14 @@ how a new one is judged.
 - A value one side of a boundary or a move produces or accepts that the
   other side refuses or reads otherwise: a reader replaced by a stricter
   one, a received code, a limit or typed text read differently by each layer
-  or each search of the same app, or a detail the original rendered for some
-  inputs left out of the copy that now serves them, such as a plain-object
-  lookup of a received code that answers for `constructor`, a limit two
-  layers apply in different units, or typed text folded by Postgres
+  or each search of the same app, a detail the original rendered for some
+  inputs left out of the copy that now serves them, or a prop a component's
+  type accepts that one of its rendering branches never passes on, such as
+  a plain-object lookup of a received code that answers for `constructor`, a
+  limit two layers apply in different units, typed text folded by Postgres
   `unaccent` in one list and by stripped NFD marks in another, so one finds
-  a record the other misses.
+  a record the other misses, or a `placeholder` dropped by the branch of a
+  text field that renders the read-only reason.
 - A key, guard, bound or derived value taken over another set than the one
   it stands for: wider or narrower than what it identifies, applied on only
   some of the paths into what it guards, true of an empty set or blind to
@@ -156,10 +158,12 @@ how a new one is judged.
 - A guard or a navigation out of step with where the person is: every route
   to a screen refused while the core refuses only one action, a person sent
   back to the screen they are leaving, an action left pressable while its
-  own request is out, so a second press sends it again, or a navigation that
-  changes one part of the location and drops the rest, such as a notice's
-  dismissal that clears history state with no `search`, closing the open
-  panel and dropping the list's filters.
+  own request is out, so a second press sends it again, a navigation that
+  changes one part of the location and drops the rest, or a screen-wide key
+  taken ahead of the focused control that answers the same key, such as a
+  notice's dismissal that clears history state with no `search`, closing the
+  open panel and dropping the list's filters, or Enter on a focused "Volver
+  con Esc" button submitting the enrollment code instead of going back.
 
 ### User-facing text
 
