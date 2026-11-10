@@ -3122,7 +3122,14 @@ describe("the register's header", () => {
   });
 
   it("shows the register's name and the first name of the person signed in", async () => {
-    const router = routerAt("/session", "up", "enrolled", undefined, OPEN_SESSION);
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", undefined, undefined, OPEN_SESSION),
+        registerName: async () => "Caja 1",
+      },
+      "/session",
+    );
 
     const screen = await render(<RouterProvider router={router} />);
 
@@ -3132,7 +3139,14 @@ describe("the register's header", () => {
   });
 
   it("adds the crumb 'Sin sesión abierta' while there is no cash session", async () => {
-    const router = routerAt("/", "up", "enrolled", undefined, NO_SESSION);
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", undefined, undefined, NO_SESSION),
+        registerName: async () => "Caja 1",
+      },
+      "/",
+    );
 
     const screen = await render(<RouterProvider router={router} />);
 
