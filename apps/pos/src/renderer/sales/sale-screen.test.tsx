@@ -27,16 +27,10 @@ describe("SaleScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("names the register in the eyebrow", async () => {
+  it("leaves the register's name to the frame's header", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
-  });
-
-  it("leaves the register's name out of the eyebrow while it isn't known", async () => {
-    const { screen } = await renderScreen({ registerName: null });
-
-    await expect.element(screen.getByText(/Sesión abierta/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
   });
 
   it("offers Venta, Caja and a way out", async () => {

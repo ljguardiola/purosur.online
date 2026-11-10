@@ -1,3 +1,5 @@
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -77,6 +79,58 @@ function Stack({
         <Keys bindings={[{ key: "Enter", run: inner }]} options={{ modal: true }} />
       ) : null}
     </>
+  );
+}
+
+function ScopedKeys({ run, clicked }: { run: () => void; clicked: () => void }) {
+  const form = useRef<HTMLFormElement>(null);
+  useKeys(
+    [
+      { key: "Enter", run },
+      { key: "ArrowUpDown", run },
+    ],
+    { within: form },
+  );
+  return (
+    <>
+      <form ref={form}>
+        <input aria-label="Producto" />
+      </form>
+      <button type="button" onClick={clicked}>
+        Salir
+      </button>
+    </>
+  );
+}
+
+function FrameAndScreen({
+  frameRun,
+  screenRun,
+  screenEnabled,
+}: {
+  frameRun: () => void;
+  screenRun: () => void;
+  screenEnabled: boolean;
+}) {
+  return (
+    <>
+      <Keys bindings={[{ key: "Escape", run: screenRun, enabled: screenEnabled }]} />
+      <Keys bindings={[{ key: "Escape", run: frameRun }]} options={{ fallback: true }} />
+    </>
+  );
+}
+
+function FieldThatHandlesEscape({ frameRun }: { frameRun: () => void }) {
+  useKeys([{ key: "Escape", run: frameRun }], { fallback: true });
+  return (
+    <input
+      aria-label="Producto"
+      onKeyDown={(event: ReactKeyboardEvent) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+        }
+      }}
+    />
   );
 }
 
@@ -351,6 +405,99 @@ describe("useKeys", () => {
       await userEvent.keyboard("{Enter}{Escape}{ArrowDown}{F2}");
 
       expect(run).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  describe("scoped to an element", () => {
+    it("runs its keys while the focus is inside the element", async () => {
+      const run = vi.fn();
+      const screen = await renderLayer(<ScopedKeys run={run} clicked={vi.fn()} />);
+
+      await userEvent.click(screen.getByLabelText("Producto"));
+      await userEvent.keyboard("{ArrowDown}{Enter}");
+
+      expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it("leaves its keys to the focused control outside the element", async () => {
+      const run = vi.fn();
+      const clicked = vi.fn();
+      const screen = await renderLayer(<ScopedKeys run={run} clicked={clicked} />);
+
+      screen.getByRole("button", { name: "Salir" }).element().focus();
+      await userEvent.keyboard("{ArrowDown}{Enter}");
+
+      expect(run).not.toHaveBeenCalled();
+      expect(clicked).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("as the frame's fallback", () => {
+    it("runs the fallback when no screen binding takes the key", async () => {
+      const frameRun = vi.fn();
+      const screenRun = vi.fn();
+      await renderLayer(
+        <FrameAndScreen frameRun={frameRun} screenRun={screenRun} screenEnabled={false} />,
+      );
+
+      await userEvent.keyboard("{Escape}");
+
+      expect(frameRun).toHaveBeenCalledTimes(1);
+      expect(screenRun).not.toHaveBeenCalled();
+    });
+
+    it("leaves the key to the screen's own binding", async () => {
+      const frameRun = vi.fn();
+      const screenRun = vi.fn();
+      await renderLayer(
+        <FrameAndScreen frameRun={frameRun} screenRun={screenRun} screenEnabled={true} />,
+      );
+
+      await userEvent.keyboard("{Escape}");
+
+      expect(screenRun).toHaveBeenCalledTimes(1);
+      expect(frameRun).not.toHaveBeenCalled();
+    });
+
+    it("runs no fallback while a modal is open, even one without that key", async () => {
+      const frameRun = vi.fn();
+      await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Escape", run: frameRun }]} options={{ fallback: true }} />
+          <Keys bindings={[{ key: "Enter", run: vi.fn() }]} options={{ modal: true }} />
+        </>,
+      );
+
+      await userEvent.keyboard("{Escape}");
+
+      expect(frameRun).not.toHaveBeenCalled();
+    });
+
+    it("runs no fallback from inside an open dialog", async () => {
+      const frameRun = vi.fn();
+      await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Escape", run: frameRun }]} options={{ fallback: true }} />
+          <div role="dialog" aria-label="Aviso">
+            <button type="button">Entendido</button>
+          </div>
+        </>,
+      );
+
+      await userEvent.click(document.querySelector("button") as HTMLElement);
+      await userEvent.keyboard("{Escape}");
+
+      expect(frameRun).not.toHaveBeenCalled();
+    });
+
+    it("runs no fallback for a key the focused control already handled", async () => {
+      const frameRun = vi.fn();
+      const screen = await renderLayer(<FieldThatHandlesEscape frameRun={frameRun} />);
+
+      await userEvent.click(screen.getByLabelText("Producto"));
+      await userEvent.keyboard("{Escape}");
+
+      expect(frameRun).not.toHaveBeenCalled();
     });
   });
 

@@ -101,13 +101,13 @@ describe("SerialDevicesScreen", () => {
     await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
   });
 
-  it("is titled Balanza y lector and names the register in the eyebrow", async () => {
+  it("is titled Balanza y lector, leaving the register's name to the frame's header", async () => {
     const { screen } = await renderScreen();
 
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 

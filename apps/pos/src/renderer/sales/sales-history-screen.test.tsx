@@ -18,7 +18,7 @@ describe("SalesHistoryScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Historial de ventas" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Caja 1 · Sesión abierta")).toBeVisible();
+    await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     const sales = table(screen);
     await expect.element(sales.getByText("11:42")).toBeVisible();
     await expect.element(sales.getByText("Factura C", { exact: true })).toBeVisible();
@@ -76,10 +76,10 @@ describe("SalesHistoryScreen", () => {
     await expect.element(screen.getByRole("button", { name: "Estado: Todos" })).toBeVisible();
   });
 
-  it("reads the register's sales of every session, and says there is no session open, when none is open", async () => {
+  it("reads the register's sales of every session when none is open, leaving that to the frame's header", async () => {
     const { screen, salesHistory } = await renderScreen({ sessionOpen: false });
 
-    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
+    await expect.element(screen.getByText(/Sin sesión abierta/)).not.toBeInTheDocument();
     await expect.element(table(screen).getByText("11:42")).toBeVisible();
     expect(salesHistory).toHaveBeenCalledExactlyOnceWith({ session: "all", state: "all", page: 1 });
   });

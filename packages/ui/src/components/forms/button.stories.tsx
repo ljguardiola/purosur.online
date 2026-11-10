@@ -180,7 +180,7 @@ export const PrimaryWithKeycap: Story = {
   args: { size: "large", fullWidth: true, icon: <Banknote />, keycap: "F12" },
   decorators: [
     (Story) => (
-      <div className="flex w-[351px]">
+      <div className="flex w-88">
         <Story />
       </div>
     ),

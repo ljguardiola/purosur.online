@@ -51,12 +51,6 @@ describe("NoSessionRail", () => {
     },
   );
 
-  it("shows the isotype", async () => {
-    const screen = await render(<NoSessionRail person={personWith([])} signOut={vi.fn()} />);
-
-    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
-  });
-
   it("leaves out the entries the person may not use", async () => {
     const screen = await render(
       <NoSessionRail person={personWith(["view_sales_history"])} signOut={vi.fn()} />,
@@ -71,6 +65,28 @@ describe("NoSessionRail", () => {
     );
 
     expect(screen.getByRole("link", { name: "Inicio" }).element().getAttribute("href")).toBe("/");
+  });
+
+  it("goes back home on Escape from another screen", async () => {
+    const screen = await render(
+      <NoSessionRail person={personWith(EVERY_ENTRY)} current="/history" signOut={vi.fn()} />,
+    );
+    await screen.router.navigate({ to: "/history" });
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/");
+  });
+
+  it("goes nowhere on Escape from home", async () => {
+    const screen = await render(
+      <NoSessionRail person={personWith(EVERY_ENTRY)} signOut={vi.fn()} />,
+    );
+    await screen.router.navigate({ to: "/history" });
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.router.state.location.pathname).toBe("/history");
   });
 
   it("asks to confirm before signing out", async () => {

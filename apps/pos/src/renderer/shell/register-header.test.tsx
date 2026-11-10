@@ -49,7 +49,7 @@ function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> 
   };
 }
 
-function renderBar(
+function renderHeader(
   props: {
     person?: SignedInPerson | undefined;
     registerName?: string | null;
@@ -85,34 +85,49 @@ function noticeCard(panel: Element): HTMLElement {
   return cards[0] as HTMLElement;
 }
 
-function barText(screen: Awaited<ReturnType<typeof renderBar>>): string {
+function headerText(screen: Awaited<ReturnType<typeof renderHeader>>): string {
   return screen.getByRole("region", { name: "Estado de la caja" }).element().textContent;
 }
 
 describe("RegisterHeader", () => {
   it("shows the register's name in capitals, then the first name of the person signed in, and nothing of their role or abilities", async () => {
-    const screen = await renderBar({ cashSession: OPEN_SESSION });
+    const screen = await renderHeader({ cashSession: OPEN_SESSION });
 
-    expect(barText(screen)).toBe("CAJA 1•Ada");
-    expect(barText(screen)).not.toMatch(/open_cash_session|Administrador|Cajero/);
+    expect(headerText(screen)).toBe("CAJA 1•Ada");
+    expect(headerText(screen)).not.toMatch(/open_cash_session|Administrador|Cajero/);
   });
 
   it("shows only the register's name while nobody is signed in", async () => {
-    const screen = await renderBar({ person: undefined, cashSession: LOCKED_SESSION });
+    const screen = await renderHeader({ person: undefined, cashSession: LOCKED_SESSION });
 
-    expect(barText(screen)).toBe("CAJA 1");
+    expect(headerText(screen)).toBe("CAJA 1");
   });
 
   it("calls the register CAJA when it has no name yet", async () => {
-    const screen = await renderBar({ registerName: null, cashSession: OPEN_SESSION });
+    const screen = await renderHeader({ registerName: null, cashSession: OPEN_SESSION });
 
-    expect(barText(screen)).toBe("CAJA•Ada");
+    expect(headerText(screen)).toBe("CAJA•Ada");
   });
 
   it("adds a third crumb while there is no cash session", async () => {
-    const screen = await renderBar({ cashSession: NO_SESSION });
+    const screen = await renderHeader({ cashSession: NO_SESSION });
 
-    expect(barText(screen)).toBe("CAJA 1•Ada•Sin sesión abierta");
+    expect(headerText(screen)).toBe("CAJA 1•Ada•Sin sesión abierta");
+  });
+
+  it("draws the register as a bold eyebrow and the other crumbs as plain text after a quiet dot", async () => {
+    const screen = await renderHeader({ cashSession: NO_SESSION });
+
+    const register = getComputedStyle(screen.getByText("CAJA 1", { exact: true }).element());
+    expect(register.color).toBe(tokenRgb("text-eyebrow"));
+    expect(register.fontWeight).toBe("700");
+    for (const crumb of ["Ada", "Sin sesión abierta"]) {
+      const style = getComputedStyle(screen.getByText(crumb, { exact: true }).element());
+      expect(style.color).toBe(tokenRgb("text"));
+      expect(style.fontWeight).toBe("400");
+    }
+    const dot = getComputedStyle(screen.getByText("•").first().element());
+    expect(dot.color).toBe(tokenRgb("border"));
   });
 
   it.each<CashSessionState>([
@@ -121,50 +136,50 @@ describe("RegisterHeader", () => {
     { status: "unknown" },
     { status: "unavailable" },
   ])("adds no third crumb while the cash session is %j", async (cashSession) => {
-    const screen = await renderBar({ cashSession });
+    const screen = await renderHeader({ cashSession });
 
-    expect(barText(screen)).not.toMatch(/sesión/i);
+    expect(headerText(screen)).not.toMatch(/sesión/i);
   });
 
   it("shows no pill when the cloud, the fiscal mode, the scale, the reader and the notices are all fine", async () => {
-    const screen = await renderBar({ cashSession: OPEN_SESSION });
+    const screen = await renderHeader({ cashSession: OPEN_SESSION });
 
-    expect(barText(screen)).toBe("CAJA 1•Ada");
+    expect(headerText(screen)).toBe("CAJA 1•Ada");
     await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
   });
 
   it.each(["reachable", "unknown"] as const)(
     "shows no pill while the cloud is %s",
     async (cloud) => {
-      const screen = await renderBar({ status: loaded({ cloud }) });
+      const screen = await renderHeader({ status: loaded({ cloud }) });
 
-      expect(barText(screen)).not.toMatch(/nube/i);
+      expect(headerText(screen)).not.toMatch(/nube/i);
     },
   );
 
   it("shows the pill 'Sin conexión con la nube' while the cloud can't be reached", async () => {
-    const screen = await renderBar({ status: loaded({ cloud: "unreachable" }) });
+    const screen = await renderHeader({ status: loaded({ cloud: "unreachable" }) });
 
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 
   it("shows a loading placeholder, and neither the cloud nor a condition, while the status is read", async () => {
-    const screen = await renderBar({ status: { status: "loading" } });
+    const screen = await renderHeader({ status: { status: "loading" } });
 
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
-    expect(barText(screen)).not.toMatch(/nube/i);
-    expect(barText(screen)).not.toContain(SALES_DENIED_TITLE);
+    expect(headerText(screen)).not.toMatch(/nube/i);
+    expect(headerText(screen)).not.toContain(SALES_DENIED_TITLE);
   });
 
   it("shows no notices pill while the register holds no condition", async () => {
-    const screen = await renderBar();
+    const screen = await renderHeader();
 
     await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).not.toBeInTheDocument();
   });
 
   it("shows no condition's text until the notices pill is pressed", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
@@ -177,7 +192,7 @@ describe("RegisterHeader", () => {
   });
 
   it("counts several conditions on the pill", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
@@ -190,7 +205,7 @@ describe("RegisterHeader", () => {
   });
 
   it("opens a panel of notices with each condition's title, what it means and what to do", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
@@ -211,7 +226,7 @@ describe("RegisterHeader", () => {
   });
 
   it("tells why the register can't sell with the reason the core answers", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           {
@@ -237,7 +252,7 @@ describe("RegisterHeader", () => {
   });
 
   it("tells a clock that is off in the panel, and that selling goes on", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({ conditions: [{ kind: "clock_drift", level: "critical", since: SINCE }] }),
     });
 
@@ -249,7 +264,7 @@ describe("RegisterHeader", () => {
   });
 
   it("lists every condition in the panel, in the order the core gave them", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
@@ -267,7 +282,7 @@ describe("RegisterHeader", () => {
   });
 
   it("tells since when each condition holds, in the day and time it started", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           { kind: "clock_drift", level: "critical", since: SINCE },
@@ -284,7 +299,7 @@ describe("RegisterHeader", () => {
   });
 
   it("tells no start for the contingency and backup ticket notices", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({ contingency: OFFLINE_CODE }),
       backupTickets: loadedTickets({ missing_key: 1 }),
     });
@@ -295,7 +310,7 @@ describe("RegisterHeader", () => {
   });
 
   it("closes the panel with its close button", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
       }),
@@ -308,7 +323,7 @@ describe("RegisterHeader", () => {
   });
 
   it("closes the panel with Escape", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
       }),
@@ -321,7 +336,7 @@ describe("RegisterHeader", () => {
   });
 
   it("shows the pill in the error tone when a condition is critical", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [
           { kind: "register_silent", level: "critical", since: SINCE },
@@ -335,7 +350,7 @@ describe("RegisterHeader", () => {
   });
 
   it("shows the pill in the warning tone when no condition is critical", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
       }),
@@ -403,7 +418,7 @@ describe("RegisterHeader", () => {
   ])(
     "shows the notice of %j with the %s border of its level and the %s icon",
     async (condition, border, icon) => {
-      const screen = await renderBar({ status: loaded({ conditions: [condition] }) });
+      const screen = await renderHeader({ status: loaded({ conditions: [condition] }) });
 
       await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -416,7 +431,7 @@ describe("RegisterHeader", () => {
   );
 
   it("shows a notice even when the cloud can't be reached", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
         cloud: "unreachable",
@@ -426,26 +441,26 @@ describe("RegisterHeader", () => {
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
     await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
-    expect(barText(screen)).toContain("Sin conexión con la nube");
+    expect(headerText(screen)).toContain("Sin conexión con la nube");
   });
 
   it("shows a pill for a scale that is not connected, and none for a reader that matches", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({ serial_devices: { scale: "not_detected", reader: "matching" } }),
     });
 
     await expect.element(screen.getByText("Balanza sin conectar")).toBeVisible();
-    expect(barText(screen)).not.toContain("Lector");
+    expect(headerText(screen)).not.toContain("Lector");
   });
 
   it("shows neither device while the status is read", async () => {
-    const screen = await renderBar({ status: { status: "loading" } });
+    const screen = await renderHeader({ status: { status: "loading" } });
 
-    expect(barText(screen)).not.toMatch(/Balanza|Lector/);
+    expect(headerText(screen)).not.toMatch(/Balanza|Lector/);
   });
 
   it("shows the missing scale or reader notice with what to do", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
         serial_devices: { scale: "not_detected", reader: "matching" },
@@ -467,7 +482,7 @@ describe("RegisterHeader", () => {
   });
 
   it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "fiscal_emission_stopped", level: "critical", since: SINCE }],
         cloud: "unreachable",
@@ -484,7 +499,7 @@ describe("RegisterHeader", () => {
   });
 
   it("has no accessibility violations with a device not detected", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
         serial_devices: { scale: "not_detected", reader: "not_registered" },
@@ -496,19 +511,19 @@ describe("RegisterHeader", () => {
 
   it("says the status could not be read and reads it again on Reintentar", async () => {
     const retry = vi.fn();
-    const screen = await renderBar({ status: { status: "failed", retry } });
+    const screen = await renderHeader({ status: { status: "failed", retry } });
 
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("No se pudo leer el estado de la caja");
-    expect(barText(screen)).not.toMatch(/nube/i);
+    expect(headerText(screen)).not.toMatch(/nube/i);
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
   it("has no accessibility violations with conditions, nor when the status failed", async () => {
-    const withConditions = await renderBar({
+    const withConditions = await renderHeader({
       cashSession: OPEN_SESSION,
       status: loaded({
         conditions: [
@@ -523,39 +538,39 @@ describe("RegisterHeader", () => {
     await expectNoAccessibilityViolations(withConditions.container);
     await withConditions.unmount();
 
-    const failed = await renderBar({ status: { status: "failed", retry: () => {} } });
+    const failed = await renderHeader({ status: { status: "failed", retry: () => {} } });
     await expectNoAccessibilityViolations(failed.container);
   });
 
   it("shows the contingency mode as a pill", async () => {
-    const screen = await renderBar({ status: loaded({ contingency: OFFLINE_CODE }) });
+    const screen = await renderHeader({ status: loaded({ contingency: OFFLINE_CODE }) });
 
-    expect(barText(screen)).toContain("Contingencia CAEA");
+    expect(headerText(screen)).toContain("Contingencia CAEA");
   });
 
   it("shows no fiscal pill while there is no contingency", async () => {
-    const screen = await renderBar({ status: loaded({ contingency: null }) });
+    const screen = await renderHeader({ status: loaded({ contingency: null }) });
 
-    expect(barText(screen)).not.toMatch(/Venta diferida|Contingencia CAEA/);
+    expect(headerText(screen)).not.toMatch(/Venta diferida|Contingencia CAEA/);
   });
 
   it.each([[SOLD_LATER], [SOLD_LATER_WITHOUT_NOTICE]])(
     "shows the deferred sale pill while the contingency is deferring (%j)",
     async (contingency) => {
-      const screen = await renderBar({ status: loaded({ contingency }) });
+      const screen = await renderHeader({ status: loaded({ contingency }) });
 
-      expect(barText(screen)).toContain("Venta diferida");
+      expect(headerText(screen)).toContain("Venta diferida");
     },
   );
 
   it("shows no fiscal pill while the status is loading", async () => {
-    const screen = await renderBar({ status: { status: "loading" } });
+    const screen = await renderHeader({ status: { status: "loading" } });
 
-    expect(barText(screen)).not.toMatch(/Contingencia CAEA/);
+    expect(headerText(screen)).not.toMatch(/Contingencia CAEA/);
   });
 
   it("counts the contingency as one more notice, shown in the warning tone with its explanation", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({
         contingency: OFFLINE_CODE,
         conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
@@ -568,7 +583,7 @@ describe("RegisterHeader", () => {
   });
 
   it("shows the notices pill for the contingency alone", async () => {
-    const screen = await renderBar({ status: loaded({ contingency: OFFLINE_CODE }) });
+    const screen = await renderHeader({ status: loaded({ contingency: OFFLINE_CODE }) });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -578,7 +593,7 @@ describe("RegisterHeader", () => {
   });
 
   it("counts a deferring contingency with a notice as one notice, with its own explanation", async () => {
-    const screen = await renderBar({ status: loaded({ contingency: SOLD_LATER }) });
+    const screen = await renderHeader({ status: loaded({ contingency: SOLD_LATER }) });
 
     await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
 
@@ -589,7 +604,7 @@ describe("RegisterHeader", () => {
   });
 
   it("shows the pill but no notice for a deferring contingency without a notice", async () => {
-    const screen = await renderBar({
+    const screen = await renderHeader({
       status: loaded({ contingency: SOLD_LATER_WITHOUT_NOTICE }),
     });
 
@@ -597,13 +612,13 @@ describe("RegisterHeader", () => {
   });
 
   it("shows no contingency notice in real time", async () => {
-    const screen = await renderBar({ status: loaded({ contingency: null }) });
+    const screen = await renderHeader({ status: loaded({ contingency: null }) });
 
     await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
   });
   describe("contingency backup tickets", () => {
     it("counts a notice for tickets that did not print, whatever the fiscal mode", async () => {
-      const screen = await renderBar({
+      const screen = await renderHeader({
         status: loaded({ contingency: null }),
         backupTickets: loadedTickets({ to_print: 2 }),
       });
@@ -614,7 +629,7 @@ describe("RegisterHeader", () => {
     });
 
     it("counts them beside the conditions and the contingency", async () => {
-      const screen = await renderBar({
+      const screen = await renderHeader({
         status: loaded({
           contingency: OFFLINE_CODE,
           conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
@@ -633,7 +648,7 @@ describe("RegisterHeader", () => {
 
     it("discards the tickets when the person closes the discard notice", async () => {
       const onDiscardBackupTickets = vi.fn();
-      const screen = await renderBar({
+      const screen = await renderHeader({
         backupTickets: loadedTickets({ discardable: 2, may_discard: true }),
         onDiscardBackupTickets,
       });
@@ -649,7 +664,7 @@ describe("RegisterHeader", () => {
       ["failed", { status: "failed", retry: () => {} }],
       ["quiet", loadedTickets({ kept: 3 })],
     ] as const)("shows no notice while the tickets are %s", async (_name, backupTicketsData) => {
-      const screen = await renderBar({ backupTickets: backupTicketsData });
+      const screen = await renderHeader({ backupTickets: backupTicketsData });
 
       await expect.element(screen.getByRole("button", { name: /aviso/ })).not.toBeInTheDocument();
     });

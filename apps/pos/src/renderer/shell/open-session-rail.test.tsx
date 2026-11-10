@@ -13,7 +13,7 @@ describe("OpenSessionRail", () => {
     }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
   });
 
-  it("shows the isotype, then Venta, Historial, Devolver and Caja, and Salir last", async () => {
+  it("shows Venta, Historial, Devolver and Caja, and Salir last", async () => {
     const screen = await render(
       <OpenSessionRail
         registerName="Caja 1"
@@ -24,11 +24,8 @@ describe("OpenSessionRail", () => {
     );
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
-    await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
-    const items = Array.from(rail.querySelectorAll("img, button, a")).map(
-      (item) => item.getAttribute("alt") ?? item.textContent,
-    );
-    expect(items).toEqual(["Puro Sur", "Venta", "Historial", "Devolver", "Caja", "Salir"]);
+    const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
+    expect(items).toEqual(["Venta", "Historial", "Devolver", "Caja", "Salir"]);
   });
 
   it("draws Venta with a shopping cart", async () => {
@@ -64,6 +61,41 @@ describe("OpenSessionRail", () => {
     const venta = screen.getByRole("link", { name: "Venta" });
     await expect.element(venta).not.toHaveAttribute("aria-current");
     expect(venta.element().getAttribute("href")).toBe("/session");
+  });
+
+  it("goes back to the sale on Escape from another screen", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
+    );
+    await screen.router.navigate({ to: "/cash" });
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("goes nowhere on Escape from the sale", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
+    );
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.router.state.location.pathname).toBe("/");
+  });
+
+  it("closes the leaving modal on Escape without leaving the screen", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
+    );
+    await screen.router.navigate({ to: "/cash" });
+    await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.router.state.location.pathname).toBe("/cash");
   });
 
   it("offers the sales history, between Venta and Caja, to a person who may view it", async () => {

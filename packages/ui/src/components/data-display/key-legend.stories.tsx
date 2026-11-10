@@ -27,7 +27,7 @@ export const Default: Story = {};
 export const InCardFooter: Story = {
   decorators: [
     (Story) => (
-      <div className="w-[52rem] rounded-b-lg border-t border-border bg-surface-subtle px-4 py-3">
+      <div className="w-208 rounded-b-lg border-t border-border bg-surface-subtle px-4 py-3">
         <Story />
       </div>
     ),

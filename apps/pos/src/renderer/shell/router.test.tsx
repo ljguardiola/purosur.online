@@ -2458,7 +2458,7 @@ describe("the register's router", () => {
     await expect.poll(() => closed).toEqual([leaving]);
   });
 
-  it("names the register in the open-session screen's eyebrow", async () => {
+  it("names the register in the open-session screen's header", async () => {
     const router = createRegisterRouter(
       routeTree,
       {
@@ -2470,7 +2470,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
   });
 
   it("shows the register's name from the first render of a session screen", async () => {
@@ -2497,7 +2497,7 @@ describe("the register's router", () => {
     name.resolve("Caja 1");
 
     await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
-    expect(screen.container.textContent).toContain("Caja 1");
+    expect(screen.container.textContent).toContain("CAJA 1");
   });
 
   it("reads the register's name once on the first visit to a session screen", async () => {
@@ -2510,7 +2510,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
     expect(registerName).toHaveBeenCalledOnce();
   });
 
@@ -2573,7 +2573,7 @@ describe("the register's router", () => {
     expect(signOut).toHaveBeenCalledOnce();
   });
 
-  it("names the register in the signed-in screen's eyebrow", async () => {
+  it("names the register in the signed-in screen's header", async () => {
     const router = createRegisterRouter(
       routeTree,
       { ...contextWith("up"), registerName: async () => "Caja 1" },
@@ -2582,7 +2582,7 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
   });
 
   it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
@@ -3026,7 +3026,7 @@ describe("the register's router", () => {
 });
 
 describe("the register's header", () => {
-  const STATUS_BAR_NAME = "Estado de la caja";
+  const HEADER_NAME = "Estado de la caja";
   const LOCKED_SESSION = { ...OPEN_SESSION, locked: true } satisfies CashSessionState;
 
   const SALE_TO_CHARGE: Partial<RouterContext> = {
@@ -3092,7 +3092,7 @@ describe("the register's header", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("region", { name: STATUS_BAR_NAME })).toBeVisible();
+    await expect.element(screen.getByRole("region", { name: HEADER_NAME })).toBeVisible();
     expect(router.state.location.pathname).toBe(path);
   });
 
@@ -3105,7 +3105,7 @@ describe("the register's header", () => {
 
       await expect.element(screenFor[path](screen)).toBeVisible();
       await expect
-        .element(screen.getByRole("region", { name: STATUS_BAR_NAME }))
+        .element(screen.getByRole("region", { name: HEADER_NAME }))
         .not.toBeInTheDocument();
     },
   );
@@ -3116,9 +3116,7 @@ describe("the register's header", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screenFor["/sign-in"](screen)).toBeVisible();
-    await expect
-      .element(screen.getByRole("region", { name: STATUS_BAR_NAME }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("region", { name: HEADER_NAME })).not.toBeInTheDocument();
   });
 
   it("shows the register's name and the first name of the person signed in", async () => {
@@ -3133,9 +3131,9 @@ describe("the register's header", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    const bar = screen.getByRole("region", { name: STATUS_BAR_NAME });
-    await expect.element(bar).toBeVisible();
-    expect(bar.element().textContent).toBe("CAJA 1•Ada");
+    const header = screen.getByRole("region", { name: HEADER_NAME });
+    await expect.element(header).toBeVisible();
+    expect(header.element().textContent).toBe("CAJA 1•Ada");
   });
 
   it("adds the crumb 'Sin sesión abierta' while there is no cash session", async () => {
@@ -3151,7 +3149,7 @@ describe("the register's header", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect
-      .element(screen.getByRole("region", { name: STATUS_BAR_NAME }))
+      .element(screen.getByRole("region", { name: HEADER_NAME }))
       .toHaveTextContent("CAJA 1•Ada•Sin sesión abierta");
   });
 
