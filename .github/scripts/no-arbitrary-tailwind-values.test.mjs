@@ -153,6 +153,25 @@ test("finds a numeric z-index utility behind a child, named group, named peer or
   );
 });
 
+test("finds a numeric z-index utility behind an arbitrary variant, naming it with its variants", () => {
+  assert.deepEqual(
+    numericZIndexTexts(
+      '"[.dark_&]:z-10 [@supports(display:grid)]:z-10 hover:[.dark_&]:-z-1 [&>svg]:z-10 data-[state=open]:z-20"',
+    ),
+    [
+      "[.dark_&]:z-10",
+      "[@supports(display:grid)]:z-10",
+      "hover:[.dark_&]:-z-1",
+      "[&>svg]:z-10",
+      "data-[state=open]:z-20",
+    ],
+  );
+});
+
+test("does not flag the z-index role utilities behind an arbitrary variant", () => {
+  assert.deepEqual(numericZIndexTexts('"[.dark_&]:z-raised hover:[&>svg]:-z-raised"'), []);
+});
+
 test("does not flag the z-index role utilities behind a child, named group or container variant", () => {
   assert.deepEqual(numericZIndexTexts('"*:z-raised group-hover/card:z-overlay @md:-z-raised"'), []);
 });
