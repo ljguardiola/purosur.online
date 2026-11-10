@@ -37,8 +37,8 @@ type TagSortColumn = TagsListFilters["sortBy"];
 const NO_TAGS: TagSummary[] = [];
 
 const TAG_STATUS_EMPTY_TITLE = {
-  active: "No hay distintivos activos",
-  inactive: "No hay distintivos inactivos",
+  active: "No hay etiquetas activas",
+  inactive: "No hay etiquetas inactivas",
   all: "Sin resultados",
 } satisfies Record<TagStatusFilter, string>;
 
@@ -94,15 +94,15 @@ export function TagsListScreen({
     data.status === "loaded" ? data.value : { tags: NO_TAGS, taggedProductCount: 0 };
 
   const statusFilterOptions = [
-    { value: "active" as const, label: "Activos" },
-    { value: "inactive" as const, label: "Inactivos" },
-    { value: "all" as const, label: "Todos" },
+    { value: "active" as const, label: "Activas" },
+    { value: "inactive" as const, label: "Inactivas" },
+    { value: "all" as const, label: "Todas" },
   ] as const;
 
   const columns = [
     dataColumn({
       id: "tag",
-      header: "Distintivo",
+      header: "Etiqueta",
       sort: { order: tagNameOrder, firstDirection: "ascending" },
       render: (item: TagSummary) => item.name,
     }),
@@ -117,9 +117,9 @@ export function TagsListScreen({
       header: "Estado",
       render: (item: TagSummary) =>
         item.active ? (
-          <StatusIndicator tone="success">Activo</StatusIndicator>
+          <StatusIndicator tone="success">Activa</StatusIndicator>
         ) : (
-          <StatusIndicator tone="neutral">Inactivo</StatusIndicator>
+          <StatusIndicator tone="neutral">Inactiva</StatusIndicator>
         ),
     }),
     actionsColumn({
@@ -128,19 +128,19 @@ export function TagsListScreen({
       actions: [
         (item: TagSummary) => ({
           icon: <Pencil />,
-          "aria-label": `Editar el distintivo ${item.name}`,
+          "aria-label": `Editar la etiqueta ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
         (item: TagSummary) =>
           item.active
             ? {
                 icon: <Ban />,
-                "aria-label": `Desactivar el distintivo ${item.name}`,
+                "aria-label": `Desactivar la etiqueta ${item.name}`,
                 onPress: () => setDeactivateTarget(item),
               }
             : {
                 icon: <RotateCcw />,
-                "aria-label": `Reactivar el distintivo ${item.name}`,
+                "aria-label": `Reactivar la etiqueta ${item.name}`,
                 onPress: () => setReactivateTarget(item),
               },
       ],
@@ -160,8 +160,8 @@ export function TagsListScreen({
 
   return (
     <ClassificationList
-      label="Distintivos"
-      searchPlaceholder="Buscar un distintivo"
+      label="Etiquetas"
+      searchPlaceholder="Buscar una etiqueta"
       search={search}
       onSearchChange={setSearch}
       filters={
@@ -173,15 +173,15 @@ export function TagsListScreen({
           onChange={setStatusFilter}
         />
       }
-      createLabel="Nuevo distintivo"
+      createLabel="Nueva etiqueta"
       onCreate={() => setNewModalOpen(true)}
       table={table}
-      {...cloudTableState(data, "los distintivos")}
+      {...cloudTableState(data, "las etiquetas")}
       empty={
         tags.length === 0
           ? {
               icon: <Sparkles />,
-              title: "Todavía no hay distintivos",
+              title: "Todavía no hay etiquetas",
               description:
                 'Se cargan para marcar características como "Sin TACC" o "Vegano" en los productos.',
               variant: "blank",
@@ -209,7 +209,7 @@ export function TagsListScreen({
     >
       <NewTagModal
         open={newModalOpen}
-        context="Productos · Distintivos"
+        context="Productos · Etiquetas"
         services={services}
         onCreated={() => {
           setNewModalOpen(false);

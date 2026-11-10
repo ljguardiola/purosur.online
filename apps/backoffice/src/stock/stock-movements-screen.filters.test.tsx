@@ -76,7 +76,7 @@ test("filters by the reason the URL names, which leaves out the counts", async (
   });
 
   const table = screen.getByRole("table", { name: TABLE });
-  await expect.element(table.getByText("Corrección de una tanda")).toBeVisible();
+  await expect.element(table.getByText("Corrección de una producción")).toBeVisible();
   expect(table.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
   expect(table.getByText("Recuento", { exact: true }).query()).toBeNull();
 });

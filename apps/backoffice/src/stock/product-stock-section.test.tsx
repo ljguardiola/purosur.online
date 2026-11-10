@@ -47,6 +47,13 @@ test("says so when the cloud has no balance for the product", async () => {
   const screen = await renderSection(fetchStockBalances);
 
   await expect.element(screen.getByText("Sin stock registrado")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "El producto aparece acá cuando tenga una compra, una producción o un recuento.",
+      ),
+    )
+    .toBeVisible();
 });
 
 test("ends the session when the cloud answers that it is over", async () => {

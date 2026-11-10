@@ -72,12 +72,14 @@ how a new one is judged.
 - A value one side of a boundary or a move produces or accepts that the
   other side refuses or reads otherwise: a reader replaced by a stricter
   one, a received code, a limit or typed text read differently by each layer
-  or each search of the same app, or a detail the original rendered for some
-  inputs left out of the copy that now serves them, such as a plain-object
-  lookup of a received code that answers for `constructor`, a limit two
-  layers apply in different units, or typed text folded by Postgres
+  or each search of the same app, a detail the original rendered for some
+  inputs left out of the copy that now serves them, or a prop a component's
+  type accepts that one of its rendering branches never passes on, such as
+  a plain-object lookup of a received code that answers for `constructor`, a
+  limit two layers apply in different units, typed text folded by Postgres
   `unaccent` in one list and by stripped NFD marks in another, so one finds
-  a record the other misses.
+  a record the other misses, or a `placeholder` dropped by the branch of a
+  text field that renders the read-only reason.
 - A key, guard, bound or derived value taken over another set than the one
   it stands for: wider or narrower than what it identifies, applied on only
   some of the paths into what it guards, true of an empty set or blind to
@@ -156,10 +158,12 @@ how a new one is judged.
 - A guard or a navigation out of step with where the person is: every route
   to a screen refused while the core refuses only one action, a person sent
   back to the screen they are leaving, an action left pressable while its
-  own request is out, so a second press sends it again, or a navigation that
-  changes one part of the location and drops the rest, such as a notice's
-  dismissal that clears history state with no `search`, closing the open
-  panel and dropping the list's filters.
+  own request is out, so a second press sends it again, a navigation that
+  changes one part of the location and drops the rest, or a screen-wide key
+  taken ahead of the focused control that answers the same key, such as a
+  notice's dismissal that clears history state with no `search`, closing the
+  open panel and dropping the list's filters, or Enter on a focused "Volver
+  con Esc" button submitting the enrollment code instead of going back.
 
 ### User-facing text
 
@@ -218,10 +222,11 @@ how a new one is judged.
   baseline taken while the app it started may still be working, a wait ended
   only by events a broken run may never raise, or a cleanup that ends a hung
   process with a signal it handles as the same quit that hung.
-- A test removed while nothing else verifies its rule: a case deleted with
-  the code it covered while the replacing code applies the same rule (an
-  adapter's ordering case dropped while the new adapter keeps the same
-  `ORDER BY`).
+- A test left out of step with the code it covers: removed while nothing
+  else verifies its rule (an adapter's ordering case dropped while the new
+  adapter keeps the same `ORDER BY`), or an end-to-end journey still driving
+  a control or a window the change removed (clicking "Dejar bloqueada" after
+  Salir stopped asking).
 - A migration that leaves data or rights other than the schema means: a
   backfill that guesses what old rows cannot prove (every recovery link
   marked sent while some failed and await a retry), a column for a shown

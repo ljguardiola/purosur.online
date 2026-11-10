@@ -112,13 +112,13 @@ export function ProductRecipeSection({
     }),
     actionsColumn({
       id: "actions",
-      header: "Acciones de la tanda",
+      header: "Acciones de la producción",
       actions: [
         (batch: AssemblyBatch) =>
           batch.status === "voidable"
             ? {
                 icon: <Ban />,
-                "aria-label": `Anular tanda de ${formatProductDescription({ name: batch.productName, brandName: batch.brandName, netContent: batch.netContent })}`,
+                "aria-label": `Anular producción de ${formatProductDescription({ name: batch.productName, brandName: batch.brandName, netContent: batch.netContent })}`,
                 onPress: () => setVoiding(batch),
               }
             : undefined,
@@ -139,7 +139,7 @@ export function ProductRecipeSection({
     return <LoadFailure {...cloudLoadFailure(recipes, "la receta")} />;
   }
   if (mayManageBatches && batches.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(batches, "las tandas")} />;
+    return <LoadFailure {...cloudLoadFailure(batches, "las producciones")} />;
   }
   const recipe: RecipeSummary | undefined = recipes.value.recipes.find(
     (candidate) => candidate.productId === productId,
@@ -174,24 +174,24 @@ export function ProductRecipeSection({
       {mayManageBatches ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
-            <Eyebrow text="Tandas de los últimos 90 días" />
+            <Eyebrow text="Producciones de los últimos 90 días" />
             <Button
               variant="secondary"
               size="small"
               icon={<Plus />}
               onPress={() => setRegistering(true)}
             >
-              Registrar tanda
+              Registrar producción
             </Button>
           </div>
           <Table
-            aria-label="Tandas"
+            aria-label="Producciones"
             table={table}
             variant="nested"
             empty={{
               icon: <CookingPot />,
-              title: "Sin tandas en los últimos 90 días",
-              description: "Cada tanda registra lo que se usó y lo que se obtuvo.",
+              title: "Sin producciones en los últimos 90 días",
+              description: "Cada producción registra lo que se usó y lo que se obtuvo.",
               variant: "blank",
             }}
           />

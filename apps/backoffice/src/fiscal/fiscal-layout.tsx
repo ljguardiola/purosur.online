@@ -32,7 +32,7 @@ export function FiscalLayout(): ReactElement {
         : "tasks";
 
   return (
-    <ScreenLayout topBar={<AreaTopBar eyebrow="ARCA" title="Fiscal" />} bodyClassName="p-0">
+    <ScreenLayout topBar={<AreaTopBar title="Fiscal" />} bodyClassName="p-0">
       <FiscalStatusStrip
         access={session}
         onSessionEnded={sessionActions.sessionEnded}

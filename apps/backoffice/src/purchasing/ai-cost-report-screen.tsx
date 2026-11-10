@@ -30,7 +30,7 @@ export type AiCostReportScreenProps = {
   services: AiCostReportScreenServices;
 };
 
-const SCREEN_TITLE = "Costo de IA por período";
+const SCREEN_TITLE = "Costo de IA";
 
 type Grouping = AiCostReportFilters["group"];
 type CostGroup = AiCostByPeriodBody["groups"][number];
@@ -106,7 +106,7 @@ export function AiCostReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Configuración · Diagnóstico" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Configuración" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -157,7 +157,7 @@ export function AiCostReportScreen({
       <Table
         aria-label={SCREEN_TITLE}
         table={table}
-        {...cloudTableState(data, "el costo de IA por período")}
+        {...cloudTableState(data, "el costo de IA")}
         empty={{
           icon: <Bot />,
           title: "No hay costo de IA en este período",

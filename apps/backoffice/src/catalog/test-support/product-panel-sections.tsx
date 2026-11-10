@@ -23,7 +23,7 @@ export function productPanelSections({
       <p>{`Stock y lotes de ${productName}`}</p>
     ),
     recipeAndBatches: ({ productName, mayManageBatches }: ProductRecipeSectionProps) => (
-      <p>{`Receta de ${productName}, tandas ${mayManageBatches ? "con" : "sin"} registro`}</p>
+      <p>{`Receta de ${productName}, producciones ${mayManageBatches ? "con" : "sin"} registro`}</p>
     ),
     recipeLookup: ({ productId, children }) =>
       children(assembledProductIds.includes(productId) ? "assembled" : "simple"),

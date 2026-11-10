@@ -768,8 +768,8 @@ test("names an alert for quarantined events by its kind and what happened", asyn
   const screen = await renderScreen(services);
 
   const row = screen.getByRole("row", { name: /Caja 1/ });
-  await expect.element(row.getByText("Cuarentena de eventos")).toBeVisible();
-  await expect.element(row.getByText("Eventos de una caja en cuarentena")).toBeVisible();
+  await expect.element(row.getByText("Cambios de cajas retenidos")).toBeVisible();
+  await expect.element(row.getByText("Cambios de una caja retenidos")).toBeVisible();
 });
 
 test("names an alert for an event applied with an inconsistency by its kind and what happened", async () => {

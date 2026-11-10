@@ -332,6 +332,9 @@ test("shows a failed load with a retry that loads the report again", async () =>
     .mockResolvedValueOnce({ kind: "ok", value: weekCashSessionClosesReport });
   const screen = await renderScreen(services);
 
+  await expect
+    .element(screen.getByText("No pudimos abrir los cierres de caja", { exact: true }).first())
+    .toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 
   await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();

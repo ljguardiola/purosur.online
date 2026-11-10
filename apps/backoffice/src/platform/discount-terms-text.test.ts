@@ -28,7 +28,7 @@ describe("discountTargetLine", () => {
       "Producto · Yerba Hoja Alta 1 kg",
     ],
     [{ kind: "CATEGORY", name: "Almacén › Yerbas", ...noBrand }, "Categoría · Almacén › Yerbas"],
-    [{ kind: "TAG", name: "Sin TACC", ...noBrand }, "Distintivo · Sin TACC"],
+    [{ kind: "TAG", name: "Sin TACC", ...noBrand }, "Etiqueta · Sin TACC"],
   ] as const)("names the kind of %j before the target", (target, line) => {
     expect(discountTargetLine(target)).toBe(line);
   });

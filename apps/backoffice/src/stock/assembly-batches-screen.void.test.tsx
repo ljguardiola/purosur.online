@@ -20,14 +20,14 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-const voidMixName = "Anular tanda de Mix de frutos secos";
+const voidMixName = "Anular producción de Mix de frutos secos";
 
 test("offers the void action only on the batches the cloud says can still be voided", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixBatch, infusionsBatch, voidedBatch]);
 
   await expect.element(screen.getByRole("button", { name: voidMixName })).toBeVisible();
-  expect(screen.getByRole("button", { name: /^Anular tanda de/ }).elements()).toHaveLength(1);
+  expect(screen.getByRole("button", { name: /^Anular producción de/ }).elements()).toHaveLength(1);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -36,7 +36,7 @@ test("marks a voided batch as voided in its row", async () => {
   const screen = await loaded(services, [voidedBatch]);
 
   await expect.poll(() => rowTexts(screen)[0]).toContain("Anulada");
-  expect(screen.getByRole("button", { name: /^Anular tanda de/ }).elements()).toHaveLength(0);
+  expect(screen.getByRole("button", { name: /^Anular producción de/ }).elements()).toHaveLength(0);
 });
 
 test("does not mark a batch that has not been voided", async () => {
@@ -56,7 +56,7 @@ test("the row action opens the question about that batch", async () => {
   await expect
     .element(
       screen.getByRole("dialog").getByRole("heading", {
-        name: "¿Anular la tanda de Mix de frutos secos?",
+        name: "¿Anular la producción de Mix de frutos secos?",
       }),
     )
     .toBeVisible();
@@ -75,7 +75,9 @@ test("cancel closes the question", async () => {
 
 async function confirmVoid(screen: Screen) {
   await userEvent.click(screen.getByRole("button", { name: voidMixName }));
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Anular tanda" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Anular producción" }),
+  );
 }
 
 test("a voided batch is confirmed, the list is read again and shows the batch as voided", async () => {
@@ -94,8 +96,10 @@ test("a voided batch is confirmed, the list is read again and shows the batch as
 
   expect(services.voidAssemblyBatch).toHaveBeenCalledWith(mixBatch.id);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Tanda anulada")).toBeVisible();
-  await expect.element(screen.getByText("Se anuló la tanda de Mix de frutos secos.")).toBeVisible();
+  await expect.element(screen.getByText("Producción anulada")).toBeVisible();
+  await expect
+    .element(screen.getByText("Se anuló la producción de Mix de frutos secos."))
+    .toBeVisible();
   await expect.poll(() => rowTexts(screen)[0]).toContain("Anulada");
   expect(screen.getByRole("button", { name: voidMixName }).query()).toBeNull();
 });
@@ -112,7 +116,7 @@ test("a batch that was already voided or consumed offers to update the list, whi
   await confirmVoid(screen);
   await expect
     .element(screen.getByRole("dialog").getByRole("alert"))
-    .toHaveTextContent("La tanda ya tuvo consumo: corregila con un ajuste y un recuento.");
+    .toHaveTextContent("La producción ya tuvo consumo: corregila con un ajuste y un recuento.");
   await userEvent.click(screen.getByRole("button", { name: "Actualizar la lista" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -145,22 +149,22 @@ test("names the batch to void and the voided one by its product's brand and net 
   const screen = await loaded(services, [balsamoBatch]);
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Anular tanda de Bálsamo de caléndula Herbaria 50 g" }),
+    screen.getByRole("button", { name: "Anular producción de Bálsamo de caléndula Herbaria 50 g" }),
   );
   const dialog = screen.getByRole("dialog");
   await expect
     .element(
       dialog.getByRole("heading", {
-        name: "¿Anular la tanda de Bálsamo de caléndula Herbaria 50 g?",
+        name: "¿Anular la producción de Bálsamo de caléndula Herbaria 50 g?",
       }),
     )
     .toBeVisible();
   await expect
     .element(dialog.getByText(/se descuentan 5 u de Bálsamo de caléndula Herbaria 50 g/))
     .toBeVisible();
-  await userEvent.click(dialog.getByRole("button", { name: "Anular tanda" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Anular producción" }));
 
   await expect
-    .element(screen.getByText("Se anuló la tanda de Bálsamo de caléndula Herbaria 50 g."))
+    .element(screen.getByText("Se anuló la producción de Bálsamo de caléndula Herbaria 50 g."))
     .toBeVisible();
 });

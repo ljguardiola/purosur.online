@@ -37,14 +37,26 @@ test("shows each batch with its moment, product, output, cost and expiry", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("names the column of each batch's actions after the production", async () => {
+  const screen = await loaded(createServices(), [mixBatch]);
+
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Producciones" })
+        .getByRole("columnheader", { name: "Acciones de la producción" }),
+    )
+    .toBeInTheDocument();
+});
+
 test("counts the batches of the period under the table", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixBatch, infusionsBatch]);
-  await expect.element(screen.getByText("2 tandas en los últimos 30 días")).toBeVisible();
+  await expect.element(screen.getByText("2 producciones en los últimos 30 días")).toBeVisible();
 
   await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "mix");
 
-  await expect.element(screen.getByText("1 tanda en los últimos 30 días")).toBeVisible();
+  await expect.element(screen.getByText("1 producción en los últimos 30 días")).toBeVisible();
 });
 
 test("the search field filters by the assembled product's name, case-insensitively", async () => {
@@ -91,9 +103,9 @@ test("says there are no batches in the period when there are none", async () => 
     filters: assemblyBatchesFilters.parse({ period: "7" }),
   });
 
-  await expect.element(screen.getByText("Sin tandas en los últimos 7 días")).toBeVisible();
+  await expect.element(screen.getByText("Sin producciones en los últimos 7 días")).toBeVisible();
   await expect
-    .element(screen.getByText("Cada tanda registra lo que se usó y lo que se obtuvo."))
+    .element(screen.getByText("Cada producción registra lo que se usó y lo que se obtuvo."))
     .toBeVisible();
 });
 
@@ -113,12 +125,12 @@ test("shows a load error with a retry action that starts again from the loading 
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir las tandas")).toBeVisible();
+  await expect.element(screen.getByText("No pudimos abrir las producciones")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect
-    .element(screen.getByRole("table", { name: "Tandas" }))
+    .element(screen.getByRole("table", { name: "Producciones" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: assemblyBatchList([mixBatch]) });
   await expect.element(screen.getByText("Mix de frutos secos")).toBeVisible();
@@ -167,14 +179,14 @@ test("the create action waits for the recipes it offers: disabled while loading 
     .mockResolvedValueOnce({ kind: "ok", value: assemblyBatchList([]) });
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("button", { name: "Nueva tanda" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Nueva producción" })).toBeDisabled();
 
   firstLoad.resolve({ kind: "failed" });
-  await expect.element(screen.getByText("No pudimos abrir las tandas")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Nueva tanda" })).toBeDisabled();
+  await expect.element(screen.getByText("No pudimos abrir las producciones")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva producción" })).toBeDisabled();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-  await expect.element(screen.getByRole("button", { name: "Nueva tanda" })).toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Nueva producción" })).toBeEnabled();
 });
 
 test("keeps the rows while the list is read again after a change", async () => {
@@ -194,7 +206,7 @@ test("keeps the rows while the list is read again after a change", async () => {
   await registerMix(screen);
 
   await expect
-    .element(screen.getByRole("table", { name: "Tandas" }))
+    .element(screen.getByRole("table", { name: "Producciones" }))
     .toHaveAttribute("aria-busy", "true");
   await expect.element(screen.getByText("Mix de frutos secos").first()).toBeVisible();
   reload.resolve({ kind: "ok", value: assemblyBatchList([mixBatch]) });
@@ -230,16 +242,16 @@ test("the create action opens the new batch modal, and the registered batch is l
   );
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Mix de frutos secos").first()).toBeVisible();
-  await expect.element(screen.getByText("Tanda registrada")).toBeVisible();
+  await expect.element(screen.getByText("Producción registrada")).toBeVisible();
   await expect
-    .element(screen.getByText("Se registró una tanda de Mix de frutos secos."))
+    .element(screen.getByText("Se registró una producción de Mix de frutos secos."))
     .toBeVisible();
 });
 
 test("cancel closes the new batch modal", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixBatch]);
-  await userEvent.click(screen.getByRole("button", { name: "Nueva tanda" }));
+  await userEvent.click(screen.getByRole("button", { name: "Nueva producción" }));
 
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
@@ -258,24 +270,24 @@ test("the confirmation goes away when dismissed", async () => {
   });
   const screen = await loaded(services, [mixBatch]);
   await registerMix(screen);
-  await expect.element(screen.getByText("Tanda registrada")).toBeVisible();
+  await expect.element(screen.getByText("Producción registrada")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
-  await expect.poll(() => screen.getByText("Tanda registrada").query()).toBeNull();
+  await expect.poll(() => screen.getByText("Producción registrada").query()).toBeNull();
 });
 
 async function registerMix(screen: Screen) {
-  await userEvent.click(screen.getByRole("button", { name: "Nueva tanda" }));
+  await userEvent.click(screen.getByRole("button", { name: "Nueva producción" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("combobox", { name: /^Producto armado/ }));
   await expect.element(screen.getByRole("option", { name: "Mix de frutos secos" })).toBeVisible();
   (screen.getByRole("option", { name: "Mix de frutos secos" }).element() as HTMLElement).click();
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Tamaño de la tanda/ }), "5");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Tamaño de la producción/ }), "5");
   await expect
     .element(dialog.getByRole("textbox", { name: "Usado de Almendras" }))
     .toHaveValue("2,000");
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la tanda" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la producción" }));
 }
 
 function previewOf5kg() {
@@ -343,7 +355,7 @@ test("confirms a registered batch naming its product by its brand and net conten
   });
   const screen = await loaded(services, [], {}, [balsamo]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Nueva tanda" }));
+  await userEvent.click(screen.getByRole("button", { name: "Nueva producción" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("combobox", { name: /^Producto armado/ }));
   (
@@ -351,13 +363,13 @@ test("confirms a registered batch naming its product by its brand and net conten
       .getByRole("option", { name: "Bálsamo de caléndula Herbaria 50 g" })
       .element() as HTMLElement
   ).click();
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Tamaño de la tanda/ }), "5");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Tamaño de la producción/ }), "5");
   await expect
     .element(dialog.getByRole("textbox", { name: "Usado de Aceite de Almendras Vitora 30 ml" }))
     .not.toHaveValue("");
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la tanda" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la producción" }));
 
   await expect
-    .element(screen.getByText("Se registró una tanda de Bálsamo de caléndula Herbaria 50 g."))
+    .element(screen.getByText("Se registró una producción de Bálsamo de caléndula Herbaria 50 g."))
     .toBeVisible();
 });

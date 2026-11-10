@@ -37,7 +37,6 @@ function HomeContent({
       topBar={
         <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
           <div className="flex flex-col justify-center">
-            <p className="text-text-subtle text-detail">Puro Sur</p>
             <ScreenTitle>Inicio</ScreenTitle>
           </div>
           {alerts === "not_permitted" ? null : <AlertsOverviewOpenCount data={alerts} />}

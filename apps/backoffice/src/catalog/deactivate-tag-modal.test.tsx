@@ -47,12 +47,12 @@ test("asks about the tag by name, saying what happens to the products that have 
   const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(dialog.getByRole("heading", { name: '¿Desactivar el distintivo "Sin TACC"?' }))
+    .element(dialog.getByRole("heading", { name: '¿Desactivar la etiqueta "Sin TACC"?' }))
     .toBeVisible();
   await expect
     .element(
       dialog.getByText(
-        "Deja de ofrecerse para asignar a un producto nuevo. Los productos que ya lo tienen lo conservan.",
+        "Deja de ofrecerse para asignar a un producto nuevo. Los productos que ya la tienen la conservan.",
       ),
     )
     .toBeVisible();
@@ -90,7 +90,7 @@ test("tells when the tag was already changed, and updating the list reports it",
   const screen = await renderModal({ deactivateTag, onDeactivated });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivado");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Ya estaba desactivada");
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
   expect(onDeactivated).toHaveBeenCalledTimes(1);
@@ -103,7 +103,7 @@ test("tells when the tag no longer exists", async () => {
   const screen = await renderModal({ deactivateTag });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este distintivo ya no existe");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Esta etiqueta ya no existe");
 });
 
 test("shows the failure notice, and the confirmation stays available", async () => {
@@ -113,7 +113,7 @@ test("shows the failure notice, and the confirmation stays available", async () 
   const screen = await renderModal({ deactivateTag });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("No se desactivó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se desactivó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Desactivar" })).toBeEnabled();
 });
@@ -164,7 +164,7 @@ test("tells an outdated tab to reload because the backoffice was updated when de
   const screen = await renderModal({ deactivateTag });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("No se desactivó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se desactivó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Desactivar" })).toBeEnabled();

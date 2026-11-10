@@ -49,7 +49,7 @@ type Task = {
   count: CloudData<number>;
 } & (
   | { to: "/fiscal" | "/products/prices" }
-  | { to: "/refunds"; channel: "mercado-pago" | "without-api" }
+  | { to: "/refunds"; channel: "mercado-pago" | "outside-mercado-pago" }
 );
 
 function TaskCard({ task }: { task: Task }) {
@@ -115,10 +115,10 @@ function PendingTasks({
     },
     {
       key: "outside-refunds",
-      label: "Reembolsos fuera del sistema",
+      label: "Reembolsos fuera de Mercado Pago",
       subject: "los reembolsos",
       to: "/refunds",
-      channel: "without-api",
+      channel: "outside-mercado-pago",
       count: outsideRefunds,
     },
     {

@@ -7,7 +7,7 @@ const ClassificationTabLink = createLink(Tab);
 const SECTIONS = [
   { key: "categories", label: "Categorías", to: "/products/classification" },
   { key: "brands", label: "Marcas", to: "/products/classification/brands" },
-  { key: "tags", label: "Distintivos", to: "/products/classification/tags" },
+  { key: "tags", label: "Etiquetas", to: "/products/classification/tags" },
 ] as const;
 
 export function ClassificationLayout(): ReactElement {
