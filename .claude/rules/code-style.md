@@ -5,7 +5,7 @@
 - Code, comments, tests, commit messages, issues, and pull requests are written in English.
 - User-facing text is written in Spanish where it is shown; there are no message catalogs. Text built from quantities, amounts or dates goes through the formatting functions of `packages/formatting`, fixed to Argentine Spanish (`es-AR`), which screens reach through `packages/ui` and the cloud uses directly for the documents it prints, so a value reads the same on every screen and printout.
 - A `packages/ui` component writes the text that reads the same wherever it is used (a modal's close button, a pagination's previous and next); text that depends on the screen comes from the app as a prop, with no default.
-- Help and manuals live inside the application they serve: the register's help ships with the register and works offline; the backoffice's help lives in the backoffice.
+- Help and manuals live inside the application they serve: the backoffice's help lives in the backoffice.
 - Code and tests explain themselves. Names, structure and test cases carry the meaning; a reader should not need a companion document to follow them.
 - Write a comment only where something relevant cannot be read from the code — a legal deadline, an external system's constraint, a non-obvious reason for doing it this way. Do not comment what the code already says. This applies equally to tests, scripts and configuration. Comments that break it:
   - restating the next line: `// Sort by name` above a sort by name;
