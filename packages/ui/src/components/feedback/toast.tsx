@@ -38,7 +38,7 @@ export function Toast({ tone, icon, title, description, onDismiss }: ToastProps)
       announcement={[title, description]}
     >
       <p className="text-body font-bold text-text">{title}</p>
-      <p className="text-detail font-semibold text-text">{description}</p>
+      <p className="text-detail font-semibold leading-sm text-text">{description}</p>
     </NoticeFrame>
   );
 }
