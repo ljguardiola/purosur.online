@@ -416,7 +416,7 @@ describe("RegisterStatusBar", () => {
       status: loaded({ serial_devices: { scale: "not_detected", reader: "matching" } }),
     });
 
-    await expect.element(screen.getByText("Balanza no detectada")).toBeVisible();
+    await expect.element(screen.getByText("Balanza sin conectar")).toBeVisible();
     await expect.element(screen.getByText("Lector conectado")).toBeVisible();
   });
 

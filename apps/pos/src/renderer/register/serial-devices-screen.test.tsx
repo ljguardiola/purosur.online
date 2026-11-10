@@ -195,7 +195,7 @@ describe("SerialDevicesScreen", () => {
       }),
     });
 
-    await expect.element(screen.getByText("Balanza no detectada")).toBeVisible();
+    await expect.element(screen.getByText("Balanza sin conectar")).toBeVisible();
     await expect.element(screen.getByText("Lector sin registrar")).toBeVisible();
   });
 
