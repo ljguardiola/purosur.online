@@ -423,7 +423,7 @@ export function EditProductModal({
           />
           <NewTagModal
             open={tagCreation.open}
-            context="Distintivos"
+            context="Etiquetas"
             services={{ createTag }}
             onCreated={tagCreation.select}
             onClose={tagCreation.close}

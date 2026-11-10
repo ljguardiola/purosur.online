@@ -485,7 +485,7 @@ export function CreateProductFromSupplierItemModal({
                   }
                 : {
                     state: "unavailable",
-                    placeholder: statusPlaceholder(tags, "los distintivos"),
+                    placeholder: statusPlaceholder(tags, "las etiquetas"),
                   }
             }
             chips={chips}
@@ -560,7 +560,7 @@ export function CreateProductFromSupplierItemModal({
               />
               <NewTagModal
                 open={tagCreation.open}
-                context="Distintivos"
+                context="Etiquetas"
                 services={{ createTag: services.createTag }}
                 onCreated={tagCreation.select}
                 onClose={tagCreation.close}

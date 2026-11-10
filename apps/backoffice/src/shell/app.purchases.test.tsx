@@ -11,6 +11,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 import { spyOnDownloads } from "./test-support/spy-on-downloads";
 
@@ -73,6 +74,7 @@ test("opens Compras with the tabs Compras and Fletes for a person with purchases
 
   await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   expect(document.title).toBe("Compras · Puro Sur");
+  expect(shownEyebrow()).toBeNull();
   await expect.element(screen.getByRole("tab", { name: "Compras", selected: true })).toBeVisible();
   await expectTabs(screen, ["Compras", "Fletes"]);
   await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();

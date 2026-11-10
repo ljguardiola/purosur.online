@@ -35,7 +35,7 @@ test("shows a loading placeholder while the runbook loads", async () => {
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByRole("dialog", { name: "Respuesta ante un compromiso" }))
+    .element(screen.getByRole("dialog", { name: "Ante una sospecha de compromiso" }))
     .toBeVisible();
   await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
   expect(screen.getByRole("button", { name: "Comenzar" }).query()).toBeNull();
@@ -49,7 +49,7 @@ test("offers to read the runbook again when it fails to load", async () => {
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByText("No pudimos abrir la respuesta ante un compromiso"))
+    .element(screen.getByText("No pudimos abrir los pasos ante una sospecha de compromiso"))
     .toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -124,7 +124,7 @@ test("shows the six steps in order, only the first one available", async () => {
   const headings = screen.getByRole("heading", { level: 2 });
   await expect
     .poll(() => headings.elements().map((heading) => heading.textContent))
-    .toEqual(["Respuesta ante un compromiso", ...STEP_TITLES]);
+    .toEqual(["Ante una sospecha de compromiso", ...STEP_TITLES]);
   await expect.element(screen.getByText("Disponible")).toBeVisible();
   expect(screen.getByText("Bloqueado hasta completar el anterior").elements()).toHaveLength(5);
 });
@@ -197,7 +197,7 @@ test("revokes every installation from its modal and reads the runbook again", as
   await expect.element(screen.getByText("Instalaciones revocadas")).toBeVisible();
   await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
   expect(
-    screen.getByRole("dialog", { name: /^(?!Respuesta ante un compromiso)/ }).query(),
+    screen.getByRole("dialog", { name: /^(?!Ante una sospecha de compromiso)/ }).query(),
   ).toBeNull();
 });
 
@@ -244,7 +244,7 @@ test("forces the PIN resets from its modal and reads the runbook again", async (
 
   await expect.element(screen.getByText("Reinicio de PIN exigido")).toBeVisible();
   expect(
-    screen.getByRole("dialog", { name: /^(?!Respuesta ante un compromiso)/ }).query(),
+    screen.getByRole("dialog", { name: /^(?!Ante una sospecha de compromiso)/ }).query(),
   ).toBeNull();
 });
 

@@ -302,11 +302,20 @@ export const legacyFreightReportRoute = createRoute({
 
 export const aiCostReportRoute = createRoute({
   getParentRoute: () => settingsAreaRoute,
-  path: "reports/ai-cost-by-period",
+  path: "ai-cost",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeAiCostReport),
   validateSearch: aiCostReportFilters,
   search: { middlewares: [stripSearchParams(aiCostReportFilters.parse({}))] },
   component: lazyScreen(() => import("./ai-cost-report-page"), "AiCostReportPage"),
+});
+
+export const legacyAiCostReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "reports/ai-cost-by-period",
+  validateSearch: aiCostReportFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/ai-cost", search });
+  },
 });
 
 export const legacyPendingPurchaseOrdersReportRoute = createRoute({

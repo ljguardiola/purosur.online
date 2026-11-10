@@ -4,13 +4,13 @@ import { useDocumentTitle } from "../shell/document-title";
 import { AiCostReportScreen } from "./ai-cost-report-screen";
 import { defaultAiCostReportScreenServices } from "./ai-cost-report-services";
 
-const route = getRouteApi("/signed-in/settings-area/reports/ai-cost-by-period");
+const route = getRouteApi("/signed-in/settings-area/ai-cost");
 
 export function AiCostReportPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Costo de IA por período · Puro Sur");
+  useDocumentTitle("Costo de IA · Puro Sur");
   return (
     <AiCostReportScreen
       filters={filters}

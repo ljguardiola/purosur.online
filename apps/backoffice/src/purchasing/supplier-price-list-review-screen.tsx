@@ -321,7 +321,7 @@ export function SupplierPriceListReviewScreen({
       <ScreenLayout
         topBar={
           <AreaTopBar
-            eyebrow="Compras · Listas de precios"
+            eyebrow="Compras"
             title={list === null ? "Lista de proveedor" : `Lista de ${list.supplier.name}`}
             action={
               list === null ? undefined : (

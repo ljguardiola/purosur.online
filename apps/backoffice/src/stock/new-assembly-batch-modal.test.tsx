@@ -107,7 +107,7 @@ async function chooseProduct(screen: ModalScreen, name: string) {
 
 async function typeSize(screen: ModalScreen, size: string) {
   await userEvent.fill(
-    screen.getByRole("dialog").getByRole("textbox", { name: /^Tamaño de la tanda/ }),
+    screen.getByRole("dialog").getByRole("textbox", { name: /^Tamaño de la producción/ }),
     size,
   );
 }
@@ -122,7 +122,7 @@ async function prepareMix(screen: ModalScreen, size = "5") {
 
 async function submit(screen: ModalScreen) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: "Registrar la tanda" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la producción" }));
   return dialog;
 }
 
@@ -143,11 +143,15 @@ test("shows the eyebrow, the title, the product and size fields and both actions
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("Productos · Armados")).toBeVisible();
-  await expect.element(dialog.getByRole("heading", { name: "Nueva tanda" })).toBeVisible();
+  await expect.element(dialog.getByRole("heading", { name: "Nueva producción" })).toBeVisible();
   await expect.element(dialog.getByRole("combobox", { name: /^Producto armado/ })).toBeVisible();
-  await expect.element(dialog.getByRole("textbox", { name: /^Tamaño de la tanda/ })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Tamaño de la producción/ }))
+    .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Registrar la tanda" })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Registrar la producción" }))
+    .toBeVisible();
 });
 
 test("offers the products that have a recipe, sorted by name", async () => {
@@ -194,7 +198,7 @@ test("explains there is nothing to assemble when no product has a recipe", async
 
   await expect.element(screen.getByText("No hay productos armados")).toBeVisible();
   await expect
-    .element(screen.getByText("Creá una receta en Recetas para registrar una tanda."))
+    .element(screen.getByText("Creá una receta en Recetas para registrar una producción."))
     .toBeVisible();
 });
 
@@ -436,7 +440,7 @@ test("tells the proposal could not be calculated and reads it again on retry", a
 
   await typeSize(screen, "5");
   await expect
-    .element(screen.getByText("No pudimos abrir las cantidades de la tanda"))
+    .element(screen.getByText("No pudimos abrir las cantidades de la producción"))
     .toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -492,7 +496,7 @@ test("asks for the size without calling the cloud", async () => {
 
   const dialog = await submit(screen);
 
-  await expect.element(dialog.getByText("Ingresá el tamaño de la tanda.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá el tamaño de la producción.")).toBeVisible();
   expect(registerAssemblyBatch).not.toHaveBeenCalled();
 });
 
@@ -616,7 +620,7 @@ test("names the component that is no longer available and reads the batches agai
 
   await expect.element(dialog.getByText("Nueces ya no está disponible")).toBeVisible();
   await expect
-    .element(dialog.getByText("Quitalo de la receta en Recetas para registrar esta tanda."))
+    .element(dialog.getByText("Quitalo de la receta en Recetas para registrar esta producción."))
     .toBeVisible();
   expect(dialog.getByText("Este producto ya no está disponible. Elegí otro.").query()).toBeNull();
   await expect.poll(() => readBatches.mock.calls.length).toBe(2);
@@ -639,7 +643,7 @@ test("shows a failed attempt", async () => {
     }),
   );
 
-  await expect.element(dialog.getByText("No se registró la tanda")).toBeVisible();
+  await expect.element(dialog.getByText("No se registró la producción")).toBeVisible();
 });
 
 test("shows the time to wait after too many requests", async () => {

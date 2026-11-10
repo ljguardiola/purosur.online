@@ -17,6 +17,7 @@ import {
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
@@ -89,6 +90,7 @@ test("opens Stock from the rail with its three tabs for a person with every stoc
   await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
   expect(location()).toBe("/stock");
   expect(document.title).toBe("Stock · Puro Sur");
+  expect(shownEyebrow()).toBeNull();
   const tabs = screen.getByRole("tablist", { name: "Secciones de Stock" });
   await expect.element(tabs.getByRole("tab", { name: "Saldos", selected: true })).toBeVisible();
   for (const [index, name] of ["Saldos", "Vencimientos", "Movimientos"].entries()) {

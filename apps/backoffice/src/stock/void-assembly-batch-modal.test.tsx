@@ -49,7 +49,7 @@ function renderModal({
 
 async function confirm(screen: Awaited<ReturnType<typeof renderModal>>) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: "Anular tanda" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Anular producción" }));
   return dialog;
 }
 
@@ -58,12 +58,12 @@ test("asks about the batch's product and says what voiding does", async () => {
   const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(dialog.getByRole("heading", { name: "¿Anular la tanda de Mix de frutos secos?" }))
+    .element(dialog.getByRole("heading", { name: "¿Anular la producción de Mix de frutos secos?" }))
     .toBeVisible();
   await expect
     .element(
       dialog.getByText(
-        "Los componentes vuelven al stock, se descuentan 4,950 kg de Mix de frutos secos y el lote de la tanda queda en cero.",
+        "Los componentes vuelven al stock, se descuentan 4,950 kg de Mix de frutos secos y el lote de la producción queda en cero.",
       ),
     )
     .toBeVisible();
@@ -105,7 +105,7 @@ test("cannot be confirmed twice while the request is in flight", async () => {
   const screen = await renderModal({ voidAssemblyBatch });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("button", { name: "Anular tanda" })).toBeDisabled();
+  await expect.element(dialog.getByRole("button", { name: "Anular producción" })).toBeDisabled();
   await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
   expect(voidAssemblyBatch).toHaveBeenCalledTimes(1);
   pending.resolve({ kind: "failed" });
@@ -131,9 +131,9 @@ test("cannot be closed, by its close button or by Escape, while the request is i
 });
 
 test.each([
-  ["not_found", "No se encontró la tanda."],
-  ["already_voided", "La tanda ya fue anulada."],
-  ["consumed", "La tanda ya tuvo consumo: corregila con un ajuste y un recuento."],
+  ["not_found", "No se encontró la producción."],
+  ["already_voided", "La producción ya fue anulada."],
+  ["consumed", "La producción ya tuvo consumo: corregila con un ajuste y un recuento."],
 ] as const)(
   "tells %s in its own words, and updating the list reports it",
   async (kind, message) => {
@@ -145,7 +145,7 @@ test.each([
     const dialog = await confirm(screen);
 
     await expect.element(dialog.getByRole("alert")).toHaveTextContent(message);
-    expect(dialog.getByRole("button", { name: "Anular tanda" }).query()).toBeNull();
+    expect(dialog.getByRole("button", { name: "Anular producción" }).query()).toBeNull();
     await userEvent.click(dialog.getByRole("button", { name: "Actualizar la lista" }));
 
     expect(onOutdated).toHaveBeenCalledTimes(1);
@@ -159,9 +159,9 @@ test("shows the failure notice, and the confirmation stays available", async () 
   const screen = await renderModal({ voidAssemblyBatch });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("No se anuló la tanda")).toBeVisible();
+  await expect.element(dialog.getByText("No se anuló la producción")).toBeVisible();
   await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Anular tanda" })).toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: "Anular producción" })).toBeEnabled();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -173,7 +173,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
-  await expect.element(dialog.getByRole("button", { name: "Anular tanda" })).toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: "Anular producción" })).toBeEnabled();
 });
 
 test("navigates to Mi cuenta when the change comes back forbidden", async () => {
@@ -210,8 +210,8 @@ test("tells an outdated tab to reload because the backoffice was updated when vo
   const screen = await renderModal({ voidAssemblyBatch });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("No se anuló la tanda")).toBeVisible();
+  await expect.element(dialog.getByText("No se anuló la producción")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
-  await expect.element(dialog.getByRole("button", { name: "Anular tanda" })).toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: "Anular producción" })).toBeEnabled();
 });

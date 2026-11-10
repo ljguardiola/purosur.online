@@ -9,6 +9,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -78,6 +79,7 @@ test("opens Proveedores with its two tabs for a person with both capabilities", 
     .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   expect(document.title).toBe("Proveedores · Puro Sur");
+  expect(shownEyebrow()).toBe("Compras");
   await expect
     .element(screen.getByRole("tab", { name: "Proveedores", selected: true }))
     .toBeVisible();

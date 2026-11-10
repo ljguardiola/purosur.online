@@ -152,18 +152,16 @@ test("creates a tag from the tag selector with the typed name and selects it onc
   const createTag = vi.fn().mockResolvedValue({ kind: "ok", tag: created });
   const fetchDiscountTargets = listing(targetsWithCreatedTag(created.id, "Orgánico"));
   const { screen, dialog } = await opened(createServices({ createTag, fetchDiscountTargets }));
-  await userEvent.click(radioLabel(dialog, "Distintivo"));
+  await userEvent.click(radioLabel(dialog, "Etiqueta"));
 
-  await userEvent.fill(dialog.getByRole("combobox", { name: /^Distintivo/ }), "Orgánico");
-  await userEvent.click(page.getByRole("option", { name: "Crear distintivo «Orgánico»" }));
-  const tagDialog = screen.getByRole("dialog", { name: "Nuevo distintivo" });
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Etiqueta/ }), "Orgánico");
+  await userEvent.click(page.getByRole("option", { name: "Crear etiqueta «Orgánico»" }));
+  const tagDialog = screen.getByRole("dialog", { name: "Nueva etiqueta" });
   await expect.element(tagDialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Orgánico");
-  await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+  await userEvent.click(tagDialog.getByRole("button", { name: "Crear la etiqueta" }));
 
   expect(createTag).toHaveBeenCalledWith({ name: "Orgánico" });
-  await expect
-    .element(dialog.getByRole("combobox", { name: /^Distintivo/ }))
-    .toHaveValue("Orgánico");
+  await expect.element(dialog.getByRole("combobox", { name: /^Etiqueta/ })).toHaveValue("Orgánico");
 });
 
 test("with no product to choose yet, the selector offers creating one and selects it once listed", async () => {
@@ -188,9 +186,9 @@ test("offers no creation when the modal is given no way to create", async () => 
 
 test("offers no tag creation when the modal is given no way to create", async () => {
   const { dialog } = await opened(createServices(), { withCreation: false });
-  await userEvent.click(radioLabel(dialog, "Distintivo"));
+  await userEvent.click(radioLabel(dialog, "Etiqueta"));
 
-  await userEvent.fill(dialog.getByRole("combobox", { name: /^Distintivo/ }), "Orgánico");
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Etiqueta/ }), "Orgánico");
 
   await expect.element(page.getByText("Sin resultados")).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear/ }).query()).toBeNull();

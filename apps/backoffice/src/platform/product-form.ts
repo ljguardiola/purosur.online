@@ -87,7 +87,7 @@ export function brandMessage(): string {
 }
 
 export function tagsMessage(): string {
-  return "Un distintivo elegido ya no existe.";
+  return "Una etiqueta elegida ya no existe.";
 }
 
 export function saleUnitMessage(): string {
@@ -130,5 +130,5 @@ export function tagInactiveError(tags: TagSummary[], tagId: string): string {
   const tag = tags.find((candidate) => candidate.id === tagId);
   return tag
     ? `"${tag.name}" se dio de baja. Quitalo para guardar.`
-    : "Un distintivo elegido se dio de baja. Quitalo para guardar.";
+    : "Una etiqueta elegida se dio de baja. Quitala para guardar.";
 }

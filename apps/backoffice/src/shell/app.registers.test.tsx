@@ -17,6 +17,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { periodSegments, typePeriodStart } from "./test-support/report-dates";
 import { BACK_REGISTER_ID, registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
@@ -106,6 +107,7 @@ test("opens the page on Cajas from the rail's Ventas y caja item, with the three
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   expect(location()).toBe("/registers");
   expect(document.title).toBe("Cajas · Puro Sur");
+  expect(shownEyebrow()).toBe("Ventas y caja");
   await expect.element(screen.getByRole("tablist", { name: "Secciones de Cajas" })).toBeVisible();
 });
 

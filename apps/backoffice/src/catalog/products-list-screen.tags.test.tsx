@@ -18,14 +18,14 @@ test("creating a tag leaves the catalog unread while the product form is open, a
   const tagsReads = vi.mocked(services.fetchTags).mock.calls.length;
   const productsReads = vi.mocked(services.fetchProducts).mock.calls.length;
 
-  await userEvent.click(productDialog.getByRole("button", { name: "Agregar distintivo" }));
-  await userEvent.click(screen.getByRole("menuitem", { name: "Crear distintivo…" }));
-  const tagDialog = screen.getByRole("dialog", { name: "Nuevo distintivo" });
+  await userEvent.click(productDialog.getByRole("button", { name: "Agregar etiqueta" }));
+  await userEvent.click(screen.getByRole("menuitem", { name: "Crear etiqueta…" }));
+  const tagDialog = screen.getByRole("dialog", { name: "Nueva etiqueta" });
   await expect.element(tagDialog).toBeVisible();
   await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), "Orgánico");
-  await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+  await userEvent.click(tagDialog.getByRole("button", { name: "Crear la etiqueta" }));
   await expect
-    .poll(() => screen.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+    .poll(() => screen.getByRole("dialog", { name: "Nueva etiqueta" }).query())
     .toBeNull();
 
   expect(vi.mocked(services.fetchTags).mock.calls.length).toBe(tagsReads);

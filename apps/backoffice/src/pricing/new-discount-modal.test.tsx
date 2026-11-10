@@ -90,7 +90,7 @@ test("shows the header, the percentage kind chosen and every field of a new prom
     .element(dialog.getByRole("radio", { name: "Porcentaje de descuento" }))
     .toBeChecked();
   await expect
-    .element(dialog.getByText("Sobre un producto, una categoría o un distintivo"))
+    .element(dialog.getByText("Sobre un producto, una categoría o una etiqueta"))
     .toBeVisible();
   await expect.element(dialog.getByText("Se aplica sobre")).toBeVisible();
   await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeChecked();
@@ -246,10 +246,10 @@ test("switching what it applies to changes the picker's label, options and place
   ).toEqual(["Almacén", "Almacén › Yerbas"]);
   await userEvent.click(page.getByRole("option", { name: "Almacén › Yerbas" }));
 
-  await userEvent.click(radioLabel(dialog, "Distintivo"));
+  await userEvent.click(radioLabel(dialog, "Etiqueta"));
 
-  await expect.element(dialog.getByRole("combobox", { name: /^Distintivo/ })).toBeVisible();
-  await userEvent.click(dialog.getByRole("combobox", { name: /^Distintivo/ }));
+  await expect.element(dialog.getByRole("combobox", { name: /^Etiqueta/ })).toBeVisible();
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Etiqueta/ }));
   expect(
     page
       .getByRole("option")
@@ -263,8 +263,8 @@ test("creates a promotion on a category or on a tag", async () => {
   vi.mocked(services.createDiscount).mockResolvedValue({ kind: "ok", discount: yerbaOff });
   const { dialog } = await renderModal(services);
   await fillValidNewDiscount(dialog);
-  await userEvent.click(radioLabel(dialog, "Distintivo"));
-  await chooseTarget(dialog, "Elegí un distintivo", "Vegano");
+  await userEvent.click(radioLabel(dialog, "Etiqueta"));
+  await chooseTarget(dialog, "Elegí una etiqueta", "Vegano");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
 
@@ -369,7 +369,7 @@ test.each([
     "Ya no está disponible. Elegí otro producto.",
   ],
   ["CATEGORY", "Elegí una categoría", "Almacén", "Ya no está disponible. Elegí otra categoría."],
-  ["TAG", "Elegí un distintivo", "Vegano", "Ya no está disponible. Elegí otro distintivo."],
+  ["TAG", "Elegí una etiqueta", "Vegano", "Ya no está disponible. Elegí otra etiqueta."],
 ] as const)(
   "says a %s that is gone is unavailable, on the picker",
   async (kind, placeholder, option, message) => {
@@ -377,7 +377,7 @@ test.each([
     vi.mocked(services.createDiscount).mockResolvedValue({ kind: "target_not_found" });
     const { dialog } = await renderModal(services);
     await fillNewDiscountExceptTarget(dialog);
-    const labels = { PRODUCT: "Producto", CATEGORY: "Categoría", TAG: "Distintivo" };
+    const labels = { PRODUCT: "Producto", CATEGORY: "Categoría", TAG: "Etiqueta" };
     await userEvent.click(radioLabel(dialog, labels[kind]));
     if (kind === "PRODUCT") {
       await chooseProduct(dialog, "Yerba", option);
@@ -502,7 +502,7 @@ test("offers only the target kinds the cloud allows for the chosen promotion", a
   });
 
   await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeVisible();
-  await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Etiqueta" })).toBeVisible();
   expect(dialog.getByRole("radio", { name: "Categoría" }).query()).toBeNull();
 });
 
@@ -700,8 +700,8 @@ test("typing in the category or tag target offers only the matching ones", async
     .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
     .toHaveValue("Almacén › Yerbas");
 
-  await userEvent.click(radioLabel(dialog, "Distintivo"));
-  await userEvent.fill(dialog.getByRole("combobox", { name: /^Distintivo/ }), "veg");
+  await userEvent.click(radioLabel(dialog, "Etiqueta"));
+  await userEvent.fill(dialog.getByRole("combobox", { name: /^Etiqueta/ }), "veg");
   expect(
     page
       .getByRole("option")

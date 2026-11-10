@@ -45,7 +45,7 @@ test("shows the active Help item in the rail, leaving other areas in the rail un
   const helpItem = helpItemLocator.element() as HTMLAnchorElement;
   expect(helpItem.getAttribute("aria-current")).toBe("page");
 
-  const configItemLocator = screen.getByRole("link", { name: "Config" });
+  const configItemLocator = screen.getByRole("link", { name: "Configuración" });
   await expect.element(configItemLocator).toBeVisible();
   const configItem = configItemLocator.element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBeNull();
