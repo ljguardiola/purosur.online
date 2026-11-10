@@ -101,7 +101,7 @@ test("lists Ventas y caja right after Inicio in the rail", async () => {
 
 test("following the Historial tab opens the returns history, and Pendientes comes back", async () => {
   const services = refundsServices(["refunds_area", "returns_report"]);
-  window.history.pushState(null, "", "/refunds?channel=without-api");
+  window.history.pushState(null, "", "/refunds?channel=outside-mercado-pago");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 
@@ -258,7 +258,7 @@ test("redirects /refunds/mercado-pago to /refunds with the channel Mercado Pago 
   expect(location()).toBe(`/refunds?channel=mercado-pago&register=${FRONT_REGISTER_ID}`);
 });
 
-test("redirects /refunds/outside-the-system to /refunds with the channel Sin API, the register and the method kept", async () => {
+test("redirects /refunds/outside-the-system to /refunds with the channel Fuera de Mercado Pago, the register and the method kept", async () => {
   const services = refundsServices(["refunds_area"]);
   window.history.pushState(
     null,
@@ -271,7 +271,7 @@ test("redirects /refunds/outside-the-system to /refunds with the channel Sin API
   await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
   expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   expect(location()).toBe(
-    `/refunds?channel=without-api&method=TRANSFER&register=${BACK_REGISTER_ID}`,
+    `/refunds?channel=outside-mercado-pago&method=TRANSFER&register=${BACK_REGISTER_ID}`,
   );
 });
 
@@ -291,6 +291,17 @@ test("redirects /reports/returns to /refunds/history keeping the period and the 
   expect(location()).toBe(
     "/refunds/history?from=2026-10-01&register=11111111-1111-4111-8111-111111111111&to=2026-10-07",
   );
+});
+
+test("opens the channel Fuera de Mercado Pago from the old without-api address and writes the new value", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(null, "", "/refunds?channel=without-api");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("$ 1.250,00", { exact: true }).query()).toBeNull();
+  await expect.poll(location).toBe("/refunds?channel=outside-mercado-pago");
 });
 
 test.each(["/refunds?channel=all", "/refunds?channel=unknown"])(
@@ -316,7 +327,7 @@ test("keeps the channel chosen in the address", async () => {
   await screen.getByRole("button", { name: /^Canal/ }).click();
   await userEvent.click(screen.getByRole("option", { name: "Fuera de Mercado Pago" }));
 
-  await expect.poll(location).toBe("/refunds?channel=without-api");
+  await expect.poll(location).toBe("/refunds?channel=outside-mercado-pago");
   await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 });

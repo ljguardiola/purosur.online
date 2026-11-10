@@ -74,7 +74,7 @@ test("lists each pending task with its count as a link to the place where it is 
   const mercadoPago = screen.getByRole("link", { name: "Reembolsos por Mercado Pago 1" });
   expect(hrefOf(mercadoPago)).toBe("/refunds?channel=mercado-pago");
   const outside = screen.getByRole("link", { name: "Reembolsos fuera del sistema 1" });
-  expect(hrefOf(outside)).toBe("/refunds?channel=without-api");
+  expect(hrefOf(outside)).toBe("/refunds?channel=outside-mercado-pago");
   const prices = screen.getByRole("link", { name: "Precios a revisar 7" });
   expect(hrefOf(prices)).toBe("/products/prices");
   expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(1);

@@ -93,7 +93,7 @@ test("choosing the channel Fuera de Mercado Pago lists only the refunds without 
     .toBeVisible();
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(0);
   expect(onFiltersChange).toHaveBeenLastCalledWith({
-    channel: "without-api",
+    channel: "outside-mercado-pago",
     register: "all",
     method: "all",
   });

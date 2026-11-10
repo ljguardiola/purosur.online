@@ -176,7 +176,7 @@ test("filters the loaded refunds by the register that took them, offering every 
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
   expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(1);
   expect(onFiltersChange).toHaveBeenLastCalledWith({
-    channel: "without-api",
+    channel: "outside-mercado-pago",
     register: FRONT_REGISTER_ID,
     method: "all",
   });
@@ -217,7 +217,7 @@ test("shows every refund and reports every register when the address carries a r
   await expect.element(screen.getByRole("combobox", { name: /^Caja/ })).toHaveValue("Todas");
   await expect
     .poll(() => onFiltersChange.mock.lastCall)
-    .toEqual([{ channel: "without-api", register: "all", method: "all" }]);
+    .toEqual([{ channel: "outside-mercado-pago", register: "all", method: "all" }]);
 });
 
 test("offers only the registers of the refunds made outside the system", async () => {
@@ -255,7 +255,7 @@ test("filters the loaded refunds by method, offering every method present in the
   await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
   expect(onFiltersChange).toHaveBeenLastCalledWith({
-    channel: "without-api",
+    channel: "outside-mercado-pago",
     register: "all",
     method: "POINT",
   });
@@ -318,7 +318,7 @@ test("shows every refund and reports every method when the address carries a met
   await expect.element(screen.getByRole("button", { name: /Medio.*Todos/ })).toBeVisible();
   await expect
     .poll(() => onFiltersChange.mock.lastCall)
-    .toEqual([{ channel: "without-api", register: "all", method: "all" }]);
+    .toEqual([{ channel: "outside-mercado-pago", register: "all", method: "all" }]);
 });
 
 test("says no refund matches the filters when the register and the method chosen together hide every refund", async () => {
