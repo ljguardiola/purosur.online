@@ -147,7 +147,7 @@ export function formatOperationNumber(number: number): string {
 const LOT_ORIGIN_WORDS = {
   purchase: "Compra",
   initial_count: "Inventario inicial",
-  assembly_batch: "Tanda",
+  assembly_batch: "Producción",
   technical: "Técnico",
 } as const;
 

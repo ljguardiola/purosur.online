@@ -27,7 +27,7 @@ export function PurchaseOrdersPage(): ReactElement {
       : "orders";
 
   return (
-    <ScreenLayout topBar={<AreaTopBar title="Pedidos" />} bodyClassName="p-0">
+    <ScreenLayout topBar={<AreaTopBar eyebrow="Compras" title="Pedidos" />} bodyClassName="p-0">
       <Tabs
         label="Secciones de Pedidos"
         selectedTab={selectedTab}

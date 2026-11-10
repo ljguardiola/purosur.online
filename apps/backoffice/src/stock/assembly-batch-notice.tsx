@@ -13,7 +13,10 @@ export function AssemblyBatchNotice({ notice }: { notice: AssemblyBatchNotice })
   switch (notice.kind) {
     case "attemptFailed":
       return (
-        <ActionFailureNotice title="No se registró la tanda" description="Volvé a intentarlo." />
+        <ActionFailureNotice
+          title="No se registró la producción"
+          description="Volvé a intentarlo."
+        />
       );
     case "rateLimited":
       return (
@@ -39,7 +42,7 @@ export function AssemblyBatchNotice({ notice }: { notice: AssemblyBatchNotice })
           tone="error"
           icon={<TriangleAlert />}
           title={`${notice.name} ya no está disponible`}
-          description="Quitalo de la receta en Recetas para registrar esta tanda."
+          description="Quitalo de la receta en Recetas para registrar esta producción."
         />
       );
   }

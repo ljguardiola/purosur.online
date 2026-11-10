@@ -255,7 +255,7 @@ export function NewAssemblyBatchModal({
       tone="info"
       icon={<CookingPot />}
       context="Productos · Armados"
-      title="Nueva tanda"
+      title="Nueva producción"
       closable={!submitting}
       footer={
         <>
@@ -276,7 +276,7 @@ export function NewAssemblyBatchModal({
             disabled={submitting || firstOption === undefined}
             onPress={() => void submit()}
           >
-            Registrar la tanda
+            Registrar la producción
           </Button>
         </>
       }
@@ -285,7 +285,7 @@ export function NewAssemblyBatchModal({
         <EmptyState
           icon={<CookingPot />}
           title="No hay productos armados"
-          description="Creá una receta en Recetas para registrar una tanda."
+          description="Creá una receta en Recetas para registrar una producción."
           variant="blank"
         />
       ) : (
@@ -318,7 +318,7 @@ export function NewAssemblyBatchModal({
                 {(field) => (
                   <field.TextField
                     {...(recipe ? quantityFieldKind(recipe.saleUnit) : { kind: "plain-text" })}
-                    label="Tamaño de la tanda"
+                    label="Tamaño de la producción"
                     required
                   />
                 )}
@@ -329,7 +329,9 @@ export function NewAssemblyBatchModal({
             <>
               <FieldGroup label="Componentes usados">
                 {proposalRequest !== undefined && proposalRead.status === "failed" ? (
-                  <LoadFailure {...cloudLoadFailure(proposalRead, "las cantidades de la tanda")} />
+                  <LoadFailure
+                    {...cloudLoadFailure(proposalRead, "las cantidades de la producción")}
+                  />
                 ) : (
                   <form.AppField name="used">
                     {() => (

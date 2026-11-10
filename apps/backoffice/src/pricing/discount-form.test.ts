@@ -199,7 +199,7 @@ describe("field messages", () => {
   test.each([
     ["PRODUCT", "Elegí un producto."],
     ["CATEGORY", "Elegí una categoría."],
-    ["TAG", "Elegí un distintivo."],
+    ["TAG", "Elegí una etiqueta."],
   ] as const)("asks for a %s when none is chosen", (targetKind, message) => {
     expect(DISCOUNT_MESSAGES.targetId({ ...filled, targetKind, targetId: null })).toBe(message);
   });
@@ -210,7 +210,7 @@ describe("field messages", () => {
       "Revisá la categoría elegida.",
     );
     expect(DISCOUNT_MESSAGES.targetId({ ...filled, targetKind: "TAG" })).toBe(
-      "Revisá el distintivo elegido.",
+      "Revisá la etiqueta elegida.",
     );
   });
 
@@ -262,7 +262,7 @@ describe("targetPlaceholder", () => {
   test.each([
     ["PRODUCT", "Elegí un producto"],
     ["CATEGORY", "Elegí una categoría"],
-    ["TAG", "Elegí un distintivo"],
+    ["TAG", "Elegí una etiqueta"],
   ] as const)("invites choosing a %s", (kind, placeholder) => {
     expect(targetPlaceholder(kind)).toBe(placeholder);
   });
@@ -272,7 +272,7 @@ describe("targetUnavailableMessage", () => {
   test.each([
     ["PRODUCT", "Ya no está disponible. Elegí otro producto."],
     ["CATEGORY", "Ya no está disponible. Elegí otra categoría."],
-    ["TAG", "Ya no está disponible. Elegí otro distintivo."],
+    ["TAG", "Ya no está disponible. Elegí otra etiqueta."],
   ] as const)("says a %s is gone and asks for another", (kind, message) => {
     expect(targetUnavailableMessage(kind)).toBe(message);
   });
@@ -291,11 +291,7 @@ describe("option lists", () => {
     expect(
       DISCOUNT_KIND_CARDS.map(({ value, label, description }) => [value, label, description]),
     ).toEqual([
-      [
-        "PERCENT_OFF",
-        "Porcentaje de descuento",
-        "Sobre un producto, una categoría o un distintivo",
-      ],
+      ["PERCENT_OFF", "Porcentaje de descuento", "Sobre un producto, una categoría o una etiqueta"],
       ["BUY_N_PAY_M", "Lleve N, pague M", "Sobre un producto por unidad"],
     ]);
   });
@@ -304,7 +300,7 @@ describe("option lists", () => {
     expect(DISCOUNT_TARGET_KIND_OPTIONS).toEqual([
       { value: "PRODUCT", label: "Producto" },
       { value: "CATEGORY", label: "Categoría" },
-      { value: "TAG", label: "Distintivo" },
+      { value: "TAG", label: "Etiqueta" },
     ]);
   });
 
@@ -770,7 +766,7 @@ describe("targetKindOptions", () => {
     expect(targetKindOptions("PERCENT_OFF", discountTargets)).toEqual([
       { value: "PRODUCT", label: "Producto" },
       { value: "CATEGORY", label: "Categoría" },
-      { value: "TAG", label: "Distintivo" },
+      { value: "TAG", label: "Etiqueta" },
     ]);
   });
 
@@ -782,7 +778,7 @@ describe("targetKindOptions", () => {
 
     expect(targetKindOptions("PERCENT_OFF", targets)).toEqual([
       { value: "PRODUCT", label: "Producto" },
-      { value: "TAG", label: "Distintivo" },
+      { value: "TAG", label: "Etiqueta" },
     ]);
     expect(targetKindOptions("BUY_N_PAY_M", targets)).toEqual([
       { value: "PRODUCT", label: "Producto" },

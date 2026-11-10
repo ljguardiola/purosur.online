@@ -67,7 +67,7 @@ const productDescriptionOrder = textOrder((recipe: RecipeSummary) =>
 function LastBatchCell({ recipe }: { recipe: RecipeSummary }) {
   const { lastBatch } = recipe;
   if (lastBatch === null) {
-    return <TableCellText tone="subtle">Sin tandas</TableCellText>;
+    return <TableCellText tone="subtle">Sin producciones</TableCellText>;
   }
   const cost = batchUnitCostText(lastBatch, recipe.saleUnit);
   return (
@@ -153,7 +153,7 @@ export function RecipesListScreen({
     }),
     dataColumn({
       id: "lastBatch",
-      header: "Costo de la última tanda",
+      header: "Costo de la última producción",
       align: "end",
       render: (item: RecipeSummary) => <LastBatchCell recipe={item} />,
     }),

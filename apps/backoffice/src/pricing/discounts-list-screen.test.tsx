@@ -60,7 +60,7 @@ test("shows the current and scheduled promotions with their columns", async () =
         "Programada",
       ],
       [
-        "Sin TACC de inviernoDistintivo · Sin TACC",
+        "Sin TACC de inviernoEtiqueta · Sin TACC",
         "20 % de descuento",
         "01/12/2026 → 28/02/2027",
         "LMMJVSD",
@@ -339,7 +339,7 @@ test("orders the promotions by name, and each sortable header orders them by its
     filters: discountsListFilters.parse({ status: "all" }),
   });
   const names = () =>
-    rowCells(screen).map((cells) => cells[0]?.split(/Producto|Categoría|Distintivo/)[0]);
+    rowCells(screen).map((cells) => cells[0]?.split(/Producto|Categoría|Etiqueta/)[0]);
   await expect
     .poll(names)
     .toEqual([
@@ -409,6 +409,13 @@ test("shows the blank empty state when there are no promotions yet, with no foot
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Todavía no hay promociones")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se cargan para ofrecer un descuento sobre un producto, una categoría o una etiqueta.",
+      ),
+    )
+    .toBeVisible();
   expect(screen.getByText(/promociones · /).query()).toBeNull();
 });
 

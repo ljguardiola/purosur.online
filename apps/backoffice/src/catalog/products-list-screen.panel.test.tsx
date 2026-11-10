@@ -91,7 +91,7 @@ test("the panel's tabs follow the person's access and the cloud's recipes", asyn
   });
 
   await expect.element(screen.getByRole("tab", { name: "Datos" })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Receta y tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Receta y producciones" })).toBeVisible();
   expect(screen.getByRole("tab", { name: "Precio y costo" }).query()).toBeNull();
 });
 

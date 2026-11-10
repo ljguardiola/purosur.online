@@ -76,7 +76,7 @@ test("explains that a purchase, a batch or an initial inventory cost makes the m
   await expect
     .element(
       screen.getByText(
-        "El margen aparece cuando el producto tenga una compra, una tanda o un costo de inventario inicial.",
+        "El margen aparece cuando el producto tenga una compra, una producción o un costo de inventario inicial.",
       ),
     )
     .toBeVisible();

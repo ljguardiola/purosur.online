@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/quarantined-events"]);
+opensOnlyScreens(["/", "/help", "/held-register-changes"]);
 
 beforeEach(resetPageState);
 
@@ -17,7 +17,7 @@ function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });
 }
 
-test("shows the Eventos en cuarentena item to a user holding quarantined_events, opening its screen from the Config rail", async () => {
+test("shows the Cambios de cajas retenidos item under Diagnóstico to a user holding quarantined_events, opening its screen, titled after it, from the Configuración rail", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
@@ -32,19 +32,27 @@ test("shows the Eventos en cuarentena item to a user holding quarantined_events,
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await userEvent.click(screen.getByRole("link", { name: "Config" }));
+  await userEvent.click(screen.getByRole("link", { name: "Configuración" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/quarantined-events");
-  const item = screen
-    .getByRole("link", { name: "Eventos en cuarentena" })
-    .element() as HTMLAnchorElement;
-  expect(item.getAttribute("aria-current")).toBe("page");
+  expect(window.location.pathname).toBe("/held-register-changes");
+  expect(document.title).toBe("Cambios de cajas retenidos · Puro Sur");
+  const sections = screen.getByRole("navigation", { name: "Configuración" });
+  await expect
+    .element(sections.getByRole("heading", { name: "Diagnóstico", level: 3 }))
+    .toBeVisible();
+  await expect
+    .element(
+      sections
+        .getByRole("list", { name: "Diagnóstico" })
+        .getByRole("link", { name: "Cambios de cajas retenidos" }),
+    )
+    .toHaveAttribute("aria-current", "page");
 });
 
-test("hides the Eventos en cuarentena item from a user without quarantined_events", async () => {
+test("hides the Cambios de cajas retenidos item from a user without quarantined_events", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding([])),
   });
@@ -53,10 +61,28 @@ test("hides the Eventos en cuarentena item from a user without quarantined_event
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Eventos en cuarentena" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Cambios de cajas retenidos" }).query()).toBeNull();
 });
 
-test("redirects a typed /quarantined-events to Mi cuenta for a user without quarantined_events, without calling its API", async () => {
+test("redirects the old /quarantined-events address to /held-register-changes", async () => {
+  window.history.pushState(null, "", "/quarantined-events");
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
+  });
+  vi.mocked(services.quarantinedEventsScreen.fetchQuarantinedEvents).mockResolvedValue({
+    kind: "ok",
+    value: { events: [] },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/held-register-changes");
+});
+
+test("redirects a typed /held-register-changes to Mi cuenta for a user without quarantined_events, without calling its API", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding([])),
   });
@@ -64,7 +90,7 @@ test("redirects a typed /quarantined-events to Mi cuenta for a user without quar
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/quarantined-events");
+  window.history.pushState(null, "", "/held-register-changes");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -119,13 +145,13 @@ test("follows a quarantined event's alert to the quarantined events list", async
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Ver la alerta «Cuarentena de eventos»" }),
+    screen.getByRole("button", { name: "Ver la alerta «Cambios de cajas retenidos»" }),
   );
-  await userEvent.click(screen.getByRole("link", { name: "Ver eventos en cuarentena" }));
+  await userEvent.click(screen.getByRole("link", { name: "Ver cambios de cajas retenidos" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/quarantined-events");
+  expect(window.location.pathname).toBe("/held-register-changes");
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });

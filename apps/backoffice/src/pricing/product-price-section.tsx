@@ -387,12 +387,12 @@ export function ProductPriceSection({
                         : formatCentsWithUnit(recommendedPrice, saleUnit),
                 },
                 {
-                  label: "Costo de la última tanda",
+                  label: "Costo de la última producción",
                   value:
                     answer.batchCost.kind === "known"
                       ? formatCentsWithUnit(answer.batchCost.unitCostCents, saleUnit)
                       : answer.batchCost.kind === "none"
-                        ? "Sin tandas"
+                        ? "Sin producciones"
                         : "Incompleto",
                 },
               ]}

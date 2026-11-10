@@ -24,7 +24,7 @@ export function SuppliersPage(): ReactElement {
     : "suppliers";
 
   return (
-    <ScreenLayout topBar={<AreaTopBar title="Proveedores" />} bodyClassName="p-0">
+    <ScreenLayout topBar={<AreaTopBar eyebrow="Compras" title="Proveedores" />} bodyClassName="p-0">
       <Tabs
         label="Secciones de Proveedores"
         selectedTab={selectedTab}

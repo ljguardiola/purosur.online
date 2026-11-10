@@ -70,7 +70,7 @@ export function RegisterSessionsSection({
       <Table
         aria-label="Cierres de caja de la caja"
         table={table}
-        {...cloudTableState(data, "los cierres de sesión")}
+        {...cloudTableState(data, "los cierres de caja")}
         empty={{
           icon: <Calculator />,
           title: "No hay sesiones cerradas en este período",

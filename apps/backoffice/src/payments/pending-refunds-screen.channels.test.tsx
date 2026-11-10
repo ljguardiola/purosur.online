@@ -18,7 +18,7 @@ import {
 const MERCADO_PAGO_FOOTER =
   "Los reembolsos con QR o Point de ventas canceladas, y con QR de aprobaciones tardías, se envían a Mercado Pago recién cuando se confirman acá. Los de ventas anuladas con QR o Point los confirmó en la caja quien anuló la venta, y se envían sin pasar por acá.";
 const WITHOUT_API_FOOTER =
-  "Los reembolsos sin API se hacen fuera del sistema y acá se marcan como hechos.";
+  "Los reembolsos fuera de Mercado Pago se hacen por otro medio y acá se marcan como hechos.";
 
 async function loadedWithBothKinds(
   options?: Parameters<typeof renderPendingRefunds>[2],
@@ -74,15 +74,15 @@ test("offers the channels all, Mercado Pago and without an API", async () => {
 
   await screen.getByRole("button", { name: /^Canal/ }).click();
 
-  expect(optionTexts(screen)).toEqual(["Todos", "Mercado Pago", "Sin API"]);
+  expect(optionTexts(screen)).toEqual(["Todos", "Mercado Pago", "Fuera de Mercado Pago"]);
 });
 
-test("choosing the channel Sin API lists only the refunds without an API, with their actions", async () => {
+test("choosing the channel Fuera de Mercado Pago lists only the refunds without an API, with their actions", async () => {
   const onFiltersChange = vi.fn();
   const { screen } = await loadedWithBothKinds({ onFiltersChange });
   await screen.getByRole("button", { name: /^Canal/ }).click();
 
-  await userEvent.click(screen.getByRole("option", { name: "Sin API" }));
+  await userEvent.click(screen.getByRole("option", { name: "Fuera de Mercado Pago" }));
 
   await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
   expect(screen.getByText("$ 1.250,00", { exact: true }).query()).toBeNull();
@@ -93,7 +93,7 @@ test("choosing the channel Sin API lists only the refunds without an API, with t
     .toBeVisible();
   expect(screen.getByRole("button", { name: /^Enviar a Mercado Pago/ }).all()).toHaveLength(0);
   expect(onFiltersChange).toHaveBeenLastCalledWith({
-    channel: "without-api",
+    channel: "outside-mercado-pago",
     register: "all",
     method: "all",
   });
@@ -104,7 +104,7 @@ test("choosing the channel Mercado Pago lists only the refunds Mercado Pago send
   const { screen } = await loadedWithBothKinds({ onFiltersChange });
   await screen.getByRole("button", { name: /^Canal/ }).click();
 
-  await userEvent.click(screen.getByRole("option", { name: "Mercado Pago" }));
+  await userEvent.click(screen.getByRole("option", { name: "Mercado Pago", exact: true }));
 
   await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   expect(screen.getByText("$ 980,00", { exact: true }).query()).toBeNull();
@@ -123,7 +123,7 @@ test("opens on the channel the address carries", async () => {
 
   await expect
     .element(screen.getByRole("button", { name: /^Canal/ }))
-    .toHaveTextContent("Canal Sin API");
+    .toHaveTextContent("Canal Fuera de Mercado Pago");
   expect(screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
 });
 
@@ -143,7 +143,7 @@ test("goes back to every register when the channel chosen has none for the regis
   await expect.poll(() => rowTexts(screen)).toHaveLength(1);
 
   await screen.getByRole("button", { name: /^Canal/ }).click();
-  await userEvent.click(screen.getByRole("option", { name: "Mercado Pago" }));
+  await userEvent.click(screen.getByRole("option", { name: "Mercado Pago", exact: true }));
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall)

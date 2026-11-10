@@ -29,8 +29,8 @@ test.each([
 });
 
 test("names a batch by the day it was assembled in Argentina", () => {
-  expect(batchDayText("2026-09-15T13:30:00.000Z")).toBe("Tanda del 15/09/2026");
-  expect(batchDayText("2026-09-16T01:30:00.000Z")).toBe("Tanda del 15/09/2026");
+  expect(batchDayText("2026-09-15T13:30:00.000Z")).toBe("Producción del 15/09/2026");
+  expect(batchDayText("2026-09-16T01:30:00.000Z")).toBe("Producción del 15/09/2026");
 });
 
 test("writes the expiry day, or says the batch does not expire", () => {
@@ -51,9 +51,9 @@ test("writes the expiry day of a batch's lot, or says it does not expire", () =>
 });
 
 test.each([
-  [1, 30, "1 tanda en los últimos 30 días"],
-  [3, 7, "3 tandas en los últimos 7 días"],
-  [12, 90, "12 tandas en los últimos 90 días"],
+  [1, 30, "1 producción en los últimos 30 días"],
+  [3, 7, "3 producciones en los últimos 7 días"],
+  [12, 90, "12 producciones en los últimos 90 días"],
 ])("counts %i batches over %i days", (count, days, text) => {
   expect(assemblyBatchesCountText(count, days)).toBe(text);
 });

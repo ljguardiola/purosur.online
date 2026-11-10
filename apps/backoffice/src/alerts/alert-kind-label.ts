@@ -8,7 +8,7 @@ const ALERT_KIND_LABELS = {
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
   user_access_increased: "Acceso ampliado",
   register_enrolled: "Cambio de instalación de caja",
-  events_quarantined: "Cuarentena de eventos",
+  events_quarantined: "Cambios de cajas retenidos",
   event_invariant_violated: "Inconsistencia en un evento",
   arca_certificate_expiring: "Certificado de ARCA por vencer",
   arca_wsaa_ticket_held: "ARCA conserva un ticket de acceso anterior",

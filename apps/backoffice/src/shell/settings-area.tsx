@@ -43,38 +43,40 @@ function SettingsArea() {
             {canSeeBranchArea(session) && (
               <li>
                 <SectionLink
-                  to="/location-settings"
+                  to="/branch"
                   label="Sucursal"
                   icon={<Store />}
-                  active={Boolean(matchRoute({ to: "/location-settings" }))}
-                />
-              </li>
-            )}
-            {canSeeQuarantinedEvents(session) && (
-              <li>
-                <SectionLink
-                  to="/quarantined-events"
-                  label="Eventos en cuarentena"
-                  icon={<PackageX />}
-                  active={Boolean(matchRoute({ to: "/quarantined-events" }))}
+                  active={Boolean(matchRoute({ to: "/branch" }))}
                 />
               </li>
             )}
           </ul>
-          {canSeeAiCostReport(session) && (
+          {(canSeeQuarantinedEvents(session) || canSeeAiCostReport(session)) && (
             <>
               <div id={diagnosticsHeadingId} className="mt-4 mb-1 px-3">
                 <Eyebrow text="Diagnóstico" headingLevel={3} />
               </div>
               <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
-                <li>
-                  <SectionLink
-                    to="/reports/ai-cost-by-period"
-                    label="Costo de IA por período"
-                    icon={<Bot />}
-                    active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
-                  />
-                </li>
+                {canSeeQuarantinedEvents(session) && (
+                  <li>
+                    <SectionLink
+                      to="/held-register-changes"
+                      label="Cambios de cajas retenidos"
+                      icon={<PackageX />}
+                      active={Boolean(matchRoute({ to: "/held-register-changes" }))}
+                    />
+                  </li>
+                )}
+                {canSeeAiCostReport(session) && (
+                  <li>
+                    <SectionLink
+                      to="/ai-cost"
+                      label="Costo de IA"
+                      icon={<Bot />}
+                      active={Boolean(matchRoute({ to: "/ai-cost" }))}
+                    />
+                  </li>
+                )}
               </ul>
             </>
           )}
