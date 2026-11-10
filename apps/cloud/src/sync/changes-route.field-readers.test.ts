@@ -172,7 +172,7 @@ describe("GET /changes read by the register releases in the field", () => {
     },
   );
 
-  it("the release in the field refuses a product whose net content unit it does not know", async () => {
+  it("0.0.1271 refuses a product whose net content unit it does not know", async () => {
     const reader = readerOf("0.0.1271");
     const product = changeOf(await pagesReadBy(reader), "product");
     const weighing = (unit: string) => ({
@@ -184,7 +184,7 @@ describe("GET /changes read by the register releases in the field", () => {
     expect(reader.changesPage.safeParse(pageOf(weighing("furlong"))).success).toBe(false);
   });
 
-  it("the release in the field refuses a brand, which the current release reads", async () => {
+  it("0.0.1271 refuses a brand, which 1.0.1385 reads", async () => {
     const brand = changeOf(await pagesReadBy(readerOf("1.0.1385")), "brand");
 
     expect(readerOf("0.0.1271").changesPage.safeParse(pageOf(brand)).success).toBe(false);
