@@ -33,6 +33,18 @@ export const Digits: Story = {
   args: { keyName: "Digits" },
 };
 
+export const KeypadPlus: Story = {
+  args: { keyName: "NumpadAdd" },
+};
+
+export const KeypadMinus: Story = {
+  args: { keyName: "NumpadSubtract" },
+};
+
+export const KeypadPlusMinus: Story = {
+  args: { keyName: "NumpadAddSubtract" },
+};
+
 export const Letter: Story = {
   args: { keyName: "K" },
 };
