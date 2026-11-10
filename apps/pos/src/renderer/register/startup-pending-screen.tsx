@@ -524,9 +524,7 @@ export function StartupPendingScreen({
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 bg-surface-soft p-6">
         <ScreenHeader
-          eyebrow={
-            registerName === null ? "Antes de empezar" : `${registerName} · Antes de empezar`
-          }
+          eyebrow="Antes de empezar"
           title="Hay cosas para resolver"
           description="La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó."
         />

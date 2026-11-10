@@ -319,7 +319,7 @@ export function InitialCountScreen({
       aside={open ? <InitialCountSummaryPanel state={lines} onFinish={goHome} /> : null}
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader eyebrow="Puesta en marcha · Sin sesión de caja" title="Inventario inicial" />
+        <ScreenHeader eyebrow="Puesta en marcha" title="Inventario inicial" />
         {open ? (
           <>
             <form ref={field} noValidate className="relative" onSubmit={submit}>

@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { House } from "lucide-react";
 import { useState } from "react";
 import { useKeys } from "../platform/key-layer";
@@ -18,13 +18,11 @@ export function NoSessionRail({
   signOut: () => void;
 }) {
   const navigate = useNavigate();
+  const atHome = useLocation({ select: ({ pathname }) => pathname === "/" });
   const [leaving, setLeaving] = useState(false);
-  useKeys(
-    [{ key: "Escape", run: () => void navigate({ to: "/" }), enabled: current !== undefined }],
-    {
-      fallback: true,
-    },
-  );
+  useKeys([{ key: "Escape", run: () => void navigate({ to: "/" }), enabled: !atHome }], {
+    fallback: true,
+  });
   return (
     <>
       <NavigationRail
