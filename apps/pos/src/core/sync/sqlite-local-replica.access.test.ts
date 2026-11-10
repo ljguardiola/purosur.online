@@ -227,6 +227,20 @@ describe("the register's local copy of the users, roles and permissions it pulls
     });
   });
 
+  it("saves a role that still grants a permission the cloud no longer offers", async () => {
+    await save(
+      roleChange(
+        1,
+        roleRow({ permission_keys: ["sell_and_charge", "read_register_help"], version: 2 }),
+      ),
+    );
+
+    expect(replica.role(ROLE_ID)?.permissions).toEqual([
+      { permission_key: "read_register_help", active: true },
+      { permission_key: "sell_and_charge", active: true },
+    ]);
+  });
+
   it("saves the Administrator role with no name and no listed permission", async () => {
     await save(
       roleChange(1, { name: null, is_administrator: true, permission_keys: [], version: 1 }),

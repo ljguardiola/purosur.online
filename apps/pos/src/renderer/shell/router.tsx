@@ -99,8 +99,6 @@ import { FirstSignInCodeStep } from "../credentials/first-sign-in-code-step";
 import { FirstSignInNoPin } from "../credentials/first-sign-in-no-pin";
 import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-screen";
 import { ClockGuardOffer } from "../fiscal/clock-guard-offer";
-import { HelpScreen } from "../help/help-screen";
-import { help } from "../help/register-help";
 import { EnrollmentScreen, ReEnrollmentScreen } from "../installation/enrollment-screen";
 import { OutOfServiceScreen } from "../installation/out-of-service-screen";
 import { RevokedInstallationScreen } from "../installation/revoked-installation-screen";
@@ -595,31 +593,6 @@ const signedInRoute = createRoute({
           </>
         }
         openCashSession={openCashSession}
-      />
-    );
-  },
-});
-
-const helpRoute = createRoute({
-  getParentRoute: () => statusBarRoute,
-  path: "/help",
-  beforeLoad: ({ context }) => {
-    const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
-    if (!person.abilities.includes("read_register_help")) {
-      throw redirect({ to: routeFor(context) });
-    }
-    return { person, sessionOpen };
-  },
-  component: function HelpRoute() {
-    const { person, sessionOpen, signOut } = helpRoute.useRouteContext();
-    const registerName = useRegisterName();
-    return (
-      <HelpScreen
-        person={person}
-        registerName={registerName}
-        sessionOpen={sessionOpen}
-        help={help}
-        signOut={signOut}
       />
     );
   },
@@ -1372,7 +1345,6 @@ export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
     statusBarRoute.addChildren([
       signedInRoute,
-      helpRoute,
       receiptPrinterRoute,
       serialDevicesRoute,
       initialCountRoute,

@@ -9,7 +9,6 @@ const EVERY_ENTRY: readonly RegisterAbility[] = [
   "view_sales_history",
   "configure_receipt_printer",
   "configure_serial_devices",
-  "read_register_help",
 ];
 
 function personWith(abilities: readonly RegisterAbility[]): SignedInPerson {
@@ -31,7 +30,6 @@ describe("NoSessionRail", () => {
     ["/history", "Historial"],
     ["/receipt-printer", "Impresora"],
     ["/serial-devices", "Balanza y lector"],
-    ["/help", "Ayuda"],
   ] as const)(
     "lists every entry the person may use on %s, with %s as the current one",
     async (current, open) => {
@@ -44,7 +42,6 @@ describe("NoSessionRail", () => {
         "Historial",
         "Impresora",
         "Balanza y lector",
-        "Ayuda",
         "Salir",
       ]);
       const currentItems = Array.from(
@@ -56,14 +53,10 @@ describe("NoSessionRail", () => {
 
   it("leaves out the entries the person may not use", async () => {
     const screen = await render(
-      <NoSessionRail
-        person={personWith(["read_register_help"])}
-        current="/help"
-        signOut={vi.fn()}
-      />,
+      <NoSessionRail person={personWith(["view_sales_history"])} signOut={vi.fn()} />,
     );
 
-    expect(railItems(screen)).toEqual(["Inicio", "Ayuda", "Salir"]);
+    expect(railItems(screen)).toEqual(["Inicio", "Historial", "Salir"]);
   });
 
   it("sends Inicio home from any other screen", async () => {

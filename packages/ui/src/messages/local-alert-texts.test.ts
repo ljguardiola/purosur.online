@@ -137,7 +137,7 @@ test("gives a notebook whose Windows does not shut down at critical battery its 
     title: "Windows no apaga la notebook con batería crítica",
     meaning:
       "Si se corta la luz y la batería se agota, la notebook puede apagarse de golpe en lugar de cerrarse en orden.",
-    whatToDo: "Avisar al Administrador. La ayuda de la caja explica cómo configurarlo.",
+    whatToDo: "Avisá al Administrador.",
   });
   expect(localAlertTitle("critical_battery_action_not_shutdown")).toBe(
     "Windows no apaga la notebook con batería crítica",

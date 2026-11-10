@@ -128,7 +128,7 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     title: "Windows no apaga la notebook con batería crítica",
     meaning:
       "Si se corta la luz y la batería se agota, la notebook puede apagarse de golpe en lugar de cerrarse en orden.",
-    whatToDo: "Avisar al Administrador. La ayuda de la caja explica cómo configurarlo.",
+    whatToDo: "Avisá al Administrador.",
   },
   late_payment_refund: {
     title: "Reembolso pendiente por un pago tardío",

@@ -215,18 +215,13 @@ describe("OpenSessionRail", () => {
       .not.toHaveAttribute("aria-current");
   });
 
-  it("offers Ayuda, last, to a person who may read the help", async () => {
+  it("ends with the scale and reader, with no help entry", async () => {
     const screen = await render(
       <OpenSessionRail
         registerName="Caja 1"
         lock={() => {}}
         current="sale"
-        abilities={[
-          "view_sales_history",
-          "configure_receipt_printer",
-          "configure_serial_devices",
-          "read_register_help",
-        ]}
+        abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
       />,
     );
 
@@ -234,52 +229,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual([
-      "Historial",
-      "Devolver",
-      "Caja",
-      "Impresora",
-      "Balanza y lector",
-      "Ayuda",
-    ]);
-    expect(screen.getByRole("link", { name: "Ayuda" }).element().getAttribute("href")).toBe(
-      "/help",
-    );
-  });
-
-  it("offers no help to a person who may not read it", async () => {
-    const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="sale"
-        abilities={["view_sales_history"]}
-      />,
-    );
-
-    await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Ayuda" })).not.toBeInTheDocument();
-  });
-
-  it("marks Ayuda as current on the help screen", async () => {
-    const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="help"
-        abilities={["view_sales_history", "read_register_help"]}
-      />,
-    );
-
-    await expect
-      .element(screen.getByRole("link", { name: "Ayuda" }))
-      .toHaveAttribute("aria-current", "page");
-    await expect
-      .element(screen.getByRole("link", { name: "Historial" }))
-      .not.toHaveAttribute("aria-current");
-    expect(screen.getByRole("link", { name: "Venta" }).element().getAttribute("href")).toBe(
-      "/session",
-    );
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Impresora", "Balanza y lector"]);
   });
 
   describe("Salir", () => {

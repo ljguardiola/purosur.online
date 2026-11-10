@@ -32,6 +32,18 @@ describe("the person who redeemed a code", () => {
     });
   });
 
+  it("leaves out a permission the register no longer knows and keeps the rest", () => {
+    expect(personFor(record(["sell_and_charge", "read_register_help"]))).toEqual({
+      user_id: "u1",
+      first_name: "Ada",
+      abilities: ["open_cash_session", "invoice_deferred_sale"],
+    });
+  });
+
+  it("is nobody when the only register permission held is one the register no longer knows", () => {
+    expect(personFor(record(["read_register_help"]))).toBeUndefined();
+  });
+
   it("is nobody without a register permission", () => {
     expect(personFor(record([]))).toBeUndefined();
   });

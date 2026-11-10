@@ -42,8 +42,12 @@ afterEach(async () => {
 });
 
 describe("what the cloud keeps from a register in the field", () => {
-  it("has a reader for the release in the field and for the current one", () => {
-    expect(FIELD_READERS.map(({ version }) => version)).toEqual(["0.0.1271", "1.0.1385"]);
+  it("has a reader for each register release in the field", () => {
+    expect(FIELD_READERS.map(({ version }) => version)).toEqual([
+      "0.0.1271",
+      "1.0.1385",
+      "1.0.1687",
+    ]);
   });
 
   it.each(FIELD_READERS.map((reader) => [reader.version, reader] as const))(
@@ -81,6 +85,7 @@ const WHAT_EACH_RELEASE_CANNOT_READ = {
     kinds: ["return", "assembly_void", "exchange_out"],
   },
   "1.0.1385": { entities: [], kinds: ["exchange_out"] },
+  "1.0.1687": { entities: [], kinds: [] },
 } as const;
 
 type ReceivedChange = { entity: string; entity_id: string; row?: { kind?: string } };
@@ -167,7 +172,7 @@ describe("GET /changes read by the register releases in the field", () => {
     },
   );
 
-  it("the release in the field refuses a product whose net content unit it does not know", async () => {
+  it("0.0.1271 refuses a product whose net content unit it does not know", async () => {
     const reader = readerOf("0.0.1271");
     const product = changeOf(await pagesReadBy(reader), "product");
     const weighing = (unit: string) => ({
@@ -179,7 +184,7 @@ describe("GET /changes read by the register releases in the field", () => {
     expect(reader.changesPage.safeParse(pageOf(weighing("furlong"))).success).toBe(false);
   });
 
-  it("the release in the field refuses a brand, which the current release reads", async () => {
+  it("0.0.1271 refuses a brand, which 1.0.1385 reads", async () => {
     const brand = changeOf(await pagesReadBy(readerOf("1.0.1385")), "brand");
 
     expect(readerOf("0.0.1271").changesPage.safeParse(pageOf(brand)).success).toBe(false);
