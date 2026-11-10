@@ -77,9 +77,9 @@ test.each([
     search: PERIOD_SEARCH,
   },
   {
-    retired: "/reports/current-stock?category=category-1&sortBy=lots&sort=ascending",
+    retired: "/reports/current-stock?category=category-1&sortBy=lots&sort=descending",
     path: "/stock",
-    search: { category: "category-1", sortBy: "lots", sort: "ascending" },
+    search: { category: "category-1", sortBy: "lots", sort: "descending" },
   },
   {
     retired: `/reports/expiring-lots?${PERIOD}`,
@@ -89,7 +89,7 @@ test.each([
   {
     retired: `/reports/losses-by-reason?${PERIOD}`,
     path: "/stock/movements",
-    search: { ...PERIOD_SEARCH, type: ["loss"], view: "reason" },
+    search: { ...PERIOD_SEARCH, type: "loss", view: "reason" },
   },
   {
     retired: `/reports/purchases-by-supplier?${PERIOD}`,
