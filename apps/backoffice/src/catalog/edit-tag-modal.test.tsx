@@ -58,7 +58,7 @@ test("opens on the tag's name, titled with it, saying how many products show it"
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Productos · Distintivos")).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Etiquetas")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Sin TACC" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Sin TACC");
   await expect
@@ -103,7 +103,7 @@ test("requires a name, and refuses one longer than 100 characters, without calli
   const dialog = screen.getByRole("dialog");
 
   await save(screen, "");
-  await expect.element(dialog.getByText("Ingresá el nombre del distintivo.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá el nombre dla etiqueta.")).toBeVisible();
 
   await save(screen, "a".repeat(101));
   await expect
@@ -120,7 +120,7 @@ test("a rename to a name another tag has shows the error in place of the product
 
   const dialog = await save(screen, "Vegano");
 
-  await expect.element(dialog.getByText("Ya existe un distintivo con este nombre.")).toBeVisible();
+  await expect.element(dialog.getByText("Ya existe una etiqueta con este nombre.")).toBeVisible();
   expect(dialog.getByText("El nombre nuevo se ve en sus 34 productos.").query()).toBeNull();
 });
 
@@ -136,9 +136,7 @@ test("a stale version asks to reload, and reloading refills the form from the fr
   const screen = await renderModal({ editTag, reload });
   const dialog = await save(screen, "Sin TACC 2");
 
-  await expect
-    .element(dialog.getByText("Este distintivo cambió mientras lo editabas"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Esta etiqueta cambió mientras la editabas")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Sin gluten");
@@ -162,7 +160,7 @@ test("reloading a tag that no longer exists says so", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este distintivo ya no existe");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Esta etiqueta ya no existe");
 });
 
 test("shows a not-found notice when the tag no longer exists", async () => {
@@ -173,7 +171,7 @@ test("shows a not-found notice when the tag no longer exists", async () => {
 
   const dialog = await save(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este distintivo ya no existe");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Esta etiqueta ya no existe");
 });
 
 test("shows the failure notice", async () => {
@@ -182,7 +180,7 @@ test("shows the failure notice", async () => {
 
   const dialog = await save(screen);
 
-  await expect.element(dialog.getByText("No se guardó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se guardó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
 });
 
@@ -243,7 +241,7 @@ test("tells an outdated tab to reload because the backoffice was updated when sa
 
   const dialog = await save(screen);
 
-  await expect.element(dialog.getByText("No se guardó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se guardó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

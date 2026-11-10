@@ -220,7 +220,7 @@ describe("messages", () => {
   const KG_MESSAGE = "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.";
 
   it("asks for the size when it is blank and explains the format when it is unreadable", () => {
-    expect(batchSizeMessage("", "KG", true)).toBe("Ingresá el tamaño de la tanda.");
+    expect(batchSizeMessage("", "KG", true)).toBe("Ingresá el tamaño de la producción.");
     expect(batchSizeMessage("abc", "KG", true)).toBe(KG_MESSAGE);
   });
 
@@ -237,7 +237,7 @@ describe("messages", () => {
 
   it("asks to wait for the quantities while a readable size has no proposal yet", () => {
     expect(batchSizeMessage("5", "KG", false)).toBe(
-      "Todavía no se calcularon las cantidades de la tanda. Probá de nuevo.",
+      "Todavía no se calcularon las cantidades de la producción. Probá de nuevo.",
     );
   });
 

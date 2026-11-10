@@ -68,7 +68,7 @@ test("lists only the batches of this product, voided ones marked", async () => {
 test("registers a batch with the same modal as the batches list", async () => {
   const screen = await renderSection(createServices());
 
-  await userEvent.click(screen.getByRole("button", { name: "Registrar tanda" }));
+  await userEvent.click(screen.getByRole("button", { name: "Registrar producción" }));
 
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 });
@@ -82,7 +82,7 @@ test("asks to confirm before cancelling a batch", async () => {
   const screen = await renderSection(services);
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Anular tanda de Mix de frutos secos" }),
+    screen.getByRole("button", { name: "Anular producción de Mix de frutos secos" }),
   );
 
   expect(services.voidAssemblyBatch).not.toHaveBeenCalled();
@@ -95,7 +95,7 @@ test("shows only the recipe to a person without the batches capability, never as
   const screen = await renderSection(services, { mayManageBatches: false });
 
   await expect.element(screen.getByText(almendras.name, { exact: true })).toBeVisible();
-  expect(screen.getByRole("table", { name: "Tandas" }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
+  expect(screen.getByRole("table", { name: "Producciones" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Registrar producción" }).query()).toBeNull();
   expect(services.fetchAssemblyBatches).not.toHaveBeenCalled();
 });

@@ -82,7 +82,7 @@ async function loaded(
     value: tagList(tags, taggedProductCount),
   });
   const screen = await renderScreen(services, () => {}, options);
-  await expect.element(screen.getByRole("table", { name: "Distintivos" })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Etiquetas" })).toBeVisible();
   return screen;
 }
 
@@ -92,7 +92,7 @@ test("shows each active tag with its product count and state, and the totals", a
 
   expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activo", "Vegano18Activo"]);
-  await expect.element(screen.getByText("2 distintivos · 3 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 etiquetas · 3 productos")).toBeVisible();
 });
 
 test("the state filter shows the inactive tags, or every tag, counting the inactive ones", async () => {
@@ -103,12 +103,12 @@ test("the state filter shows the inactive tags, or every tag, counting the inact
   await userEvent.click(screen.getByRole("option", { name: "Inactivos" }));
 
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactivo"]);
-  await expect.element(screen.getByText("1 distintivo · 1 inactivo · 37 productos")).toBeVisible();
+  await expect.element(screen.getByText("1 etiqueta · 1 inactiva · 37 productos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
 
-  await expect.element(screen.getByText("2 distintivos · 1 inactivo · 37 productos")).toBeVisible();
+  await expect.element(screen.getByText("2 etiquetas · 1 inactiva · 37 productos")).toBeVisible();
 });
 
 test("lists tags by name, and the products header orders them by how many products carry them", async () => {
@@ -130,10 +130,10 @@ test("the search field filters the tags by name, case-insensitively", async () =
   const services = createServices();
   const screen = await loaded(services, [sinTacc, vegano], {}, 40);
 
-  await userEvent.fill(screen.getByPlaceholder("Buscar un distintivo"), "vEG");
+  await userEvent.fill(screen.getByPlaceholder("Buscar una etiqueta"), "vEG");
 
   await expect.poll(() => rowTexts(screen).length).toBe(1);
-  await expect.element(screen.getByText("1 distintivo · 40 productos")).toBeVisible();
+  await expect.element(screen.getByText("1 etiqueta · 40 productos")).toBeVisible();
 });
 
 test("shows the blank empty state when there are no tags yet, with no footer", async () => {
@@ -142,7 +142,7 @@ test("shows the blank empty state when there are no tags yet, with no footer", a
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Todavía no hay distintivos")).toBeVisible();
+  await expect.element(screen.getByText("Todavía no hay etiquetas")).toBeVisible();
   await expect
     .element(
       screen.getByText(
@@ -150,14 +150,14 @@ test("shows the blank empty state when there are no tags yet, with no footer", a
       ),
     )
     .toBeVisible();
-  expect(screen.getByText(/0 distintivos/).query()).toBeNull();
+  expect(screen.getByText(/0 etiquetas/).query()).toBeNull();
 });
 
 test("shows a filtered empty state when the search matches nothing", async () => {
   const services = createServices();
   const screen = await loaded(services, [sinTacc]);
 
-  await userEvent.fill(screen.getByPlaceholder("Buscar un distintivo"), "zzz");
+  await userEvent.fill(screen.getByPlaceholder("Buscar una etiqueta"), "zzz");
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
 });
@@ -168,7 +168,7 @@ test("shows a filtered empty state when no tag has the chosen state", async () =
     filters: tagsListFilters.parse({ status: "inactive" }),
   });
 
-  await expect.element(screen.getByText("No hay distintivos inactivos")).toBeVisible();
+  await expect.element(screen.getByText("No hay etiquetas inactivas")).toBeVisible();
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
@@ -178,12 +178,12 @@ test("shows a load error with a retry action that starts again from the loading 
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los distintivos")).toBeVisible();
+  await expect.element(screen.getByText("No pudimos abrir los etiquetas")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect
-    .element(screen.getByRole("table", { name: "Distintivos" }))
+    .element(screen.getByRole("table", { name: "Etiquetas" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: tagList([sinTacc]) });
   await expect.element(screen.getByText("Sin TACC")).toBeVisible();
@@ -230,11 +230,11 @@ test("the create action stays available while the tags load, and after they fail
   vi.mocked(services.fetchTags).mockReturnValueOnce(firstLoad.promise);
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("button", { name: "Nuevo distintivo" })).toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Nueva etiqueta" })).toBeEnabled();
 
   firstLoad.resolve({ kind: "failed" });
-  await expect.element(screen.getByText("No pudimos abrir los distintivos")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Nuevo distintivo" })).toBeEnabled();
+  await expect.element(screen.getByText("No pudimos abrir los etiquetas")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva etiqueta" })).toBeEnabled();
 });
 
 test("the create action opens the new tag modal, and the created tag is listed", async () => {
@@ -252,11 +252,11 @@ test("the create action opens the new tag modal, and the created tag is listed",
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Sin TACC")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Nuevo distintivo" }));
+  await userEvent.click(screen.getByRole("button", { name: "Nueva etiqueta" }));
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("Productos · Distintivos", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Etiquetas", { exact: true })).toBeVisible();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sin conservantes");
-  await userEvent.click(dialog.getByRole("button", { name: "Crear el distintivo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la etiqueta" }));
 
   expect(services.createTag).toHaveBeenCalledWith({ name: "Sin conservantes" });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -266,7 +266,7 @@ test("the create action opens the new tag modal, and the created tag is listed",
 test("cancel closes the new tag modal", async () => {
   const services = createServices();
   const screen = await loaded(services, [sinTacc]);
-  await userEvent.click(screen.getByRole("button", { name: "Nuevo distintivo" }));
+  await userEvent.click(screen.getByRole("button", { name: "Nueva etiqueta" }));
 
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
@@ -278,7 +278,7 @@ test("the edit action opens the tag's edit modal, and the saved rename is listed
   vi.mocked(services.editTag).mockResolvedValue({ kind: "ok" });
   const screen = await loaded(services, [sinTacc]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Editar el distintivo Sin TACC" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar la etiqueta Sin TACC" }));
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByRole("heading", { name: "Sin TACC" })).toBeVisible();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sin gluten");
@@ -300,12 +300,10 @@ test("a stale version's reload refills the edit modal from the list read again",
   const services = createServices();
   vi.mocked(services.editTag).mockResolvedValue({ kind: "stale_version" });
   const screen = await loaded(services, [sinTacc]);
-  await userEvent.click(screen.getByRole("button", { name: "Editar el distintivo Sin TACC" }));
+  await userEvent.click(screen.getByRole("button", { name: "Editar la etiqueta Sin TACC" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-  await expect
-    .element(dialog.getByText("Este distintivo cambió mientras lo editabas"))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Esta etiqueta cambió mientras la editabas")).toBeVisible();
   vi.mocked(services.fetchTags).mockResolvedValue({
     kind: "ok",
     value: tagList([{ ...sinTacc, name: "Sin gluten", version: 5 }]),
@@ -321,10 +319,10 @@ test("deactivating asks first, then deactivates the tag and refreshes the list",
   vi.mocked(services.deactivateTag).mockResolvedValue({ kind: "ok" });
   const screen = await loaded(services, [sinTacc, sinColorantes]);
 
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar el distintivo Sin TACC" }));
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la etiqueta Sin TACC" }));
   const dialog = screen.getByRole("dialog");
   await expect
-    .element(dialog.getByRole("heading", { name: '¿Desactivar el distintivo "Sin TACC"?' }))
+    .element(dialog.getByRole("heading", { name: '¿Desactivar la etiqueta "Sin TACC"?' }))
     .toBeVisible();
   vi.mocked(services.fetchTags).mockResolvedValue({
     kind: "ok",
@@ -334,7 +332,7 @@ test("deactivating asks first, then deactivates the tag and refreshes the list",
 
   expect(services.deactivateTag).toHaveBeenCalledWith("7a600000-0000-4000-8000-000000000001");
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("No hay distintivos activos")).toBeVisible();
+  await expect.element(screen.getByText("No hay etiquetas activas")).toBeVisible();
 });
 
 test("reactivating an inactive tag asks first, then reactivates it and refreshes the list", async () => {
@@ -344,15 +342,15 @@ test("reactivating an inactive tag asks first, then reactivates it and refreshes
     filters: tagsListFilters.parse({ status: "all" }),
   });
   expect(
-    screen.getByRole("button", { name: "Desactivar el distintivo Sin colorantes" }).query(),
+    screen.getByRole("button", { name: "Desactivar la etiqueta Sin colorantes" }).query(),
   ).toBeNull();
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Reactivar el distintivo Sin colorantes" }),
+    screen.getByRole("button", { name: "Reactivar la etiqueta Sin colorantes" }),
   );
   const dialog = screen.getByRole("dialog");
   await expect
-    .element(dialog.getByRole("heading", { name: '¿Reactivar el distintivo "Sin colorantes"?' }))
+    .element(dialog.getByRole("heading", { name: '¿Reactivar la etiqueta "Sin colorantes"?' }))
     .toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
 
@@ -365,7 +363,7 @@ test("updating the list after a tag was already deactivated closes the question 
   const services = createServices();
   vi.mocked(services.deactivateTag).mockResolvedValue({ kind: "already_changed" });
   const screen = await loaded(services, [sinTacc]);
-  await userEvent.click(screen.getByRole("button", { name: "Desactivar el distintivo Sin TACC" }));
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la etiqueta Sin TACC" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
@@ -383,16 +381,16 @@ test("opens with the filters it is given, and reports every change to them", asy
     onFiltersChange,
   });
 
-  await expect.element(screen.getByPlaceholder("Buscar un distintivo")).toHaveValue("veg");
+  await expect.element(screen.getByPlaceholder("Buscar una etiqueta")).toHaveValue("veg");
   await expect.poll(() => rowTexts(screen)).toHaveLength(1);
   expect(onFiltersChange).not.toHaveBeenCalled();
 
-  await userEvent.fill(screen.getByPlaceholder("Buscar un distintivo"), "");
+  await userEvent.fill(screen.getByPlaceholder("Buscar una etiqueta"), "");
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
     .toEqual({ search: "", status: "all", sortBy: "products", sort: "descending" });
 
-  await userEvent.click(screen.getByRole("button", { name: "Distintivo" }));
+  await userEvent.click(screen.getByRole("button", { name: "Etiqueta" }));
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
     .toEqual({ search: "", status: "all", sortBy: "tag", sort: "ascending" });
@@ -405,6 +403,6 @@ test("has no accessibility violations once loaded, and with the create modal ope
   });
 
   await expectNoAccessibilityViolations(screen.container);
-  await userEvent.click(screen.getByRole("button", { name: "Nuevo distintivo" }));
+  await userEvent.click(screen.getByRole("button", { name: "Nueva etiqueta" }));
   await expectNoAccessibilityViolations(document.body);
 });

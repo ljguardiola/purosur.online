@@ -54,7 +54,7 @@ test("shows the eyebrow, the title, the product field, the help text and both ac
   await expect
     .element(
       dialog.getByText(
-        "Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo que realmente se usó.",
+        "Es una plantilla: al registrar una producción se proponen estas cantidades y se registra lo que realmente se usó.",
       ),
     )
     .toBeVisible();

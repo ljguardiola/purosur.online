@@ -47,7 +47,7 @@ test("asks about the tag by name, saying what happens to the products that have 
   const dialog = screen.getByRole("dialog");
 
   await expect
-    .element(dialog.getByRole("heading", { name: '¿Reactivar el distintivo "Sin colorantes"?' }))
+    .element(dialog.getByRole("heading", { name: '¿Reactivar la etiqueta "Sin colorantes"?' }))
     .toBeVisible();
   await expect
     .element(dialog.getByText("Vuelve a ofrecerse para asignarlo a productos nuevos."))
@@ -99,7 +99,7 @@ test("tells when the tag no longer exists", async () => {
   const screen = await renderModal({ reactivateTag });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este distintivo ya no existe");
+  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Esta etiqueta ya no existe");
 });
 
 test("shows the failure notice, and the confirmation stays available", async () => {
@@ -109,7 +109,7 @@ test("shows the failure notice, and the confirmation stays available", async () 
   const screen = await renderModal({ reactivateTag });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("No se reactivó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se reactivó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Reactivar" })).toBeEnabled();
 });
@@ -160,7 +160,7 @@ test("tells an outdated tab to reload because the backoffice was updated when re
   const screen = await renderModal({ reactivateTag });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("No se reactivó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se reactivó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
   await expect.element(dialog.getByRole("button", { name: "Reactivar" })).toBeEnabled();

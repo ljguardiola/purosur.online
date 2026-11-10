@@ -124,8 +124,8 @@ test("shows each recipe with its product, components and no batch yet", async ()
   await expect
     .poll(() => rowTexts(screen))
     .toEqual([
-      "Caja de infusionesInfusiones · por unidad2 componentesTé verde y Miel pura 1 kgSin tandas",
-      "Mix de frutos secosFrutos secos · por peso4 componentesAlmendras, Nueces, Maní y PasasSin tandas",
+      "Caja de infusionesInfusiones · por unidad2 componentesTé verde y Miel pura 1 kgSin producciones",
+      "Mix de frutos secosFrutos secos · por peso4 componentesAlmendras, Nueces, Maní y PasasSin producciones",
     ]);
 });
 
@@ -169,7 +169,7 @@ test("says the cost of the last batch is incomplete when the cloud could not com
   ]);
 
   await expect.element(screen.getByText("Costo incompleto")).toBeVisible();
-  await expect.element(screen.getByText("Tanda del 15/09/2026")).toBeVisible();
+  await expect.element(screen.getByText("Producción del 15/09/2026")).toBeVisible();
 });
 
 test("counts the assembled products under the table", async () => {
@@ -678,9 +678,9 @@ test("registers a batch from the panel with a modal", async () => {
   });
   const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
 
-  await userEvent.click(panel.getByRole("button", { name: "Registrar tanda" }));
+  await userEvent.click(panel.getByRole("button", { name: "Registrar producción" }));
 
-  await expect.element(screen.getByRole("dialog", { name: "Nueva tanda" })).toBeVisible();
+  await expect.element(screen.getByRole("dialog", { name: "Nueva producción" })).toBeVisible();
 });
 
 test("asks to confirm in a modal before cancelling a batch from the panel", async () => {
@@ -691,10 +691,12 @@ test("asks to confirm in a modal before cancelling a batch from the panel", asyn
   });
   const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
 
-  await userEvent.click(panel.getByRole("button", { name: "Anular tanda de Mix de frutos secos" }));
+  await userEvent.click(
+    panel.getByRole("button", { name: "Anular producción de Mix de frutos secos" }),
+  );
 
   await expect
-    .element(screen.getByRole("dialog", { name: "¿Anular la tanda de Mix de frutos secos?" }))
+    .element(screen.getByRole("dialog", { name: "¿Anular la producción de Mix de frutos secos?" }))
     .toBeVisible();
   expect(batchServices.voidAssemblyBatch).not.toHaveBeenCalled();
 });
@@ -707,6 +709,6 @@ test("shows the panel's recipe without its batches to a session without the batc
 
   const panel = screen.getByRole("complementary");
   await expect.element(panel.getByText(almendras.name, { exact: true })).toBeVisible();
-  expect(panel.getByRole("table", { name: "Tandas" }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
+  expect(panel.getByRole("table", { name: "Producciones" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Registrar producción" }).query()).toBeNull();
 });

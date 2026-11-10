@@ -67,15 +67,7 @@ test("shows the columns of the list", async () => {
       .getByRole("columnheader")
       .elements()
       .map((header) => header.textContent),
-  ).toEqual([
-    "Caja",
-    "Registro",
-    "Evento",
-    "Recibido",
-    "Retenido desde",
-    "Motivo",
-    "Acciones",
-  ]);
+  ).toEqual(["Caja", "Registro", "Evento", "Recibido", "Retenido desde", "Motivo", "Acciones"]);
 });
 
 test("shows each quarantined event with its register, event, times and why it was quarantined", async () => {

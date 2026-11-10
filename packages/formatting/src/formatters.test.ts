@@ -635,7 +635,7 @@ describe("formatLotName", () => {
   it.each([
     ["purchase", "Compra 03/11/2026"],
     ["initial_count", "Inventario inicial 03/11/2026"],
-    ["assembly_batch", "Tanda 03/11/2026"],
+    ["assembly_batch", "Producción 03/11/2026"],
     ["technical", "Técnico 03/11/2026"],
   ] as const)("names a lot of origin %s as %s", (origin, text) => {
     expect(formatLotName({ origin, day: "2026-11-03", number: null })).toBe(text);

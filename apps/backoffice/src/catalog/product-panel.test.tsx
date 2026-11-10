@@ -47,7 +47,7 @@ test("is titled with the product's name and opens on Datos with the product's da
   await expect.element(screen.getByText(honey.barcodes[0] ?? "")).toBeVisible();
 });
 
-test("offers Datos, Precio y costo and Stock y lotes for a simple product, without Receta y tandas", async () => {
+test("offers Datos, Precio y costo and Stock y lotes for a simple product, without Receta y producciones", async () => {
   const screen = await renderPanel();
 
   await expect
@@ -60,21 +60,21 @@ test("offers Datos, Precio y costo and Stock y lotes for a simple product, witho
   expect(screen.getByRole("tab").elements()).toHaveLength(3);
 });
 
-test("adds Receta y tandas as the last tab for an assembled product", async () => {
+test("adds Receta y producciones as the last tab for an assembled product", async () => {
   const screen = await renderPanel({ assembled: true });
 
-  await expect.element(screen.getByRole("tab", { name: "Receta y tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Receta y producciones" })).toBeVisible();
   expect(screen.getByRole("tab").elements()).toHaveLength(4);
 });
 
-test("leaves Receta y tandas out for an assembled product when the person has no recipes capability", async () => {
+test("leaves Receta y producciones out for an assembled product when the person has no recipes capability", async () => {
   const screen = await renderPanel({
     assembled: true,
     access: accessWith("products_and_categories", "prices_area", "stock_balances"),
   });
 
   await expect.element(screen.getByRole("tab", { name: "Stock y lotes" })).toBeVisible();
-  expect(screen.getByRole("tab", { name: "Receta y tandas" }).query()).toBeNull();
+  expect(screen.getByRole("tab", { name: "Receta y producciones" }).query()).toBeNull();
 });
 
 test.each([
@@ -108,14 +108,14 @@ test.each([
   await expect.element(screen.getByText(content)).toBeVisible();
 });
 
-test("opens Receta y tandas and tells the section whether batches may be registered", async () => {
+test("opens Receta y producciones and tells the section whether batches may be registered", async () => {
   const screen = await renderPanel({ tab: "recipe", assembled: true });
 
   await expect
-    .element(screen.getByRole("tab", { name: "Receta y tandas", selected: true }))
+    .element(screen.getByRole("tab", { name: "Receta y producciones", selected: true }))
     .toBeVisible();
   await expect
-    .element(screen.getByText(`Receta de ${honey.name}, tandas con registro`))
+    .element(screen.getByText(`Receta de ${honey.name}, producciones con registro`))
     .toBeVisible();
 });
 

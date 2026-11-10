@@ -591,7 +591,7 @@ test("the brand just created is selected even before the brands are read again",
 });
 
 function addTagButton(dialog: Locator) {
-  return dialog.getByRole("button", { name: "Agregar distintivo" });
+  return dialog.getByRole("button", { name: "Agregar etiqueta" });
 }
 
 test("editing a product with a deactivated tag shows it as a removable chip with the help line, and keeps it on save", async () => {
@@ -633,7 +633,7 @@ test("removing the deactivated tag drops the help line and the tag, which is not
       .getByRole("menuitem")
       .all()
       .map((item) => item.element().textContent),
-  ).toEqual(["Vegano", "Crear distintivo…"]);
+  ).toEqual(["Vegano", "Crear etiqueta…"]);
   await userEvent.keyboard("{Escape}");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
@@ -662,13 +662,13 @@ test("a tag chosen is appended after the product's own, and every tag just creat
   await userEvent.click(page.getByRole("menuitem", { name: "Vegano" }));
   for (const name of ["Orgánico", "Kosher"]) {
     await userEvent.click(addTagButton(dialog));
-    await userEvent.click(page.getByRole("menuitem", { name: "Crear distintivo…" }));
-    const tagDialog = page.getByRole("dialog", { name: "Nuevo distintivo" });
+    await userEvent.click(page.getByRole("menuitem", { name: "Crear etiqueta…" }));
+    const tagDialog = page.getByRole("dialog", { name: "Nueva etiqueta" });
     await expect.element(tagDialog).toBeVisible();
     await userEvent.fill(tagDialog.getByRole("textbox", { name: /^Nombre/ }), name);
-    await userEvent.click(tagDialog.getByRole("button", { name: "Crear el distintivo" }));
+    await userEvent.click(tagDialog.getByRole("button", { name: "Crear la etiqueta" }));
     await expect
-      .poll(() => page.getByRole("dialog", { name: "Nuevo distintivo" }).query())
+      .poll(() => page.getByRole("dialog", { name: "Nueva etiqueta" }).query())
       .toBeNull();
   }
 

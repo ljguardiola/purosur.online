@@ -104,7 +104,7 @@ test("shows no Catálogo section column with links to the sections it used to li
 
   await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
   expect(screen.getByRole("navigation", { name: "Catálogo" }).query()).toBeNull();
-  for (const section of ["Categorías", "Marcas", "Distintivos", "Precios", "Promociones"]) {
+  for (const section of ["Categorías", "Marcas", "Etiquetas", "Precios", "Promociones"]) {
     expect(screen.getByRole("link", { name: section }).query()).toBeNull();
   }
 });
@@ -259,7 +259,7 @@ test("opens Clasificación with its three sections, each one at its own address"
   await expect
     .element(sections.getByRole("tab", { name: "Categorías", selected: true }))
     .toBeVisible();
-  for (const [index, name] of ["Categorías", "Marcas", "Distintivos"].entries()) {
+  for (const [index, name] of ["Categorías", "Marcas", "Etiquetas"].entries()) {
     await expect.element(sections.getByRole("tab").nth(index)).toHaveAccessibleName(name);
   }
   expect(screen.getByRole("heading", { name: "Categorías", level: 1 }).query()).toBeNull();
@@ -306,7 +306,7 @@ function armadosServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens Armados on Recetas, with a Tandas section beside it for a person with batches", async () => {
+test("opens Armados on Recetas, with a Producciones section beside it for a person with batches", async () => {
   const services = armadosServices(["recipes", "batches"]);
   window.history.pushState(null, "", "/products/assemblies");
 
@@ -314,44 +314,44 @@ test("opens Armados on Recetas, with a Tandas section beside it for a person wit
 
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
   await expect.element(screen.getByRole("tab", { name: "Recetas", selected: true })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Producciones" })).toBeVisible();
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 
-test("shows the batches in the Tandas section", async () => {
+test("shows the batches in the Producciones section", async () => {
   const services = armadosServices(["recipes", "batches"]);
   window.history.pushState(null, "", "/products/assemblies");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("tab", { name: "Tandas" }));
+  await userEvent.click(screen.getByRole("tab", { name: "Producciones" }));
 
-  await expect.element(screen.getByRole("table", { name: "Tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Producciones" })).toBeVisible();
   expect(location()).toBe("/products/assemblies/batches");
 });
 
-test("opens Armados with only its Tandas section, and without Recetas, for a person with only batches", async () => {
+test("opens Armados with only its Producciones section, and without Recetas, for a person with only batches", async () => {
   const services = armadosServices(["batches"]);
   window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("table", { name: "Tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Producciones" })).toBeVisible();
   await expect.element(screen.getByRole("tab", { name: "Armados", selected: true })).toBeVisible();
   expect(screen.getByRole("tab", { name: "Recetas" }).query()).toBeNull();
-  expect(screen.getByRole("tab", { name: "Tandas" }).query()).toBeNull();
+  expect(screen.getByRole("tab", { name: "Producciones" }).query()).toBeNull();
   expect(location()).toBe("/products/assemblies/batches");
   expect(services.recipesListScreen.fetchRecipes).not.toHaveBeenCalled();
 });
 
-test("opens Armados as the recipes alone, without a Tandas section, for a person with only recipes", async () => {
+test("opens Armados as the recipes alone, without a Producciones section, for a person with only recipes", async () => {
   const services = armadosServices(["recipes"]);
   window.history.pushState(null, "", "/products/assemblies");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
-  expect(screen.getByRole("tab", { name: "Tandas" }).query()).toBeNull();
+  expect(screen.getByRole("tab", { name: "Producciones" }).query()).toBeNull();
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 
@@ -365,7 +365,7 @@ test("a row of Armados opens the recipe's panel with its batches, and the recipe
   const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
   await expect.element(panel.getByText("15/09/2026")).toBeVisible();
   expect(location()).toBe(`/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
-  await expect.element(panel.getByRole("button", { name: "Registrar tanda" })).toBeVisible();
+  await expect.element(panel.getByRole("button", { name: "Registrar producción" })).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
@@ -420,7 +420,7 @@ test("a person without batches sees the recipe in its panel without its batches,
 
   const panel = screen.getByRole("complementary");
   await expect.element(panel.getByText(almendras.name, { exact: true })).toBeVisible();
-  expect(panel.getByRole("table", { name: "Tandas" }).query()).toBeNull();
+  expect(panel.getByRole("table", { name: "Producciones" }).query()).toBeNull();
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
   expect(location()).toBe(address);
 });
@@ -522,7 +522,7 @@ function productsWithPanel({ assembled }: { assembled: boolean }) {
   return services;
 }
 
-test("opens the panel of a simple product with Datos, Precio y costo and Stock y lotes, without Receta y tandas", async () => {
+test("opens the panel of a simple product with Datos, Precio y costo and Stock y lotes, without Receta y producciones", async () => {
   const services = productsWithPanel({ assembled: false });
   window.history.pushState(null, "", `/products?product=${honey.id}`);
 
@@ -535,16 +535,16 @@ test("opens the panel of a simple product with Datos, Precio y costo and Stock y
     await expect.element(tabs.getByRole("tab").nth(index)).toHaveAccessibleName(name);
   }
   expect(tabs.getByRole("tab").elements()).toHaveLength(3);
-  expect(tabs.getByRole("tab", { name: "Receta y tandas" }).query()).toBeNull();
+  expect(tabs.getByRole("tab", { name: "Receta y producciones" }).query()).toBeNull();
 });
 
-test("adds Receta y tandas to the panel of an assembled product", async () => {
+test("adds Receta y producciones to the panel of an assembled product", async () => {
   const services = productsWithPanel({ assembled: true });
   window.history.pushState(null, "", `/products?product=${honey.id}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("tab", { name: "Receta y tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Receta y producciones" })).toBeVisible();
 });
 
 test("a row opens the product's panel in the address and the tab of the panel is kept in it", async () => {

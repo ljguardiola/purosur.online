@@ -19,6 +19,14 @@ import {
 import { targetsWithCreatedProduct } from "./test-support/discount-target-creation";
 import { discountTargets } from "./test-support/discounts";
 
+const sinColorantes = {
+  id: "7a600000-0000-4000-8000-000000000003",
+  name: "Sin colorantes",
+  active: true,
+  version: 1,
+  productCount: 0,
+};
+
 const parts: DiscountTargetCreationParts = {
   productCreationModal: StubProductCreationModal,
   categoryCreationModal: StubCategoryCreationModal,
@@ -59,7 +67,7 @@ function CreationHost({
         variant="secondary"
         onPress={() => creation.creationOf("TAG")?.onCreate("Sin colorantes")}
       >
-        Crear el distintivo tipeado
+        Crear la etiqueta tipeada
       </Button>
       <Button variant="secondary" onPress={creation.reset}>
         Abrir de nuevo
@@ -71,13 +79,16 @@ function CreationHost({
 
 async function hosted(
   fetchDiscountTargets: DiscountTargetCreationServices["fetchDiscountTargets"],
-  { withParts = true }: { withParts?: boolean } = {},
+  {
+    withParts = true,
+    createTag = vi.fn(),
+  }: { withParts?: boolean; createTag?: DiscountTargetCreationServices["createTag"] } = {},
 ) {
   const choose = vi.fn();
   const onSessionEnded = vi.fn();
   const screen = await render(
     <CreationHost
-      services={{ fetchDiscountTargets, createTag: vi.fn() }}
+      services={{ fetchDiscountTargets, createTag }}
       withParts={withParts}
       choose={choose}
       onSessionEnded={onSessionEnded}
@@ -102,7 +113,7 @@ function listing(value: DiscountTargets) {
 test("offers creating each kind of target only when given the parts that create them", async () => {
   const { screen } = await hosted(listing(discountTargets));
 
-  await expect.element(screen.getByText("Creación: producto, categoría, distintivo")).toBeVisible();
+  await expect.element(screen.getByText("Creación: producto, categoría, etiqueta")).toBeVisible();
 });
 
 test("offers no creation without the parts that create targets", async () => {
@@ -269,16 +280,36 @@ test("a form shown again after leaving the screen starts from the targets it is 
     .toBeVisible();
 });
 
-test("names Productos and Promociones in the eyebrow of the distintivo it creates", async () => {
+test("names Productos and Promociones in the eyebrow of the tag it creates", async () => {
   const { screen } = await hosted(listing(discountTargets));
 
-  await userEvent.click(screen.getByRole("button", { name: "Crear el distintivo tipeado" }));
+  await userEvent.click(screen.getByRole("button", { name: "Crear la etiqueta tipeada" }));
 
   await expect
     .element(
       page
-        .getByRole("dialog", { name: "Nuevo distintivo" })
+        .getByRole("dialog", { name: "Nueva etiqueta" })
         .getByText("Productos · Promociones", { exact: true }),
+    )
+    .toBeVisible();
+});
+
+test("says a created tag could not be loaded to choose it in the feminine", async () => {
+  const createTag = vi.fn().mockResolvedValue({ kind: "ok", tag: sinColorantes });
+  const { screen } = await hosted(vi.fn().mockResolvedValue({ kind: "failed" }), { createTag });
+
+  await userEvent.click(screen.getByRole("button", { name: "Crear la etiqueta tipeada" }));
+  await userEvent.click(
+    page
+      .getByRole("dialog", { name: "Nueva etiqueta" })
+      .getByRole("button", { name: "Crear la etiqueta" }),
+  );
+
+  await expect
+    .element(
+      screen
+        .getByText("Se creó la etiqueta «Sin colorantes», pero no pudimos cargarla para elegirla.")
+        .first(),
     )
     .toBeVisible();
 });

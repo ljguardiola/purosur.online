@@ -101,7 +101,9 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
 
   await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/location-settings");
-  const configItem = screen.getByRole("link", { name: "Configuración" }).element() as HTMLAnchorElement;
+  const configItem = screen
+    .getByRole("link", { name: "Configuración" })
+    .element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const branchItem = screen.getByRole("link", { name: "Sucursal" }).element() as HTMLAnchorElement;
   expect(branchItem.getAttribute("aria-current")).toBe("page");

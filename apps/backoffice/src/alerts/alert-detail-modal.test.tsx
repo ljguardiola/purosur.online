@@ -2716,12 +2716,9 @@ test("tells that an alert for quarantined events resolves by itself and still of
 
   await expect
     .element(
-      screen.getByText(
-        "Se resuelve sola cuando no queda ningún cambio retenido de esta caja.",
-        {
-          exact: true,
-        },
-      ),
+      screen.getByText("Se resuelve sola cuando no queda ningún cambio retenido de esta caja.", {
+        exact: true,
+      }),
     )
     .toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();

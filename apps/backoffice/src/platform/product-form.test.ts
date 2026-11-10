@@ -138,7 +138,7 @@ describe("the product's tags", () => {
   });
 
   it("says a tag the cloud refuses no longer exists", () => {
-    expect(tagsMessage()).toBe("Un distintivo elegido ya no existe.");
+    expect(tagsMessage()).toBe("Una etiqueta elegida ya no existe.");
   });
 
   it("names the deactivated tag the cloud refuses, among the tags the form has", () => {
@@ -149,7 +149,7 @@ describe("the product's tags", () => {
 
   it("says a chosen tag was deactivated when the form does not know the refused one", () => {
     expect(tagInactiveError([sinTacc], vegano.id)).toBe(
-      "Un distintivo elegido se dio de baja. Quitalo para guardar.",
+      "Una etiqueta elegida se dio de baja. Quitalo para guardar.",
     );
   });
 });
