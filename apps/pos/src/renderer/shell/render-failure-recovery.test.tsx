@@ -246,6 +246,38 @@ describe("RenderFailureRecovery", () => {
     expect(reportFailure).toHaveBeenCalledTimes(3);
   });
 
+  it("shows R on Reintentar", async () => {
+    const screen = await render(
+      <RenderFailureRecovery reportFailure={vi.fn()}>
+        <ScreenThatAlwaysThrows />
+      </RenderFailureRecovery>,
+    );
+
+    await expect
+      .element(screen.getByRole("button", { name: RETRY_LABEL }).getByText("R", { exact: true }))
+      .toBeVisible();
+  });
+
+  it("shows the screen again after pressing R when it stops throwing", async () => {
+    let reportedFailures = 0;
+    const reportFailure = vi.fn(() => {
+      reportedFailures += 1;
+    });
+    const shouldThrow = () => reportedFailures < 3;
+
+    const screen = await render(
+      <RenderFailureRecovery reportFailure={reportFailure}>
+        <FailingRegisterHost shouldThrow={shouldThrow} />
+      </RenderFailureRecovery>,
+    );
+
+    await expect.element(screen.getByText(NOTICE_TITLE).first()).toBeVisible();
+
+    await userEvent.keyboard("r");
+
+    await expect.element(screen.getByText(RECOVERED_TEXT)).toBeVisible();
+  });
+
   it("applies the automatic restart budget again after Reintentar before the notice returns", async () => {
     const reportFailure = vi.fn();
 

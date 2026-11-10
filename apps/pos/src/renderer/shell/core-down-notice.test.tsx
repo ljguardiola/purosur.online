@@ -8,28 +8,28 @@ import { surfaceBehind } from "./test-support/surface-behind";
 
 describe("CoreDownNotice", () => {
   it("shows the title and body", async () => {
-    const screen = await render(<CoreDownNotice />);
+    const screen = await render(<CoreDownNotice version={null} />);
 
     await expect.element(screen.getByText("Esperá un momento")).toBeVisible();
     await expect
-      .element(screen.getByText("La caja vuelve a funcionar sola en unos minutos."))
+      .element(screen.getByText("La caja vuelve a funcionar sola en unos minutos", { exact: true }))
       .toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
   });
 
   it("announces itself to assistive technology as an urgent, page-level message", async () => {
-    const screen = await render(<CoreDownNotice />);
+    const screen = await render(<CoreDownNotice version={null} />);
 
     const alert = screen.getByRole("alert").element();
     await expect.poll(() => alert.textContent).toContain("Esperá un momento");
     await expect
       .poll(() => alert.textContent)
-      .toContain("La caja vuelve a funcionar sola en unos minutos.");
+      .toContain("La caja vuelve a funcionar sola en unos minutos");
   });
 
   it("shows the notice on the error-tone surface", async () => {
-    const screen = await render(<CoreDownNotice />);
+    const screen = await render(<CoreDownNotice version={null} />);
     const reference = await render(
       <InlineNotice tone="error" icon={<Hourglass />} title="Reference" />,
     );
@@ -40,8 +40,14 @@ describe("CoreDownNotice", () => {
   });
 
   it("shows the brand panel's logo with its accessible name", async () => {
-    const screen = await render(<CoreDownNotice />);
+    const screen = await render(<CoreDownNotice version={null} />);
 
     await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
+  });
+
+  it("shows the register's version at the foot of the brand panel once it is known", async () => {
+    const screen = await render(<CoreDownNotice version="1.4.212" />);
+
+    await expect.element(screen.getByText("Versión 1.4.212", { exact: true })).toBeVisible();
   });
 });
