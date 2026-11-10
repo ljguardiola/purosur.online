@@ -1,11 +1,12 @@
+import { ConfirmationPanel } from "@purosur/ui";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { House } from "lucide-react";
+import { House, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { ActionEntry } from "./action-entries";
 import { ACTION_ENTRIES, entriesFor } from "./action-entries";
 import { NavigationRail } from "./navigation-rail";
-import { SignOutModal } from "./sign-out-modal";
+import { FramePanel } from "./register-frame";
 import type { SignedInPerson } from "./signed-in-person";
 
 export function NoSessionRail({
@@ -23,6 +24,13 @@ export function NoSessionRail({
   useKeys([{ key: "Escape", run: () => void navigate({ to: "/" }), enabled: !atHome }], {
     fallback: true,
   });
+  useKeys(
+    [
+      { key: "Escape", run: () => setLeaving(false) },
+      { key: "Enter", run: signOut },
+    ],
+    { modal: true, active: leaving },
+  );
   return (
     <>
       <NavigationRail
@@ -31,13 +39,22 @@ export function NoSessionRail({
           ? {}
           : { current, home: { label: "Inicio", icon: House, to: "/" as const } })}
         onSignOut={() => setLeaving(true)}
+        signOutActive={leaving}
       />
-      <SignOutModal
-        open={leaving}
-        firstName={person.first_name}
-        onClose={() => setLeaving(false)}
-        onSignOut={signOut}
-      />
+      {leaving ? (
+        <FramePanel>
+          <ConfirmationPanel
+            title="¿Salir de la caja?"
+            icon={<LogOut />}
+            fieldLabel="Persona"
+            value={person.first_name}
+            actionLabel="Salir"
+            actionIcon={<LogOut />}
+            onClose={() => setLeaving(false)}
+            onConfirm={signOut}
+          />
+        </FramePanel>
+      ) : null}
     </>
   );
 }
