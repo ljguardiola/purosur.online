@@ -137,6 +137,26 @@ test("finds a numeric z-index utility behind a variant, naming it with its varia
   ]);
 });
 
+test("finds a numeric z-index utility behind a child, named group, named peer or container variant", () => {
+  assert.deepEqual(
+    numericZIndexTexts(
+      '"*:z-10 **:-z-1 group-hover/card:z-20 peer-checked/x:-z-1 @md:z-30 @max-lg/main:z-40"',
+    ),
+    [
+      "*:z-10",
+      "**:-z-1",
+      "group-hover/card:z-20",
+      "peer-checked/x:-z-1",
+      "@md:z-30",
+      "@max-lg/main:z-40",
+    ],
+  );
+});
+
+test("does not flag the z-index role utilities behind a child, named group or container variant", () => {
+  assert.deepEqual(numericZIndexTexts('"*:z-raised group-hover/card:z-overlay @md:-z-raised"'), []);
+});
+
 test("finds a numeric z-index utility marked important", () => {
   assert.deepEqual(numericZIndexTexts('"z-10! !z-20 hover:!-z-1"'), [
     "z-10",
