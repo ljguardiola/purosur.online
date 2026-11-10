@@ -5,8 +5,11 @@ import type {
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { ScanBarcode, Search } from "lucide-react";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   deferred,
@@ -46,7 +49,36 @@ function answering(outcome: SearchProductsOutcome) {
   return vi.fn<SaleScreenProps["searchProducts"]>(async () => outcome);
 }
 
+async function drawnIcon(icon: ReactElement) {
+  const reference = await render(<span>{icon}</span>);
+  const markup = reference.container.querySelector("svg")?.innerHTML;
+  await reference.unmount();
+  return markup;
+}
+
 describe("SaleScreen searching by name", () => {
+  describe("the icon of the field", () => {
+    it("shows a barcode while the field is empty or holds a code and a magnifier while it holds a name", async () => {
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND])),
+      });
+      const barcode = await drawnIcon(<ScanBarcode />);
+      const magnifier = await drawnIcon(<Search />);
+      const fieldIcon = () => screen.container.querySelector("form svg")?.innerHTML;
+      expect(barcode).not.toBe(magnifier);
+      expect(fieldIcon()).toBe(barcode);
+
+      await field.fill("yer");
+      await expect.poll(fieldIcon).toBe(magnifier);
+
+      await field.fill("7790009");
+      await expect.poll(fieldIcon).toBe(barcode);
+
+      await field.fill("");
+      await expect.poll(fieldIcon).toBe(barcode);
+    });
+  });
+
   describe("asking for the search", () => {
     it("asks the core for the text typed, without the blanks around it, once it has a letter", async () => {
       const searchProducts = answering(results([]));
