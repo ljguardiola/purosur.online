@@ -163,6 +163,12 @@ export function PricesListScreen({
     return () => clearTimeout(handle);
   }, [search]);
 
+  function clearListFilters() {
+    setSearch("");
+    setDebouncedSearch("");
+    setCategoryFilter("ALL");
+  }
+
   // Each notice gets a fresh key: an unchanged key would leave the live region's text identical, and
   // screen readers don't re-announce a live region that already holds that text.
   function showScreenNotice(shown: RaisedNotice) {
@@ -571,6 +577,9 @@ export function PricesListScreen({
             value={reviewFilter}
             onChange={(value) => {
               clearErrorNotice();
+              if (value === "pending" && period.from !== "") {
+                clearListFilters();
+              }
               setReviewFilter(value);
             }}
           />
@@ -608,9 +617,7 @@ export function PricesListScreen({
                 });
                 return;
               }
-              setSearch("");
-              setDebouncedSearch("");
-              setCategoryFilter("ALL");
+              clearListFilters();
               onFiltersChange({ search: "", category: "ALL", review: reviewFilter, ...next });
             }}
             onSessionEnded={onSessionEnded}

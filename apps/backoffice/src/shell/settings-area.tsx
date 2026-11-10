@@ -1,3 +1,4 @@
+import { Eyebrow } from "@purosur/ui";
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { Bot, PackageX, Store, Users } from "lucide-react";
 import { useId } from "react";
@@ -62,12 +63,9 @@ function SettingsArea() {
           </ul>
           {canSeeAiCostReport(session) && (
             <>
-              <h3
-                id={diagnosticsHeadingId}
-                className="mt-4 mb-1 px-3 font-bold text-caption text-text-eyebrow uppercase"
-              >
-                Diagnóstico
-              </h3>
+              <div id={diagnosticsHeadingId} className="mt-4 mb-1 px-3">
+                <Eyebrow text="Diagnóstico" headingLevel={3} />
+              </div>
               <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
                 <li>
                   <SectionLink
