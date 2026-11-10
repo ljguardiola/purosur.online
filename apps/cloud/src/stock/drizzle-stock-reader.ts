@@ -9,7 +9,6 @@ import {
   type SaleUnit,
 } from "@purosur/domain";
 import type {
-  CurrentStockReader,
   LedgerAtMoment,
   LedgerLot,
   LotInStock,
@@ -91,7 +90,7 @@ async function productLotsOf<TQueryResult extends PgQueryResultHKT>(
 }
 
 export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
-  implements StockLedgerReader, StockListReader, CurrentStockReader
+  implements StockLedgerReader, StockListReader
 {
   private readonly db: PgDatabase<TQueryResult>;
 
