@@ -19,10 +19,6 @@ function positionOf(source, index, text) {
   return { line: before.length, column: before.at(-1).length + 1, text };
 }
 
-function findMatches(source, pattern) {
-  return [...source.matchAll(pattern)].map((match) => positionOf(source, match.index, match[0]));
-}
-
 function utilityStart(token) {
   let depth = 0;
   let start = 0;
@@ -35,11 +31,15 @@ function utilityStart(token) {
   return start;
 }
 
-function closingBracketOf(token) {
+const CLASS_BOUNDARY = /[\s"'`]/;
+
+function closingBracketFrom(source, open) {
   let depth = 0;
-  for (let index = 0; index < token.length; index += 1) {
-    if (token[index] === "[") depth += 1;
-    else if (token[index] === "]") {
+  for (let index = open; index < source.length; index += 1) {
+    const character = source[index];
+    if (/\s/.test(character)) return -1;
+    if (character === "[") depth += 1;
+    else if (character === "]") {
       depth -= 1;
       if (depth === 0) return index;
     }
@@ -49,22 +49,27 @@ function closingBracketOf(token) {
 
 // A class that opens with a bracket closed right before a colon and a utility (`[.dark_&]:p-4`). A
 // computed property or an index signature is followed by a space after its colon, so it never qualifies.
+// A CSS selector string such as `"[data-slot]:first-child"` reads the same, so only a bracket that
+// querySelector refuses qualifies: one holding `&`, or opening with an at-rule or a relative combinator.
 function findLeadingArbitraryVariants(source) {
-  return [...source.matchAll(CLASS_TOKEN)].flatMap((match) => {
-    const token = match[0];
-    if (!token.startsWith("[")) return [];
-    const close = closingBracketOf(token);
-    const isVariant = token[close + 1] === ":" && token.length > close + 2;
-    return isVariant ? [positionOf(source, match.index, token.slice(0, close + 1))] : [];
+  return [...source.matchAll(/(?<![^\s"'`])\[/g)].flatMap(({ index: open }) => {
+    const close = closingBracketFrom(source, open);
+    if (close === -1 || source[close + 1] !== ":") return [];
+    if (close + 2 >= source.length || CLASS_BOUNDARY.test(source[close + 2])) return [];
+    const bracket = source.slice(open, close + 1);
+    const isVariant = bracket.includes("&") || /^\[[@>+~]/.test(bracket);
+    return isVariant ? [{ index: open, ...positionOf(source, open, bracket) }] : [];
   });
 }
 
 export function findArbitraryValues(source) {
-  const matches = [
-    ...findMatches(source, ARBITRARY_VALUE),
-    ...findLeadingArbitraryVariants(source),
-  ];
-  return matches.sort((a, b) => a.line - b.line || a.column - b.column);
+  const leadingVariants = findLeadingArbitraryVariants(source);
+  const leadingStarts = new Set(leadingVariants.map(({ index }) => index));
+  const values = [...source.matchAll(ARBITRARY_VALUE)]
+    .filter((match) => !leadingStarts.has(match.index))
+    .map((match) => positionOf(source, match.index, match[0]));
+  const variants = leadingVariants.map(({ index, ...position }) => position);
+  return [...values, ...variants].sort((a, b) => a.line - b.line || a.column - b.column);
 }
 
 export function findNumericZIndexUtilities(source) {
