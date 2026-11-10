@@ -26,7 +26,8 @@ function findMatches(source, pattern) {
 function utilityStart(token) {
   let depth = 0;
   let start = 0;
-  for (const [index, character] of [...token].entries()) {
+  for (let index = 0; index < token.length; index += 1) {
+    const character = token[index];
     if (character === "[" || character === "(") depth += 1;
     else if ((character === "]" || character === ")") && depth > 0) depth -= 1;
     else if (character === ":" && depth === 0) start = index + 1;
