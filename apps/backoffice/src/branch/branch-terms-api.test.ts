@@ -39,14 +39,14 @@ test.each(reads)("$name returns the term on 200", async ({ read, path, body, val
   expect(fetch).toHaveBeenCalledWith(path);
 });
 
-test.each(reads)("$name returns failed on 200 with another term's body", async ({
-  read,
-  wrongField,
-}) => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, wrongField));
+test.each(reads)(
+  "$name returns failed on 200 with another term's body",
+  async ({ read, wrongField }) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, wrongField));
 
-  expect(await read()).toEqual({ kind: "failed" });
-});
+    expect(await read()).toEqual({ kind: "failed" });
+  },
+);
 
 test.each(reads)("$name returns failed on 200 with a mistyped term", async ({ read, body }) => {
   const [field] = Object.keys(body);
@@ -73,15 +73,16 @@ test.each(reads)("$name returns forbidden on 403", async ({ read }) => {
   expect(await read()).toEqual({ kind: "forbidden" });
 });
 
-test.each(reads)("$name returns rate_limited with the Retry-After header on 429", async ({
-  read,
-}) => {
-  vi.mocked(fetch).mockResolvedValue(
-    new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
-  );
+test.each(reads)(
+  "$name returns rate_limited with the Retry-After header on 429",
+  async ({ read }) => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
+    );
 
-  expect(await read()).toEqual({ kind: "rate_limited", retryAfterSeconds: 45 });
-});
+    expect(await read()).toEqual({ kind: "rate_limited", retryAfterSeconds: 45 });
+  },
+);
 
 test.each(reads)("$name returns failed when the network call throws", async ({ read }) => {
   vi.mocked(fetch).mockRejectedValue(new Error("offline"));

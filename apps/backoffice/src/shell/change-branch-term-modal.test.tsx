@@ -1,3 +1,4 @@
+import { BRANCH_SETTINGS_DAYS_MAX } from "@purosur/domain";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
@@ -54,13 +55,16 @@ test.each([
   ["unreviewedPriceAlertDays", "Precio sin revisar", "45"],
   ["goodConditionReturnDays", "Cambio en buen estado", "15"],
   ["supplierPriceListDailyExtractionCap", "Listas leídas por día", "10"],
-] as const)("asks only for the %s term, with the value the branch has", async (term, label, value) => {
-  const { dialog } = await renderModal(term);
+] as const)(
+  "asks only for the %s term, with the value the branch has",
+  async (term, label, value) => {
+    const { dialog } = await renderModal(term);
 
-  await expect.element(field(dialog, label)).toHaveValue(value);
-  expect(dialog.getByRole("textbox").elements()).toHaveLength(1);
-  await expectNoAccessibilityViolations(dialog.element());
-});
+    await expect.element(field(dialog, label)).toHaveValue(value);
+    expect(dialog.getByRole("textbox").elements()).toHaveLength(1);
+    await expectNoAccessibilityViolations(dialog.element());
+  },
+);
 
 test("explains the daily cap of supplier lists as the Sucursal page does", async () => {
   const { dialog } = await renderModal("supplierPriceListDailyExtractionCap");
@@ -98,9 +102,7 @@ test("writes the daily cap through the same setting", async () => {
   await userEvent.fill(field(dialog, "Listas leídas por día"), "25");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
 
-  await expect
-    .poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length)
-    .toBe(1);
+  await expect.poll(() => vi.mocked(services.saveBranchSettings).mock.calls.length).toBe(1);
   expect(services.saveBranchSettings).toHaveBeenCalledWith({
     ...SAVED_SETTINGS_REQUEST,
     supplier_price_list_daily_extraction_cap: 25,
@@ -109,18 +111,21 @@ test("writes the daily cap through the same setting", async () => {
 
 test.each([
   ["a negative number of days", "-1", "Ingresá un número entero de 0 días o más."],
-  ["too many days", "99999999", "Ingresá un número de días más chico."],
-])("refuses %s with the message the Sucursal page shows, without saving", async (_name, text, message) => {
-  const services = createBranchTermServices();
-  const { dialog } = await renderModal("goodConditionReturnDays", services);
-  await expect.element(field(dialog, "Cambio en buen estado")).toHaveValue("15");
+  ["too many days", String(BRANCH_SETTINGS_DAYS_MAX + 1), "Ingresá un número de días más chico."],
+])(
+  "refuses %s with the message the Sucursal page shows, without saving",
+  async (_name, text, message) => {
+    const services = createBranchTermServices();
+    const { dialog } = await renderModal("goodConditionReturnDays", services);
+    await expect.element(field(dialog, "Cambio en buen estado")).toHaveValue("15");
 
-  await userEvent.fill(field(dialog, "Cambio en buen estado"), text);
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+    await userEvent.fill(field(dialog, "Cambio en buen estado"), text);
+    await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
 
-  await expect.element(dialog.getByText(message)).toBeVisible();
-  expect(services.saveBranchSettings).not.toHaveBeenCalled();
-});
+    await expect.element(dialog.getByText(message)).toBeVisible();
+    expect(services.saveBranchSettings).not.toHaveBeenCalled();
+  },
+);
 
 test("shows the message of the Sucursal page when the cloud refuses the value", async () => {
   const services = createBranchTermServices({

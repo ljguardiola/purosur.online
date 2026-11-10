@@ -8,7 +8,7 @@ import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
 async function readTerm(
   path: string,
-  valueOf: (body: unknown) => number | undefined,
+  termIn: (body: unknown) => number | undefined,
 ): Promise<CloudReadOutcome<number>> {
   let response: Response;
   try {
@@ -28,7 +28,7 @@ async function readTerm(
   if (!response.ok) {
     return { kind: "failed" };
   }
-  const value = valueOf(await response.json().catch(() => undefined));
+  const value = termIn(await response.json().catch(() => undefined));
   return value === undefined ? { kind: "failed" } : { kind: "ok", value };
 }
 
