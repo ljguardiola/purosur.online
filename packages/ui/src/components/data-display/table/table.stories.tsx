@@ -301,6 +301,39 @@ export const WithTwoActions: Story = {
   ),
 };
 
+const disabledActionColumns = [
+  ...baseColumns,
+  actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Editar ${item.name}`,
+        disabled: true,
+        onPress: () => {},
+      }),
+      (item: Product) => ({
+        icon: <Trash2 />,
+        "aria-label": `Eliminar ${item.name}`,
+        disabled: true,
+        onPress: () => {},
+      }),
+    ],
+  }),
+] as const;
+
+export const WithDisabledActions: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={disabledActionColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+};
+
 const threeActionColumns = [
   ...baseColumns,
   actionsColumn({

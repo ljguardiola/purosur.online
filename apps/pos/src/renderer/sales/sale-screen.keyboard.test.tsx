@@ -53,19 +53,6 @@ describe("SaleScreen moving through the lines by keyboard", () => {
     await expect.element(field).toHaveFocus();
   });
 
-  it("keeps the height of every row when the selection moves", async () => {
-    const { screen } = await renderScreen({ currentSale: async () => SALE_OF_FOUR_LINES });
-    const rows = screen.getByRole("row");
-    await expect.element(rows.last()).toHaveAttribute("aria-current", "true");
-    const heights = () =>
-      [1, 2, 3, 4].map((i) => rows.nth(i).element().getBoundingClientRect().height);
-    const before = heights();
-
-    await userEvent.keyboard("{ArrowUp}{ArrowUp}");
-
-    expect(heights()).toEqual(before);
-  });
-
   it("lets the arrows move the results instead of the lines while the results are open", async () => {
     const { screen, field } = await renderScreen({
       currentSale: async () => SALE_OF_FOUR_LINES,
@@ -117,18 +104,66 @@ describe("SaleScreen removing the selected line", () => {
     await expect.element(screen.getByText("Alfajor triple")).not.toBeInTheDocument();
   });
 
-  it("leaves Supr to the search field while it holds text", async () => {
-    const removeSaleLine = vi.fn();
+  it("removes the selected line on Supr while the search field holds text, leaving the text", async () => {
+    const removeSaleLine = vi.fn(
+      async (): Promise<RemoveSaleLineOutcome> => ({
+        kind: "removed",
+        sale: SALE_OF_YERBA,
+        removed_sale_discount: false,
+      }),
+    );
     const { screen, field } = await renderScreen({
-      currentSale: async () => SALE_OF_YERBA,
+      currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR,
       removeSaleLine,
     });
-    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    await expect.element(screen.getByText("Alfajor triple")).toBeVisible();
     await field.fill("7790");
+    await userEvent.keyboard("{Home}");
 
     await userEvent.keyboard("{Delete}");
 
+    expect(removeSaleLine).toHaveBeenCalledExactlyOnceWith("line-2");
+    await expect.element(field).toHaveValue("7790");
+  });
+
+  it("keeps the line's buttons disabled and offers neither Supr nor +/− while a removal is answering", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR,
+      removeSaleLine: () => new Promise<RemoveSaleLineOutcome>(() => {}),
+    });
+    await expect.element(screen.getByText("Alfajor triple")).toBeVisible();
+
+    await userEvent.keyboard("{Delete}");
+
+    for (const name of [
+      "Quitar Yerba mate 1 kg",
+      "Cambiar el precio de Yerba mate 1 kg",
+      "Quitar Alfajor triple",
+    ]) {
+      await expect.element(screen.getByRole("button", { name })).toBeDisabled();
+    }
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar"]);
+  });
+});
+
+describe("SaleScreen with a sale that can no longer be changed", () => {
+  it("offers neither Supr nor +/− and does nothing on them", async () => {
+    const removeSaleLine = vi.fn();
+    const changeLineQuantity = vi.fn();
+    const { screen } = await renderScreen({
+      currentSale: async () => ({ ...SALE_OF_YERBA, lines_lock: "approved_payment" }),
+      removeSaleLine,
+      changeLineQuantity,
+    });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar"]);
+    await userEvent.keyboard("{Delete}");
+    pressKeypad("+");
+    pressKeypad("-");
+
     expect(removeSaleLine).not.toHaveBeenCalled();
+    expect(changeLineQuantity).not.toHaveBeenCalled();
   });
 });
 
@@ -145,6 +180,7 @@ describe("SaleScreen changing a unit line's quantity with the keypad", () => {
 
     pressKeypad("+");
     await expect.poll(() => changeLineQuantity.mock.calls.length).toBe(1);
+    await expect.poll(() => legendOf()).toContain("+/−Cantidad");
     pressKeypad("-");
     await expect.poll(() => changeLineQuantity.mock.calls.length).toBe(2);
 

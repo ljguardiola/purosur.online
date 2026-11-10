@@ -7,7 +7,12 @@ import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
-import { type CenteredLoadFailureProps, LoadFailure, type LoadFailureProps } from "./load-failure";
+import {
+  type CenteredLoadFailureProps,
+  LoadFailure,
+  type LoadFailureProps,
+  type LoadFailureVariant,
+} from "./load-failure";
 import { Pill } from "./pill";
 
 test("announces the failure and offers Reintentar", async () => {
@@ -309,4 +314,13 @@ test("centered: takes no retry callback, since its caller offers the retry elsew
     title: string;
   }>().toExtend<ComponentProps<typeof LoadFailure>>();
   expectTypeOf<CenteredLoadFailureProps>().not.toHaveProperty("onRetry");
+});
+
+test("keeps the centered variant out of the props of a load failure that retries", () => {
+  expectTypeOf<{
+    variant: "centered";
+    icon: Icon;
+    title: string;
+  }>().not.toExtend<LoadFailureProps>();
+  expectTypeOf<"centered">().not.toExtend<LoadFailureVariant>();
 });

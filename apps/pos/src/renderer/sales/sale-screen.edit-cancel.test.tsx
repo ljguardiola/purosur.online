@@ -366,7 +366,7 @@ describe("SaleScreen cancelling the sale", () => {
       .not.toBeInTheDocument();
   });
 
-  it("offers no Vaciar carrito while the sale loads", async () => {
+  it("offers no Vaciar while the sale loads", async () => {
     const { screen } = await renderScreen({ currentSale: () => new Promise(() => {}) });
 
     await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeVisible();
@@ -375,7 +375,7 @@ describe("SaleScreen cancelling the sale", () => {
       .not.toBeInTheDocument();
   });
 
-  it("offers no Vaciar carrito when the sale cannot be read", async () => {
+  it("offers no Vaciar when the sale cannot be read", async () => {
     const { screen } = await renderScreen({
       currentSale: () => Promise.reject(new Error("unavailable")),
     });
@@ -386,7 +386,7 @@ describe("SaleScreen cancelling the sale", () => {
       .not.toBeInTheDocument();
   });
 
-  it("offers no Vaciar carrito for an empty cart", async () => {
+  it("offers no Vaciar for an empty cart", async () => {
     const { screen } = await renderScreen({ currentSale: async () => EMPTY_SALE });
 
     await expect

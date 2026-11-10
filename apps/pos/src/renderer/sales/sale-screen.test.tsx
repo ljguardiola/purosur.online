@@ -258,7 +258,7 @@ describe("SaleScreen", () => {
       });
 
       const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-      await expect.element(panel.getByText("2 líneas")).toBeVisible();
+      await expect.element(panel.getByText("Subtotal")).toBeVisible();
       await expect.element(panel.getByText("$ 6.260,00")).toBeVisible();
       await expect.element(panel.getByText("Ahorro en promociones")).toBeVisible();
       await expect.element(panel.getByText("− $ 476,00")).toBeVisible();
@@ -393,7 +393,7 @@ describe("SaleScreen", () => {
       expect(yerba.element().textContent).toBe("Yerba mate 1 kg$ 2.380,00 / u2 u$ 4.760,00");
     });
 
-    it("keeps Cobrar disabled while the sale has no lines", async () => {
+    it("keeps Cobrar en efectivo disabled while the sale has no lines", async () => {
       const { screen } = await renderScreen();
 
       await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
@@ -402,7 +402,7 @@ describe("SaleScreen", () => {
         .toBeDisabled();
     });
 
-    it("keeps Cobrar disabled, and says why, while the sale's total is zero", async () => {
+    it("keeps Cobrar en efectivo disabled, and says why, while the sale's total is zero", async () => {
       const { screen } = await renderScreen({
         currentSale: async () => ({
           id: "sale-1",
@@ -437,7 +437,7 @@ describe("SaleScreen", () => {
         .toBeDisabled();
     });
 
-    it("replaces Cobrar by a disabled Cobro no habilitado, and says the total reached the threshold", async () => {
+    it("replaces Cobrar en efectivo by a disabled Cobro no habilitado, and says the total reached the threshold", async () => {
       const { screen } = await renderScreen({
         currentSale: async () => ({
           ...SALE_OF_YERBA,
@@ -467,7 +467,7 @@ describe("SaleScreen", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
-    it("says the register has no threshold yet and keeps Cobrar disabled", async () => {
+    it("says the register has no threshold yet and shows a disabled Cobro no habilitado", async () => {
       const { screen } = await renderScreen({
         currentSale: async () => ({
           ...SALE_OF_YERBA,
@@ -494,7 +494,7 @@ describe("SaleScreen", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
-    it("shows no notice and keeps Cobrar when the core does not refuse the charge", async () => {
+    it("shows no notice and keeps Cobrar en efectivo enabled when the core does not refuse the charge", async () => {
       const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
       await expect
@@ -504,7 +504,7 @@ describe("SaleScreen", () => {
       await expect.element(screen.getByText("Falta el tope de venta")).not.toBeInTheDocument();
     });
 
-    it("enables Cobrar once a product is scanned into the sale", async () => {
+    it("enables Cobrar en efectivo once a product is scanned into the sale", async () => {
       const { screen, field } = await renderScreen({
         scanProduct: async () => ({
           kind: "added",
@@ -521,7 +521,7 @@ describe("SaleScreen", () => {
         .toBeEnabled();
     });
 
-    it("goes to the charge screen from Cobrar", async () => {
+    it("goes to the charge screen from Cobrar en efectivo", async () => {
       const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
       await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));

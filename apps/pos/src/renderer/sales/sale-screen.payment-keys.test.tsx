@@ -138,4 +138,32 @@ describe("SaleScreen with a paid order not yet applied", () => {
 
     expect(screen.router.state.location.pathname).not.toBe("/charge");
   });
+
+  it("leaves Enter to the focused button, asking to empty the sale from Vaciar", async () => {
+    const { screen } = await renderScreen({ currentSale: async () => WITH_PAID_ORDER });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    screen.getByRole("button", { name: "Vaciar" }).element().focus();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    expect(screen.router.state.location.pathname).not.toBe("/charge");
+  });
+
+  it("does not charge with the paid order while the core refuses the charge, saying why", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => ({
+        ...WITH_PAID_ORDER,
+        charge_refusal: { kind: "no_buyer_identification_threshold" as const },
+      }),
+    });
+    await expect.element(screen.getByText("Falta el tope de venta")).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .element(screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" }))
+      .toBeDisabled();
+    expect(screen.router.state.location.pathname).not.toBe("/charge");
+  });
 });

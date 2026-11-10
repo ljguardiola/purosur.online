@@ -104,11 +104,23 @@ describe("PaymentPanel", () => {
     await expect.element(screen.getByText(/líneas/)).not.toBeInTheDocument();
   });
 
-  it("counts the lines with the amount of the sale at list price once a promotion saved something", async () => {
+  it("shows the amount of the sale at list price as its subtotal once a promotion saved something, counting the articles once", async () => {
     const screen = await renderPanel({ grossSubtotal: 520_000, promotionSavings: 20_000 });
 
-    await expect.element(screen.getByText("2 líneas")).toBeVisible();
+    await expect.element(screen.getByText("Subtotal")).toBeVisible();
     await expect.element(screen.getByText("$ 5.200,00")).toBeVisible();
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
+    await expect.element(screen.getByText(/líneas/)).not.toBeInTheDocument();
+  });
+
+  it("shows the subtotal, counting the articles once, once a discount on the total is applied", async () => {
+    const screen = await renderPanel({
+      saleDiscount: { kind: "AMOUNT", value: 24_000, amount: 24_000 },
+    });
+
+    await expect.element(screen.getByText("Subtotal")).toBeVisible();
+    await expect.element(screen.getByText("$ 5.000,00")).toBeVisible();
+    await expect.element(screen.getByText(/líneas/)).not.toBeInTheDocument();
   });
 
   it("shows what the promotions saved, leaving the total to charge as it is", async () => {
@@ -152,6 +164,13 @@ describe("PaymentPanel", () => {
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(screen.getByText("Descuento sobre el total")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+  });
+
+  it("counts no articles once the sale cannot be read", async () => {
+    const screen = await renderPanel({ saleStatus: "failed", lineCount: 0, total: 0 });
+
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
+    await expect.element(screen.getByText("0", { exact: true })).toBeVisible();
   });
 
   it("says nothing of the discount on the total once the sale cannot be read", async () => {
@@ -312,6 +331,19 @@ describe("PaymentPanel", () => {
       }
       await apply.click();
       expect(onChargePaidOrder).toHaveBeenCalledOnce();
+    });
+
+    it("disables the paid order's button while the core refuses the charge, saying why", async () => {
+      const screen = await renderPanel({
+        paidOrderToApply: { method: "QR", amount: 920_000 },
+        chargeRefusal: { kind: "no_buyer_identification_threshold" },
+        canCharge: false,
+      });
+
+      await expect.element(screen.getByText("Falta el tope de venta")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" }))
+        .toBeDisabled();
     });
   });
 });

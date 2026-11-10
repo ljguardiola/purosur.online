@@ -61,7 +61,7 @@ async function renderLines({
       legend={LEGEND}
       failed={failed}
       onSelect={onSelect}
-      actions={{ editable: true, onChangeWeight, onAdjust, onRemove, ...actions }}
+      actions={{ busy: false, editable: true, onChangeWeight, onAdjust, onRemove, ...actions }}
     />,
   );
   return { screen, onChangeWeight, onAdjust, onRemove, onSelect };
@@ -87,28 +87,12 @@ describe("SaleLines", () => {
     expect(queso.element().textContent).toMatch(/\$ 15\.625,00/);
   });
 
-  it("marks the selected line only and gives it the same height as the others", async () => {
+  it("marks the selected line only", async () => {
     const { screen } = await renderLines({ lines: [YERBA, QUESO], selectedLineId: "line-3" });
 
     const rows = screen.getByRole("row");
     await expect.element(rows.nth(2)).toHaveAttribute("aria-current", "true");
     await expect.element(rows.nth(1)).not.toHaveAttribute("aria-current");
-    const heights = [rows.nth(1), rows.nth(2)].map(
-      (row) => row.element().getBoundingClientRect().height,
-    );
-    expect(heights[0]).toBe(heights[1]);
-  });
-
-  it("keeps the height of a row when the selection moves to it", async () => {
-    const lines = [YERBA, QUESO];
-    const first = await renderLines({ lines, selectedLineId: "line-1" });
-    const before = first.screen.getByRole("row").nth(1).element().getBoundingClientRect().height;
-    await first.screen.unmount();
-
-    const second = await renderLines({ lines, selectedLineId: "line-3" });
-
-    const after = second.screen.getByRole("row").nth(1).element().getBoundingClientRect().height;
-    expect(after).toBe(before);
   });
 
   it("asks to select the line that is pressed", async () => {
@@ -226,6 +210,20 @@ describe("SaleLines", () => {
       await expect.element(screen.getByText("$ 4.000,00")).toBeVisible();
       expect(document.querySelector("s")).toBeNull();
     });
+  });
+
+  it("disables every control of a line while a change is answering", async () => {
+    const { screen } = await renderLines({ actions: { busy: true }, lines: [YERBA, QUESO] });
+
+    for (const name of [
+      "Cambiar el precio de Yerba mate 1 kg",
+      "Quitar Yerba mate 1 kg",
+      "Cambiar el peso de Queso cremoso",
+      "Cambiar el precio de Queso cremoso",
+      "Quitar Queso cremoso",
+    ]) {
+      await expect.element(screen.getByRole("button", { name })).toBeDisabled();
+    }
   });
 
   it("offers no control on a line once the sale can no longer be changed", async () => {

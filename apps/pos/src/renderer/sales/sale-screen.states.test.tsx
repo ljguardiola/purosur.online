@@ -84,6 +84,7 @@ describe("SaleScreen with a code that has no product", () => {
 
     await expect.element(screen.getByRole("row")).toHaveLength(5);
     await expect.element(screen.getByText("$ 25.192,50").first()).toBeVisible();
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
   });
 
   it("takes the red away when the text changes", async () => {
@@ -122,6 +123,8 @@ describe("SaleScreen when the sale cannot be loaded", () => {
 
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("$ 0,00").first()).toBeVisible();
+    await expect.element(panel.getByText("Artículos")).toBeVisible();
+    await expect.element(panel.getByText("0", { exact: true })).toBeVisible();
     for (const name of PAYMENT_KEYS) {
       await expect.element(screen.getByRole("button", { name })).toBeDisabled();
     }
@@ -135,6 +138,16 @@ describe("SaleScreen when the sale cannot be loaded", () => {
     await expect.element(screen.getByText("Pasas de uva")).toBeVisible();
     expect(currentSale).toHaveBeenCalledTimes(2);
     await expect.element(field).toHaveValue("");
+  });
+
+  it("types R into the search field instead of reading the sale again while the field holds text", async () => {
+    const { field, currentSale } = await failing();
+    await field.fill("ma");
+
+    await userEvent.keyboard("r");
+
+    await expect.element(field).toHaveValue("mar");
+    expect(currentSale).toHaveBeenCalledOnce();
   });
 });
 
@@ -172,5 +185,18 @@ describe("SaleScreen with the critical battery alert", () => {
       await expect.element(screen.getByRole("button", { name })).toBeEnabled();
     }
     expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
+  });
+
+  it("draws the notice with a battery", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_OF_FOUR_LINES as OpenSale,
+      registerStatus: CRITICAL,
+    });
+
+    await expect
+      .element(screen.getByText("No se pueden abrir ventas nuevas: queda poca batería"))
+      .toBeVisible();
+    expect(document.querySelector("main svg.lucide-battery-low")).not.toBeNull();
+    expect(document.querySelector("main svg.lucide-ban")).toBeNull();
   });
 });
