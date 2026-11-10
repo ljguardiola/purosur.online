@@ -29,7 +29,6 @@ import {
   InlineNotice,
   LoadingPlaceholder,
   localAlertText,
-  ScreenHeader,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
@@ -860,7 +859,6 @@ export function SaleScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader title="Venta en curso" />
         {diskFull === undefined ? null : (
           <InlineNotice
             tone={diskFull.level === "critical" ? "error" : "warning"}
