@@ -36,6 +36,9 @@ export type KeyName =
   | `F${FunctionKeyNumber}`
   | "ArrowUpDown"
   | "ArrowLeftRight"
+  | "NumpadAdd"
+  | "NumpadSubtract"
+  | "NumpadAddSubtract"
   | "Digits"
   | Letter
   | Digit;
@@ -52,6 +55,9 @@ const specialLabel: Partial<Record<KeyName, string>> = {
   ArrowUpDown: "↑↓",
   ArrowLeftRight: "←→",
   Digits: "0-9",
+  NumpadAdd: "+",
+  NumpadSubtract: "−",
+  NumpadAddSubtract: "+/−",
 };
 
 const keycapClassName =
