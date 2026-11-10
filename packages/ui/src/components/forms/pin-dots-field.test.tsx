@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -94,17 +94,22 @@ test("covers the box with the input so a click anywhere in it focuses the input"
   expect(box.getBoundingClientRect().height).toBe(64);
 });
 
-test("marks the input invalid and described by the error message", async () => {
-  const screen = await render(
+function FieldWithMessageElsewhere() {
+  const messageId = useId();
+  return (
     <>
-      <Harness errorMessageId="pin-error" />
-      <p id="pin-error">PIN incorrecto</p>
-    </>,
+      <Harness errorMessageId={messageId} />
+      <p id={messageId}>PIN incorrecto</p>
+    </>
   );
+}
 
-  const input = screen.getByLabelText("PIN", { exact: true }).element();
-  expect(input.getAttribute("aria-invalid")).toBe("true");
-  expect(input.getAttribute("aria-describedby")).toBe("pin-error");
+test("marks the input invalid and described by the error message", async () => {
+  const screen = await render(<FieldWithMessageElsewhere />);
+
+  const input = screen.getByLabelText("PIN", { exact: true });
+  expect(input.element().getAttribute("aria-invalid")).toBe("true");
+  await expect.element(input).toHaveAccessibleDescription("PIN incorrecto");
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -119,9 +124,9 @@ test("is not invalid without an error message", async () => {
 test("disables the input", async () => {
   const screen = await render(<Harness disabled />);
 
-  expect((screen.getByLabelText("PIN", { exact: true }).element() as HTMLInputElement).disabled).toBe(
-    true,
-  );
+  expect(
+    (screen.getByLabelText("PIN", { exact: true }).element() as HTMLInputElement).disabled,
+  ).toBe(true);
 });
 
 test("hands the input to the ref it receives", async () => {

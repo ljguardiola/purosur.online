@@ -81,7 +81,10 @@ test("opens a list with each person and their avatar", async () => {
 
 test("opens the list with the keyboard", async () => {
   const screen = await render(<Harness />);
-  screen.getByRole("button", { name: /Usuario/ }).element().focus();
+  screen
+    .getByRole("button", { name: /Usuario/ })
+    .element()
+    .focus();
 
   await userEvent.keyboard("{Enter}");
 

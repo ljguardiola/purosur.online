@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useId } from "react";
 import { fieldErrorClassName } from "./field-styles";
 import { PinDotsField } from "./pin-dots-field";
 
@@ -29,18 +30,20 @@ export const EightTyped: Story = {
   args: { value: "12345678" },
 };
 
+function FieldWithMessageElsewhere() {
+  const messageId = useId();
+  return (
+    <>
+      <PinDotsField label="PIN" value="1234" onChange={() => {}} errorMessageId={messageId} />
+      <p id={messageId} className={fieldErrorClassName}>
+        PIN incorrecto
+      </p>
+    </>
+  );
+}
+
 export const Invalid: Story = {
-  args: { value: "1234", errorMessageId: "pin-error" },
-  decorators: [
-    (Story) => (
-      <>
-        <Story />
-        <p id="pin-error" className={fieldErrorClassName}>
-          PIN incorrecto
-        </p>
-      </>
-    ),
-  ],
+  render: () => <FieldWithMessageElsewhere />,
 };
 
 export const Disabled: Story = {

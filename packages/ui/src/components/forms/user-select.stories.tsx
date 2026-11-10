@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { playClickExpandsTrigger } from "../../test-support/story-interactions";
 import { within } from "storybook/test";
+import { playClickExpandsTrigger } from "../../test-support/story-interactions";
 import type { NarrowedOption } from "./option";
 import { UserSelect } from "./user-select";
 
