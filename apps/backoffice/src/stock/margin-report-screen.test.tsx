@@ -97,7 +97,7 @@ function shownCategories(screen: Screen) {
     .filter((name) => name !== undefined);
 }
 
-test("names the report and shows the amount sold, the cost and the margin of the period", async () => {
+test("shows the amount sold, the cost and the margin of the period", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Vendido", { exact: true }).first()).toBeVisible();

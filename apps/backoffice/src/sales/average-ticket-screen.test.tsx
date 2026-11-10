@@ -102,7 +102,7 @@ function withReport(report: typeof averageTicketReport) {
   return services;
 }
 
-test("names the report, the average ticket of the period and how it compares with the one before", async () => {
+test("shows the average ticket of the period and how it compares with the one before", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Ticket promedio").first()).toBeVisible();

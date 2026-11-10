@@ -67,7 +67,6 @@ function renderScreen(services: MercadoPagoChargeCostsScreenServices, handlers: 
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-const _TITLE = "Costos de Mercado Pago";
 const NO_CHARGES = "No hay cobros de Mercado Pago en este período";
 const NO_REGISTER_CHARGES = "Ninguna caja cobró con Mercado Pago en este período";
 

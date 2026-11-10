@@ -32,6 +32,29 @@ test("drops a period the reports refuse", () => {
   );
 });
 
+test("drops the search and the category while Por revisar lists the report of a period", () => {
+  expect(
+    pricesListFilters.parse({
+      search: "yerba",
+      category: "category-2",
+      review: "pending",
+      from: "2026-10-02",
+      to: "2026-10-05",
+    }),
+  ).toEqual({
+    search: "",
+    category: "ALL",
+    review: "pending",
+    from: "2026-10-02",
+    to: "2026-10-05",
+  });
+});
+
+test("keeps the search and the category under Por revisar with no period", () => {
+  const filters = { search: "yerba", category: "category-2", review: "pending", from: "", to: "" };
+  expect(pricesListFilters.parse(filters)).toEqual(filters);
+});
+
 test("opens the promotions list on current and scheduled promotions of every kind, ordered by name", () => {
   expect(discountsListFilters.parse({})).toEqual({
     search: "",

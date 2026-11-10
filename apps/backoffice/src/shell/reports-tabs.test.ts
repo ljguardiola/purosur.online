@@ -6,15 +6,10 @@ import {
   REPORT_VIEW_TITLES,
   REPORT_VIEWS,
   REPORTS_TAB_LABELS,
-  REPORTS_TABS,
+  reportsTabsOf,
   reportViewsOfTab,
 } from "./reports-tabs";
 import { accessWith } from "./test-support/backoffice-access";
-
-function visibleTabs(...capabilities: Parameters<typeof accessWith>) {
-  const access = accessWith(...capabilities);
-  return REPORTS_TABS.filter((tab) => tab.isVisibleTo(access)).map((tab) => tab.key);
-}
 
 function visibleViews(...capabilities: Parameters<typeof accessWith>) {
   const access = accessWith(...capabilities);
@@ -34,16 +29,22 @@ const VIEWS_OF_THE_REPORTS_AREA = [
   "margin",
 ] as const;
 
-test("shows the three tabs, in order, to a person with the reports area", () => {
-  expect(visibleTabs("reports_area")).toEqual(["sales", "discounts", "profitability"]);
+test("shows the three tabs, in order, each opening on its first view, to a person with the reports area", () => {
+  expect(reportsTabsOf(visibleViews("reports_area"))).toEqual([
+    { tab: "sales", firstView: "sales-by-day" },
+    { tab: "discounts", firstView: "sales-by-promotion" },
+    { tab: "profitability", firstView: "margin" },
+  ]);
 });
 
-test("shows only Rentabilidad to a person with only the Mercado Pago charge costs", () => {
-  expect(visibleTabs("mercado_pago_charge_costs")).toEqual(["profitability"]);
+test("shows only Rentabilidad, on the charge costs, to a person with only the Mercado Pago charge costs", () => {
+  expect(reportsTabsOf(visibleViews("mercado_pago_charge_costs"))).toEqual([
+    { tab: "profitability", firstView: "mercado-pago-charge-costs" },
+  ]);
 });
 
 test("shows no tab without either capability", () => {
-  expect(visibleTabs("branch_area", "stock_area")).toEqual([]);
+  expect(reportsTabsOf(visibleViews("branch_area", "stock_area"))).toEqual([]);
 });
 
 test("shows every view but the Mercado Pago charge costs with the reports area", () => {

@@ -95,6 +95,41 @@ test("typing a period reports it with the list filters, asks the report again an
   expect(screen.getByRole("table", PRICES_TABLE).query()).toBeNull();
 });
 
+test("hides the search and the category filter while the report's rows are listed", async () => {
+  const screen = await renderScreen(servicesWithOneProduct(), () => {}, {
+    filters: { review: "pending", ...PERIOD },
+  });
+  await expect.element(screen.getByRole("table", REPORT_TABLE)).toBeVisible();
+
+  expect(screen.getByPlaceholder("Buscar un producto").query()).toBeNull();
+  expect(screen.getByRole("combobox", { name: /^Categoría:/ }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Revisión: Por revisar" })).toBeVisible();
+});
+
+test("typing a period drops the search from the filters it reports", async () => {
+  const services = servicesWithOneProduct();
+  const onFiltersChange = vi.fn();
+  const screen = await renderControlledScreen(
+    services,
+    { review: "pending", search: "Arroz" },
+    onFiltersChange,
+  );
+  await expect.element(screen.getByRole("table", PRICES_TABLE).getByText("Arroz")).toBeVisible();
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+
+  await typePeriodStart(screen, "01092026");
+
+  await expect.element(screen.getByRole("table", REPORT_TABLE)).toBeVisible();
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    search: "",
+    category: "ALL",
+    review: "pending",
+    from: "2026-09-01",
+    to: "2026-10-13",
+  });
+  expect(screen.getByPlaceholder("Buscar un producto").query()).toBeNull();
+});
+
 test.each([
   { when: "no period is chosen", filters: {} },
   { when: "a period is chosen", filters: PERIOD },

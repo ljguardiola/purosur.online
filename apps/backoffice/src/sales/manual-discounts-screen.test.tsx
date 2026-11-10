@@ -85,7 +85,7 @@ function servicesAnswering(value: typeof manualDiscountsReport) {
   return services;
 }
 
-test("names the report and the figures of the period", async () => {
+test("shows the figures of the period", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Descontado").first()).toBeVisible();

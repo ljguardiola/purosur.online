@@ -76,7 +76,7 @@ function renderScreen(
   );
 }
 
-test("names the report and its figures", async () => {
+test("shows the figures of the report", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Líneas pesadas")).toBeVisible();

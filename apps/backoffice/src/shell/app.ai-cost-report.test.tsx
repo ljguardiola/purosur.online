@@ -26,7 +26,7 @@ function reportsServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens the report at its address, under Configuración, and reads it from the cloud", async () => {
+test("opens the report at its address, under Configuración > Diagnóstico, and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
   window.history.pushState(null, "", "/reports/ai-cost-by-period");
 
@@ -35,7 +35,9 @@ test("opens the report at its address, under Configuración, and reads it from t
   await expect
     .element(screen.getByRole("heading", { name: "Costo de IA por período", level: 1 }))
     .toBeVisible();
-  await expect.element(screen.getByText("Configuración", { exact: true }).first()).toBeVisible();
+  await expect
+    .element(screen.getByText("Configuración · Diagnóstico", { exact: true }))
+    .toBeVisible();
   expect(screen.getByText("Reportes · Compras").query()).toBeNull();
   await expect.element(screen.getByText("Distribuidora Andina").first()).toBeVisible();
   expect(services.aiCostReportScreen.fetchAiCostReport).toHaveBeenCalledWith({
@@ -44,7 +46,7 @@ test("opens the report at its address, under Configuración, and reads it from t
   expect(document.title).toBe("Costo de IA por período · Puro Sur");
 });
 
-test("offers the report in the Configuración column, after the other items, to who may see it", async () => {
+test("offers the report under Diagnóstico in the Configuración column, after the other items, to who may see it", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
   window.history.pushState(null, "", "/reports/ai-cost-by-period");
 
@@ -52,7 +54,14 @@ test("offers the report in the Configuración column, after the other items, to 
 
   const sections = screen.getByRole("navigation", { name: "Configuración" });
   await expect
-    .element(sections.getByRole("link", { name: "Costo de IA por período" }))
+    .element(sections.getByRole("heading", { name: "Diagnóstico", level: 3 }))
+    .toBeVisible();
+  await expect
+    .element(
+      sections
+        .getByRole("list", { name: "Diagnóstico" })
+        .getByRole("link", { name: "Costo de IA por período" }),
+    )
     .toHaveAttribute("aria-current", "page");
   await expect
     .element(
@@ -80,6 +89,7 @@ test("leaves the report out of the Configuración column without the reports are
     )
     .toBeVisible();
   expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Diagnóstico" }).query()).toBeNull();
 });
 
 test("leaves the report out of Reportes", async () => {

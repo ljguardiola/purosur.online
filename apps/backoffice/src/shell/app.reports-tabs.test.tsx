@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
@@ -124,6 +124,45 @@ test("fits the five views of Ventas in the width of the content", async () => {
     main.getBoundingClientRect().right,
   );
   expect(group.scrollWidth).toBeLessThanOrEqual(group.clientWidth);
+});
+
+const NARROW_WIDTH = 700;
+
+test("replaces the segmented control with a Reporte select that opens the view it names when the options do not fit", async () => {
+  await page.viewport(NARROW_WIDTH, 900);
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(
+    null,
+    "",
+    `/reports/sales-by-day?from=${PERIOD.from}&to=${PERIOD.to}&register=${FRONT_REGISTER_ID}`,
+  );
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("button", { name: "Por día Reporte" })).toBeVisible();
+  expect(screen.getByRole("radiogroup", { name: "Reporte" }).query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Por día Reporte" }));
+  await userEvent.click(screen.getByRole("option", { name: "Por cajero" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/sales-by-cashier");
+  expect(searchOf(location())).toEqual({ ...PERIOD, register: FRONT_REGISTER_ID });
+  await expect.element(screen.getByRole("button", { name: "Por cajero Reporte" })).toBeVisible();
+});
+
+test("brings the segmented control back once the options fit the width again", async () => {
+  await page.viewport(NARROW_WIDTH, 900);
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/sales-by-day");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("button", { name: "Por día Reporte" })).toBeVisible();
+
+  await page.viewport(1280, 900);
+
+  await expect.element(screen.getByRole("radiogroup", { name: "Reporte" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Por día Reporte" }).query()).toBeNull();
 });
 
 test("offers the four views of Descuentos y control and the two of Rentabilidad", async () => {

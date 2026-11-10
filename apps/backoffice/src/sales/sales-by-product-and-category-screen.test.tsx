@@ -96,7 +96,7 @@ function shownCategories(screen: Screen) {
     .filter((name) => name !== undefined);
 }
 
-test("names the report, the grouping and the figures of the period", async () => {
+test("shows the figures of the period and its main category", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Total vendido")).toBeVisible();
