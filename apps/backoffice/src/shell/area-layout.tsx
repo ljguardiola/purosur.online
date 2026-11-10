@@ -78,9 +78,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const settingsTarget = canSeePeopleArea(session)
     ? "/people"
     : canSeeBranchArea(session)
-      ? "/location-settings"
+      ? "/branch"
       : canSeeQuarantinedEvents(session)
-        ? "/quarantined-events"
+        ? "/held-register-changes"
         : null;
   const stockShown = Boolean(matchRoute({ to: "/stock" }));
   return (

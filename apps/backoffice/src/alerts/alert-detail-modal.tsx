@@ -1121,7 +1121,7 @@ function OpenAlertDetailModal({
               <AlertDescription alert={alert} />
             )}
             {alert.kind === "events_quarantined" && canSeeQuarantinedEvents(access) ? (
-              <ScreenLink to="/quarantined-events" variant="text">
+              <ScreenLink to="/held-register-changes" variant="text">
                 Ver cambios de cajas retenidos
               </ScreenLink>
             ) : null}

@@ -43,20 +43,20 @@ function SettingsArea() {
             {canSeeBranchArea(session) && (
               <li>
                 <SectionLink
-                  to="/location-settings"
+                  to="/branch"
                   label="Sucursal"
                   icon={<Store />}
-                  active={Boolean(matchRoute({ to: "/location-settings" }))}
+                  active={Boolean(matchRoute({ to: "/branch" }))}
                 />
               </li>
             )}
             {canSeeQuarantinedEvents(session) && (
               <li>
                 <SectionLink
-                  to="/quarantined-events"
+                  to="/held-register-changes"
                   label="Cambios de cajas retenidos"
                   icon={<PackageX />}
-                  active={Boolean(matchRoute({ to: "/quarantined-events" }))}
+                  active={Boolean(matchRoute({ to: "/held-register-changes" }))}
                 />
               </li>
             )}
@@ -69,10 +69,10 @@ function SettingsArea() {
               <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
                 <li>
                   <SectionLink
-                    to="/reports/ai-cost-by-period"
+                    to="/ai-cost"
                     label="Costo de IA"
                     icon={<Bot />}
-                    active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
+                    active={Boolean(matchRoute({ to: "/ai-cost" }))}
                   />
                 </li>
               </ul>

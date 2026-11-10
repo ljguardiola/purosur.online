@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { QuarantinedEventsScreen } from "./quarantined-events-screen";
 import { defaultQuarantinedEventsScreenServices } from "./quarantined-events-services";
 
-const route = getRouteApi("/signed-in/settings-area/quarantined-events");
+const route = getRouteApi("/signed-in/settings-area/held-register-changes");
 
 export function QuarantinedEventsPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
