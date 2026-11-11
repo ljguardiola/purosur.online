@@ -106,7 +106,7 @@ describe("InitialCountScreen states", () => {
     await expect.element(field).not.toHaveAttribute("aria-invalid", "true");
   });
 
-  it("K6: tells at the bottom left of the lines card, above the keys, that the line was not withdrawn, keeping the lines and the first selected", async () => {
+  it("K6: tells that the line was not withdrawn, keeping the lines and the first selected", async () => {
     const { screen } = await renderScreen({
       readInitialCount: vi.fn(async () => readOf(FOUR_LINES)),
       withdrawInitialCountLine: vi.fn(async () => ({ kind: "unavailable" as const })),
@@ -118,14 +118,6 @@ describe("InitialCountScreen states", () => {
     const title = screen.getByText("No se pudo quitar la línea");
     await expect.element(title).toBeVisible();
     await expect.element(screen.getByText("Volvé a intentarlo en unos segundos.")).toBeVisible();
-    const table = screen.getByRole("table").element().getBoundingClientRect();
-    const keys = (document.querySelector("main ul") as HTMLElement).getBoundingClientRect();
-    const noticeBox = (
-      title.element().closest(".border-l-4") as HTMLElement
-    ).getBoundingClientRect();
-    expect(noticeBox.left - table.left).toBeLessThan(40);
-    expect(noticeBox.right).toBeLessThan(table.left + table.width / 2 + 60);
-    expect(noticeBox.bottom).toBeLessThanOrEqual(keys.top);
     await expect.element(screen.getByRole("row")).toHaveLength(5);
     await expect.element(screen.getByRole("row").nth(1)).toHaveAttribute("aria-current", "true");
     await expect.element(screen.getByRole("button", { name: "Terminar la carga" })).toBeVisible();

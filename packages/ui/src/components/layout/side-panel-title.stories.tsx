@@ -31,3 +31,7 @@ export const WithEscapeKeycap: Story = {
 export const WithLabelledEscapeKeycap: Story = {
   args: { close: { onPress: () => {}, label: "Cancelar" } },
 };
+
+export const WithDisabledLabelledEscapeKeycap: Story = {
+  args: { close: { onPress: () => {}, label: "Cancelar", disabled: true } },
+};

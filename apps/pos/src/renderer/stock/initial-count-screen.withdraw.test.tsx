@@ -1,11 +1,13 @@
 import type { ReadInitialCountOutcome, WithdrawInitialCountLineOutcome } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { QUESO_LINE, readOf, renderScreen, YERBA_LINE } from "./test-support/initial-count-screen";
-
-function withdrawing(outcome: WithdrawInitialCountLineOutcome) {
-  return vi.fn(async () => outcome);
-}
+import {
+  QUESO_LINE,
+  readOf,
+  renderScreen,
+  withdrawing,
+  YERBA_LINE,
+} from "./test-support/initial-count-screen";
 
 describe("InitialCountScreen withdrawing a counted line with Supr", () => {
   it("withdraws the line and reads the count again so it is gone", async () => {
@@ -53,6 +55,24 @@ describe("InitialCountScreen withdrawing a counted line with Supr", () => {
 
     await expect.element(screen.getByText("No se pudo quitar la línea")).toBeVisible();
     await expect.element(screen.getByRole("cell", { name: "Queso cremoso" })).toBeVisible();
+  });
+
+  it("floats the notice over the screen at the bottom right of the window, until it is closed", async () => {
+    const { screen } = await renderScreen({
+      readInitialCount: vi.fn(async () => readOf([QUESO_LINE])),
+      withdrawInitialCountLine: withdrawing({ kind: "unavailable" }),
+    });
+    await userEvent.keyboard("{Delete}");
+    const notice = screen.getByText("No se pudo quitar la línea");
+    await expect.element(notice).toBeVisible();
+
+    const box = notice.element().getBoundingClientRect();
+    expect(document.querySelector("main")?.contains(notice.element())).toBe(false);
+    expect(box.left).toBeGreaterThan(window.innerWidth / 2);
+    expect(box.bottom).toBeGreaterThan(window.innerHeight / 2);
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    await expect.element(notice).not.toBeInTheDocument();
   });
 
   it("tells the person may no longer change the count", async () => {

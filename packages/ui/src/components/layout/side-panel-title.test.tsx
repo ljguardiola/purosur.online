@@ -23,7 +23,7 @@ test("names the panel with a level-two heading beside its icon", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-function closablePanel(close: { onPress: () => void; label?: string }) {
+function closablePanel(close: { onPress: () => void; label?: string; disabled?: boolean }) {
   return (
     <div style={{ display: "flex", height: "480px", justifyContent: "flex-end" }}>
       <SidePanel
@@ -63,6 +63,23 @@ test("follows the Esc keycap with the given label, which names the button", asyn
   await expect
     .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
     .not.toBeInTheDocument();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test.each([
+  ["Cerrar con Esc", undefined],
+  ["Cancelar", "Cancelar"],
+])("disables the %s button that cannot close the panel", async (name, label) => {
+  const onPress = vi.fn();
+  const screen = await render(
+    closablePanel({ onPress, disabled: true, ...(label === undefined ? {} : { label }) }),
+  );
+  const close = screen.getByRole("button", { name });
+
+  await expect.element(close).toBeDisabled();
+  await userEvent.click(close, { force: true });
+
+  expect(onPress).not.toHaveBeenCalled();
   await expectNoAccessibilityViolations(screen.container);
 });
 

@@ -170,6 +170,18 @@ describe("CountLinePanel", () => {
     expect(recording).not.toHaveBeenCalled();
   });
 
+  it("disables Cancelar while the line is being recorded", async () => {
+    const { screen } = await renderPanel({
+      product: YERBA,
+      recordLine: () => deferred<RecordInitialCountLineOutcome>().promise,
+    });
+    await typeCounted(screen, "24");
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  });
+
   it("offers Confirmar línea with the Enter keycap, and records with Enter typed in the quantity", async () => {
     const { screen, recording } = await renderPanel({ product: YERBA });
     const confirmButton = screen.getByRole("button", { name: "Confirmar línea" }).element();

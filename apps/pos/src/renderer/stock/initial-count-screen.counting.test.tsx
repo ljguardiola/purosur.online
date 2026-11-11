@@ -11,6 +11,12 @@ import {
 } from "./test-support/initial-count-screen";
 
 const FOUND_YERBA: FindCountableProductOutcome = { kind: "found", product: YERBA_PRODUCT };
+const YERBA_SUAVE = {
+  product_id: "p9",
+  name: "Yerba suave",
+  sale_unit: "UNIT" as const,
+  matches: [],
+};
 
 describe("InitialCountScreen counting a product in the side panel", () => {
   async function renderCounting(overrides: Parameters<typeof renderScreen>[0] = {}) {
@@ -124,6 +130,59 @@ describe("InitialCountScreen counting a product in the side panel", () => {
     await expect
       .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
       .toBeVisible();
+  });
+
+  describe("with search results open while counting", () => {
+    async function renderCountingWithResults() {
+      const rendered = await renderCounting({
+        searchCountableProducts: vi.fn(async () => ({
+          kind: "results" as const,
+          products: [YERBA_SUAVE],
+          more: false,
+        })),
+      });
+      await userEvent.click(rendered.field);
+      await userEvent.keyboard("yer");
+      await expect.element(rendered.screen.getByRole("listbox")).toBeVisible();
+      return rendered;
+    }
+
+    it("does not swap the product being counted for a result chosen with Enter", async () => {
+      const { screen } = await renderCountingWithResults();
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect
+        .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Yerba suave" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("does not swap the product being counted for a result that is clicked", async () => {
+      const { screen } = await renderCountingWithResults();
+
+      await userEvent.click(screen.getByRole("option", { name: /Yerba suave/ }));
+
+      await expect
+        .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Yerba suave" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("closes the results with Esc, still counting the product", async () => {
+      const { screen } = await renderCountingWithResults();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+        .toBeVisible();
+    });
   });
 
   it("does not open a second count for a code the reader reads while counting", async () => {
