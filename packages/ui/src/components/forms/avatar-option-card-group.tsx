@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-components";
+import { Avatar } from "../shared/avatar";
 import { isOptionValue, type NarrowedOption, type Options } from "./option";
 
 export type AvatarOptionCardGroupProps<V extends string> = {
@@ -16,10 +17,6 @@ const cardClassName =
   "data-selected:bg-action-subtle data-selected:inset-ring-2 data-selected:inset-ring-action " +
   "data-focus-visible:focus-ring " +
   "data-disabled:cursor-default data-disabled:opacity-disabled";
-
-function initialOf(label: string): string {
-  return (Array.from(label)[0] ?? "").toLocaleUpperCase("es-AR");
-}
 
 export function AvatarOptionCardGroup<V extends string>({
   labelledBy,
@@ -50,12 +47,7 @@ export function AvatarOptionCardGroup<V extends string>({
         >
           {({ isSelected }) => (
             <>
-              <span
-                aria-hidden="true"
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-action-soft text-body font-bold text-text-accent"
-              >
-                {initialOf(option.label)}
-              </span>
+              <Avatar label={option.label} />
               <span className="min-w-0 flex-1 truncate text-body text-text">{option.label}</span>
               {isSelected ? (
                 <span

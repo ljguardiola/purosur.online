@@ -23,8 +23,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Check, Percent, Tag, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
-import type { SignedInPerson } from "../shell/signed-in-person";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import { useAuthorization } from "../shell/use-authorization";
 import type { AdjustmentKind } from "./adjust-line-form";
 import {
@@ -63,7 +62,6 @@ export type AdjustLineModalProps = {
   quantity: number;
   saleUnit: OpenSale["lines"][number]["sale_unit"];
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   adjustSaleLine: (
     lineId: string,
@@ -112,7 +110,6 @@ export function AdjustLineModal({
   quantity,
   saleUnit,
   authorizationRequired,
-  person,
   loadAuthorizers,
   adjustSaleLine,
   previewAdjustment,
@@ -123,7 +120,6 @@ export function AdjustLineModal({
 }: AdjustLineModalProps) {
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: authorizationRequired,
     loadAuthorizers,
@@ -143,9 +139,14 @@ export function AdjustLineModal({
       reason: REQUIRED_REASON_MESSAGE,
     },
     onSubmit: async ({ adjustment, reason }, { showFieldError }) => {
+      if (!authorization.ready) {
+        authorization.ask();
+        return;
+      }
       const outcome = await adjustSaleLine(lineId, adjustment, reason, authorization.value).catch(
         (): "failed" => "failed",
       );
+      authorization.dismiss();
       if (outcome === "failed") {
         setNotice(FAILED_MESSAGE);
         return;
@@ -210,7 +211,7 @@ export function AdjustLineModal({
   }
 
   function handleSubmit() {
-    if (submitting || !authorization.ready) {
+    if (submitting) {
       return;
     }
     setNotice(undefined);
@@ -248,7 +249,7 @@ export function AdjustLineModal({
             size="large"
             fullWidth
             icon={<Check />}
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
             onPress={handleSubmit}
           >
             <form.Subscribe selector={(state) => state.values.kind}>
@@ -352,10 +353,12 @@ export function AdjustLineModal({
         <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />}
         </form.AppField>
-        <AuthorizationSection
+        <AuthorizationModal
           authorization={authorization}
+          subtitle="Cambiar precio o descuento"
           action={AUTHORIZING}
-          disabled={submitting}
+          submitting={submitting}
+          onConfirm={handleSubmit}
         />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

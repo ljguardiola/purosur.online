@@ -5,6 +5,7 @@ import type {
 } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
 import { renderScreen, SALE_OF_YERBA, YERBA } from "./test-support/sale-screen";
 
 const OPEN_ADJUSTMENT = "Cambiar el precio de Yerba mate 1 kg";
@@ -108,8 +109,12 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     });
 
     await screen.getByRole("button", { name: OPEN_ADJUSTMENT }).click();
+    await applyTenPercent(screen);
 
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
+    await expect
+      .element(authorizationDialog().getByText("Cambiar precio o descuento", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
     expect(loadAuthorizers).toHaveBeenCalledWith("override_line_price_or_discount");
   });
 

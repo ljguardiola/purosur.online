@@ -9,7 +9,6 @@ import type {
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
-import type { SignedInPerson } from "../../shell/signed-in-person";
 import { render } from "../../shell/test-support/render-with-router";
 import type { CashChargeModalProps } from "../cash-charge-modal";
 import { CashChargeModal } from "../cash-charge-modal";
@@ -17,7 +16,6 @@ import { CashChargeModal } from "../cash-charge-modal";
 const AMOUNT_FIELD = "Importe entregado por el cliente";
 export const DISCOUNT_FIELD = "Descuento por falta de cambio";
 
-const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
 
 const COMPLETED: ChargeSaleInCashOutcome = {
@@ -94,7 +92,6 @@ export async function renderCashChargeModal({
     discountOffered,
     appliedDiscountAmount,
     authorizationRequired,
-    person: PERSON,
     loadAuthorizers: async (permission) => {
       requestedAuthorizers.push(permission);
       return AUTHORIZERS;

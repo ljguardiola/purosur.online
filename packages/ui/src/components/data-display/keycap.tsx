@@ -34,6 +34,8 @@ export type KeyName =
   | "Delete"
   | "Space"
   | `F${FunctionKeyNumber}`
+  | "ArrowUp"
+  | "ArrowDown"
   | "ArrowUpDown"
   | "ArrowLeftRight"
   | "NumpadAdd"
@@ -52,6 +54,8 @@ const specialLabel: Partial<Record<KeyName, string>> = {
   Escape: "Esc",
   Delete: "Supr",
   Space: "Espacio",
+  ArrowUp: "↑",
+  ArrowDown: "↓",
   ArrowUpDown: "↑↓",
   ArrowLeftRight: "←→",
   Digits: "0-9",

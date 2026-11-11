@@ -10,6 +10,7 @@ import type {
 } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
 import {
   pressKeypad,
   QUESO,
@@ -168,8 +169,12 @@ describe("SaleScreen applying a discount on the total", () => {
     });
 
     await screen.getByRole("button", { name: OPEN_DISCOUNT }).click();
+    await applyFivePercent(screen);
 
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
+    await expect
+      .element(authorizationDialog().getByText("Descuento sobre el total", { exact: true }))
+      .toBeVisible();
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
     expect(loadAuthorizers).toHaveBeenCalledWith("apply_total_discount");
   });
 
