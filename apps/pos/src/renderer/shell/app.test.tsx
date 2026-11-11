@@ -996,9 +996,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect
-      .element(screen.getByRole("table", { name: "Para empezar" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("table", { name: "Para empezar" })).toBeVisible();
 
     answering.finishPull(null);
 
