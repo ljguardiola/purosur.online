@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import { tokenRgb } from "../../test/token-colors";
+import { insetBoundary, tokenRgb } from "../../test/token-colors";
 import { PinDotsField, type PinDotsFieldProps } from "./pin-dots-field";
 
 function Harness({
@@ -111,6 +111,27 @@ test("marks the input invalid and described by the error message", async () => {
   expect(input.element().getAttribute("aria-invalid")).toBe("true");
   await expect.element(input).toHaveAccessibleDescription("PIN incorrecto");
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the error ring while an invalid field is focused", async () => {
+  const screen = await render(<FieldWithMessageElsewhere />);
+
+  const input = screen.getByLabelText("PIN", { exact: true });
+  await userEvent.click(input);
+
+  await expect.element(input).toHaveFocus();
+  const box = input.element().parentElement as HTMLElement;
+  expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("error", "2px"));
+});
+
+test("shows the action ring while a valid field is focused", async () => {
+  const screen = await render(<Harness />);
+
+  const input = screen.getByLabelText("PIN", { exact: true });
+  await userEvent.click(input);
+
+  const box = input.element().parentElement as HTMLElement;
+  expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("action", "2px"));
 });
 
 test("is not invalid without an error message", async () => {

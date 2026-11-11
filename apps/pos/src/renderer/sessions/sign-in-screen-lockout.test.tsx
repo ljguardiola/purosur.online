@@ -72,7 +72,7 @@ describe("SignInScreen after a wrong PIN", () => {
       .toBeVisible();
     await userEvent.type(screen.getByLabelText("PIN"), "1");
     await expect.element(screen.getByRole("button", { name: "Entrar en 2 s" })).toBeDisabled();
-    await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+    await expect.element(screen.getByText("Todavía no se puede volver a intentar")).toBeVisible();
 
     await vi.advanceTimersByTimeAsync(1000);
     await expect
@@ -124,7 +124,9 @@ describe("SignInScreen after a wrong PIN", () => {
 
     await choose(screen, "Bruno");
 
-    await expect.element(screen.getByText("PIN incorrecto")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Todavía no se puede volver a intentar"))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeVisible();
   });
 

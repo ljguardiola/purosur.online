@@ -115,3 +115,19 @@ test("lets the screen move the focus to the title", async () => {
 
   await expect.element(screen.getByRole("heading")).toHaveFocus();
 });
+
+test("draws no outline on the focused title", async () => {
+  const titleRef = createRef<HTMLHeadingElement>();
+  const screen = await render(
+    <CardPanel icon={<Lock />} title="Ada está bloqueada" titleRef={titleRef}>
+      <p>Contenido</p>
+    </CardPanel>,
+  );
+
+  titleRef.current?.focus();
+
+  await expect.element(screen.getByRole("heading")).toHaveFocus();
+  const style = getComputedStyle(screen.getByRole("heading").element());
+  expect(style.outlineStyle).toBe("none");
+  expect(style.boxShadow).toBe("none");
+});
