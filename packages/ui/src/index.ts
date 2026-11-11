@@ -197,6 +197,8 @@ export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
+export type { IconCardProps } from "./components/layout/icon-card";
+export { IconCard } from "./components/layout/icon-card";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
@@ -205,6 +207,8 @@ export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
 export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
+export type { SidePanelTitleProps } from "./components/layout/side-panel-title";
+export { SidePanelTitle } from "./components/layout/side-panel-title";
 export type { WarningBlockProps } from "./components/layout/warning-block";
 export { WarningBlock } from "./components/layout/warning-block";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
@@ -251,6 +255,7 @@ export {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDayMonthAndTime,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,

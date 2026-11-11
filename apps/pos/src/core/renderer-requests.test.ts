@@ -27,6 +27,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpeningFloatSuggestion,
   OpenSale,
   PreviewReturnOutcome,
   PreviewSaleDiscountOutcome,
@@ -219,6 +220,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         kindLookups.push("read");
         return null;
       },
+      openingFloatSuggestion: (): OpeningFloatSuggestion | null => null,
       scanProduct: async (code: string): Promise<ScanProductOutcome> => {
         scans.push(code);
         return { kind: "unknown_code" };
@@ -2386,6 +2388,56 @@ describe("answerRendererRequest", () => {
     expect(failing.failures).toEqual([
       { context: "reading the cash movements the person can record", error },
     ]);
+  });
+
+  it("answers the opening float suggestion", async () => {
+    const suggestion: OpeningFloatSuggestion = {
+      kind: "previous_close",
+      closed_at: "2026-11-04T20:14:00.000-03:00",
+      counted_cash: 14_400_000,
+    };
+
+    expect(
+      await answerRendererRequest(deps(true, { openingFloatSuggestion: () => suggestion }).deps, {
+        type: "opening-float-suggestion-request",
+        request_id: "r55",
+      }),
+    ).toEqual({ type: "opening-float-suggestion", request_id: "r55", suggestion });
+  });
+
+  it("answers no opening float suggestion when nobody is signed in", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "opening-float-suggestion-request",
+        request_id: "r56",
+      }),
+    ).toEqual({ type: "opening-float-suggestion", request_id: "r56", suggestion: null });
+  });
+
+  it("answers that the opening float suggestion cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { openingFloatSuggestion: undefined }).deps, {
+        type: "opening-float-suggestion-request",
+        request_id: "r57",
+      }),
+    ).toEqual({ type: "opening-float-suggestion-unavailable", request_id: "r57" });
+  });
+
+  it("answers that the opening float suggestion cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      openingFloatSuggestion: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "opening-float-suggestion-request",
+        request_id: "r58",
+      }),
+    ).toEqual({ type: "opening-float-suggestion-unavailable", request_id: "r58" });
+    expect(failing.failures).toEqual([{ context: "reading the opening float suggestion", error }]);
   });
 
   it("reads what a tendered amount needs for the sale as sent, and answers the charge", async () => {

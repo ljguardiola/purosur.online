@@ -68,6 +68,17 @@ const cashMovementsRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const openingFloatSuggestionRequestMessageSchema = z.object({
+  type: z.literal("opening-float-suggestion-request"),
+  request_id: requestId,
+});
+
+const openingFloatSuggestionSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("previous_close"), closed_at: z.string(), counted_cash: z.int() }),
+  z.object({ kind: z.literal("none") }),
+]);
+export type OpeningFloatSuggestion = z.infer<typeof openingFloatSuggestionSchema>;
+
 const cashMovementKindsRequestMessageSchema = z.object({
   type: z.literal("cash-movement-kinds-request"),
   request_id: requestId,
@@ -163,6 +174,7 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   recordCashMovementMessageSchema,
   cashMovementsRequestMessageSchema,
   cashMovementKindsRequestMessageSchema,
+  openingFloatSuggestionRequestMessageSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
   identifyLockedCloserMessageSchema,
@@ -512,6 +524,12 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     kinds: recordableCashMovementKindsSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-movement-kinds-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("opening-float-suggestion"),
+    request_id: requestId,
+    suggestion: openingFloatSuggestionSchema.nullable(),
+  }),
+  z.object({ type: z.literal("opening-float-suggestion-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("locked-closers"),
     request_id: requestId,

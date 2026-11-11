@@ -720,6 +720,7 @@ export type {
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
+  OpeningFloatSuggestion,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,

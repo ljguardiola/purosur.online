@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import { type Icon, iconSlotClassName } from "../../shared/icon";
 
 export type TableCellTextProps = {
   children: ReactNode;
+  icon?: Icon;
   description?: ReactNode;
   tone?: "subtle" | "error" | "success" | "warning" | undefined;
   strong?: boolean;
@@ -66,8 +68,9 @@ export function TableCellText({
   descriptionTone,
   secondDescription,
   secondDescriptionTone,
+  icon,
 }: TableCellTextProps) {
-  return (
+  const text = (
     <div className="flex flex-col gap-1">
       <span
         className={[
@@ -84,6 +87,19 @@ export function TableCellText({
       {isShown(secondDescription) ? (
         <DescriptionLine tone={secondDescriptionTone}>{secondDescription}</DescriptionLine>
       ) : null}
+    </div>
+  );
+  return icon === undefined ? (
+    text
+  ) : (
+    <div className="flex items-center gap-4">
+      <span
+        aria-hidden="true"
+        className="flex size-control-sm shrink-0 items-center justify-center rounded-full bg-surface text-text"
+      >
+        <span className={iconSlotClassName.md}>{icon}</span>
+      </span>
+      {text}
     </div>
   );
 }

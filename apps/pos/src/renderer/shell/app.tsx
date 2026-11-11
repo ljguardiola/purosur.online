@@ -400,6 +400,7 @@ function Register({ core }: { core: CoreClient }) {
     sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
     cashMovementKinds: () => core.cashMovementKinds(),
+    openingFloatSuggestion: () => core.openingFloatSuggestion(),
     registerStatus: () => core.registerStatus(),
     recordCashMovement,
     redeemPinCode,
