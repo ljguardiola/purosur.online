@@ -114,6 +114,7 @@ function OpeningForm({
   return (
     <form className="contents" noValidate onSubmit={handleSubmit}>
       <SidePanel
+        width="wide"
         label={TITLE}
         header={<SidePanelTitle icon={<Wallet />} title={TITLE} />}
         footer={
@@ -165,7 +166,11 @@ function OpeningPanel({
     return <OpeningForm open={open} suggestion={suggestion.value} />;
   }
   return (
-    <SidePanel label={TITLE} header={<SidePanelTitle icon={<Wallet />} title={TITLE} />}>
+    <SidePanel
+      width="wide"
+      label={TITLE}
+      header={<SidePanelTitle icon={<Wallet />} title={TITLE} />}
+    >
       {suggestion.status === "loading" ? (
         <LoadingPlaceholder variant="form" fields={1} />
       ) : (
@@ -190,7 +195,7 @@ export function CashOpeningPanel({
     return <OpeningPanel open={open} readOpeningFloatSuggestion={readOpeningFloatSuggestion} />;
   }
   return (
-    <SidePanel label="Apertura de caja">
+    <SidePanel width="wide" label="Apertura de caja">
       <h2 className="text-display font-bold text-text-accent">{firstName}</h2>
     </SidePanel>
   );
