@@ -53,7 +53,6 @@ const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total 
 const AUTHORIZING = "descontar sobre el total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
-
 const QUICK_AMOUNT_KEYS = ["F6", "F7", "F8", "F9"] as const;
 
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
