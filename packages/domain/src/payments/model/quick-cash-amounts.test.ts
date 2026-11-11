@@ -12,8 +12,8 @@ describe("quickCashAmounts", () => {
     expect(quickCashAmounts(2_519_250)).toEqual([2_510_000, 2_600_000, 3_000_000, 4_000_000]);
   });
 
-  it("offers the amount to charge when it is not rounded", () => {
-    expect(quickCashAmounts(345_000)).toEqual([345_000, 400_000, 1_000_000, 2_000_000]);
+  it("offers the amount to charge rounded down to the smallest bill", () => {
+    expect(quickCashAmounts(345_000)).toEqual([340_000, 400_000, 1_000_000, 2_000_000]);
   });
 
   it("offers a multiple reached by two steps once", () => {
@@ -29,7 +29,7 @@ describe("quickCashAmounts", () => {
   });
 
   it("offers no amount above the largest cash amount", () => {
-    expect(quickCashAmounts(MAX_CASH_AMOUNT_CENTS)).toEqual([MAX_CASH_AMOUNT_CENTS - 7647]);
+    expect(quickCashAmounts(MAX_CASH_AMOUNT_CENTS)).toEqual([MAX_CASH_AMOUNT_CENTS - 3647]);
   });
 
   it("offers at most four ascending amounts without repeats, each covering the amount to charge", () => {

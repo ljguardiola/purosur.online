@@ -63,7 +63,7 @@ describe("the amounts of a cash charge", () => {
     expect(await cashChargeAmountsFor(deps(), { saleId, saleDiscount: 10_000 })).toEqual({
       amount_to_charge: 2_500_000,
       cash_rounding: 9250,
-      quick_amounts: [2_500_000, 2_600_000, 3_000_000, 4_000_000],
+      quick_amounts: [2_500_000, 3_000_000, 4_000_000],
       change_discount_option: null,
     });
   });

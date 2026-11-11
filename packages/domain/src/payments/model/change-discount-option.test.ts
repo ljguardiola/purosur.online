@@ -10,8 +10,8 @@ describe("changeDiscountOption", () => {
     expect(changeDiscountOption(2_519_250)).toBe(10_000);
   });
 
-  it("offers the hundreds of an amount to charge that was not rounded", () => {
-    expect(changeDiscountOption(345_000)).toBe(45_000);
+  it("offers the hundreds of the amount to charge rounded down to the smallest bill", () => {
+    expect(changeDiscountOption(345_000)).toBe(40_000);
   });
 
   it("offers nothing when the amount to charge is already a multiple of $1.000", () => {
