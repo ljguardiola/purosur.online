@@ -214,7 +214,7 @@ describe("SaleScreen reading a barcode reader's codes", () => {
 
       readBarcode("7790001");
 
-      await expect.poll(() => findProductByCode.mock.calls).toEqual([["7790001"]]);
+      await expect.poll(() => findProductByCode.mock.calls).toEqual([["7790009"], ["7790001"]]);
       await expect.element(screen.getByText(NOT_ADDED_TITLE)).not.toBeInTheDocument();
       expect(scanProduct.mock.calls).toEqual([["7790009"]]);
     });

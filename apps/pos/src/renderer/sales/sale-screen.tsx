@@ -374,57 +374,6 @@ export function SaleScreen({
     return found?.kind === "found" ? found.product.unit_price : undefined;
   }
 
-  async function advanceWaiting(): Promise<void> {
-    const next = waitingNow.current[0];
-    if (next === undefined || weighingNow.current !== undefined || advancingWaiting.current) {
-      return;
-    }
-    setWaiting(waitingNow.current.slice(1));
-    advancingWaiting.current = true;
-    const outcome = await addProduct(next.productId).catch(
-      (): AddProductOutcome => ({ kind: "unavailable" }),
-    );
-    await take(currentCode(), outcome, { kind: "add_failed" }, { unitPrice: next.unitPrice });
-    advancingWaiting.current = false;
-    await advanceWaiting();
-  }
-
-  function closeWeighing() {
-    askForWeight(undefined);
-    void advanceWaiting();
-  }
-
-  async function queueByCode(submitted: string) {
-    const outcome = await findProductByCode(submitted).catch(
-      (): FindProductByCodeOutcome => ({ kind: "unavailable" }),
-    );
-    switch (outcome.kind) {
-      case "found":
-        enqueue({
-          product_id: outcome.product.product_id,
-          name: outcome.product.name,
-          sale_unit: outcome.product.sale_unit,
-          unit_price: outcome.product.unit_price,
-          matches: [],
-        });
-        setCode((typed) => (typed.trim() === submitted ? "" : typed));
-        break;
-      case "not_signed_in":
-      case "no_open_session":
-        onSessionInvalid();
-        break;
-      case "unknown_code":
-      case "not_permitted":
-      case "restoration_in_progress":
-        refuse(submitted, outcome);
-        break;
-      case "unavailable":
-        refuse(submitted, { kind: "scan_failed" });
-        break;
-    }
-    await advanceWaiting();
-  }
-
   async function take(
     submitted: string,
     outcome: TakenOutcome,
@@ -487,6 +436,58 @@ export function SaleScreen({
         refuse(submitted, failure);
         break;
     }
+  }
+
+  async function advanceWaiting(): Promise<void> {
+    if (advancingWaiting.current) {
+      return;
+    }
+    advancingWaiting.current = true;
+    while (weighingNow.current === undefined && waitingNow.current[0] !== undefined) {
+      const next = waitingNow.current[0];
+      setWaiting(waitingNow.current.slice(1));
+      const outcome = await addProduct(next.productId).catch(
+        (): AddProductOutcome => ({ kind: "unavailable" }),
+      );
+      await take(currentCode(), outcome, { kind: "add_failed" }, { unitPrice: next.unitPrice });
+    }
+    advancingWaiting.current = false;
+  }
+
+  function closeWeighing() {
+    askForWeight(undefined);
+    void advanceWaiting();
+  }
+
+  async function queueByCode(submitted: string) {
+    const outcome = await findProductByCode(submitted).catch(
+      (): FindProductByCodeOutcome => ({ kind: "unavailable" }),
+    );
+    switch (outcome.kind) {
+      case "found":
+        enqueue({
+          product_id: outcome.product.product_id,
+          name: outcome.product.name,
+          sale_unit: outcome.product.sale_unit,
+          unit_price: outcome.product.unit_price,
+          matches: [],
+        });
+        setCode((typed) => (typed.trim() === submitted ? "" : typed));
+        break;
+      case "not_signed_in":
+      case "no_open_session":
+        onSessionInvalid();
+        break;
+      case "unknown_code":
+      case "not_permitted":
+      case "restoration_in_progress":
+        refuse(submitted, outcome);
+        break;
+      case "unavailable":
+        refuse(submitted, { kind: "scan_failed" });
+        break;
+    }
+    await advanceWaiting();
   }
 
   async function addWithWeight(
