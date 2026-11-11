@@ -2,7 +2,7 @@ import type { SettlementReportRow } from "@purosur/domain/payments/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { mercadoPagoSettlementMovements } from "../../platform/db/schema.js";
 
-export const MOVEMENT_DATE = new Date("2026-10-09T15:00:00.000Z");
+const MOVEMENT_DATE = new Date("2026-10-09T15:00:00.000Z");
 
 export function settlementRow(overrides: Partial<SettlementReportRow> = {}): SettlementReportRow {
   return {

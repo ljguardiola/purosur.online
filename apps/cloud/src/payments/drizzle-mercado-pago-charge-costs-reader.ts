@@ -115,5 +115,4 @@ export class DrizzleMercadoPagoChargeCostsReader<TQueryResult extends PgQueryRes
       movements: (movementsOf.get(charge.paymentTransactionId) ?? []).map(settlementMovementOf),
     }));
   }
-
 }
