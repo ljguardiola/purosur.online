@@ -157,9 +157,7 @@ test("shows its keycap after the label, hidden from assistive technology, keepin
     </ButtonLink>,
   );
 
-  const link = screen
-    .getByRole("link", { name: "Primer ingreso" })
-    .element() as HTMLAnchorElement;
+  const link = screen.getByRole("link", { name: "Primer ingreso" }).element() as HTMLAnchorElement;
   const keycap = link.querySelector("kbd") as HTMLElement;
   expect(keycap.textContent).toBe("F2");
   expect(keycap.closest("[aria-hidden='true']")).not.toBeNull();
