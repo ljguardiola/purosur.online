@@ -1,5 +1,5 @@
 import type { StartupPending } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -69,6 +69,14 @@ describe("StartupPendingSessionPanel", () => {
     await expect.element(panel.getByText("09:02", { exact: true })).toBeVisible();
     await expect.element(panel.getByText("Fondo inicial", { exact: true })).toBeVisible();
     await expect.element(panel.getByText("$ 20.000,00", { exact: true })).toBeVisible();
+  });
+
+  it("shows who opened the session large and in the main text color", async () => {
+    const { panel } = await renderPanel();
+    const style = getComputedStyle(panel.getByText("Grace", { exact: true }).element());
+
+    expect(style.fontSize).toBe("48px");
+    expect(style.color).toBe(tokenRgb("text"));
   });
 
   it("gives only the opening time while the opening cash is unknown", async () => {

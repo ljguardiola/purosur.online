@@ -45,6 +45,17 @@ test("draws a hero-size value at 48px bold in the accent text color", async () =
   expect(style.color).toBe(tokenRgb("text-accent"));
 });
 
+test("draws a plain value in the main text color, at the same size", async () => {
+  const screen = await render(
+    <FigureStat size="hero" tone="plain" label="Abierta por" value="Lucas" />,
+  );
+  const style = getComputedStyle(screen.getByText("Lucas").element());
+
+  expect(style.fontSize).toBe("48px");
+  expect(style.fontWeight).toBe("700");
+  expect(style.color).toBe(tokenRgb("text"));
+});
+
 test("draws the detail in subtle text", async () => {
   const screen = await render(
     <FigureStat label="Vuelto" detail="Cobrado − aplicado" value="$ 1" />,

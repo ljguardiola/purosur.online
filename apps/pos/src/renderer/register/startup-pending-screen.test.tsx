@@ -298,6 +298,43 @@ describe("StartupPendingScreen", () => {
       .not.toBeInTheDocument();
   });
 
+  it("stretches the table down the main area, with its key legend pinned at the bottom", async () => {
+    const { screen } = await renderScreen({
+      loadStartupPending: async () => ({ ...NOTHING, sales_to_print: [NEVER_PRINTED] }),
+    });
+    await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+
+    const main = screen.getByRole("main").element().getBoundingClientRect();
+    const header = screen
+      .getByRole("region", { name: "Estado de la caja" })
+      .element()
+      .getBoundingClientRect();
+    const card = screen.getByRole("table", { name: "Pendientes" }).element().closest("div.border");
+    const legend = document.querySelector("main ul");
+    const cardBox = card?.getBoundingClientRect();
+    expect(cardBox?.bottom).toBeCloseTo(main.bottom - 24, 0);
+    expect(cardBox?.top).toBeCloseTo(header.bottom + 16, 0);
+    expect(legend?.getBoundingClientRect().bottom).toBeLessThanOrEqual(cardBox?.bottom ?? 0);
+    expect((cardBox?.bottom ?? 0) - (legend?.getBoundingClientRect().bottom ?? 0)).toBeLessThan(20);
+  });
+
+  it("titles each row in bold and keeps its description on one line, with the state narrow at the right end", async () => {
+    const { screen } = await renderScreen({
+      loadStartupPending: async () => ({ ...NOTHING, sales_to_print: [NEVER_PRINTED] }),
+    });
+    const title = screen.getByText("Venta sin ticket", { exact: true });
+    await expect.element(title).toBeVisible();
+    const description = screen.getByText(/Nunca se imprimió/).element();
+    const lineHeight = Number.parseFloat(getComputedStyle(description).lineHeight);
+    expect(getComputedStyle(title.element()).fontWeight).toBe("700");
+    expect(description.getBoundingClientRect().height).toBeLessThanOrEqual(lineHeight + 1);
+
+    const state = screen.getByRole("columnheader", { name: "Estado" }).element();
+    const table = screen.getByRole("table", { name: "Pendientes" }).element();
+    expect(state.getBoundingClientRect().width).toBeLessThanOrEqual(200);
+    expect(state.getBoundingClientRect().right).toBeCloseTo(table.getBoundingClientRect().right, 0);
+  });
+
   it("offers a sale never printed with its time and total, to print as the original", async () => {
     const { screen } = await renderScreen();
 
@@ -1343,6 +1380,7 @@ describe("StartupPendingScreen", () => {
         .toBeVisible();
       await expect.element(screen.getByText("Podés ir a vender igual.")).toBeVisible();
       await expect.poll(legendOf).toEqual(["RReintentar"]);
+      expect(screen.getByRole("main").getByRole("button").elements()).toEqual([]);
       await expectGoSellingOpen(screen);
       await userEvent.keyboard("{Enter}");
       expect(onGoSelling).toHaveBeenCalledOnce();
@@ -1378,6 +1416,18 @@ describe("StartupPendingScreen", () => {
       expect(onGoSelling).not.toHaveBeenCalled();
       await expect.element(panel).toBeVisible();
       await expect.element(rowsOfTable(screen).nth(1)).toHaveAttribute("aria-current", "true");
+    });
+
+    it("keeps the key legend of the table shown while the refund confirmation is open", async () => {
+      const { screen } = await renderScreen({ loadStartupPending: async () => BLOCKED_BY_QR });
+      await press(screen, "r", "Cobro con QR pagado sin venta");
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" }))
+        .toBeVisible();
+
+      await expect
+        .poll(legendOf)
+        .toEqual(["↑↓Pendientes", "AArmar la venta", "RPasar a reembolso"]);
     });
 
     it("ignores the keys of the screen while the duplicate receipt dialog is open", async () => {
