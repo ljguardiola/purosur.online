@@ -76,7 +76,7 @@ describe("CashChargePanel", () => {
     expect(screen.getByText("Pagado").query()).toBeNull();
   });
 
-  it("is the cash charge: Efectivo, its Esc key and the received amount, focused, with what to do when it does not cover", async () => {
+  it("is the cash charge: Efectivo, its Esc key and the received amount, focused, with no hint under it", async () => {
     const { screen, field } = await renderPanel();
 
     await expect.element(screen.getByText("Efectivo", { exact: true })).toBeVisible();
