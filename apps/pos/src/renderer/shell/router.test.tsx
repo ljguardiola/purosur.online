@@ -269,6 +269,7 @@ function contextWith(
     abandonMercadoPagoCharge: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
+    findProductByCode: async () => ({ kind: "unknown_code" }),
     addProduct: async () => ({ kind: "product_unavailable" }),
     changeLineQuantity: async () => ({ kind: "unavailable" }),
     addWeighedProduct: async () => ({ kind: "unavailable" }),

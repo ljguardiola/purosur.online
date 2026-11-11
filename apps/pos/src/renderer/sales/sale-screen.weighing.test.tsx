@@ -2,7 +2,6 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   FindProductByCodeOutcome,
-  FoundProduct,
   OpenSale,
   WeighLineOutcome,
   WeighProductOutcome,
@@ -68,13 +67,18 @@ const UNSTEADY_238: WeighProductOutcome = {
   weight_thousandths: 238,
   amount: 185_640,
 };
+type ProductFound = Extract<FindProductByCodeOutcome, { kind: "found" }>["product"];
+function legendOf() {
+  return Array.from(document.querySelectorAll("main ul li"), (item) => item.textContent);
+}
+
 const CARD_OF_QUESO = { name: "Queso cremoso" };
 
 function salesWith(...lines: OpenSale["lines"]): OpenSale {
   return { ...SALE_OF_QUESO, lines, total: 0, pending: 0 };
 }
 
-function lineOf(found: FoundProduct, id: string): OpenSale["lines"][number] {
+function lineOf(found: ProductFound, id: string): OpenSale["lines"][number] {
   return {
     ...QUESO,
     id,
@@ -88,7 +92,7 @@ function lineOf(found: FoundProduct, id: string): OpenSale["lines"][number] {
   };
 }
 
-function productOf(code: string): FoundProduct {
+function productOf(code: string): ProductFound {
   const outcome = PRODUCTS[code];
   if (outcome?.kind !== "found") {
     throw new Error(`no product for ${code}`);
@@ -419,11 +423,11 @@ describe("SaleScreen while weighing", () => {
       removeSaleLine,
     });
     await expect.element(screen.getByText("Pasas de uva")).toBeVisible();
-    await expect.element(screen.getByText("Quitar", { exact: true })).toBeVisible();
+    expect(legendOf()).toContain("SuprQuitar");
     await scan(field, "7790001");
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
 
-    await expect.element(screen.getByText("Quitar", { exact: true })).not.toBeInTheDocument();
+    expect(legendOf()).not.toContain("SuprQuitar");
     await userEvent.keyboard("{Delete}");
 
     expect(removeSaleLine).not.toHaveBeenCalled();
@@ -435,8 +439,8 @@ describe("SaleScreen weighing again with F3", () => {
     const weighLine = vi.fn(async (): Promise<WeighLineOutcome> => ({ kind: "weighing" }));
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_QUESO, weighLine });
 
-    const legend = screen.getByText("Pesar", { exact: true });
-    await expect.element(legend).toBeVisible();
+    await expect.element(screen.getByRole("row").last()).toHaveAttribute("aria-current", "true");
+    expect(legendOf()).toContain("F3Pesar");
     await userEvent.keyboard("{F3}");
 
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
@@ -448,7 +452,7 @@ describe("SaleScreen weighing again with F3", () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA, weighLine });
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
-    await expect.element(screen.getByText("Pesar", { exact: true })).not.toBeInTheDocument();
+    expect(legendOf()).not.toContain("F3Pesar");
     await userEvent.keyboard("{F3}");
 
     expect(weighLine).not.toHaveBeenCalled();
@@ -462,7 +466,7 @@ describe("SaleScreen weighing again with F3", () => {
     await userEvent.keyboard("{F3}");
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
 
-    await expect.element(screen.getByText("Pesar", { exact: true })).not.toBeInTheDocument();
+    expect(legendOf()).not.toContain("F3Pesar");
   });
 });
 
@@ -524,9 +528,15 @@ describe("SaleScreen products waiting during a weighing", () => {
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
   });
 
-  it("queues a code typed in the search field during a weighing instead of adding it", async () => {
+  it("queues a code typed in the search field while the reading is moving instead of adding it", async () => {
     const scanProduct = vi.fn(async () => WEIGHT_NEEDED);
-    const { screen, field } = await weighingWith({ scanProduct });
+    const { screen, field } = await renderScreen({
+      ...weighingScale(vi.fn(async () => UNSTEADY_238)),
+      scanProduct,
+      currentSale: async () => SALE_OF_YERBA,
+    });
+    await scan(field, "7790001");
+    await expect.element(screen.getByText("Moviéndose")).toBeVisible();
 
     await field.fill("7790002");
     await userEvent.keyboard("{Enter}");

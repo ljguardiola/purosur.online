@@ -118,7 +118,7 @@ describe("SaleScreen adding a product sold by weight", () => {
     const { screen, field } = await scanning({ addWeighedProduct });
 
     await scan(field, "7790001");
-    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
 
     await expect
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
@@ -628,7 +628,7 @@ describe("SaleScreen changing the weight of a line", () => {
     );
     const { screen } = await renderWithQueso(changeLineWeight);
 
-    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
 
     expect(changeLineWeight).not.toHaveBeenCalled();
     await expect.element(screen.getByText("1,250 kg")).toBeVisible();

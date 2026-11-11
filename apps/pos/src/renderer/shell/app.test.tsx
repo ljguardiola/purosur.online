@@ -124,6 +124,7 @@ function coreAnswering(
     rebuildSaleAgainstPaidOrder?: CoreClient["rebuildSaleAgainstPaidOrder"];
     chargeSaleWithPaidOrder?: CoreClient["chargeSaleWithPaidOrder"];
     searchProducts?: CoreClient["searchProducts"];
+    findProductByCode?: CoreClient["findProductByCode"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
     receiptPrintStatus?: CoreClient["receiptPrintStatus"];
@@ -407,6 +408,11 @@ function coreAnswering(
       return sales.searchProducts === undefined
         ? { kind: "results", products: [], more: false }
         : sales.searchProducts(query);
+    },
+    async findProductByCode(code) {
+      return sales.findProductByCode === undefined
+        ? { kind: "unknown_code" }
+        : sales.findProductByCode(code);
     },
     async addProduct(productId) {
       return sales.addProduct === undefined
