@@ -1,7 +1,6 @@
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, PinDotsField } from "@purosur/ui";
 import { ArrowRight } from "lucide-react";
 import type { Ref } from "react";
-import { PinField } from "./pin-field";
 import type { PinAttempt } from "./use-pin-attempt";
 
 export function PinAttemptControls({
@@ -21,10 +20,12 @@ export function PinAttemptControls({
 
   return (
     <>
-      <PinField
+      <PinDotsField
         ref={pinInput}
+        label="PIN"
         value={attempt.pin}
         onChange={attempt.type}
+        autoFocus
         disabled={attempt.submitting || disabled}
         {...(attempt.pinRefused ? { errorMessageId: noticeId } : {})}
       />
@@ -38,7 +39,14 @@ export function PinAttemptControls({
           />
         </div>
       )}
-      <Button type="submit" fullWidth icon={<ArrowRight />} disabled={!attempt.canSubmit}>
+      <Button
+        type="submit"
+        fullWidth
+        icon={<ArrowRight />}
+        iconPosition="start"
+        keycap="Enter"
+        disabled={!attempt.canSubmit}
+      >
         {submitText}
       </Button>
     </>

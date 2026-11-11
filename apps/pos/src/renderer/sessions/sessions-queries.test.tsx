@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { SignInUsers } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
 import {
@@ -26,8 +27,15 @@ function renderWithClient(ui: React.ReactNode) {
   return render(<QueryClientProvider client={createQueryClient()}>{ui}</QueryClientProvider>);
 }
 
-function UsersProbe({ read }: { read: () => Promise<SignInUser[]> }) {
-  return <p>{names(useSignInUsersQuery(read))}</p>;
+function UsersProbe({ read }: { read: () => Promise<SignInUsers> }) {
+  const data = useSignInUsersQuery(read);
+  return (
+    <p>
+      {data.status === "loaded"
+        ? `${names({ ...data, value: data.value.users })} last:${data.value.last_active_user_id}`
+        : data.status}
+    </p>
+  );
 }
 
 type AuthorizersProbeProps = {
@@ -51,9 +59,10 @@ function AuthorizersProbe({ permission, read, enabled = true }: AuthorizersProbe
 
 describe("sessions queries", () => {
   it("hold the people who can sign in", async () => {
-    const screen = await renderWithClient(<UsersProbe read={async () => [ADA, GRACE]} />);
+    const screen = await renderWithClient(<UsersProbe read={async () => ({ users: [ADA, GRACE], last_active_user_id: "u2" })} />,
+    );
 
-    await expect.element(screen.getByText("Ada,Grace")).toBeVisible();
+    await expect.element(screen.getByText("Ada,Grace last:u2")).toBeVisible();
   });
 
   it("fail when the people who can sign in cannot be read", async () => {
