@@ -417,7 +417,7 @@ export function CashChargePanel({
           value={formatCents(partial === undefined ? settled.amount_to_charge : settled.amount_due)}
         />
       )}
-      <SummaryRowGroup rows={summaryRows} />
+      <SummaryRowGroup variant="plain" rows={summaryRows} />
       <div ref={tenderedBox}>
         <form.AppField
           name="tendered"
@@ -453,7 +453,7 @@ export function CashChargePanel({
             </Button>
           }
         >
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {suggestedDiscount === undefined ? null : (
               <QuickAmountButton
                 amount={`– ${formatCents(suggestedDiscount)}`}
@@ -483,7 +483,7 @@ export function CashChargePanel({
           </div>
         </WarningBlock>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           {quickAmounts.slice(0, QUICK_AMOUNT_KEYS.length).map((amount, index) => (
             <QuickAmountButton
               key={amount}
