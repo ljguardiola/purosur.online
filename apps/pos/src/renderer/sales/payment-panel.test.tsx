@@ -90,6 +90,16 @@ describe("PaymentPanel", () => {
     });
   });
 
+  it.each(["Point débito", "Point crédito", "QR"])(
+    "shows the label of the %s tile in full",
+    async (label) => {
+      const screen = await renderPanel();
+
+      const text = screen.getByText(label, { exact: true }).element();
+      expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth);
+    },
+  );
+
   it("shows what is paid and the pending balance once part of the sale is paid", async () => {
     const screen = await renderPanel({ paid: 100_000, pending: 376_000 });
 
