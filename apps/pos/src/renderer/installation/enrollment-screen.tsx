@@ -211,7 +211,15 @@ function EnrollmentPanel({
                 />
               </div>
             )}
-            <Button type="submit" fullWidth icon={<Check />} keycap="Enter" disabled={submitting}>
+            <Button
+              type="submit"
+              size="large"
+              fullWidth
+              icon={<Check />}
+              iconPosition="start"
+              keycap="Enter"
+              disabled={submitting}
+            >
               Dar de alta
             </Button>
           </form>
