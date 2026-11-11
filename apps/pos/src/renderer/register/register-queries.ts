@@ -4,6 +4,7 @@ import type {
   EnrollmentStandingAnswer,
   ListedCashMovement,
   OpenCashSession,
+  OpeningFloatSuggestion,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
@@ -32,6 +33,7 @@ export const registerKeys = {
   service: [...registerKey, "service"] as const,
   restorationStanding: [...registerKey, "restoration-standing"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
+  openingFloatSuggestion: [...registerKey, "opening-float-suggestion"] as const,
   registerName: [...registerKey, "register-name"] as const,
   registerVersion: [...registerKey, "register-version"] as const,
   status: [...registerKey, "status"] as const,
@@ -188,6 +190,17 @@ export function useCashMovementsQuery(
   read: () => Promise<ListedCashMovement[] | null | "unavailable">,
 ): CoreData<ListedCashMovement[]> {
   return answeredOrLoading(useCoreQuery({ queryKey: registerKeys.cashMovements(sessionId), read }));
+}
+
+export function useOpeningFloatSuggestionQuery(
+  read: () => Promise<OpeningFloatSuggestion | null | "unavailable">,
+): CoreData<OpeningFloatSuggestion> {
+  const suggestion = answeredOrLoading(
+    useCoreQuery({ queryKey: registerKeys.openingFloatSuggestion, read }),
+  );
+  return suggestion.status === "loaded" && suggestion.refreshing
+    ? { status: "loading" }
+    : suggestion;
 }
 
 export function useCashMovementKindsQuery(

@@ -241,6 +241,7 @@ export {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDayMonthAndTime,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,

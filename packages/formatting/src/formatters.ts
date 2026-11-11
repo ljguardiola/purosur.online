@@ -217,6 +217,19 @@ export function formatDayAndTime(instant: string, timeZone = writtenTimeZone(ins
   return `${day} · ${time}`;
 }
 
+export function formatDayMonthAndTime(instant: string): string {
+  const moment = new Date(instant);
+  const timeZone = writtenTimeZone(instant);
+  const day = formatDate(moment, { day: "2-digit", month: "2-digit", timeZone });
+  const time = formatDate(moment, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  });
+  return `${day} · ${time}`;
+}
+
 export function formatCountdown(seconds: number): string {
   const whole = Math.floor(seconds);
   const minutes = Math.floor(whole / 60);
