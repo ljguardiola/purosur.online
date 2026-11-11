@@ -37,3 +37,7 @@ export const WithEscapeKey: Story = {
     escapeKey: { name: "Volver con Esc", onPress: () => {} },
   },
 };
+
+export const WithoutEyebrow: Story = {
+  args: { eyebrow: undefined },
+};
