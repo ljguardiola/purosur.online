@@ -379,6 +379,14 @@ describe("SaleScreen while weighing", () => {
     },
   );
 
+  it("keeps Aplicar descuento al total available", async () => {
+    const { screen } = await weighingWithFourLines();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Aplicar descuento al total" }))
+      .toBeEnabled();
+  });
+
   it.each(["F12", "F9", "F10", "F11", "F1"])("does nothing on %s", async (key) => {
     const { screen } = await weighingWithFourLines();
 

@@ -22,3 +22,5 @@ export const Default: Story = {};
 export const LongName: Story = {
   args: { name: "Mezcla de frutos secos, semillas y cereales sin sal agregada, bolsa de un kilo" },
 };
+
+export const WithOthersWaiting: Story = { args: { more: "y 2 más" } };

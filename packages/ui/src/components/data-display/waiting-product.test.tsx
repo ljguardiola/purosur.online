@@ -39,3 +39,17 @@ test("reads the product's name and price as one line", async () => {
     "Aceite de oliva extra virgen 500 ml · $ 9.400,00 / u",
   );
 });
+
+test("shows the text about the other waiting products after the product's line", async () => {
+  const screen = await render(<WaitingProduct {...waiting} more="y 2 más" />);
+
+  await expect.element(screen.getByText("y 2 más")).toBeVisible();
+  expect(screen.container.textContent).toContain("$ 9.400,00 / u y 2 más");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows nothing about other waiting products when it is given no text", async () => {
+  const screen = await render(<WaitingProduct {...waiting} />);
+
+  expect(screen.container.textContent).not.toContain("más");
+});

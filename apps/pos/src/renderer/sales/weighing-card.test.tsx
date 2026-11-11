@@ -421,6 +421,21 @@ describe("WeighingCard", () => {
       expect(discard.element().querySelector("kbd")?.textContent).toBe("Supr");
     });
 
+    it("says how many others wait after the first one", async () => {
+      const { screen } = await renderCard(async () => WEIGHING, {
+        waiting: [ACEITE, PASAS, AZUCAR],
+      });
+
+      await expect.element(screen.getByText("y 2 más")).toBeVisible();
+    });
+
+    it("says nothing about others when only one waits", async () => {
+      const { screen } = await renderCard(async () => WEIGHING, { waiting: [ACEITE] });
+
+      await expect.element(screen.getByText("Aceite de oliva extra virgen 500 ml")).toBeVisible();
+      await expect.element(screen.getByText("más", { exact: false })).not.toBeInTheDocument();
+    });
+
     it("shows a waiting product sold by weight with its price per kilo", async () => {
       const { screen } = await renderCard(async () => WEIGHING, { waiting: [PASAS] });
 
