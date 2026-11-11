@@ -160,6 +160,21 @@ describe("CashChargePanel", () => {
     await expect.element(complete).toBeDisabled();
   });
 
+  it("draws Cobrar's check icon before its text", async () => {
+    const { complete } = await renderPanel();
+
+    await expect.element(complete).toBeInTheDocument();
+    const button = complete.element();
+    const icon = button.querySelector("svg");
+    const text = Array.from(button.querySelectorAll("span")).find(
+      (span) => span.textContent === "Cobrar",
+    );
+
+    expect(
+      icon && text && icon.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("offers to register a partial payment, and shows what stays pending and no change, while the amount does not cover the pending balance", async () => {
     const { screen, field } = await renderPanel();
 
