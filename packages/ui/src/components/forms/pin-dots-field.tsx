@@ -23,7 +23,7 @@ const dotClassName = {
 function boxClassName(invalid: boolean): string {
   return (
     "relative flex h-16 items-center justify-center gap-4 rounded-lg bg-surface inset-ring-2 " +
-    `${invalid ? "inset-ring-error" : "inset-ring-border"} focus-within:inset-ring-action`
+    (invalid ? "inset-ring-error" : "inset-ring-border focus-within:inset-ring-action")
   );
 }
 

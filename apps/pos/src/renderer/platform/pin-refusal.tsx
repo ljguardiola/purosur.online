@@ -16,12 +16,14 @@ const UNAVAILABLE_NOTICE: PinNotice = {
   description: "Volvé a intentarlo en unos segundos.",
 };
 
+const WAIT_TITLE = "Todavía no se puede volver a intentar";
+
 export function noticeFor(refusal: Refusal, secondsLeft: number): PinNotice | undefined {
   switch (refusal.kind) {
     case "wrong_pin":
       return {
         icon: <ShieldX />,
-        title: "PIN incorrecto",
+        title: secondsLeft > 0 ? WAIT_TITLE : "PIN incorrecto",
         description: waitDescription(secondsLeft, refusal.attempts_left),
       };
     case "rate_limited":
@@ -29,7 +31,7 @@ export function noticeFor(refusal: Refusal, secondsLeft: number): PinNotice | un
         ? undefined
         : {
             icon: <ShieldX />,
-            title: "Todavía no se puede volver a intentar",
+            title: WAIT_TITLE,
             description: waitDescription(secondsLeft, refusal.attempts_left),
           };
     case "no_register_permission":

@@ -30,7 +30,7 @@ export function CardPanel({
             <h1
               ref={titleRef}
               tabIndex={-1}
-              className="min-w-0 flex-1 text-title text-text outline-none focus-visible:focus-ring-tight"
+              className="min-w-0 flex-1 text-title text-text outline-none"
             >
               {title}
             </h1>
