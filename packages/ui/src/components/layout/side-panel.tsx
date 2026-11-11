@@ -1,5 +1,6 @@
 import { type ReactNode, useId } from "react";
 import { useKeyboardScrollableRegion } from "../shared/keyboard-scrollable-region";
+import { SidePanelInsetContext } from "./side-panel-inset";
 
 export type SidePanelProps = {
   children: ReactNode;
@@ -9,13 +10,18 @@ export type SidePanelProps = {
   width?: "panel" | "wide" | "fill" | undefined;
 };
 
-const REGULAR_INSET = { body: "px-8 pt-8", end: "pb-8", footer: "px-8 pb-8" } as const;
+const REGULAR_INSET = {
+  body: "px-8 pt-8",
+  end: "pb-8",
+  footer: "px-8 pb-8",
+  horizontal: "px-8",
+} as const;
 
 const WIDTHS = {
   panel: { box: "w-98 shrink-0 border-l border-border", inset: REGULAR_INSET },
   wide: {
     box: "w-100 shrink-0 border-l border-border",
-    inset: { body: "px-6 pt-6", end: "pb-6", footer: "px-6 pb-6" },
+    inset: { body: "px-6 pt-6", end: "pb-6", footer: "px-6 pb-6", horizontal: "px-6" },
   },
   fill: { box: "min-h-0 w-full", inset: REGULAR_INSET },
 } as const;
@@ -27,7 +33,11 @@ export function SidePanel({ children, label, footer, header, width = "panel" }: 
 
   return (
     <aside id={panelId} aria-label={label} className={`flex h-full flex-col bg-surface ${box}`}>
-      {header === undefined ? null : <div className="shrink-0">{header}</div>}
+      {header === undefined ? null : (
+        <div className="shrink-0">
+          <SidePanelInsetContext value={inset.horizontal}>{header}</SidePanelInsetContext>
+        </div>
+      )}
       <div
         ref={observeOverflow}
         {...regionProps}
