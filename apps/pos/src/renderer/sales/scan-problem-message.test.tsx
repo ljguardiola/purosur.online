@@ -88,4 +88,52 @@ describe("ScanProblemMessage", () => {
       .element(region.getByText("Escanealo o buscalo de nuevo para agregarlo.", { exact: true }))
       .toBeVisible();
   });
+
+  it("tells that no product has the code as a notice in the flow of the page, not floating over it", async () => {
+    const screen = await render(
+      <div>
+        <ScanProblemMessage problem={{ kind: "unknown_code" }} />
+        <p>Below</p>
+      </div>,
+    );
+
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent(
+        "No hay ningún producto con ese código Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+      );
+    await expect
+      .element(screen.getByText("No hay ningún producto con ese código", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(
+        screen.getByText(
+          "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    const noticeBox = screen
+      .getByText("No hay ningún producto con ese código")
+      .element()
+      .closest("div")
+      ?.getBoundingClientRect();
+    const below = screen.getByText("Below").element().getBoundingClientRect();
+    expect(noticeBox?.bottom).toBeLessThanOrEqual(below.top);
+  });
+
+  it("keeps the status region mounted while it tells of an unknown code, so the next problem is announced", async () => {
+    const screen = await render(<ScanProblemMessage problem={undefined} />);
+    const region = screen.getByRole("status").element();
+
+    await screen.rerender(<ScanProblemMessage problem={{ kind: "unknown_code" }} />);
+
+    expect(region.isConnected).toBe(true);
+
+    await screen.rerender(<ScanProblemMessage problem={{ kind: "remove_failed" }} />);
+
+    const message = screen.getByRole("status").filter({ hasText: "No se pudo quitar la línea" });
+    await expect.element(message).toBeInTheDocument();
+    expect(message.element()).toBe(region);
+  });
 });

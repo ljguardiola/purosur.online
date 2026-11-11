@@ -17,6 +17,10 @@ export const WithDetail: Story = {
   args: { label: "Vuelto a entregar", detail: "$ 10.000,00 − $ 8.500,00" },
 };
 
+export const HeroSize: Story = {
+  args: { size: "hero", label: "Total", value: "$ 25.192,50" },
+};
+
 export const HeadingSize: Story = {
   args: { size: "heading", label: "Contado" },
 };

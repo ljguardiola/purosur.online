@@ -42,3 +42,13 @@ export const Short: Story = {
     ],
   },
 };
+
+export const WithQuantityKeys: Story = {
+  args: {
+    items: [
+      { keyName: "ArrowUpDown", label: "Líneas" },
+      { keyName: "NumpadAddSubtract", label: "Cantidad" },
+      { keyName: "Delete", label: "Quitar" },
+    ],
+  },
+};

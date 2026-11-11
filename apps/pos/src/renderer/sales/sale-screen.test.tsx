@@ -20,10 +20,13 @@ import {
 } from "./test-support/sale-screen";
 
 describe("SaleScreen", () => {
-  it("says that the sale is underway", async () => {
+  it("draws no title of its own above the search field", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("heading", { name: "Venta en curso" })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta en curso" }))
+      .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -103,15 +106,15 @@ describe("SaleScreen", () => {
       SALE_OF_YERBA,
     );
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
-    await expect.element(screen.getByText("1 línea")).toBeVisible();
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
   });
 
   describe("keeping the scan field ready", () => {
     it.each([
       [
-        "the heading",
+        "the total's label",
         (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) =>
-          screen.getByRole("heading", { name: "Venta en curso" }),
+          screen.getByText("Total", { exact: true }),
       ],
       [
         "the lines",
@@ -120,7 +123,8 @@ describe("SaleScreen", () => {
       ],
       [
         "the amount to charge",
-        (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) => screen.getByText("1 línea"),
+        (screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) =>
+          screen.getByText("Artículos"),
       ],
     ])("takes a scan typed after clicking %s", async (_place, target) => {
       const scanProduct = vi.fn(
@@ -151,11 +155,11 @@ describe("SaleScreen", () => {
         },
       });
 
-      const retry = screen.getByRole("button", { name: "Reintentar" });
-      await expect.element(retry).toBeVisible();
-      await retry.element().focus();
+      const sale = screen.getByRole("button", { name: "Venta" });
+      await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+      await sale.element().focus();
 
-      await expect.element(retry).toHaveFocus();
+      await expect.element(sale).toHaveFocus();
     });
 
     it("has the field ready again once the retry replaces the button that had the focus", async () => {
@@ -165,7 +169,7 @@ describe("SaleScreen", () => {
         .mockResolvedValueOnce(SALE_OF_YERBA);
       const { screen, field } = await renderScreen({ currentSale });
 
-      await screen.getByRole("button", { name: "Reintentar" }).click();
+      await userEvent.keyboard("r");
 
       await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
       await expect.element(field).toHaveFocus();
@@ -192,11 +196,11 @@ describe("SaleScreen", () => {
       const { screen } = await renderScreen();
 
       await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
-      await expect.element(screen.getByText("Escaneá un producto para agregarlo.")).toBeVisible();
       const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-      await expect.element(panel.getByText("Total a cobrar")).toBeVisible();
+      await expect.element(panel.getByText("Total", { exact: true })).toBeVisible();
       await expect.element(panel.getByText("$ 0,00").first()).toBeVisible();
-      await expect.element(panel.getByText("0 líneas")).toBeVisible();
+      await expect.element(panel.getByText("Artículos")).toBeVisible();
+      await expect.element(panel.getByText("0", { exact: true })).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
 
@@ -214,18 +218,18 @@ describe("SaleScreen", () => {
         currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR,
       });
 
-      const lines = screen.getByRole("list").getByRole("listitem");
-      await expect.element(lines).toHaveLength(2);
-      const yerba = lines.first();
+      const lines = screen.getByRole("table").getByRole("row");
+      await expect.element(lines).toHaveLength(3);
+      const yerba = lines.nth(1);
       await expect.element(yerba.getByText("Yerba mate 1 kg")).toBeVisible();
-      await expect.element(yerba.getByText("2", { exact: true })).toBeVisible();
+      await expect.element(yerba.getByText("2 u", { exact: true })).toBeVisible();
       await expect.element(yerba.getByText("$ 4.760,00")).toBeVisible();
       const alfajor = lines.last();
       await expect.element(alfajor.getByText("Alfajor triple")).toBeVisible();
       await expect.element(alfajor.getByText("$ 1.500,00")).toBeVisible();
       const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
       await expect.element(panel.getByText("$ 6.260,00").first()).toBeVisible();
-      await expect.element(panel.getByText("2 líneas")).toBeVisible();
+      await expect.element(panel.getByText("Artículos")).toBeVisible();
       await expect.element(panel.getByText("Ahorro en promociones")).not.toBeInTheDocument();
       await expect.element(screen.getByText("La venta está vacía")).not.toBeInTheDocument();
       await expectNoAccessibilityViolations(screen.container);
@@ -257,7 +261,7 @@ describe("SaleScreen", () => {
       });
 
       const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-      await expect.element(panel.getByText("2 líneas")).toBeVisible();
+      await expect.element(panel.getByText("Subtotal")).toBeVisible();
       await expect.element(panel.getByText("$ 6.260,00")).toBeVisible();
       await expect.element(panel.getByText("Ahorro en promociones")).toBeVisible();
       await expect.element(panel.getByText("− $ 476,00")).toBeVisible();
@@ -296,8 +300,7 @@ describe("SaleScreen", () => {
         }),
       });
 
-      const lines = screen.getByRole("list").getByRole("listitem");
-      const yerba = lines.first();
+      const yerba = screen.getByRole("row").nth(1);
       await expect.element(yerba.getByText("10 % de descuento")).toBeVisible();
       const withoutPromotion = yerba.getByText("$ 4.760,00");
       await expect.element(withoutPromotion).toBeVisible();
@@ -387,28 +390,22 @@ describe("SaleScreen", () => {
     it("shows nothing more than the name and the amount on a line without a promotion", async () => {
       const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
-      const yerba = screen.getByRole("list").getByRole("listitem").first();
+      const yerba = screen.getByRole("row").nth(1);
       await expect.element(yerba.getByText("$ 4.760,00")).toBeVisible();
       expect(yerba.element().querySelector("s")).toBeNull();
-      expect(yerba.element().textContent).toBe("Yerba mate 1 kg2$ 4.760,00");
+      expect(yerba.element().textContent).toBe("Yerba mate 1 kg$ 2.380,00 / u2 u$ 4.760,00");
     });
 
-    it("writes 1 línea in the singular", async () => {
-      const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
-
-      await expect
-        .element(screen.getByRole("complementary", { name: "Panel de cobro" }).getByText("1 línea"))
-        .toBeVisible();
-    });
-
-    it("keeps Cobrar disabled while the sale has no lines", async () => {
+    it("keeps Cobrar en efectivo disabled while the sale has no lines", async () => {
       const { screen } = await renderScreen();
 
       await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeDisabled();
     });
 
-    it("keeps Cobrar disabled, and says why, while the sale's total is zero", async () => {
+    it("keeps Cobrar en efectivo disabled, and says why, while the sale's total is zero", async () => {
       const { screen } = await renderScreen({
         currentSale: async () => ({
           id: "sale-1",
@@ -438,10 +435,12 @@ describe("SaleScreen", () => {
           screen.getByText("El total es $ 0,00: quitá el producto o cancelá la venta.").first(),
         )
         .toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeDisabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeDisabled();
     });
 
-    it("replaces Cobrar by a disabled Cobro no habilitado, and says the total reached the threshold", async () => {
+    it("replaces Cobrar en efectivo by a disabled Cobro no habilitado, and says the total reached the threshold", async () => {
       const { screen } = await renderScreen({
         currentSale: async () => ({
           ...SALE_OF_YERBA,
@@ -465,11 +464,13 @@ describe("SaleScreen", () => {
       await expect
         .element(screen.getByRole("button", { name: "Cobro no habilitado" }))
         .toBeDisabled();
-      await expect.element(screen.getByRole("button", { name: "Cobrar" })).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .not.toBeInTheDocument();
       await expectNoAccessibilityViolations(screen.container);
     });
 
-    it("says the register has no threshold yet and keeps Cobrar disabled", async () => {
+    it("says the register has no threshold yet and shows a disabled Cobro no habilitado", async () => {
       const { screen } = await renderScreen({
         currentSale: async () => ({
           ...SALE_OF_YERBA,
@@ -496,15 +497,17 @@ describe("SaleScreen", () => {
       await expectNoAccessibilityViolations(screen.container);
     });
 
-    it("shows no notice and keeps Cobrar when the core does not refuse the charge", async () => {
+    it("shows no notice and keeps Cobrar en efectivo enabled when the core does not refuse the charge", async () => {
       const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
-      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeEnabled();
       await expect.element(screen.getByText("Llegaste al tope de venta")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Falta el tope de venta")).not.toBeInTheDocument();
     });
 
-    it("enables Cobrar once a product is scanned into the sale", async () => {
+    it("enables Cobrar en efectivo once a product is scanned into the sale", async () => {
       const { screen, field } = await renderScreen({
         scanProduct: async () => ({
           kind: "added",
@@ -516,18 +519,20 @@ describe("SaleScreen", () => {
 
       await scan(field, "7790001");
 
-      await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeEnabled();
     });
 
-    it("goes to the charge screen from Cobrar", async () => {
+    it("goes to the charge screen from Cobrar en efectivo", async () => {
       const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
-      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
 
       await expect.poll(() => screen.router.state.location.pathname).toBe("/charge");
     });
 
-    it("offers to try again when it cannot be read, and shows the sale once it can", async () => {
+    it("tries again on R when it cannot be read, and shows the sale once it can", async () => {
       const currentSale = vi
         .fn<SaleScreenProps["currentSale"]>()
         .mockRejectedValueOnce(new Error("unavailable"))
@@ -536,7 +541,7 @@ describe("SaleScreen", () => {
 
       await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
-      await screen.getByRole("button", { name: "Reintentar" }).click();
+      await userEvent.keyboard("r");
 
       await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
       await expect.element(screen.getByText("No se pudo cargar la venta")).not.toBeInTheDocument();
@@ -607,19 +612,19 @@ describe("SaleScreen", () => {
           sale: SALE_OF_YERBA_AND_ALFAJOR,
         });
       const { screen, field } = await renderScreen({ scanProduct });
-      const lines = screen.getByRole("listitem");
+      const lines = screen.getByRole("row");
 
       await scan(field, "7790001");
 
-      await expect.element(lines).toHaveLength(1);
-      await expect.element(lines.first()).toHaveAttribute("aria-current", "true");
+      await expect.element(lines).toHaveLength(2);
+      await expect.element(lines.nth(1)).toHaveAttribute("aria-current", "true");
       await expect.element(field).toHaveValue("");
       await expect.element(field).toHaveFocus();
 
       await scan(field, "7790002");
 
-      await expect.element(lines).toHaveLength(2);
-      await expect.element(lines.first()).not.toHaveAttribute("aria-current");
+      await expect.element(lines).toHaveLength(3);
+      await expect.element(lines.nth(1)).not.toHaveAttribute("aria-current");
       await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
       await expect
         .element(
@@ -684,9 +689,9 @@ describe("SaleScreen", () => {
 
       await scan(field, "7790002");
 
-      const lines = screen.getByRole("listitem");
+      const lines = screen.getByRole("row");
       await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
-      await expect.element(lines.first()).not.toHaveAttribute("aria-current");
+      await expect.element(lines.nth(1)).not.toHaveAttribute("aria-current");
     });
 
     it("leaves what is being typed alone when the scanner already started the next code", async () => {
@@ -823,10 +828,10 @@ describe("SaleScreen", () => {
         await expect.element(screen.getByText(title, { exact: true })).toBeVisible();
         await expect.element(screen.getByText(help, { exact: true })).toBeVisible();
         await expect.element(field).toHaveValue("7790009");
-        await expect.element(screen.getByRole("listitem")).toHaveLength(1);
+        await expect.element(screen.getByRole("row")).toHaveLength(2);
         await expect
           .element(
-            screen.getByRole("complementary", { name: "Panel de cobro" }).getByText("1 línea"),
+            screen.getByRole("complementary", { name: "Panel de cobro" }).getByText("Artículos"),
           )
           .toBeVisible();
         await expectNoAccessibilityViolations(screen.container);
@@ -859,7 +864,11 @@ describe("SaleScreen", () => {
       await expect.element(field).toHaveFocus();
 
       await userEvent.keyboard("7790009{Enter}");
-      await expect.element(screen.getByRole("status").getByRole("paragraph").first()).toBeVisible();
+      const notice =
+        outcome.kind === "unknown_code"
+          ? screen.getByText("No hay ningún producto con ese código")
+          : screen.getByRole("status").getByRole("paragraph").first();
+      await expect.element(notice).toBeVisible();
       await expect.element(field).toHaveValue("7790009");
       await userEvent.keyboard("7790001{Enter}");
 
@@ -900,28 +909,38 @@ describe("SaleScreen", () => {
       await expect.element(field).toHaveValue("7790009");
     });
 
-    it("announces what happened without moving the lines", async () => {
+    it("shows the notice for an unknown code between the field and the lines, pushing them down", async () => {
       const { screen, field } = await renderScreen({
         currentSale: async () => SALE_OF_YERBA,
         scanProduct: async () => ({ kind: "unknown_code" }),
       });
-      const line = screen.getByRole("listitem").first();
+      const line = screen.getByRole("row").nth(1);
       await expect.element(line).toBeVisible();
       const before = line.element().getBoundingClientRect().top;
 
       await scan(field, "7790009");
 
-      const message = screen.getByRole("status").filter({
+      const notice = screen.getByRole("alert").filter({
         hasText: "No hay ningún producto con ese código",
       });
-      await expect.element(message).toBeInTheDocument();
-      expect(line.element().getBoundingClientRect().top).toBe(before);
+      await expect.element(notice).toBeInTheDocument();
+      await expect
+        .element(
+          screen.getByText(
+            "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+          ),
+        )
+        .toBeVisible();
       const fieldBox = field.element().getBoundingClientRect();
-      const messageBox = screen
+      const noticeBox = screen
         .getByText("No hay ningún producto con ese código")
         .element()
-        .getBoundingClientRect();
-      expect(messageBox.top).toBeGreaterThanOrEqual(fieldBox.bottom);
+        .closest("div")
+        ?.getBoundingClientRect();
+      const after = line.element().getBoundingClientRect().top;
+      expect(noticeBox?.top).toBeGreaterThanOrEqual(fieldBox.bottom);
+      expect(noticeBox?.bottom).toBeLessThanOrEqual(after);
+      expect(after).toBeGreaterThan(before);
     });
 
     it("takes the message away when the text in the field changes", async () => {
@@ -937,13 +956,17 @@ describe("SaleScreen", () => {
     });
 
     it("announces a refused scan in a status region that was already mounted and stays mounted", async () => {
-      const { screen, field } = await renderScreen();
+      const { screen, field } = await renderScreen({
+        scanProduct: async () => {
+          throw new Error("the core connection was replaced");
+        },
+      });
       const regionsBefore = Array.from(screen.container.querySelectorAll('[role="status"]'));
 
       await scan(field, "7790009");
 
       const message = screen.getByRole("status").filter({
-        hasText: "No hay ningún producto con ese código",
+        hasText: "No se pudo agregar el producto",
       });
       await expect.element(message).toBeInTheDocument();
       const region = message.element();

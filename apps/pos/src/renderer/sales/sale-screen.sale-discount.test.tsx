@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
 import {
+  pressKeypad,
   QUESO,
   renderScreen,
   SALE_OF_QUESO,
@@ -227,7 +228,8 @@ describe("SaleScreen telling the discount on the total was removed", () => {
       }),
     });
 
-    await screen.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("+");
 
     await expect.element(screen.getByText(REMOVED_TITLE)).toBeVisible();
     await expect.element(screen.getByText(REMOVED_HELP)).toBeVisible();
@@ -244,9 +246,10 @@ describe("SaleScreen telling the discount on the total was removed", () => {
       }),
     });
 
-    await screen.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("+");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     await expect.element(screen.getByText(REMOVED_TITLE)).not.toBeInTheDocument();
   });
 
@@ -343,7 +346,8 @@ describe("SaleScreen telling the discount on the total was removed", () => {
       }),
     });
 
-    await screen.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("+");
 
     await expect
       .element(

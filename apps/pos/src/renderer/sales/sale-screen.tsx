@@ -27,14 +27,12 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   EmptyState,
   InlineNotice,
-  LoadFailure,
   LoadingPlaceholder,
   localAlertText,
-  ScreenHeader,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Ban, ScanBarcode, TriangleAlert } from "lucide-react";
+import { Ban, BatteryLow, ScanBarcode, Search } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -54,6 +52,7 @@ import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
+import type { KeyedChargeMethod } from "./charge-method-options";
 import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
 import {
@@ -237,7 +236,7 @@ export function SaleScreen({
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
   const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
   const search = useSearchProducts(searchProducts);
-  const [changed, setChanged] = useState<string>();
+  const [selectedLineId, setSelectedLineId] = useState<string>();
   const [code, setCode] = useState("");
   const [problem, setProblem] = useState<ScanProblem>();
   const [results, setResults] = useState<SearchResults>();
@@ -339,7 +338,7 @@ export function SaleScreen({
             saleTotal: outcome.removed_sale_discount,
           }),
         );
-        setChanged(addedLineId);
+        setSelectedLineId(addedLineId);
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
         break;
       }
@@ -489,7 +488,6 @@ export function SaleScreen({
   async function takeDiscountedSale(discounted: OpenSale) {
     askToDiscount(false);
     setProblem(undefined);
-    setChanged(undefined);
     await takeSale(discounted);
   }
 
@@ -501,7 +499,6 @@ export function SaleScreen({
   async function takeAdjustedSale(adjusted: OpenSale, removedSaleDiscount: boolean) {
     askToAdjust(undefined);
     setProblem(removedSaleDiscount ? { kind: "sale_discount_removed" } : undefined);
-    setChanged(undefined);
     await takeSale(adjusted);
   }
 
@@ -522,7 +519,6 @@ export function SaleScreen({
 
   async function takeCancelledPaidSale(refunds: Refund[]) {
     setProblem(undefined);
-    setChanged(undefined);
     setCancelledRefunds(refunds);
     askToCancelPaid(false);
     await takeSale(null);
@@ -563,17 +559,14 @@ export function SaleScreen({
             saleTotal: outcome.removed_sale_discount,
           }),
         );
-        setChanged(undefined);
         await takeSale(outcome.sale);
         break;
       case "removed":
         setProblem(outcome.removed_sale_discount ? { kind: "sale_discount_removed" } : undefined);
-        setChanged(undefined);
         await takeSale(outcome.sale);
         break;
       case "cancelled":
         setProblem(undefined);
-        setChanged(undefined);
         await takeSale(null);
         break;
       case "not_signed_in":
@@ -680,6 +673,57 @@ export function SaleScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
+  const answer = current.status === "loaded" ? current.value : undefined;
+  const sale = answer === undefined || answer === "not_permitted" ? null : answer;
+  const linesLock = sale?.lines_lock ?? null;
+  const editable = linesLock === null;
+  useBarcodeReadings(editable ? (reading) => void takeReading(reading) : undefined);
+  const saleLines = sale?.lines ?? [];
+  const selectedLine = saleLines.find(({ id }) => id === selectedLineId) ?? saleLines.at(-1);
+  const paidOrderToApply =
+    sale?.rebuilt_paid_order?.applied === false ? sale.rebuilt_paid_order : null;
+  const isZeroTotal = saleLines.length > 0 && sale?.total === 0;
+  const canCharge =
+    sale !== null &&
+    saleLines.length > 0 &&
+    !isZeroTotal &&
+    sale.charge_refusal === null &&
+    paidOrderToApply === null;
+  const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
+  const searchEmpty = code === "";
+
+  function moveSelection(pressed: string) {
+    const index = saleLines.findIndex(({ id }) => id === selectedLine?.id);
+    const next = Math.min(
+      saleLines.length - 1,
+      Math.max(0, index + (pressed === "ArrowDown" ? 1 : -1)),
+    );
+    setSelectedLineId(saleLines[next]?.id);
+  }
+
+  function stepSelectedQuantity(pressed: string) {
+    const line = selectedLine;
+    if (line === undefined) {
+      return;
+    }
+    const quantity = line.quantity + (pressed === "+" ? 1 : -1);
+    if (quantity >= 1) {
+      void edit(
+        () => changeLineQuantity(line.id, quantity, line.quantity),
+        { kind: "change_failed" },
+        line,
+      );
+    }
+  }
+
+  function charge(method: KeyedChargeMethod | undefined) {
+    void navigate({ to: "/charge", search: method === undefined ? {} : { method } });
+  }
+
+  function chargePaidOrder() {
+    charge(paidOrderToApply?.method === "QR" ? "QR" : undefined);
+  }
+
   const resultCount = found?.products.length ?? 0;
   useKeys(
     [
@@ -701,15 +745,60 @@ export function SaleScreen({
         },
         enabled: choosing,
       },
+      { key: "Enter", run: chargePaidOrder, enabled: canChargePaidOrder && searchEmpty },
     ],
     { within: field },
   );
 
-  const answer = current.status === "loaded" ? current.value : undefined;
-  const sale = answer === undefined || answer === "not_permitted" ? null : answer;
-  const linesLock = sale?.lines_lock ?? null;
-  const editable = linesLock === null;
-  useBarcodeReadings(editable ? (reading) => void takeReading(reading) : undefined);
+  const unitLineSelected = selectedLine?.sale_unit === "UNIT";
+  const legend = useKeys([
+    {
+      key: "ArrowUpDown",
+      label: "Líneas",
+      run: moveSelection,
+      enabled: saleLines.length > 0 && !choosing,
+    },
+    {
+      key: "F2",
+      label: "Buscar",
+      run: () => focusScanField(field.current),
+      enabled: answer !== undefined && answer !== "not_permitted",
+    },
+    {
+      key: "Delete",
+      label: "Quitar",
+      run: () => {
+        if (selectedLine !== undefined) {
+          void edit(() => removeSaleLine(selectedLine.id), { kind: "remove_failed" });
+        }
+      },
+      enabled: selectedLine !== undefined && editable && !editing,
+    },
+    {
+      key: "NumpadAddSubtract",
+      label: "Cantidad",
+      whileTyping: true,
+      run: stepSelectedQuantity,
+      enabled: unitLineSelected && editable && !editing,
+    },
+    {
+      key: "R",
+      label: "Reintentar",
+      whileTyping: true,
+      run: () => {
+        if (current.status === "failed") {
+          current.retry();
+        }
+        focusScanField(field.current);
+      },
+      enabled: current.status === "failed" && searchEmpty,
+    },
+    { key: "F12", run: () => charge("CASH"), enabled: canCharge },
+    { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canCharge },
+    { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canCharge },
+    { key: "F11", run: () => charge("QR"), enabled: canCharge },
+    { key: "F1", run: () => charge(undefined), enabled: canCharge },
+  ]);
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
@@ -739,7 +828,7 @@ export function SaleScreen({
       aside={
         <PaymentPanel
           saleStatus={current.status}
-          lineCount={sale?.lines.length ?? 0}
+          lineCount={saleLines.length}
           grossSubtotal={sale?.gross_subtotal ?? 0}
           promotionSavings={sale?.promotion_savings ?? 0}
           saleDiscount={sale?.sale_discount ?? null}
@@ -749,16 +838,18 @@ export function SaleScreen({
           cancellable={answer !== undefined}
           hasApprovedPayment={sale?.lines_lock === "approved_payment"}
           chargeRefusal={sale?.charge_refusal ?? null}
+          paidOrderToApply={paidOrderToApply ?? undefined}
+          canCharge={canCharge}
           canCancel={sale !== null && !editing}
           canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
           onDiscount={() => askToDiscount(true)}
-          onCharge={() => void navigate({ to: "/charge" })}
+          onCharge={charge}
+          onChargePaidOrder={chargePaidOrder}
           onCancel={() => void askToCancelSale()}
         />
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader title="Venta en curso" />
         {diskFull === undefined ? null : (
           <InlineNotice
             tone={diskFull.level === "critical" ? "error" : "warning"}
@@ -767,20 +858,25 @@ export function SaleScreen({
             description={localAlertText(diskFull).meaning}
           />
         )}
-        {batteryCritical === undefined ? null : (
-          <InlineNotice
-            tone="error"
-            icon={<Ban />}
-            title={localAlertText(batteryCritical).title}
-            description={localAlertText(batteryCritical).meaning}
-          />
-        )}
         <form ref={field} noValidate className="relative" onSubmit={submit}>
           <SearchField
             label="Producto"
             {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
-            placeholder="Escaneá o escribí el nombre del producto"
-            icon={<ScanBarcode />}
+            placeholder="Escaneá o escribí el nombre"
+            icon={LETTER.test(code) ? <Search /> : <ScanBarcode />}
+            invalid={shownProblem?.kind === "unknown_code"}
+            {...(found === undefined
+              ? {}
+              : {
+                  action: {
+                    label: "Cerrar",
+                    keyName: "Escape" as const,
+                    onPress: () => {
+                      setDismissed(true);
+                      focusScanField(field.current);
+                    },
+                  },
+                })}
             value={code}
             onChange={type}
             combobox={{
@@ -797,18 +893,15 @@ export function SaleScreen({
           />
           <ScanProblemMessage problem={shownProblem} />
         </form>
-        {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
-        {current.status === "failed" ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo cargar la venta"
-            description="Volvé a intentarlo en unos segundos."
-            onRetry={() => {
-              current.retry();
-              focusScanField(field.current);
-            }}
+        {batteryCritical === undefined ? null : (
+          <InlineNotice
+            tone="error"
+            icon={<BatteryLow />}
+            title={localAlertText(batteryCritical).title}
+            description={localAlertText(batteryCritical).meaning}
           />
-        ) : null}
+        )}
+        {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
         {answer === "not_permitted" ? (
           <EmptyState
             variant="blank"
@@ -817,31 +910,27 @@ export function SaleScreen({
             description={notPermitted.help}
           />
         ) : null}
-        {answer !== undefined && answer !== "not_permitted" ? (
+        {(answer !== undefined && answer !== "not_permitted") || current.status === "failed" ? (
           <SaleLines
-            lines={sale?.lines ?? []}
-            changedLineId={changed}
+            lines={saleLines}
+            selectedLineId={selectedLine?.id}
+            legend={legend}
+            failed={current.status === "failed"}
             actions={{
               busy: editing,
               editable,
-              lockedReason,
-              onChangeQuantity: (line, quantity) =>
-                void edit(
-                  () => changeLineQuantity(line.id, quantity, line.quantity),
-                  { kind: "change_failed" },
-                  line,
-                ),
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
               onAdjust: askToAdjust,
               onRemove: (line) =>
                 void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
             }}
+            onSelect={(line) => setSelectedLineId(line.id)}
           />
         ) : null}
       </main>
       <CancelSaleModal
         open={confirmingCancel}
-        lineCount={sale?.lines.length ?? 0}
+        lineCount={saleLines.length}
         total={sale?.total ?? 0}
         busy={editing}
         onClose={() => askToCancel(false)}

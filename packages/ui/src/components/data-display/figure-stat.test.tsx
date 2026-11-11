@@ -36,6 +36,15 @@ test("draws the value at 32px bold in the accent text color", async () => {
   expect(style.color).toBe(tokenRgb("text-accent"));
 });
 
+test("draws a hero-size value at 48px bold in the accent text color", async () => {
+  const screen = await render(<FigureStat size="hero" label="Total" value="$ 25.192,50" />);
+  const style = getComputedStyle(screen.getByText("$ 25.192,50").element());
+
+  expect(style.fontSize).toBe("48px");
+  expect(style.fontWeight).toBe("700");
+  expect(style.color).toBe(tokenRgb("text-accent"));
+});
+
 test("draws the detail in subtle text", async () => {
   const screen = await render(
     <FigureStat label="Vuelto" detail="Cobrado − aplicado" value="$ 1" />,
@@ -113,7 +122,7 @@ test("reveals its value's placeholder exactly at 300ms, so a fast load never fla
   expect(getComputedStyle(placeholder).opacity).toBe("1");
 });
 
-test.each(["display", "heading"] as const)(
+test.each(["hero", "display", "heading"] as const)(
   "takes the same height while its %s-size value loads as once it is shown",
   async (size) => {
     const screen = await render(
