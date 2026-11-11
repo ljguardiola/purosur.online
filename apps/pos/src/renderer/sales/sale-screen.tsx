@@ -343,6 +343,9 @@ export function SaleScreen({
   function askForWeight(asking: Weighing | undefined) {
     weighingNow.current = asking;
     setWeighing(asking);
+    if (asking !== undefined) {
+      setCode("");
+    }
   }
 
   function setWaiting(next: WaitingEntry[]) {
@@ -492,9 +495,9 @@ export function SaleScreen({
     }
     askForWeight(undefined);
     if (outcome.kind === "not_sold_by_weight") {
-      refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+      refuse("", { kind: "not_sold_by_weight", product_name: asked.productName });
     } else {
-      await take(asked.submitted, outcome, { kind: "add_failed" });
+      await take("", outcome, { kind: "add_failed" });
     }
     await advanceWaiting();
     return "done";
@@ -522,7 +525,7 @@ export function SaleScreen({
       };
     }
     if (outcome.kind === "added") {
-      await take(asked.submitted, outcome, { kind: "add_failed" });
+      await take("", outcome, { kind: "add_failed" });
       const line = outcome.sale.lines.at(-1);
       return line === undefined
         ? { kind: "closed" }
@@ -534,10 +537,10 @@ export function SaleScreen({
     }
     if (outcome.kind === "not_sold_by_weight") {
       if (stillAsked) {
-        refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+        refuse("", { kind: "not_sold_by_weight", product_name: asked.productName });
       }
     } else if (stillAsked || reportsCoreState(outcome)) {
-      await take(asked.submitted, outcome, { kind: "add_failed" });
+      await take("", outcome, { kind: "add_failed" });
     }
     if (stillAsked) {
       void advanceWaiting();
@@ -851,10 +854,6 @@ export function SaleScreen({
   }
 
   const resultCount = found?.products.length ?? 0;
-  const typedDuringTheWeighing =
-    weighing !== undefined &&
-    code.trim() !== "" &&
-    code.trim() !== (weighing.kind === "add" ? weighing.submitted : "");
   useKeys(
     [
       { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
@@ -878,7 +877,7 @@ export function SaleScreen({
       {
         key: "Enter",
         run: () => field.current?.requestSubmit(),
-        enabled: typedDuringTheWeighing,
+        enabled: weighing !== undefined && code.trim() !== "",
       },
       {
         key: "Enter",

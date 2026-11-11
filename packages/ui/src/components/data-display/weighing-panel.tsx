@@ -44,9 +44,7 @@ export function WeighingPanel({
               <p className="text-detail text-warning-strong">{detail}</p>
             )}
           </div>
-          <ScaleStatusBadge status={status}>
-            {status === "stable" ? "Estable" : "Moviéndose"}
-          </ScaleStatusBadge>
+          <ScaleStatusBadge status={status} />
           <Button variant="text" keycap="Escape" onPress={onCancel}>
             Cancelar
           </Button>
