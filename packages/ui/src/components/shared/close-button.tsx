@@ -10,19 +10,22 @@ const closeButtonClassName =
 
 const escapeKeycapButtonClassName =
   "flex h-control-lg shrink-0 items-center justify-center rounded-lg px-1 outline-none " +
-  "data-focus-visible:focus-ring";
+  "data-focus-visible:focus-ring data-disabled:opacity-disabled";
 
 export function CloseButton({
   onPress,
   escapeKeycap = false,
+  disabled = false,
 }: {
   onPress: () => void;
   escapeKeycap?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <IconOnlyButton
       name={escapeKeycap ? "Cerrar con Esc" : "Cerrar"}
       onPress={onPress}
+      disabled={disabled}
       className={escapeKeycap ? escapeKeycapButtonClassName : closeButtonClassName}
     >
       {escapeKeycap ? (

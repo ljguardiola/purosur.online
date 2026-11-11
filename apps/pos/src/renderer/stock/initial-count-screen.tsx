@@ -8,7 +8,7 @@ import type {
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
 import type { KeyLegendItem } from "@purosur/ui";
-import { ElevatedNotice, InlineNotice, NotificationCard, SearchField } from "@purosur/ui";
+import { ElevatedNotice, FloatingNotification, InlineNotice, SearchField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, Lock, ScanBarcode, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
@@ -252,6 +252,9 @@ export function InitialCountScreen({
   }
 
   function choose(product: CountableProduct) {
+    if (counting !== undefined) {
+      return;
+    }
     setCode("");
     setResults(undefined);
     setCounting(product);
@@ -300,9 +303,12 @@ export function InitialCountScreen({
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
   const resultCount = found?.products.length ?? 0;
+  useKeys([{ key: "Escape", run: () => setDismissed(true) }], {
+    active: found !== undefined,
+    within: field,
+  });
   useKeys(
     [
-      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
       {
         key: "Enter",
         run: () => {
@@ -310,7 +316,7 @@ export function InitialCountScreen({
             choose(chosen);
           }
         },
-        enabled: chosen !== undefined && counting === undefined,
+        enabled: chosen !== undefined,
       },
       {
         key: "ArrowUpDown",
@@ -440,16 +446,14 @@ export function InitialCountScreen({
             onSelect={(line) => setSelectedLineId(line.movement_id)}
             {...(unavailable === undefined ? {} : { unavailable })}
           />
-          {withdrawNotice === undefined ? null : (
-            <div className="absolute bottom-16 left-0 z-overlay w-97 rounded-lg shadow-md">
-              <NotificationCard
-                tone="error"
-                {...WITHDRAW_NOTICES[withdrawNotice]}
-                onClose={() => setWithdrawNotice(undefined)}
-              />
-            </div>
-          )}
         </div>
+        {withdrawNotice === undefined ? null : (
+          <FloatingNotification
+            tone="error"
+            {...WITHDRAW_NOTICES[withdrawNotice]}
+            onDismiss={() => setWithdrawNotice(undefined)}
+          />
+        )}
       </main>
     </RegisterFrame>
   );

@@ -26,8 +26,21 @@ export function NoSessionRail({
   useKeys([{ key: "Escape", run: () => void navigate({ to: "/" }), enabled: !atHome }], {
     fallback: true,
   });
-  useKeys([{ key: "Escape", run: () => setLeaving(false) }], { fallback: true, active: leaving });
-  useKeys([{ key: "Enter", run: signOut }], { fallback: true, active: leaving, within: panel });
+  function pressEnter() {
+    const focused = document.activeElement;
+    if (focused === panel.current) {
+      signOut();
+    } else if (focused instanceof HTMLButtonElement && panel.current?.contains(focused)) {
+      focused.click();
+    }
+  }
+  useKeys(
+    [
+      { key: "Escape", run: () => setLeaving(false) },
+      { key: "Enter", run: pressEnter },
+    ],
+    { modal: true, active: leaving },
+  );
   useRefuseBarcodeReadings(leaving);
   useEffect(() => {
     if (leaving) {
