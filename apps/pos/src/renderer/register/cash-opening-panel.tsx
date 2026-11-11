@@ -14,6 +14,7 @@ import {
 import { Check, TriangleAlert, UserX, Wallet } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { CoreData } from "../platform/use-core-query";
 import {
   INVALID_OPENING_FLOAT_MESSAGE,
   openCashSessionRequestSchema,
@@ -41,35 +42,48 @@ export type CashOpeningPanelProps = {
   readOpeningFloatSuggestion: () => Promise<OpeningFloatSuggestion | null | "unavailable">;
 };
 
-function PreviousClose({ suggestion }: { suggestion: OpeningFloatSuggestion }) {
-  return suggestion.kind === "previous_close" ? (
+function PreviousClose({ suggestion }: { suggestion: CoreData<OpeningFloatSuggestion> }) {
+  if (suggestion.status === "loading") {
+    return <LoadingPlaceholder variant="rows" rows={2} />;
+  }
+  if (suggestion.status === "failed") {
+    return (
+      <LoadFailure
+        icon={<TriangleAlert />}
+        title="No se pudo leer el cierre anterior"
+        description="Volvé a intentarlo en unos segundos."
+        onRetry={suggestion.retry}
+      />
+    );
+  }
+  return suggestion.value.kind === "previous_close" ? (
     <div className="border-b border-border pb-4">
       <SummaryRowGroup
         variant="plain"
         rows={[
           {
             label: "Cierre anterior",
-            value: formatDayMonthAndTime(suggestion.closed_at),
+            value: formatDayMonthAndTime(suggestion.value.closed_at),
             detail: true,
           },
-          { label: "Contado", value: formatCents(suggestion.counted_cash), detail: true },
+          { label: "Contado", value: formatCents(suggestion.value.counted_cash), detail: true },
         ]}
       />
     </div>
   ) : null;
 }
 
-function OpeningForm({
+function OpeningPanel({
   open,
-  suggestion,
-}: {
-  open: CashOpeningPanelProps["open"];
-  suggestion: OpeningFloatSuggestion;
-}) {
+  readOpeningFloatSuggestion,
+}: Pick<CashOpeningPanelProps, "open" | "readOpeningFloatSuggestion">) {
+  const suggestion = useOpeningFloatSuggestionQuery(readOpeningFloatSuggestion);
+  const suggestedFloat =
+    suggestion.status === "loaded" ? openingFloatFormFor(suggestion.value).openingFloat : undefined;
   const field = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<Notice>();
   const { form, submit, submitting } = useRequestForm({
-    defaultValues: openingFloatFormFor(suggestion),
+    defaultValues: openingFloatFormFor({ kind: "none" }),
     request: { schema: openCashSessionRequestSchema, from: openingFloatRequestFrom },
     fields: { opening_float: "openingFloat" },
     messages: { openingFloat: openingFloatMessage },
@@ -101,6 +115,12 @@ function OpeningForm({
   useEffect(() => {
     field.current?.querySelector("input")?.focus();
   }, []);
+
+  useEffect(() => {
+    if (suggestedFloat !== undefined && form.getFieldMeta("openingFloat")?.isDirty !== true) {
+      form.setFieldValue("openingFloat", suggestedFloat, { dontUpdateMeta: true });
+    }
+  }, [form, suggestedFloat]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,34 +174,6 @@ function OpeningForm({
         )}
       </SidePanel>
     </form>
-  );
-}
-
-function OpeningPanel({
-  open,
-  readOpeningFloatSuggestion,
-}: Pick<CashOpeningPanelProps, "open" | "readOpeningFloatSuggestion">) {
-  const suggestion = useOpeningFloatSuggestionQuery(readOpeningFloatSuggestion);
-  if (suggestion.status === "loaded") {
-    return <OpeningForm open={open} suggestion={suggestion.value} />;
-  }
-  return (
-    <SidePanel
-      width="wide"
-      label={TITLE}
-      header={<SidePanelTitle icon={<Wallet />} title={TITLE} />}
-    >
-      {suggestion.status === "loading" ? (
-        <LoadingPlaceholder variant="form" fields={1} />
-      ) : (
-        <LoadFailure
-          icon={<TriangleAlert />}
-          title="No se pudo leer el cierre anterior"
-          description="Volvé a intentarlo en unos segundos."
-          onRetry={suggestion.retry}
-        />
-      )}
-    </SidePanel>
   );
 }
 

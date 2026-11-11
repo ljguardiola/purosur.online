@@ -195,12 +195,9 @@ export function useCashMovementsQuery(
 export function useOpeningFloatSuggestionQuery(
   read: () => Promise<OpeningFloatSuggestion | null | "unavailable">,
 ): CoreData<OpeningFloatSuggestion> {
-  const suggestion = answeredOrLoading(
-    useCoreQuery({ queryKey: registerKeys.openingFloatSuggestion, read }),
+  return answeredOrLoading(
+    useCoreQuery({ queryKey: registerKeys.openingFloatSuggestion, read, gcTime: 0 }),
   );
-  return suggestion.status === "loaded" && suggestion.refreshing
-    ? { status: "loading" }
-    : suggestion;
 }
 
 export function useCashMovementKindsQuery(

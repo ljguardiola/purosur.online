@@ -29,7 +29,7 @@ export class SqliteRegisterCloses implements RegisterCloses {
         `SELECT register_id, closed_at, counted_cash
          FROM (
            SELECT register_id, closed_at, counted_cash,
-             row_number() OVER (PARTITION BY register_id ORDER BY closed_at DESC, id DESC) AS position
+             row_number() OVER (PARTITION BY register_id ORDER BY rowid DESC) AS position
            FROM cash_sessions WHERE state = 'CLOSED'
          )
          WHERE position = 1`,

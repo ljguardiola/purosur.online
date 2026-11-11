@@ -1,5 +1,5 @@
 import type { ReadInitialCountOutcome } from "@purosur/contracts";
-import { dataColumn, Table, useTableModel } from "@purosur/ui";
+import { dataColumn, Table, TableCellText, useTableModel } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Package } from "lucide-react";
 import { useKeys } from "../platform/key-layer";
@@ -19,30 +19,17 @@ const INITIAL_COUNT: StartingItem = {
   description: "Cargar el stock con el que arranca el local",
 };
 
-function StartingItemCell({ item }: { item: StartingItem }) {
-  return (
-    <span className="flex items-center gap-4">
-      <span
-        aria-hidden="true"
-        className="flex size-control-sm shrink-0 items-center justify-center rounded-full bg-surface text-text"
-      >
-        <Package className="size-icon-md" />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-subheading font-semibold text-text">{item.title}</span>
-        <span className="truncate text-detail text-text-subtle">{item.description}</span>
-      </span>
-    </span>
-  );
-}
-
 const STARTING_ITEMS = [INITIAL_COUNT];
 
 const COLUMNS = [
   dataColumn({
     id: "item",
     header: "Para empezar",
-    render: (item: StartingItem) => <StartingItemCell item={item} />,
+    render: (item: StartingItem) => (
+      <TableCellText icon={<Package />} description={item.description} strong>
+        {item.title}
+      </TableCellText>
+    ),
   }),
 ] as const;
 
