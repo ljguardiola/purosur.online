@@ -2512,16 +2512,19 @@ describe("the register's router", () => {
   });
 
   it.each([
-    ["/sign-in", "enrolled"],
-    ["/enroll", "not_enrolled"],
-    ["/re-enroll", REVOKED],
+    ["/sign-in", "enrolled", COMPLETED],
+    ["/enroll", "not_enrolled", COMPLETED],
+    ["/re-enroll", REVOKED, COMPLETED],
+    ["/revoked", REVOKED, COMPLETED],
+    ["/restore-required", "enrolled", { kind: "in_progress", step: "enroll", origin: "copy" }],
+    ["/restoring", "enrolled", { kind: "in_progress", step: "restore", origin: "copy" }],
   ] as const)(
     "reads the running version on %s before any PIN or code",
-    async (route, enrollment) => {
+    async (route, enrollment, restoration) => {
       const router = createRegisterRouter(
         routeTree,
         {
-          ...contextWith("up", enrollment, null),
+          ...contextWith("up", enrollment, null, undefined, undefined, undefined, restoration),
           registerVersion: async () => "1.0.1539",
         },
         route,

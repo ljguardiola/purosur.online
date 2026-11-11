@@ -1289,7 +1289,13 @@ const restoringRoute = createRoute({
   beforeLoad: ({ context }) => requireRestoringStanding(context),
   component: function RestoringRoute() {
     const { restoringStanding } = restoringRoute.useRouteContext();
-    return <RestoringScreen registerName={useRegisterName()} standing={restoringStanding} />;
+    return (
+      <RestoringScreen
+        registerName={useRegisterName()}
+        version={useRegisterVersion()}
+        standing={restoringStanding}
+      />
+    );
   },
 });
 
@@ -1302,6 +1308,7 @@ const restoreRequiredRoute = createRoute({
     return (
       <RestoreRequiredScreen
         registerName={useRegisterName()}
+        version={useRegisterVersion()}
         onEnroll={() => void navigate({ to: "/re-enroll" })}
       />
     );
@@ -1317,6 +1324,7 @@ const revokedRoute = createRoute({
     return (
       <RevokedInstallationScreen
         registerName={useRegisterName()}
+        version={useRegisterVersion()}
         onEnroll={() => void navigate({ to: "/re-enroll" })}
       />
     );
