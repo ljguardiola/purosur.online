@@ -122,11 +122,15 @@ function Crumbs({
   person,
   registerName,
   cashSession,
-}: Pick<RegisterStatusData, "person" | "registerName" | "cashSession">) {
+  crumb,
+}: Pick<RegisterStatusData, "person" | "registerName" | "cashSession"> & {
+  crumb: string | undefined;
+}) {
   const crumbs = [
     registerEyebrow(registerName),
     ...(person === undefined ? [] : [person.first_name]),
     ...(cashSession.status === "none" ? ["Sin sesión abierta"] : []),
+    ...(crumb === undefined ? [] : [crumb]),
   ];
   return (
     <p className="flex items-center gap-2 text-detail text-text">
@@ -150,6 +154,8 @@ function Crumbs({
   );
 }
 
+export type RegisterHeaderProps = RegisterStatusData & { crumb?: string | undefined };
+
 export function RegisterHeader({
   person,
   registerName,
@@ -157,7 +163,8 @@ export function RegisterHeader({
   status,
   backupTickets,
   onDiscardBackupTickets,
-}: RegisterStatusData) {
+  crumb,
+}: RegisterHeaderProps) {
   const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
   const noticeCount =
     (status.status === "loaded"
@@ -169,7 +176,12 @@ export function RegisterHeader({
   return (
     <section aria-label="Estado de la caja" className="flex shrink-0 flex-col gap-3 px-8 pt-6 pb-2">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-        <Crumbs person={person} registerName={registerName} cashSession={cashSession} />
+        <Crumbs
+          person={person}
+          registerName={registerName}
+          cashSession={cashSession}
+          crumb={crumb}
+        />
         <div className="flex flex-wrap items-center gap-2">
           {status.status === "loaded" && status.value.cloud === "unreachable" ? (
             <StatusPill tone="error">Sin conexión con la nube</StatusPill>

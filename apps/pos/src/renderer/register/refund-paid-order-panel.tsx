@@ -1,14 +1,10 @@
 import type { ConvertPaidOrderIntoRefundOutcome, StartupPending } from "@purosur/contracts";
-import {
-  Button,
-  formatCents,
-  formatClockTime,
-  InlineNotice,
-  Modal,
-  SummaryRowGroup,
-} from "@purosur/ui";
-import { ArrowLeft, TriangleAlert, Undo2 } from "lucide-react";
+import { ConfirmationPanel, formatCents, formatClockTime } from "@purosur/ui";
+import { Undo2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
+import { useRefuseBarcodeReadings } from "../shell/barcode-readings";
+import { FramePanel } from "../shell/register-frame";
 
 const FAILED_MESSAGE = "No se pudo pasar el cobro a reembolso. Probá de nuevo.";
 
@@ -21,7 +17,7 @@ const REFUSALS = {
   unavailable: FAILED_MESSAGE,
 } as const;
 
-export type RefundPaidOrderModalProps = {
+export type RefundPaidOrderPanelProps = {
   order: Pick<
     StartupPending["paid_orders_without_sale"][number],
     "payment_transaction_id" | "method" | "amount" | "created_at"
@@ -35,17 +31,25 @@ export type RefundPaidOrderModalProps = {
   onClose: () => void;
 };
 
-export function RefundPaidOrderModal({
+export function RefundPaidOrderPanel({
   order,
   convertPaidOrderIntoRefund,
   onConverted,
   onGone,
   onSessionInvalid,
   onClose,
-}: RefundPaidOrderModalProps) {
+}: RefundPaidOrderPanelProps) {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
   const converting = useRef(false);
+  const panel = useRef<HTMLDivElement | null>(null);
+  function focusWhenShown(node: HTMLDivElement | null) {
+    panel.current = node;
+    node?.focus();
+  }
+  useKeys([{ key: "Escape", run: submitting ? () => {} : onClose }], { fallback: true });
+  useKeys([{ key: "Enter", run: () => void confirm() }], { fallback: true, within: panel });
+  useRefuseBarcodeReadings(true);
 
   async function confirm() {
     if (converting.current) {
@@ -76,61 +80,26 @@ export function RefundPaidOrderModal({
   }
 
   return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next && !submitting) {
-          onClose();
-        }
-      }}
-      width="confirmation"
-      tone="warning"
-      icon={<Undo2 />}
-      context="Antes de empezar"
-      title="¿Pasar el cobro a reembolso?"
-      closable={!submitting}
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={onClose}
-          >
-            Volver
-          </Button>
-          <Button
-            size="large"
-            icon={<Undo2 />}
-            fullWidth
-            disabled={submitting}
-            onPress={() => void confirm()}
-          >
-            Pasar a reembolso
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <SummaryRowGroup
-          rows={[
-            {
-              label: `Cobro con ${order.method === "QR" ? "QR" : "Point"}`,
-              value: formatCents(order.amount),
-              strong: true,
-            },
+    <FramePanel>
+      <div ref={focusWhenShown} tabIndex={-1} className="flex h-full outline-none">
+        <ConfirmationPanel
+          title="¿Pasar el cobro a reembolso?"
+          icon={<Undo2 />}
+          tone="warning"
+          fieldLabel={`Cobro con ${order.method === "QR" ? "QR" : "Point"}`}
+          value={formatCents(order.amount)}
+          details={[
             { label: "Cobrado a las", value: formatClockTime(order.created_at) },
+            { label: "Pasa a ser", value: "Reembolso pendiente" },
           ]}
+          {...(notice === undefined ? {} : { notice })}
+          busy={submitting}
+          actionLabel="Pasar a reembolso"
+          actionIcon={<Undo2 />}
+          onClose={onClose}
+          onConfirm={() => void confirm()}
         />
-        <p className="text-detail text-text-subtle">
-          El cobro pasa a ser un reembolso que se confirma después en el backoffice. Al cliente no
-          se le cobra de nuevo.
-        </p>
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
       </div>
-    </Modal>
+    </FramePanel>
   );
 }

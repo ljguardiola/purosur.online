@@ -1907,9 +1907,7 @@ describe("App", () => {
 
       await resumeLockedRegister(screen);
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Hay cosas para resolver" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("table", { name: "Pendientes" })).toBeVisible();
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
@@ -1938,12 +1936,11 @@ describe("App", () => {
         .element(screen.getByRole("button", { name: "Ir a vender" }))
         .toHaveAttribute("aria-disabled", "true");
 
-      await userEvent.click(
-        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
-      );
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
+      await userEvent.keyboard("r");
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
@@ -1978,9 +1975,8 @@ describe("App", () => {
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await resumeLockedRegister(screen);
 
-      await userEvent.click(
-        screen.getByRole("button", { name: "Armar la venta con el cobro de las 15:30" }),
-      );
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
+      await userEvent.keyboard("a");
 
       expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledExactlyOnceWith("tx-1");
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
