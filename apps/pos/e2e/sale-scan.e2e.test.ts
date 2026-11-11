@@ -126,13 +126,13 @@ describe("scanning products into a sale on the register", () => {
 
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
-    await yerba.getByText("$ 2.380,00").waitFor();
+    await yerba.getByText("$ 2.380,00", { exact: true }).waitFor();
     await yerba.getByText("1 u", { exact: true }).waitFor();
     expect(await scanField.inputValue()).toBe("");
 
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
-    await yerba.getByText("$ 4.760,00").waitFor();
+    await yerba.getByText("$ 4.760,00", { exact: true }).waitFor();
     await yerba.getByText("2 u", { exact: true }).waitFor();
 
     await scanField.fill("0000000000000");
@@ -153,18 +153,18 @@ describe("scanning products into a sale on the register", () => {
     await scanField.fill(FIDEOS_CODE);
     await scanField.press("Enter");
     await fideos.getByText("10 % de descuento").waitFor();
-    await fideos.getByText("$ 1.000,00").waitFor();
-    await fideos.getByText("$ 900,00").waitFor();
+    await fideos.getByText("$ 1.000,00", { exact: true }).waitFor();
+    await fideos.getByText("$ 900,00", { exact: true }).waitFor();
 
     await scanField.fill(FIDEOS_CODE);
     await scanField.press("Enter");
-    await fideos.getByText("$ 1.800,00").waitFor();
+    await fideos.getByText("$ 1.800,00", { exact: true }).waitFor();
 
     await scanField.fill(FIDEOS_CODE);
     await scanField.press("Enter");
     await fideos.getByText("Lleve 3, pague 2").waitFor();
-    await fideos.getByText("$ 3.000,00").waitFor();
-    await fideos.getByText("$ 2.000,00").waitFor();
+    await fideos.getByText("$ 3.000,00", { exact: true }).waitFor();
+    await fideos.getByText("$ 2.000,00", { exact: true }).waitFor();
   });
 
   it("charges the discounted sale in cash rounded down, shows the change and starts a new sale", async () => {
@@ -195,7 +195,7 @@ describe("scanning products into a sale on the register", () => {
     await page
       .getByRole("row")
       .filter({ hasText: "Yerba mate 1 kg" })
-      .getByText("$ 2.380,00")
+      .getByText("$ 2.380,00", { exact: true })
       .waitFor();
 
     await page.getByRole("button", { name: "Cobrar en efectivo" }).click();

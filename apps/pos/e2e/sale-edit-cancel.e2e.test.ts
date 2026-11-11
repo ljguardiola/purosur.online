@@ -88,20 +88,20 @@ describe("changing, removing and cancelling a sale on the register", () => {
 
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
-    await yerba.getByText("$ 2.380,00").waitFor();
+    await yerba.getByText("$ 2.380,00", { exact: true }).waitFor();
 
     await page.keyboard.press("NumpadAdd");
-    await yerba.getByText("$ 4.760,00").waitFor();
+    await yerba.getByText("$ 4.760,00", { exact: true }).waitFor();
     await yerba.getByText("2 u", { exact: true }).waitFor();
     await panel.getByText("$ 4.760,00").first().waitFor();
 
     await page.keyboard.press("NumpadSubtract");
-    await yerba.getByText("$ 2.380,00").waitFor();
+    await yerba.getByText("$ 2.380,00", { exact: true }).waitFor();
     await yerba.getByText("1 u", { exact: true }).waitFor();
 
     await scanField.fill(ALFAJOR_CODE);
     await scanField.press("Enter");
-    await alfajor.getByText("$ 500,00").waitFor();
+    await alfajor.getByText("$ 500,00", { exact: true }).waitFor();
     await panel.getByText("$ 2.880,00").first().waitFor();
     await panel.getByText("2", { exact: true }).waitFor();
 

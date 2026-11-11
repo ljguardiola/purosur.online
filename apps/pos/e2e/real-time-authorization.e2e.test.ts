@@ -105,7 +105,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await page
       .getByRole("row")
       .filter({ hasText: "Yerba mate 1 kg" })
-      .getByText("$ 2.380,00")
+      .getByText("$ 2.380,00", { exact: true })
       .waitFor();
   }
 

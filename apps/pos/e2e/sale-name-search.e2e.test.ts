@@ -81,7 +81,7 @@ describe("searching products by name into a sale on the register", () => {
     await page.getByRole("option", { name: /Café molido 500 g/ }).waitFor();
     await page.getByText("$ 2.380,00 / u").waitFor();
     await field.press("Enter");
-    await cafe.getByText("$ 2.380,00").waitFor();
+    await cafe.getByText("$ 2.380,00", { exact: true }).waitFor();
     expect(await field.inputValue()).toBe("");
 
     await field.fill("zzz");
