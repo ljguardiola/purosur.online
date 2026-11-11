@@ -33,18 +33,17 @@ export const TitleOnly: Story = {
 };
 
 export const Screen: Story = {
-  decorators: [
-    (Story) => (
-      <div className="w-112">
-        <Story />
-      </div>
-    ),
-  ],
-  args: {
-    variant: "screen",
-    icon: <TriangleAlert />,
-    title: "No se pudo mostrar la pantalla",
-  },
+  render: () => (
+    <div className="w-110 bg-surface-soft p-8">
+      <LoadFailure
+        variant="screen"
+        icon={<TriangleAlert />}
+        title="No se pudo mostrar la pantalla"
+        retryKeycap="R"
+        onRetry={() => {}}
+      />
+    </div>
+  ),
 };
 
 export const PillVariant: Story = {

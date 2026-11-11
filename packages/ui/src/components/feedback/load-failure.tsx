@@ -1,11 +1,14 @@
+import { RefreshCw } from "lucide-react";
+import type { KeyName } from "../data-display/keycap";
 import { Button } from "../forms/button";
+import { ElevatedPanel } from "../layout/elevated-panel";
 import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { InlineNotice } from "./inline-notice";
 import { NoticeLiveRegion } from "./notice-live-region";
 import { PillButton } from "./pill-button";
 
-export type LoadFailureVariant = "section" | "screen" | "pill";
+export type LoadFailureVariant = "section" | "pill";
 
 export type LoadFailureProps = {
   icon: Icon;
@@ -19,7 +22,31 @@ export type CenteredLoadFailureProps = Omit<LoadFailureProps, "variant" | "onRet
   variant: "centered";
 };
 
-export function LoadFailure(props: LoadFailureProps | CenteredLoadFailureProps) {
+type ScreenLoadFailureProps = Omit<LoadFailureProps, "variant" | "description"> & {
+  variant: "screen";
+  retryKeycap: KeyName;
+};
+
+export function LoadFailure(
+  props: LoadFailureProps | CenteredLoadFailureProps | ScreenLoadFailureProps,
+) {
+  if (props.variant === "screen") {
+    return (
+      <ElevatedPanel tone="error" icon={props.icon} title={props.title}>
+        <NoticeLiveRegion assertiveness="assertive" text={props.title} />
+        <Button
+          size="large"
+          icon={<RefreshCw />}
+          iconPosition="start"
+          keycap={props.retryKeycap}
+          onPress={props.onRetry}
+        >
+          Reintentar
+        </Button>
+      </ElevatedPanel>
+    );
+  }
+
   const { icon, title, description } = props;
 
   if (props.variant === "centered") {
@@ -65,17 +92,6 @@ export function LoadFailure(props: LoadFailureProps | CenteredLoadFailureProps) 
       {...(description === undefined ? {} : { description })}
     />
   );
-
-  if (variant === "screen") {
-    return (
-      <div className="flex flex-col gap-4">
-        {notice}
-        <Button size="large" onPress={onRetry}>
-          Reintentar
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col items-start gap-4">

@@ -1,5 +1,5 @@
-import { Button, ElevatedPanel } from "@purosur/ui";
-import { RefreshCw, TriangleAlert } from "lucide-react";
+import { LoadFailure } from "@purosur/ui";
+import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { Component, Fragment } from "react";
 import { KeyLayerProvider, useKeys } from "../platform/key-layer";
@@ -14,15 +14,13 @@ function RenderFailureNotice({ onRetry }: { onRetry: () => void }) {
     <div className="h-screen w-full">
       <BrandPanelScreen>
         <main className="w-full max-w-110">
-          <ElevatedPanel
-            tone="error"
+          <LoadFailure
+            variant="screen"
             icon={<TriangleAlert />}
             title="No se pudo mostrar la pantalla"
-          >
-            <Button size="large" icon={<RefreshCw />} keycap="R" onPress={onRetry}>
-              Reintentar
-            </Button>
-          </ElevatedPanel>
+            retryKeycap="R"
+            onRetry={onRetry}
+          />
         </main>
       </BrandPanelScreen>
     </div>
