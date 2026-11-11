@@ -17,7 +17,7 @@ function Offer() {
       <Card>
         <div className="flex flex-col gap-1">
           <p className="text-heading text-text">Inventario inicial</p>
-          <p className="text-body text-text-subtle">Cargar el stock con el que arranca el local.</p>
+          <p className="text-body text-text-subtle">Cargar el stock con el que arranca el local</p>
         </div>
         <div className="self-start">
           <Button icon={<Package />} onPress={() => void navigate({ to: "/initial-count" })}>

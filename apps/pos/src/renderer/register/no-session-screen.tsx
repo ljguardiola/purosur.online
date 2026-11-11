@@ -1,4 +1,4 @@
-import type { OpenCashSessionOutcome } from "@purosur/contracts";
+import type { OpenCashSessionOutcome, OpeningFloatSuggestion } from "@purosur/contracts";
 import { ScreenHeader } from "@purosur/ui";
 import type { ReactNode } from "react";
 import { NoSessionRail } from "../shell/no-session-rail";
@@ -11,6 +11,7 @@ export type NoSessionScreenProps = {
   signOut: () => void;
   offers?: ReactNode | undefined;
   openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
+  readOpeningFloatSuggestion: () => Promise<OpeningFloatSuggestion | null | "unavailable">;
 };
 
 export function NoSessionScreen({
@@ -18,6 +19,7 @@ export function NoSessionScreen({
   signOut,
   offers,
   openCashSession,
+  readOpeningFloatSuggestion,
 }: NoSessionScreenProps) {
   return (
     <RegisterFrame
@@ -28,6 +30,7 @@ export function NoSessionScreen({
           firstName={person.first_name}
           canOpen={person.abilities.includes("open_cash_session")}
           open={openCashSession}
+          readOpeningFloatSuggestion={readOpeningFloatSuggestion}
         />
       }
     >
