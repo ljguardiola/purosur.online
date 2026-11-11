@@ -341,6 +341,19 @@ describe("AdjustLineModal", () => {
       expect(adjust).not.toHaveBeenCalled();
     });
 
+    it("takes the digits typed right after the authorization modal opens, without clicking its PIN field", async () => {
+      const { screen, adjust } = await renderModal({ authorizationRequired: true });
+      await typePrice(screen, "1500");
+      await typeReason(screen, "Vence pronto");
+      await apply(screen);
+      await expect.element(authorizationDialog()).toBeVisible();
+
+      await userEvent.keyboard("1234");
+
+      await expect.element(authorizationDialog().getByLabelText("PIN")).toHaveValue("1234");
+      expect(adjust).not.toHaveBeenCalled();
+    });
+
     it("sends who authorizes and their PIN on Enter", async () => {
       const { screen, adjust } = await renderModal({ authorizationRequired: true });
       await typePrice(screen, "1500");

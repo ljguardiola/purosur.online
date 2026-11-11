@@ -635,6 +635,19 @@ describe("RecordCashMovementModal", () => {
       });
     });
 
+    it("takes the digits typed right after the authorization modal opens, without clicking its PIN field", async () => {
+      const { screen, recordCashMovement } = await renderModal({ lacking: ["WITHDRAWAL"] });
+      await choose(screen, "Retiro");
+      await fill(screen, "100", "Fin de turno");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+      await expect.element(authorizationDialog()).toBeVisible();
+
+      await userEvent.keyboard("1234");
+
+      await expect.element(authorizationDialog().getByLabelText("PIN")).toHaveValue("1234");
+      expect(recordCashMovement).not.toHaveBeenCalled();
+    });
+
     it("does not record the movement when the authorization modal is closed with Esc", async () => {
       const { screen, recordCashMovement, onClose } = await renderModal({
         lacking: ["WITHDRAWAL"],
