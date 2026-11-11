@@ -1,6 +1,7 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
   AnswerReceiptQuestionOutcome,
+  CashChargeAmounts,
   CashChargeAnswer,
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
@@ -38,6 +39,8 @@ export const salesKeys = {
     saleDiscount?: number,
   ) =>
     [...salesKey, "cash-charge", saleId, pending, tendered ?? null, saleDiscount ?? null] as const,
+  cashChargeAmounts: (saleId: string, pending: number, saleDiscount?: number) =>
+    [...salesKey, "cash-charge-amounts", saleId, pending, saleDiscount ?? null] as const,
   adjustmentPreview: (lineId: string, quantity: number, adjustment: ManualAdjustmentRequest) =>
     [
       ...salesKey,
@@ -333,6 +336,23 @@ export function useCashChargeQuery({
           ? read(tendered)
           : read(tendered, saleDiscount),
     enabled: tendered !== undefined,
+  });
+}
+
+export function useCashChargeAmountsQuery({
+  saleId,
+  pending,
+  saleDiscount,
+  read,
+}: {
+  saleId: string;
+  pending: number;
+  saleDiscount?: number | undefined;
+  read: (saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+}): CoreData<CashChargeAmounts | null> {
+  return useCoreQuery({
+    queryKey: salesKeys.cashChargeAmounts(saleId, pending, saleDiscount),
+    read: () => (saleDiscount === undefined ? read() : read(saleDiscount)),
   });
 }
 

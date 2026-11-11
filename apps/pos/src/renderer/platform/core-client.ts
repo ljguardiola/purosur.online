@@ -12,6 +12,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAmounts,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -353,6 +354,7 @@ export interface CoreClient {
   readSerialDevices(): Promise<ReadSerialDevicesOutcome>;
   registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
   cashCharge(saleId: string, tendered: number, saleDiscount?: number): Promise<CashChargeAnswer>;
+  cashChargeAmounts(saleId: string, saleDiscount?: number): Promise<CashChargeAmounts | null>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount(
     saleId: string,
@@ -1153,6 +1155,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           }
           return answer.type === "cash-charge" ? answer.charge : undefined;
         },
+      );
+    },
+    cashChargeAmounts(saleId, saleDiscount) {
+      return ask(
+        {
+          type: "cash-charge-amounts",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          ...(saleDiscount === undefined ? {} : { sale_discount: saleDiscount }),
+        },
+        (answer) => (answer.type === "cash-charge-amounts-result" ? answer.amounts : undefined),
       );
     },
     chargeSaleInCash(saleId, tendered) {
