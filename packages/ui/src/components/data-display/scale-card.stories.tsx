@@ -4,7 +4,6 @@ import { ScaleCard } from "./scale-card";
 const meta: Meta<typeof ScaleCard> = {
   title: "Components/ScaleCard",
   component: ScaleCard,
-  args: { label: "Balanza" },
 };
 
 export default meta;
