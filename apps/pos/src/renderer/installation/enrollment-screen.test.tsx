@@ -1,4 +1,5 @@
 import type { EnrollmentOutcome } from "@purosur/contracts";
+import { Button } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -69,6 +70,27 @@ describe("EnrollmentScreen", () => {
     await expect.element(screen.getByText("Sin dar de alta")).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows Dar de alta as a large button with its check before the text", async () => {
+    const screen = await render(
+      <>
+        <EnrollmentScreen
+          version={null}
+          checkCode={checkingLikeTheCore}
+          enroll={answering({ kind: "enrolled" }).enroll}
+        />
+        <Button size="large">Grande</Button>
+      </>,
+    );
+    const button = screen.getByRole("button", { name: "Dar de alta" }).element();
+    const large = screen.getByRole("button", { name: "Grande" }).element();
+    const check = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+    const text = document.createRange();
+    text.selectNodeContents(screen.getByText("Dar de alta", { exact: true }).element());
+
+    expect(button.getBoundingClientRect().height).toBe(large.getBoundingClientRect().height);
+    expect(check.right).toBeLessThanOrEqual(text.getBoundingClientRect().left);
   });
 
   it("invites typing the code with a placeholder in the empty field", async () => {
