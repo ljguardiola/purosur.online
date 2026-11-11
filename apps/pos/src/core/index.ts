@@ -85,6 +85,7 @@ import { registerServiceOf } from "./installation/register-service-of-database";
 import { localDatabaseDamageIn } from "./installation/sqlite-local-database-health";
 import { SqliteLocalInstallation, salesStopOf } from "./installation/sqlite-local-installation";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
+import { cashChargeAmountsFor } from "./payments/cash-charge-amounts-requests";
 import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
 import { createPaidOrderDiscoveryWiring } from "./payments/paid-order-discovery-wiring";
@@ -1470,6 +1471,20 @@ const rendererRequestDeps: RendererRequestDeps = {
             zoneRules,
             cloud: () => cloudReachability,
           }),
+  cashChargeAmounts:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          cashChargeAmountsFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+              zoneRules,
+            },
+            request,
+          ),
   abandonMercadoPagoCharge: mercadoPagoCharging.abandon,
   convertPaidOrderIntoRefund: paidOrderDiscovery.convertIntoRefund,
   rebuildSaleAgainstPaidOrder:

@@ -507,10 +507,12 @@ export type {
 } from "./payments/index.js";
 export {
   APPROVED_PAYMENT_STATE,
+  amountToChargeInCash,
   CHARGE_COST_METHODS,
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashCharge,
+  changeDiscountOption,
   isConfirmedByHand,
   isLateApproval,
   isPointTerminalId,
@@ -550,6 +552,7 @@ export {
   pointTerminalAvailability,
   QR_AVAILABILITIES,
   qrAvailability,
+  quickCashAmounts,
   REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
   REFUND_ORIGINS,

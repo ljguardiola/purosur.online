@@ -7,7 +7,7 @@ export type CashCharge =
   | { kind: "partial"; applied: number; pending: number }
   | { kind: "covered"; applied: number; change: number; cashRounding: number };
 
-function roundedDownToSmallestBill(amountDue: number): number {
+export function amountToChargeInCash(amountDue: number): number {
   const rounded = amountDue - (amountDue % SMALLEST_CASH_BILL);
   return rounded === 0 ? amountDue : rounded;
 }
@@ -16,7 +16,7 @@ export function cashCharge(amountDue: number, tendered: number): CashCharge {
   if (tendered <= 0 || !isValidCashAmount(tendered)) {
     return { kind: "invalid_amount" };
   }
-  const roundedDue = roundedDownToSmallestBill(amountDue);
+  const roundedDue = amountToChargeInCash(amountDue);
   if (tendered < roundedDue) {
     return { kind: "partial", applied: tendered, pending: amountDue - tendered };
   }

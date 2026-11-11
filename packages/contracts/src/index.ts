@@ -355,6 +355,7 @@ export {
 } from "./installation/register-sync-status.js";
 export type { ReportRegisterListBody } from "./installation/report-register-list.js";
 export { reportRegisterListSchema } from "./installation/report-register-list.js";
+export type { CashChargeAmounts } from "./payments/cash-charge-amounts.js";
 export type {
   AbandonMercadoPagoChargeOutcome,
   ChargeSaleWithPaidOrderOutcome,
