@@ -66,10 +66,12 @@ describe("NoSessionScreen", () => {
     const { screen } = await renderScreen({ offers: <p>Una oferta</p> });
 
     await expect.element(screen.getByText("Una oferta")).toBeVisible();
-    await expect.element(screen.getByRole("searchbox", { name: "Producto" })).not.toBeVisible();
+    await expect
+      .element(screen.getByRole("searchbox", { name: "Producto" }))
+      .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("img", { name: "Caja sin sesión abierta" }))
-      .not.toBeVisible();
+      .not.toBeInTheDocument();
   });
 
   it("takes no register name, which the frame's header shows", () => {

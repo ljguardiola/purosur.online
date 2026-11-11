@@ -39,7 +39,7 @@ describe("InitialCountOffer", () => {
     await expect.element(list.getByRole("columnheader", { name: "Para empezar" })).toBeVisible();
     const row = list.getByRole("row", { name: /Inventario inicial/ });
     await expect.element(row).toBeVisible();
-    await expect.element(row).toHaveAttribute("aria-selected", "true");
+    await expect.element(row).toHaveAttribute("aria-current", "true");
     await expect
       .element(row.getByText("Cargar el stock con el que arranca el local"))
       .toBeVisible();
