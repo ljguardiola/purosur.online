@@ -49,6 +49,7 @@ type TextFieldCommonProps = {
   value: string;
   onChange: (value: string) => void;
   description?: string;
+  placeholder?: string;
   disabled?: boolean;
   readOnly?: boolean;
   required?: boolean;
@@ -123,7 +124,8 @@ const valueClassName: Record<Exclude<TextFieldValueKind, "plain-text">, string> 
 const registerPlainTextValueClassName = "text-left text-body text-text";
 const registerPlainTextSuffixedValueClassName = "text-right text-body text-text";
 
-const inputBaseClassName = "min-w-0 flex-1 bg-transparent caret-focus outline-none";
+const inputBaseClassName =
+  "min-w-0 flex-1 bg-transparent caret-focus outline-none placeholder:text-text-subtle";
 
 const moneyPrefixClassName = "shrink-0 text-display font-normal text-text-subtle";
 const unitSuffixClassName = "shrink-0 text-heading font-normal text-text-subtle";
@@ -150,6 +152,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
     value,
     onChange,
     description,
+    placeholder,
     disabled = false,
     readOnly = false,
     required = false,
@@ -263,7 +266,11 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
         <>
           <Tooltip description={readOnlyReason}>
             <AriaFocusable>
-              <ReadOnlyReasonInput className={inputClassName} {...labelledByProps} />
+              <ReadOnlyReasonInput
+                className={inputClassName}
+                {...(placeholder === undefined ? {} : { placeholder })}
+                {...labelledByProps}
+              />
             </AriaFocusable>
           </Tooltip>
           <span id={readOnlyReasonId} className="sr-only">
@@ -271,7 +278,12 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
           </span>
         </>
       ) : (
-        <AriaInput ref={attachInput} className={inputClassName} {...labelledByProps} />
+        <AriaInput
+          ref={attachInput}
+          className={inputClassName}
+          {...(placeholder === undefined ? {} : { placeholder })}
+          {...labelledByProps}
+        />
       )}
       {suffix !== undefined && (
         <span

@@ -192,6 +192,8 @@ export type { ConfirmationPanelProps } from "./components/layout/confirmation-pa
 export { ConfirmationPanel } from "./components/layout/confirmation-panel";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
+export type { ElevatedPanelProps } from "./components/layout/elevated-panel";
+export { ElevatedPanel } from "./components/layout/elevated-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { IconCardProps } from "./components/layout/icon-card";

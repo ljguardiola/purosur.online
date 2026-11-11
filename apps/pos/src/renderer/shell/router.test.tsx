@@ -158,7 +158,7 @@ const BALANCE: CashBalance = {
 };
 const BRAND_LOGO_ALT = "Puro Sur";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
-const RE_ENROLLMENT_STATUS = "Dar de alta de nuevo";
+const RE_ENROLLMENT_TITLE = "Dar de alta de nuevo";
 const PIN_REDEMPTION_TITLE = "Cambiar el PIN";
 const FIRST_SIGN_IN_TITLE = "Ingresar por primera vez";
 const OUTER_BOUNDARY_TEXT = "caught outside the router";
@@ -194,7 +194,7 @@ const screenFor: Record<
   "/out-of-service": (screen) => screen.getByText(OUT_OF_SERVICE_TITLE),
   "/restoring": (screen) => screen.getByRole("heading", { name: RESTORING_TITLE }),
   "/restore-required": (screen) => screen.getByRole("heading", { name: RESTORE_REQUIRED_TITLE }),
-  "/re-enroll": (screen) => screen.getByText(RE_ENROLLMENT_STATUS),
+  "/re-enroll": (screen) => screen.getByRole("heading", { name: RE_ENROLLMENT_TITLE }),
   "/revoked": (screen) => screen.getByRole("heading", { name: REVOKED_TITLE }),
   "/older-version": (screen) => screen.getByRole("heading", { name: OLDER_VERSION_TITLE }),
   "/pin-code-redemption": (screen) => screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE }),
@@ -1371,9 +1371,8 @@ describe("the register's router", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
 
-    await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: RE_ENROLLMENT_TITLE })).toBeVisible();
     await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText(RE_ENROLLMENT_STATUS)).toBeVisible();
     await expect.poll(() => router.state.location.pathname).toBe("/re-enroll");
   });
 
@@ -1385,7 +1384,7 @@ describe("the register's router", () => {
     });
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+    await userEvent.click(screen.getByRole("button", { name: "Volver con Esc" }));
 
     await expect.element(screenFor["/restore-required"](screen)).toBeVisible();
   });
@@ -1408,7 +1407,7 @@ describe("the register's router", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta la caja" }));
 
-    await expect.element(screen.getByText(RE_ENROLLMENT_STATUS)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: RE_ENROLLMENT_TITLE })).toBeVisible();
     await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
     await expect.poll(() => router.state.location.pathname).toBe("/re-enroll");
   });
@@ -1417,7 +1416,7 @@ describe("the register's router", () => {
     const router = routerAt("/re-enroll", "up", REVOKED, null);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+    await userEvent.click(screen.getByRole("button", { name: "Volver con Esc" }));
 
     await expect.element(screenFor["/revoked"](screen)).toBeVisible();
     await expect.poll(() => router.state.location.pathname).toBe("/revoked");
@@ -2516,13 +2515,17 @@ describe("the register's router", () => {
     expect(registerName).toHaveBeenCalledOnce();
   });
 
-  it.each(["/sign-in", "/enroll"] as const)(
+  it.each([
+    ["/sign-in", "enrolled"],
+    ["/enroll", "not_enrolled"],
+    ["/re-enroll", REVOKED],
+  ] as const)(
     "reads the running version on %s before any PIN or code",
-    async (route) => {
+    async (route, enrollment) => {
       const router = createRegisterRouter(
         routeTree,
         {
-          ...contextWith("up", route === "/enroll" ? "not_enrolled" : "enrolled", null),
+          ...contextWith("up", enrollment, null),
           registerVersion: async () => "1.0.1539",
         },
         route,

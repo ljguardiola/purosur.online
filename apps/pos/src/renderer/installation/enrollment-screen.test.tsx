@@ -1,9 +1,16 @@
 import type { EnrollmentOutcome } from "@purosur/contracts";
+import { Button } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
+import { render as renderInBrowser } from "vitest-browser-react";
+import { KeyLayerProvider } from "../platform/key-layer";
 import { EnrollmentScreen, ReEnrollmentScreen } from "./enrollment-screen";
+
+function render(ui: ReactElement) {
+  return renderInBrowser(<KeyLayerProvider>{ui}</KeyLayerProvider>);
+}
 
 const TYPED_CODE = "p4nx 7kwe 2qrt 6mzd";
 
@@ -56,17 +63,89 @@ describe("EnrollmentScreen", () => {
       .element(screen.getByRole("heading", { name: "Dar de alta esta caja" }))
       .toBeVisible();
     await expect
-      .element(
-        screen.getByText(
-          "Escribí el código de alta que se genera en el backoffice, en Cajas. Vale 15 minutos y hace falta internet.",
-        ),
-      )
-      .toBeVisible();
+      .element(screen.getByText(/Escribí el código de alta que se genera/))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("textbox", { name: "Código de alta" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Dar de alta" })).toBeEnabled();
     await expect.element(screen.getByText("Sin dar de alta")).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows Dar de alta as a large button with its check before the text", async () => {
+    const screen = await render(
+      <>
+        <EnrollmentScreen
+          version={null}
+          checkCode={checkingLikeTheCore}
+          enroll={answering({ kind: "enrolled" }).enroll}
+        />
+        <Button size="large">Grande</Button>
+      </>,
+    );
+    const button = screen.getByRole("button", { name: "Dar de alta" }).element();
+    const large = screen.getByRole("button", { name: "Grande" }).element();
+    const check = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+    const text = document.createRange();
+    text.selectNodeContents(screen.getByText("Dar de alta", { exact: true }).element());
+
+    expect(button.getBoundingClientRect().height).toBe(large.getBoundingClientRect().height);
+    expect(check.right).toBeLessThanOrEqual(text.getBoundingClientRect().left);
+  });
+
+  it("invites typing the code with a placeholder in the empty field", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        version={null}
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("textbox", { name: "Código de alta" }))
+      .toHaveAttribute("placeholder", "Escribí el código del backoffice");
+  });
+
+  it("shows the Enter key on the button that enrolls, outside the button's name", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        version={null}
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
+    );
+
+    const button = screen
+      .getByRole("button", { name: "Dar de alta", exact: true })
+      .element() as HTMLElement;
+    expect(button.querySelector("kbd")?.textContent).toBe("Enter");
+  });
+
+  it("redeems the code with Enter without focus in the field, once", async () => {
+    const { enroll, codes } = answering({ kind: "enrolled" });
+    const screen = await render(
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} version={null} />,
+    );
+    await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), TYPED_CODE);
+    (document.activeElement as HTMLElement).blur();
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(codes).toEqual([TYPED_CODE]);
+  });
+
+  it("shows no Esc key, since there is nowhere to go back to", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        version={null}
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+      />,
+    );
+
+    const keys = Array.from(screen.container.querySelectorAll("kbd"), (key) => key.textContent);
+    expect(keys).toEqual(["Enter"]);
   });
 
   it("offers no way back when it has nowhere to go back to", async () => {
@@ -350,6 +429,7 @@ describe("ReEnrollmentScreen", () => {
     const screen = await render(
       <ReEnrollmentScreen
         registerName="Caja 2"
+        version="1.4.212"
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "enrolled" }).enroll}
         onBack={() => {}}
@@ -357,11 +437,17 @@ describe("ReEnrollmentScreen", () => {
     );
 
     await expect.element(screen.getByText("CAJA 2", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Dar de alta de nuevo")).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "Dar de alta esta caja" }))
+      .element(screen.getByRole("heading", { name: "Dar de alta de nuevo" }))
       .toBeVisible();
+    const footer = screen.container.querySelector("footer") as HTMLElement;
+    expect(footer.textContent).toContain("Dar de alta de nuevo");
+    expect(footer.textContent).toContain("Versión 1.4.212");
     await expect.element(screen.getByRole("textbox", { name: "Código de alta" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Código de alta" }))
+      .toHaveAttribute("placeholder", "Escribí el código del backoffice");
+    await expect.element(screen.getByRole("button", { name: "Dar de alta" })).toBeEnabled();
 
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -373,6 +459,7 @@ describe("ReEnrollmentScreen", () => {
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "enrolled" }).enroll}
         onBack={() => {}}
+        version={null}
       />,
     );
 
@@ -387,6 +474,7 @@ describe("ReEnrollmentScreen", () => {
         checkCode={checkingLikeTheCore}
         enroll={enroll}
         onBack={() => {}}
+        version={null}
       />,
     );
 
@@ -395,7 +483,43 @@ describe("ReEnrollmentScreen", () => {
     expect(codes).toEqual([TYPED_CODE]);
   });
 
-  it("goes back when asked to", async () => {
+  it("offers going back with the Esc key instead of a Volver button", async () => {
+    const screen = await render(
+      <ReEnrollmentScreen
+        registerName="Caja 1"
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        onBack={() => {}}
+        version={null}
+      />,
+    );
+
+    await expect
+      .element(screen.getByRole("button", { name: "Volver con Esc", exact: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Volver", exact: true }))
+      .not.toBeInTheDocument();
+  });
+
+  it("goes back when the Esc key is pressed", async () => {
+    const back = vi.fn();
+    await render(
+      <ReEnrollmentScreen
+        registerName="Caja 2"
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        onBack={back}
+        version={null}
+      />,
+    );
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(back).toHaveBeenCalledOnce();
+  });
+
+  it("goes back when the Esc keycap is pressed", async () => {
     const back = vi.fn();
     const screen = await render(
       <ReEnrollmentScreen
@@ -403,12 +527,30 @@ describe("ReEnrollmentScreen", () => {
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "enrolled" }).enroll}
         onBack={back}
+        version={null}
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+    await userEvent.click(screen.getByRole("button", { name: "Volver con Esc" }));
 
     expect(back).toHaveBeenCalledOnce();
+  });
+
+  it("shows the Enter key on the button that enrolls again", async () => {
+    const screen = await render(
+      <ReEnrollmentScreen
+        registerName="Caja 2"
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        onBack={() => {}}
+        version={null}
+      />,
+    );
+
+    const button = screen
+      .getByRole("button", { name: "Dar de alta", exact: true })
+      .element() as HTMLElement;
+    expect(button.querySelector("kbd")?.textContent).toBe("Enter");
   });
 });
 
