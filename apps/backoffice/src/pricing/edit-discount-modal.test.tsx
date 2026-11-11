@@ -490,7 +490,7 @@ test("an inactive current tag still shows as the chosen value, marked inactive",
   await userEvent.click(dialog.getByRole("combobox", { name: /^Etiqueta/ }));
 
   await expect
-    .element(page.getByRole("option", { name: /Sin colorantes/ }).getByText("Inactivo"))
+    .element(page.getByRole("option", { name: /Sin colorantes/ }).getByText("Inactiva"))
     .toBeVisible();
 });
 

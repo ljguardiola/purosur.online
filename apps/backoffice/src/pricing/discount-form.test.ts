@@ -478,11 +478,11 @@ describe("targetOptions", () => {
     const options = targetOptions(
       "TAG",
       { ...nothing, tags: [sinTacc] },
-      { kind: "TAG", id: "tag-3", name: "Sin colorantes", ...noBrand, status: "Inactivo" },
+      { kind: "TAG", id: "tag-3", name: "Sin colorantes", ...noBrand, status: "Inactiva" },
     );
 
     expect(options).toEqual([
-      { value: "tag-3", label: "Sin colorantes", status: "Inactivo" },
+      { value: "tag-3", label: "Sin colorantes", status: "Inactiva" },
       { value: "tag-1", label: "Sin TACC" },
     ]);
   });
@@ -602,11 +602,27 @@ describe("keptTarget", () => {
     netContent: yerbaProduct.netContent,
   } as const;
 
-  test("keeps a current target missing from the targets of its kind, marked inactive", () => {
+  test("keeps a current product missing from the products, marked inactive", () => {
     expect(keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: retired })).toEqual({
       ...retired,
       status: "Inactivo",
     });
+  });
+
+  test("keeps a current category missing from the categories, marked inactive", () => {
+    const retiredCategory = { kind: "CATEGORY", id: "gone", name: "Fiambres", ...noBrand } as const;
+
+    expect(
+      keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: retiredCategory }),
+    ).toEqual({ ...retiredCategory, status: "Inactiva" });
+  });
+
+  test("keeps a current tag missing from the tags, marked inactive", () => {
+    const retiredTag = { kind: "TAG", id: "gone", name: "Sin colorantes", ...noBrand } as const;
+
+    expect(
+      keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: retiredTag }),
+    ).toEqual({ ...retiredTag, status: "Inactiva" });
   });
 
   test("keeps the product of a buy-N-pay-M promotion that is now sold by weight, marked by weight", () => {
@@ -641,7 +657,7 @@ describe("keptTarget", () => {
 
     expect(
       keptTarget(discountTargets, { benefit: threeForTwoBenefit, target: productNamedLikeTag }),
-    ).toEqual({ ...productNamedLikeTag, status: "Inactivo" });
+    ).toEqual({ ...productNamedLikeTag, status: "Inactiva" });
   });
 
   test("has nothing to keep without a current target", () => {
