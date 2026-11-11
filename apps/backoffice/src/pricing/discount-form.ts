@@ -118,7 +118,7 @@ export const DISCOUNT_EDIT_FIELDS = { ...DISCOUNT_FIELDS, version: null, active:
 const TARGET_PLACEHOLDERS = {
   PRODUCT: "Elegí un producto",
   CATEGORY: "Elegí una categoría",
-  TAG: "Elegí un distintivo",
+  TAG: "Elegí una etiqueta",
 } satisfies Record<DiscountTargetKind, string>;
 
 export function targetPlaceholder(kind: DiscountTargetKind): string {
@@ -128,13 +128,13 @@ export function targetPlaceholder(kind: DiscountTargetKind): string {
 const TARGET_REVIEW_MESSAGES = {
   PRODUCT: "Revisá el producto elegido.",
   CATEGORY: "Revisá la categoría elegida.",
-  TAG: "Revisá el distintivo elegido.",
+  TAG: "Revisá la etiqueta elegida.",
 } satisfies Record<DiscountTargetKind, string>;
 
 const TARGET_UNAVAILABLE_MESSAGES = {
   PRODUCT: "Ya no está disponible. Elegí otro producto.",
   CATEGORY: "Ya no está disponible. Elegí otra categoría.",
-  TAG: "Ya no está disponible. Elegí otro distintivo.",
+  TAG: "Ya no está disponible. Elegí otra etiqueta.",
 } satisfies Record<DiscountTargetKind, string>;
 
 export const TARGET_SOLD_BY_WEIGHT_MESSAGE = "Se vende por peso. Elegí otro producto.";
@@ -196,7 +196,7 @@ export const DISCOUNT_KIND_CARDS = [
     value: "PERCENT_OFF",
     icon: createElement<{ className?: string }>(Percent),
     label: "Porcentaje de descuento",
-    description: "Sobre un producto, una categoría o un distintivo",
+    description: "Sobre un producto, una categoría o una etiqueta",
   },
   {
     value: "BUY_N_PAY_M",
@@ -222,7 +222,11 @@ export const WEEKDAY_OPTIONS = [
   { value: "7", label: "Dom", fullLabel: "Domingo" },
 ] as const;
 
-const INACTIVE_TARGET_STATUS = "Inactivo";
+const INACTIVE_TARGET_STATUS: Record<DiscountTargetKind, string> = {
+  PRODUCT: "Inactivo",
+  CATEGORY: "Inactiva",
+  TAG: "Inactiva",
+};
 const SOLD_BY_WEIGHT_TARGET_STATUS = "Por peso";
 
 type CurrentTarget = {
@@ -311,7 +315,7 @@ export function keptTarget(
   }
   const { target, benefit } = current;
   if (!listedTargets(target.kind, sources).some((listed) => listed.id === target.id)) {
-    return { ...target, status: INACTIVE_TARGET_STATUS };
+    return { ...target, status: INACTIVE_TARGET_STATUS[target.kind] };
   }
   return benefit.kind === "BUY_N_PAY_M" &&
     target.kind === "PRODUCT" &&

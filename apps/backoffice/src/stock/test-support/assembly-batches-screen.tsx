@@ -74,6 +74,6 @@ export async function loaded(
     value: assemblyBatchList(batches, recipes),
   });
   const screen = await renderScreen(services, () => {}, options);
-  await expect.element(screen.getByRole("table", { name: "Tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Producciones" })).toBeVisible();
   return screen;
 }

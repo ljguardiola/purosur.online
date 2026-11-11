@@ -6,6 +6,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/products"]);
@@ -71,18 +72,19 @@ test("opens Personas on its Usuarios tab, with the Roles tab and the assistant's
     .toBeVisible();
   expect(location()).toBe("/people/users");
   await expect.poll(() => document.title).toBe("Personas · Puro Sur");
+  expect(shownEyebrow()).toBe("Configuración");
   const personas = screen.getByRole("link", { name: "Personas" }).element();
   expect(personas.getAttribute("aria-current")).toBe("page");
-  const config = screen.getByRole("link", { name: "Config" }).element();
+  const config = screen.getByRole("link", { name: "Configuración" }).element();
   expect(config.getAttribute("aria-current")).toBe("page");
 });
 
-test("the settings menu has no Usuarios, Mi cuenta, Roles or Respuesta ante un compromiso item", async () => {
+test("the settings menu has no Usuarios, Mi cuenta, Roles or Ante una sospecha de compromiso item", async () => {
   window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
   await expect.element(screen.getByRole("link", { name: "Personas" })).toBeVisible();
 
-  for (const name of ["Usuarios", "Mi cuenta", "Roles", "Respuesta ante un compromiso"]) {
+  for (const name of ["Usuarios", "Mi cuenta", "Roles", "Ante una sospecha de compromiso"]) {
     expect(screen.getByRole("link", { name }).query()).toBeNull();
   }
 });
@@ -310,16 +312,16 @@ test("the own account panel stays open over a list page that writes its filters 
   await expect.element(screen.getByRole("complementary", { name: "Lucas Medrano" })).toBeVisible();
 });
 
-test("the Config entry of the rail opens Personas, the first Configuración page, and falls back to the own account panel when there is none", async () => {
+test("the Configuración entry of the rail opens Personas, the first Configuración page, and falls back to the own account panel when there is none", async () => {
   window.history.pushState(null, "", "/help");
   const withPeople = await render(<App help={emptyHelp} services={servicesFor()} />);
-  const config = withPeople.getByRole("link", { name: "Config" });
+  const config = withPeople.getByRole("link", { name: "Configuración" });
   await expect.element(config).toBeVisible();
   expect(config.element().getAttribute("href")).toBe("/people");
   await withPeople.unmount();
 
   const withNothing = await render(<App help={emptyHelp} services={servicesFor([])} />);
-  const fallbackConfig = withNothing.getByRole("link", { name: "Config" });
+  const fallbackConfig = withNothing.getByRole("link", { name: "Configuración" });
   await expect.element(fallbackConfig).toBeVisible();
   expect(fallbackConfig.element().getAttribute("href")).toBe("/?account=credentials");
 });

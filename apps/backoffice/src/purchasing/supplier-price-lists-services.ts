@@ -1,3 +1,4 @@
+import { type BranchTermServices, defaultBranchTermServices } from "../shell/branch-term-services";
 import type { SupplierFilterServices } from "./purchasing-screen-parts";
 import {
   fetchSupplierPriceLists,
@@ -11,6 +12,7 @@ import type { UploadSupplierPriceListModalServices } from "./upload-supplier-pri
 export type SupplierPriceListsScreenServices = {
   fetchSupplierPriceLists: typeof fetchSupplierPriceLists;
   refreshSupplierPriceList: typeof refreshSupplierPriceList;
+  branchTerm: BranchTermServices;
 } & SupplierFilterServices &
   UploadSupplierPriceListModalServices;
 
@@ -22,4 +24,5 @@ export const defaultSupplierPriceListsScreenServices: SupplierPriceListsScreenSe
   loadSupplierPriceListWebPage,
   fetchSuppliers,
   createSupplier,
+  branchTerm: defaultBranchTermServices,
 };

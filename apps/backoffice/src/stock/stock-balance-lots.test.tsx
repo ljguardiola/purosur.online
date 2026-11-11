@@ -111,7 +111,7 @@ test("shows a lot of an assembled batch by its name, with no origin beside it", 
     lots: [
       {
         id: "lot-batch",
-        lotName: "Tanda 15/09/2026",
+        lotName: "Producción 15/09/2026",
         expiresOn: "2026-11-02",
         remaining: 4_950,
         valueCents: 4_906_440,
@@ -124,7 +124,7 @@ test("shows a lot of an assembled batch by its name, with no origin beside it", 
 
   const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
   const row = lot.getByRole("row").nth(1);
-  expect(row.getByRole("cell").nth(0).element().textContent).toBe("Tanda 15/09/2026");
+  expect(row.getByRole("cell").nth(0).element().textContent).toBe("Producción 15/09/2026");
   expect(row.getByRole("cell").nth(2).element().textContent).toBe("—");
 });
 

@@ -13,7 +13,7 @@ beforeEach(() => {
 
 function renderModal({
   createTag = vi.fn<NewTagModalServices["createTag"]>(),
-  context = "Productos · Distintivos",
+  context = "Productos · Etiquetas",
   initialName,
   onCreated = () => {},
   onClose = () => {},
@@ -46,7 +46,7 @@ function renderModal({
 async function submitName(screen: Awaited<ReturnType<typeof renderModal>>, name: string) {
   const dialog = screen.getByRole("dialog");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), name);
-  await userEvent.click(dialog.getByRole("button", { name: "Crear el distintivo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la etiqueta" }));
   return dialog;
 }
 
@@ -55,7 +55,7 @@ test("shows the eyebrow it is given, the title and the name field", async () => 
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("Productos", { exact: true })).toBeVisible();
-  await expect.element(dialog.getByRole("heading", { name: "Nuevo distintivo" })).toBeVisible();
+  await expect.element(dialog.getByRole("heading", { name: "Nueva etiqueta" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
 });
 
@@ -78,8 +78,8 @@ test("requires a name, and refuses one longer than 100 characters, without calli
   const screen = await renderModal({ createTag });
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.click(dialog.getByRole("button", { name: "Crear el distintivo" }));
-  await expect.element(dialog.getByText("Ingresá el nombre del distintivo.")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la etiqueta" }));
+  await expect.element(dialog.getByText("Ingresá el nombre de la etiqueta.")).toBeVisible();
 
   await submitName(screen, "a".repeat(101));
   await expect
@@ -96,7 +96,7 @@ test("shows that a tag with that name already exists, keeping the typed name", a
 
   const dialog = await submitName(screen, "vegano");
 
-  await expect.element(dialog.getByText("Ya existe un distintivo con este nombre.")).toBeVisible();
+  await expect.element(dialog.getByText("Ya existe una etiqueta con este nombre.")).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("vegano");
 });
 
@@ -108,7 +108,7 @@ test("shows the failure notice, keeping the typed name", async () => {
 
   const dialog = await submitName(screen, "Vegano");
 
-  await expect.element(dialog.getByText("No se guardó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se guardó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText("Volvé a intentarlo.")).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Vegano");
 });
@@ -180,7 +180,7 @@ test("tells an outdated tab to reload because the backoffice was updated when cr
 
   const dialog = await submitName(screen, "Vegano");
 
-  await expect.element(dialog.getByText("No se guardó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText("No se guardó la etiqueta")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

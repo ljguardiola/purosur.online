@@ -192,6 +192,17 @@ function hoursMessage(day: BranchDay) {
   };
 }
 
+export const TERM_FIELDS = {
+  expiringLotAlertDays: { label: "Aviso de vencimiento", suffix: "días" },
+  unreviewedPriceAlertDays: { label: "Precio sin revisar", suffix: "días" },
+  goodConditionReturnDays: { label: "Cambio en buen estado", suffix: "días" },
+  supplierPriceListDailyExtractionCap: {
+    label: "Listas leídas por día",
+    description:
+      "Cuántas listas de proveedores puede leer esta sucursal por día. Al llegar al tope, no se pueden cargar más listas hasta el día siguiente.",
+  },
+} as const;
+
 export const MESSAGES = {
   address: textMessage("address", "Revisá la dirección."),
   whatsappNumber: textMessage("whatsappNumber", "Revisá el número de WhatsApp."),

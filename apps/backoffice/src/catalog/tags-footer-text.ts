@@ -5,11 +5,11 @@ export function tagsFooterText(tags: TagSummary[], taggedProductCount: number): 
   const inactive = tags.filter((tag) => !tag.active).length;
   return [
     plural(tags.length, {
-      one: "1 distintivo",
-      other: `${formatNumber(tags.length)} distintivos`,
+      one: "1 etiqueta",
+      other: `${formatNumber(tags.length)} etiquetas`,
     }),
     inactive > 0
-      ? plural(inactive, { one: "1 inactivo", other: `${formatNumber(inactive)} inactivos` })
+      ? plural(inactive, { one: "1 inactiva", other: `${formatNumber(inactive)} inactivas` })
       : undefined,
     plural(taggedProductCount, {
       one: "1 producto",

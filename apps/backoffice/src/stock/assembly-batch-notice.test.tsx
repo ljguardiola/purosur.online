@@ -4,14 +4,14 @@ import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support
 import { AssemblyBatchNotice } from "./assembly-batch-notice";
 
 const TITLES = [
-  "No se registró la tanda",
+  "No se registró la producción",
   "Demasiadas solicitudes",
   "La receta cambió",
   "Nueces ya no está disponible",
 ];
 
 test.each([
-  [{ kind: "attemptFailed" } as const, "No se registró la tanda", "Volvé a intentarlo."],
+  [{ kind: "attemptFailed" } as const, "No se registró la producción", "Volvé a intentarlo."],
   [
     { kind: "rateLimited", retryAfterSeconds: 120 } as const,
     "Demasiadas solicitudes",
@@ -25,7 +25,7 @@ test.each([
   [
     { kind: "componentGone", name: "Nueces" } as const,
     "Nueces ya no está disponible",
-    "Quitalo de la receta en Recetas para registrar esta tanda.",
+    "Quitalo de la receta en Recetas para registrar esta producción.",
   ],
 ])(
   "tells %j with its title and what to do next, and nothing else",
@@ -44,6 +44,6 @@ test("tells an outdated tab to reload because the backoffice was updated when re
   openAsOutdatedTab();
   const screen = await render(<AssemblyBatchNotice notice={{ kind: "attemptFailed" }} />);
 
-  await expect.element(screen.getByText("No se registró la tanda")).toBeVisible();
+  await expect.element(screen.getByText("No se registró la producción")).toBeVisible();
   await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

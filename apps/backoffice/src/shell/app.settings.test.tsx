@@ -7,7 +7,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/location-settings", "/people/roles", "/people/users"]);
+opensOnlyScreens(["/", "/help", "/branch", "/people/roles", "/people/users"]);
 
 beforeEach(resetPageState);
 
@@ -27,7 +27,7 @@ test("lists neither Cajas registradoras nor Backups in Configuración, which the
 });
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
-  window.history.pushState(null, "", "/location-settings");
+  window.history.pushState(null, "", "/branch");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -64,7 +64,7 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
   expect(screen.getByRole("link", { name: "Sucursal" }).query()).toBeNull();
 });
 
-test("following the sidebar's Sucursal item opens the branch settings screen, with Config and Sucursal active", async () => {
+test("following the sidebar's Sucursal item opens the branch settings screen, with Configuración and Sucursal active", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
@@ -100,14 +100,58 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
   await userEvent.click(screen.getByRole("link", { name: "Sucursal" }));
 
   await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/location-settings");
-  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
+  expect(window.location.pathname).toBe("/branch");
+  const configItem = screen
+    .getByRole("link", { name: "Configuración" })
+    .element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBe("page");
   const branchItem = screen.getByRole("link", { name: "Sucursal" }).element() as HTMLAnchorElement;
   expect(branchItem.getAttribute("aria-current")).toBe("page");
 });
 
-test("redirects a typed /location-settings to the own account panel for a user without configure_branch, without calling its API", async () => {
+test("redirects the old /location-settings address to /branch", async () => {
+  window.history.pushState(null, "", "/location-settings");
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(
+      openSession({
+        userId: "user-2",
+        displayName: "Grace Villalba",
+        isAdministrator: false,
+        capabilities: ["branch_area"],
+      }),
+    ),
+  });
+  vi.mocked(services.branchSettingsScreen.fetchBranchSettings).mockResolvedValue({
+    kind: "ok",
+    value: {
+      address: "",
+      whatsappNumber: "",
+      instagramHandle: "",
+      hours: {
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: [],
+      },
+      expiringLotAlertDays: 30,
+      zoneRulesVersion: null,
+      unreviewedPriceAlertDays: 30,
+      goodConditionReturnDays: 15,
+      supplierPriceListDailyExtractionCap: 10,
+      version: 1,
+    },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/branch");
+});
+
+test("redirects a typed /branch to the own account panel for a user without configure_branch, without calling its API", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -119,7 +163,7 @@ test("redirects a typed /location-settings to the own account panel for a user w
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/location-settings");
+  window.history.pushState(null, "", "/branch");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 

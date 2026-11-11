@@ -15,7 +15,7 @@ export const mercadoPagoChannel: PendingRefundsFilters = {
 };
 export const withoutApiChannel: PendingRefundsFilters = {
   ...allChannels,
-  channel: "without-api",
+  channel: "outside-mercado-pago",
 };
 
 export function createPendingRefundsServices(): PendingRefundsScreenServices {

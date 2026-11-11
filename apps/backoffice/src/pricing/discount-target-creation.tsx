@@ -34,13 +34,19 @@ export type DiscountTargetCreationParts = {
 const RECORD_KINDS = {
   PRODUCT: "producto",
   CATEGORY: "categoría",
-  TAG: "distintivo",
+  TAG: "etiqueta",
 } satisfies Record<DiscountTargetKind, string>;
 
 const CREATED_RECORDS = {
   PRODUCT: "el producto",
   CATEGORY: "la categoría",
-  TAG: "el distintivo",
+  TAG: "la etiqueta",
+} satisfies Record<DiscountTargetKind, string>;
+
+const UNREAD_ENDINGS = {
+  PRODUCT: "cargarlo para elegirlo",
+  CATEGORY: "cargarla para elegirla",
+  TAG: "cargarla para elegirla",
 } satisfies Record<DiscountTargetKind, string>;
 
 function notOfferedText(kind: DiscountTargetKind, name: string): string {
@@ -48,7 +54,7 @@ function notOfferedText(kind: DiscountTargetKind, name: string): string {
 }
 
 function unreadText(kind: DiscountTargetKind, name: string): string {
-  return `Se creó ${CREATED_RECORDS[kind]} «${name}», pero no pudimos cargarlo para elegirlo.`;
+  return `Se creó ${CREATED_RECORDS[kind]} «${name}», pero no pudimos ${UNREAD_ENDINGS[kind]}.`;
 }
 
 type Params = {

@@ -9,7 +9,7 @@ function visibleSections(...capabilities: Parameters<typeof accessWith>) {
   );
 }
 
-test("shows Recetas and Tandas to a person with recipes and batches", () => {
+test("shows Recetas and Producciones to a person with recipes and batches", () => {
   expect(visibleSections("recipes", "batches")).toEqual(["recipes", "batches"]);
 });
 
@@ -17,7 +17,7 @@ test("shows only Recetas with only the recipes capability", () => {
   expect(visibleSections("recipes")).toEqual(["recipes"]);
 });
 
-test("shows only Tandas with only the batches capability", () => {
+test("shows only Producciones with only the batches capability", () => {
   expect(visibleSections("batches")).toEqual(["batches"]);
 });
 

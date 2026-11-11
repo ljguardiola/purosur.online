@@ -33,7 +33,7 @@ test("has a sheet named after the table with the cost of each group, and the unp
   const sheets = aiCostReportSpreadsheet(INCOMPLETE_AI_COST_BY_SUPPLIER, "supplier").sheets;
 
   expect(sheets[1]).toEqual({
-    name: "Costo de IA por período",
+    name: "Costo de IA",
     header: [
       "Proveedor",
       "Lectura",
