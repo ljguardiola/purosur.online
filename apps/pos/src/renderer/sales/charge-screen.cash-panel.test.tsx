@@ -1,6 +1,6 @@
 import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
 import { expect, it } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import {
   chooseCash,
   renderScreen,
@@ -132,4 +132,48 @@ it("stays on the cash charge, and shows the completed sale, when Esc is pressed 
 
   await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
   expect(screen.router.state.location.pathname).toBe("/");
+});
+
+const ROUNDED_AMOUNTS = (discount?: number) => ({
+  kind: "amounts" as const,
+  amount_due: 2_519_250 - (discount ?? 0),
+  amount_to_charge: 2_510_000 - (discount ?? 0),
+  cash_rounding: 9_250,
+  quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
+  change_discount_option: discount === undefined ? 10_000 : null,
+});
+
+async function cashPanelBodyAt1366By768(keys: string) {
+  const { screen } = await renderScreen({
+    cashChargeAmounts: async (_saleId, discount) => ROUNDED_AMOUNTS(discount),
+    cashCharge: async () => ({
+      kind: "covered",
+      applied: 2_510_000,
+      change: 490_000,
+      cash_rounding: 9_250,
+    }),
+  });
+  await page.viewport(1366, 768);
+  await chooseCash(screen);
+  await expect.element(screen.getByRole("button", { name: /\$ 30\.000,00/ })).toBeVisible();
+  await userEvent.keyboard(keys);
+  await expect.element(screen.getByText("VUELTO", { exact: true })).toBeVisible();
+  const panel = screen.getByRole("complementary", { name: "Cobro en efectivo" }).element();
+  const body = panel.querySelector<HTMLElement>(".overflow-y-auto");
+  if (body === null) {
+    throw new Error("the cash panel has no scrollable body");
+  }
+  return body;
+}
+
+it("fits the cash charge with its quick amounts and change in a 1366×768 window without scrolling", async () => {
+  const body = await cashPanelBodyAt1366By768("{F8}");
+
+  expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight);
+});
+
+it("fits the cash charge with its shortage-of-change block in a 1366×768 window without scrolling", async () => {
+  const body = await cashPanelBodyAt1366By768("{F8}{F3}");
+
+  expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight);
 });
