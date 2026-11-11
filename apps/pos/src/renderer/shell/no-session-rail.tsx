@@ -27,11 +27,8 @@ export function NoSessionRail({
     fallback: true,
   });
   function pressEnter() {
-    const focused = document.activeElement;
-    if (focused === panel.current) {
+    if (document.activeElement === panel.current) {
       signOut();
-    } else if (focused instanceof HTMLButtonElement && panel.current?.contains(focused)) {
-      focused.click();
     }
   }
   useKeys(

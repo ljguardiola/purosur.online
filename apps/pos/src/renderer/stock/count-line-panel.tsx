@@ -256,20 +256,11 @@ export function CountLinePanel({
     counted.current?.querySelector("input")?.focus();
   }, []);
 
-  function pressEnter() {
-    const focused = document.activeElement;
-    if (focused instanceof HTMLButtonElement) {
-      focused.click();
-    } else {
-      requestSubmit();
-    }
-  }
-
   useKeys([
     { key: "Escape", run: cancel },
     { key: "F5", run: writeWeight, enabled: followingScale },
   ]);
-  useKeys([{ key: "Enter", run: pressEnter }], { within: panel });
+  useKeys([{ key: "Enter", run: requestSubmit }], { within: panel });
 
   return (
     <form ref={panel} className="contents" noValidate onSubmit={handleSubmit}>
