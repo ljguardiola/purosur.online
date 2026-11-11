@@ -53,7 +53,6 @@ const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total 
 const AUTHORIZING = "descontar sobre el total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
-const PARTIAL_PAYMENT_HINT = "Si no alcanza para saldar la venta, el resto queda pendiente.";
 
 const QUICK_AMOUNT_KEYS = ["F6", "F7", "F8", "F9"] as const;
 
@@ -399,6 +398,7 @@ export function CashChargePanel({
             size="large"
             fullWidth
             icon={<Check />}
+            iconPosition="start"
             keycap="Enter"
             dataStatus={submitting ? "loading" : answer.status}
             disabled={covered === undefined && partial === undefined}
@@ -434,7 +434,6 @@ export function CashChargePanel({
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}
-              description={PARTIAL_PAYMENT_HINT}
               errorMessage={fieldErrorMessage(field.state.meta.errors) ?? answeredMessage}
             />
           )}
