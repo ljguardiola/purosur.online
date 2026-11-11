@@ -357,6 +357,21 @@ describe("WeighingCard", () => {
     await expect.poll(() => typed.mock.calls).toEqual([[500]]);
   });
 
+  it("leaves Enter to the focused button", async () => {
+    const { screen, asking, onClose, onDiscardWaiting } = await renderCard(
+      async (confirmed) => (confirmed === 250 ? TAKEN : STABLE_250),
+      { waiting: [{ productId: "p2", name: "Aceite", saleUnit: "UNIT", unitPrice: 940_000 }] },
+    );
+    await expect.element(screen.getByText("Estable")).toBeVisible();
+    screen.getByRole("button", { name: "Descartar" }).element().focus();
+
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() => expect(onDiscardWaiting).toHaveBeenCalledOnce());
+    expect(onClose).not.toHaveBeenCalled();
+    expect(asking.mock.calls.every(([confirmed]) => confirmed === null)).toBe(true);
+  });
+
   it("closes without taking anything on Esc", async () => {
     const { screen, asking, typed, onClose } = await renderCard(scripted(STABLE_250));
     await expect.element(screen.getByText("Estable")).toBeVisible();

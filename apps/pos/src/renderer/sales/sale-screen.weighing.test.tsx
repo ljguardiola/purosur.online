@@ -11,6 +11,7 @@ import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import type { Overrides } from "./test-support/sale-screen";
 import {
+  deferred,
   QUESO,
   renderScreen,
   SALE_OF_FOUR_LINES,
@@ -215,7 +216,7 @@ describe("SaleScreen weighing card", () => {
       .toBeVisible();
   });
 
-  it("shows the stable weight and its amount with Estable, and the keys of its actions", async () => {
+  it("shows the stable weight and its amount the core answers with Estable", async () => {
     const { screen, field } = await renderScreen(weighingScale(stableScale()));
 
     await scan(field, "7790001");
@@ -224,23 +225,6 @@ describe("SaleScreen weighing card", () => {
     await expect.element(card.getByText("Estable")).toBeVisible();
     await expect.element(card.getByText("1,250 kg")).toBeVisible();
     await expect.element(card.getByText("$ 15.625,00")).toBeVisible();
-    const keyOf = (name: string) =>
-      card.getByRole("button", { name, exact: true }).element().querySelector("kbd")?.textContent;
-    expect(keyOf("Confirmar")).toBe("Enter");
-    expect(keyOf("Escribir peso")).toBe("F5");
-    expect(keyOf("Cancelar")).toBe("Esc");
-  });
-
-  it("shows Moviéndose with Confirmar disabled while the reading is not stable", async () => {
-    const { screen, field } = await renderScreen(weighingScale(vi.fn(async () => UNSTEADY_238)));
-
-    await scan(field, "7790001");
-
-    const card = screen.getByRole("region", CARD_OF_QUESO);
-    await expect.element(card.getByText("Moviéndose")).toBeVisible();
-    await expect.element(card.getByText("0,238 kg")).toBeVisible();
-    await expect.element(card.getByRole("button", { name: "Confirmar" })).toBeDisabled();
-    await expect.element(card.getByRole("button", { name: "Escribir peso" })).toBeEnabled();
   });
 
   it("adds the line with the weight and amount shown when Enter is pressed", async () => {
@@ -256,19 +240,6 @@ describe("SaleScreen weighing card", () => {
 
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).not.toBeInTheDocument();
     expect(weighProduct).toHaveBeenLastCalledWith("p-queso", 1250);
-  });
-
-  it("opens the typed weight form with F5", async () => {
-    const { screen, field } = await renderScreen(weighingScale(stableScale()));
-    await scan(field, "7790001");
-    await expect.element(screen.getByText("Estable")).toBeVisible();
-
-    await userEvent.keyboard("{F5}");
-
-    await expect.element(screen.getByRole("textbox", { name: "Peso en kg" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
-      .toBeVisible();
   });
 
   it("cancels only the weighing with Esc, adding nothing", async () => {
@@ -423,6 +394,20 @@ describe("SaleScreen while weighing", () => {
     await expect.poll(() => screen.router.state.location.pathname).toBe("/charge");
   });
 
+  it("offers no change of weight and no removal on the lines' rows, leaving the change of price", async () => {
+    const { screen } = await weighingWithFourLines();
+
+    await expect
+      .element(screen.getByRole("button", { name: "Cambiar el peso de Pasas de uva" }))
+      .toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Quitar Pasas de uva" }))
+      .toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Cambiar el precio de Pasas de uva" }))
+      .toBeEnabled();
+  });
+
   it("offers no Quitar in the legend and removes no line with Supr", async () => {
     const removeSaleLine = vi.fn();
     const { screen, field } = await renderScreen({
@@ -439,6 +424,84 @@ describe("SaleScreen while weighing", () => {
     await userEvent.keyboard("{Delete}");
 
     expect(removeSaleLine).not.toHaveBeenCalled();
+  });
+});
+
+describe("SaleScreen keys while weighing", () => {
+  async function weighingOnAStableScale(overrides: Overrides = {}) {
+    const weighProduct = stableScale();
+    const rendered = await renderScreen({
+      ...weighingScale(weighProduct),
+      currentSale: async () => SALE_OF_YERBA,
+      searchProducts: vi.fn(async () => ({
+        kind: "results" as const,
+        products: [{ ...productOf("7790002"), matches: [] }],
+        more: false,
+      })),
+      ...overrides,
+    });
+    await scan(rendered.field, "7790001");
+    await expect.element(rendered.screen.getByText("Estable")).toBeVisible();
+    return { ...rendered, weighProduct };
+  }
+
+  it("queues a code typed in the search field on Enter instead of confirming the weighing", async () => {
+    const { screen, field, weighProduct } = await weighingOnAStableScale();
+
+    await field.fill("7790002");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("En espera")).toBeVisible();
+    await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
+    expect(weighProduct.mock.calls.every(([, confirmed]) => confirmed === null)).toBe(true);
+  });
+
+  it("closes the name search results on Esc, keeping the weighing", async () => {
+    const { screen, field } = await weighingOnAStableScale();
+    await field.fill("aceite");
+    const option = screen.getByRole("option", { name: /Aceite de oliva/ });
+    await expect.element(option).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(option).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
+  });
+
+  it("queues a product chosen by name once on Enter, clearing the search", async () => {
+    const { screen, field, weighProduct } = await weighingOnAStableScale();
+    await field.fill("aceite");
+    const option = screen.getByRole("option", { name: /Aceite de oliva/ });
+    await expect.element(option).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("En espera")).toBeVisible();
+    await expect.element(field).toHaveValue("");
+    await expect.element(option).not.toBeInTheDocument();
+    await expect.element(screen.getByText("más", { exact: false })).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
+    expect(weighProduct.mock.calls.every(([, confirmed]) => confirmed === null)).toBe(true);
+  });
+
+  it("confirms the weighing on Enter in the emptied field instead of charging the paid order", async () => {
+    const { screen, field, weighProduct } = await weighingOnAStableScale({
+      currentSale: async () => ({
+        ...SALE_OF_YERBA,
+        rebuilt_paid_order: {
+          payment_transaction_id: "order-1",
+          method: "QR" as const,
+          amount: 920_000,
+          applied: false,
+        },
+      }),
+    });
+
+    await field.clear();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => weighProduct.mock.calls.at(-1)).toEqual(["p-queso", 1250]);
+    expect(screen.router.state.location.pathname).toBe("/");
   });
 });
 
@@ -706,6 +769,94 @@ describe("SaleScreen products waiting during a weighing", () => {
 
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).not.toBeInTheDocument();
     expect(addProduct).not.toHaveBeenCalled();
+  });
+
+  it("leaves the code the cashier is typing when a waiting product is added", async () => {
+    const addProduct = vi.fn(
+      async (): Promise<AddProductOutcome> =>
+        added(salesWith(lineOf(productOf("7790002"), "line-aceite"))),
+    );
+    const { screen, field, readAndWait } = await weighingWith({ addProduct });
+    await readAndWait("7790002");
+    await expect.element(screen.getByText("En espera")).toBeVisible();
+    await field.fill("777");
+
+    await screen.getByRole("button", { name: "Confirmar" }).click();
+
+    await expect.poll(() => addProduct.mock.calls).toEqual([["p-aceite"]]);
+    await expect.element(screen.getByText("En espera")).not.toBeInTheDocument();
+    await expect.element(field).toHaveValue("777");
+  });
+
+  it("processes the waiting products once a line weighed again takes the scale's weight", async () => {
+    const changed = {
+      ...QUESO,
+      quantity: 800,
+      line_total: 1_000_000,
+      weight_source: "SCALE" as const,
+    };
+    const weighLine = vi.fn(
+      async (
+        _lineId: string,
+        _expected: number,
+        confirmed: number | null,
+      ): Promise<WeighLineOutcome> =>
+        confirmed === 800
+          ? {
+              kind: "changed",
+              removed_manual_discount: false,
+              removed_sale_discount: false,
+              sale: { ...SALE_OF_QUESO, lines: [changed], total: 1_000_000, pending: 1_000_000 },
+            }
+          : { kind: "stable", weight_thousandths: 800, amount: 1_000_000 },
+    );
+    const addProduct = vi.fn(
+      async (): Promise<AddProductOutcome> => added(salesWith(lineOf(productOf("7790002"), "l"))),
+    );
+    const { screen, readBarcode } = await renderScreen({
+      ...weighingScale(stableScale()),
+      currentSale: async () => SALE_OF_QUESO,
+      weighLine,
+      addProduct,
+    });
+    await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
+    await userEvent.keyboard("{F3}");
+    await expect
+      .element(screen.getByRole("region", CARD_OF_QUESO).getByText("Estable"))
+      .toBeVisible();
+    readBarcode("7790002");
+    await expect.element(screen.getByText("En espera")).toBeVisible();
+
+    await screen.getByRole("button", { name: "Confirmar" }).click();
+
+    await expect.poll(() => addProduct.mock.calls).toEqual([["p-aceite"]]);
+    expect(weighLine).toHaveBeenCalledWith("line-3", 1250, 800);
+  });
+
+  it("queues a product read while the price of the scanned product is on its way", async () => {
+    const price = deferred<FindProductByCodeOutcome>();
+    const scanProduct = vi.fn(async () => WEIGHT_NEEDED);
+    const findProductByCode = vi.fn(
+      async (code: string): Promise<FindProductByCodeOutcome> =>
+        code === "7790001" ? price.promise : (PRODUCTS[code] ?? { kind: "unknown_code" }),
+    );
+    const { screen, field, readBarcode } = await renderScreen({
+      ...weighingScale(stableScale()),
+      scanProduct,
+      findProductByCode,
+      currentSale: async () => SALE_OF_YERBA,
+    });
+    await scan(field, "7790001");
+    await vi.waitFor(() => expect(findProductByCode).toHaveBeenCalledWith("7790001"));
+
+    readBarcode("7790002");
+
+    await expect.element(screen.getByText("En espera")).toBeVisible();
+    price.resolve({ kind: "found", product: productOf("7790001") });
+    await expect
+      .element(screen.getByRole("region", CARD_OF_QUESO).getByText("$ 12.500,00 / kg"))
+      .toBeVisible();
+    expect(scanProduct).toHaveBeenCalledTimes(1);
   });
 
   it("shows the refusal of a waiting product the core refuses once the weighing ends", async () => {
