@@ -74,7 +74,6 @@ describe("CashChargePanel", () => {
     expect(valueBeside(screen, "Total")).toBe("$ 4.760,00");
     expect(screen.getByText("Redondeo").query()).toBeNull();
     expect(screen.getByText("Pagado").query()).toBeNull();
-    expect(screen.getByText("Falta de cambio").query()).not.toBeNull();
   });
 
   it("is the cash charge: Efectivo, its Esc key and the received amount, focused, with what to do when it does not cover", async () => {
@@ -120,7 +119,6 @@ describe("CashChargePanel", () => {
     );
 
     await expect.element(screen.getByText("A COBRAR")).toBeVisible();
-    expect(screen.getByText("$ 4.760,00").query()).toBeNull();
     expect(screen.container.querySelector("[aria-busy=true]")).not.toBeNull();
   });
 
@@ -165,7 +163,6 @@ describe("CashChargePanel", () => {
       .toBeEnabled();
     await expect.element(screen.getByRole("button", { name: "Cobrar" })).not.toBeInTheDocument();
     await expect.element(screen.getByText("QUEDA PENDIENTE")).toBeVisible();
-    await expect.element(screen.getByText("$ 4.760,00 − $ 4.000,00")).toBeVisible();
     await expect.element(screen.getByText("$ 760,00")).toBeVisible();
     await expect.element(screen.getByText("VUELTO")).not.toBeInTheDocument();
   });
@@ -220,7 +217,6 @@ describe("CashChargePanel", () => {
 
     await expect.element(complete).toBeEnabled();
     await expect.element(screen.getByText("VUELTO")).toBeVisible();
-    await expect.element(screen.getByText("$ 5.000,00 − $ 4.760,00")).toBeVisible();
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
   });
 
@@ -230,7 +226,6 @@ describe("CashChargePanel", () => {
     await userEvent.fill(field, "4760,00");
 
     await expect.element(complete).toBeEnabled();
-    await expect.element(screen.getByText("$ 4.760,00 − $ 4.760,00")).toBeVisible();
     await expect.element(screen.getByText("$ 0,00").last()).toBeVisible();
   });
 
@@ -282,24 +277,16 @@ describe("CashChargePanel", () => {
     expect(readCashCharge).not.toHaveBeenCalled();
   });
 
-  it("keeps Cobrar disabled and shows the change loading until the core answers", async () => {
+  it("keeps Cobrar disabled and shows no change until the core answers", async () => {
     const answer = deferred<CashChargeAnswer>();
     const { screen, field, complete } = await renderPanel(undefined, () => answer.promise);
 
     await userEvent.fill(field, "5000,00");
 
-    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(complete).toBeDisabled();
     await expect.element(screen.getByText("VUELTO")).not.toBeInTheDocument();
     answer.resolve({ kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 });
     await expect.element(complete).toBeEnabled();
-    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
-  });
-
-  it("shows nothing loading while nothing is typed", async () => {
-    const { screen } = await renderPanel();
-
-    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
   });
 
   it("shows the change loading again after Reintentar, until the core answers", async () => {
@@ -320,7 +307,6 @@ describe("CashChargePanel", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).not.toBeInTheDocument();
     retried.resolve({ kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 });
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();

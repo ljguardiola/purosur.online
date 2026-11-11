@@ -3,7 +3,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { Table } from "./table";
 import { dataColumn } from "./table-columns";
-import type { TableColumns, TableProps } from "./table-types";
+import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
 type Line = { id: string; name: string; amount: string };
@@ -23,8 +23,18 @@ const lines: Line[] = [
   { id: "2", name: "Avena arrollada", amount: "$ 3.200,00" },
 ];
 
-function LinesTable(props: Partial<Omit<TableProps<Line>, "table" | "aria-label">>) {
-  const table = useTableModel({ items: lines, id: (line) => line.id, columns });
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+const noSort: TableSort = { column: "", direction: "ascending" };
+
+function LinesTable(props: DistributiveOmit<TableProps<Line>, "table" | "aria-label">) {
+  const table = useTableModel({
+    items: lines,
+    id: (line) => line.id,
+    columns,
+    sort: noSort,
+    onSortChange: () => {},
+  });
   return <Table table={table} aria-label="Líneas" {...props} />;
 }
 
