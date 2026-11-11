@@ -39,5 +39,9 @@ export const WithEscapeKey: Story = {
 };
 
 export const WithoutEyebrow: Story = {
-  args: { eyebrow: undefined },
+  render: ({ title, icon, children }) => (
+    <ElevatedPanel title={title} icon={icon}>
+      {children}
+    </ElevatedPanel>
+  ),
 };
