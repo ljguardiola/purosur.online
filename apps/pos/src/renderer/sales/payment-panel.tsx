@@ -172,6 +172,7 @@ export function PaymentPanel({
                 size="sale"
                 fullWidth
                 icon={<Banknote />}
+                iconPosition="start"
                 keycap="F12"
                 disabled={!canCharge}
                 onPress={() => onCharge("CASH")}
