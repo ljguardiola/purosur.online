@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const cashChargeAmountsSchema = z.object({
+const cashChargeAmountsSchema = z.object({
   kind: z.literal("amounts"),
   amount_due: z.int().nonnegative(),
   amount_to_charge: z.int().nonnegative(),

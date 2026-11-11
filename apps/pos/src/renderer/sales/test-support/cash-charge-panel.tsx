@@ -13,7 +13,7 @@ import { render } from "../../shell/test-support/render-with-router";
 import type { CashChargePanelProps } from "../cash-charge-panel";
 import { CashChargePanel } from "../cash-charge-panel";
 
-export const AMOUNT_FIELD = "RECIBIDO";
+const AMOUNT_FIELD = "RECIBIDO";
 export const OTHER_DISCOUNT_FIELD = "Otro";
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
