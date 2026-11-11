@@ -23,6 +23,7 @@ import {
   lockedClosersFor,
   type OpenCashSessionRequestDeps,
   openCashSessionFor,
+  openingFloatSuggestionFor,
   sessionOpenSaleFor,
 } from "./cash-session-requests";
 import { SqliteCashLedger } from "./sqlite-cash-ledger";
@@ -236,6 +237,48 @@ describe("opening a cash session on the register", () => {
     database.prepare("DELETE FROM own_register").run();
 
     expect(await openCashSessionFor(deps(), 5000)).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("the opening float suggested to the person signed in", () => {
+  function closedSession(registerId: string, closedAt: string, countedCash: number): void {
+    database
+      .prepare(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float,
+           state, closed_by, closed_at, expected_cash, counted_cash, difference)
+         VALUES (?, ?, 'device-1', 'u1', '2026-11-04T12:00:00.000Z', 0, 'CLOSED', 'u1', ?, ?, ?, 0)`,
+      )
+      .run(`${registerId}-${closedAt}`, registerId, closedAt, countedCash, countedCash);
+  }
+
+  function suggestion() {
+    return openingFloatSuggestionFor({
+      database,
+      signedInPerson,
+      zoneRules: fixedZoneRulesSource(),
+    });
+  }
+
+  it("is the cash counted at the register's previous close, with when it closed in Argentina", () => {
+    closedSession("register-1", "2026-11-04T23:14:00.000Z", 14_400_000);
+    closedSession("register-2", "2026-11-05T23:00:00.000Z", 5_000_000);
+
+    expect(suggestion()).toEqual({
+      kind: "previous_close",
+      closed_at: "2026-11-04T20:14:00.000-03:00",
+      counted_cash: 14_400_000,
+    });
+  });
+
+  it("is none when the register was never closed", () => {
+    expect(suggestion()).toEqual({ kind: "none" });
+  });
+
+  it("is not answered when nobody is signed in", () => {
+    closedSession("register-1", "2026-11-04T23:14:00.000Z", 14_400_000);
+    signedInPerson.clear();
+
+    expect(suggestion()).toBeNull();
   });
 });
 

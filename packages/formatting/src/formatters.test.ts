@@ -12,6 +12,7 @@ import {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDayMonthAndTime,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,
@@ -419,6 +420,16 @@ describe("formatDayAndTime", () => {
     expect(formatDayAndTime("2026-10-05T01:30:00.000Z", "America/Argentina/Buenos_Aires")).toBe(
       "04/10/2026 · 22:30",
     );
+  });
+});
+
+describe("formatDayMonthAndTime", () => {
+  it("writes the day, the month and the time of the clock the instant is written in", () => {
+    expect(formatDayMonthAndTime("2026-11-04T20:14:00.000-03:00")).toBe("04/11 · 20:14");
+  });
+
+  it("writes them on the clock of the instant's own offset, not the machine's", () => {
+    expect(formatDayMonthAndTime("2026-11-04T23:14:00.000Z")).toBe("04/11 · 23:14");
   });
 });
 

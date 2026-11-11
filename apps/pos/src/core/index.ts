@@ -113,6 +113,7 @@ import {
   currentCashSession,
   identifyLockedCloserFor,
   lockedClosersFor,
+  openingFloatSuggestionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
 import { createContingencyRecordingWiring } from "./register/contingency-recording-wiring";
@@ -1204,6 +1205,10 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined
       ? undefined
       : () => cashMovementKindsFor({ database: localDatabase, signedInPerson }),
+  openingFloatSuggestion:
+    localDatabase === undefined
+      ? undefined
+      : () => openingFloatSuggestionFor({ database: localDatabase, signedInPerson, zoneRules }),
   scanProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
