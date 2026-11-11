@@ -9,8 +9,6 @@ export type WeighingPanelProps = {
   title: string;
   detail?: string | undefined;
   status: ScaleStatusBadgeProps["status"];
-  statusLabel: string;
-  cancelLabel: string;
   onCancel: () => void;
   children: ReactNode;
   waiting?: ReactNode;
@@ -20,8 +18,6 @@ export function WeighingPanel({
   title,
   detail,
   status,
-  statusLabel,
-  cancelLabel,
   onCancel,
   children,
   waiting,
@@ -48,9 +44,11 @@ export function WeighingPanel({
               <p className="text-detail text-warning-strong">{detail}</p>
             )}
           </div>
-          <ScaleStatusBadge status={status}>{statusLabel}</ScaleStatusBadge>
+          <ScaleStatusBadge status={status}>
+            {status === "stable" ? "Estable" : "Moviéndose"}
+          </ScaleStatusBadge>
           <Button variant="text" keycap="Escape" onPress={onCancel}>
-            {cancelLabel}
+            Cancelar
           </Button>
         </div>
         {children}

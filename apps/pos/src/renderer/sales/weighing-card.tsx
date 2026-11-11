@@ -118,8 +118,6 @@ export function WeighingCard({
             : `${formatCents(unitPrice)} / kg`
         }
         status={stable ? "stable" : "moving"}
-        statusLabel={stable ? "Estable" : "Moviéndose"}
-        cancelLabel="Cancelar"
         onCancel={onClose}
         waiting={
           firstWaiting === undefined ? undefined : (

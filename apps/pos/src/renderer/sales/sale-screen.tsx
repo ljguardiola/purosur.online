@@ -264,7 +264,6 @@ export function SaleScreen({
   const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const [weighing, setWeighing] = useState<Weighing>();
-  const [typedWhileWeighing, setTypedWhileWeighing] = useState(false);
   const [waiting, setWaitingState] = useState<WaitingEntry[]>([]);
   const [scaleReading, setScaleReading] = useState<ScaleReading>();
   const [adjusting, setAdjusting] = useState<SaleLine>();
@@ -297,7 +296,6 @@ export function SaleScreen({
 
   function type(typed: string) {
     setCode(typed);
-    setTypedWhileWeighing(weighingNow.current !== undefined);
     setProblem(undefined);
     setDismissed(false);
     const query = typed.trim();
@@ -345,7 +343,6 @@ export function SaleScreen({
   function askForWeight(asking: Weighing | undefined) {
     weighingNow.current = asking;
     setWeighing(asking);
-    setTypedWhileWeighing(false);
   }
 
   function setWaiting(next: WaitingEntry[]) {
@@ -411,6 +408,9 @@ export function SaleScreen({
         refuse(submitted, outcome);
         break;
       case "weight_needed":
+        if (field.current?.querySelector("input")?.value.trim() === submitted) {
+          setDismissed(true);
+        }
         askForWeight({
           kind: "add",
           productId: outcome.product_id,
@@ -851,6 +851,10 @@ export function SaleScreen({
   }
 
   const resultCount = found?.products.length ?? 0;
+  const typedDuringTheWeighing =
+    weighing !== undefined &&
+    code.trim() !== "" &&
+    code.trim() !== (weighing.kind === "add" ? weighing.submitted : "");
   useKeys(
     [
       { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
@@ -874,7 +878,7 @@ export function SaleScreen({
       {
         key: "Enter",
         run: () => field.current?.requestSubmit(),
-        enabled: typedWhileWeighing && code.trim() !== "",
+        enabled: typedDuringTheWeighing,
       },
       {
         key: "Enter",
