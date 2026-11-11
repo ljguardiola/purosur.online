@@ -34,6 +34,7 @@ import type {
   ListedCashMovement,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpeningFloatSuggestion,
   PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
@@ -132,6 +133,7 @@ export interface RendererRequestDeps {
     | undefined;
   cashMovements: (() => ListedCashMovement[] | null) | undefined;
   cashMovementKinds: (() => RecordableCashMovementKinds | null) | undefined;
+  openingFloatSuggestion: (() => OpeningFloatSuggestion | null) | undefined;
   scanProduct: ((code: string) => Promise<ScanProductOutcome>) | undefined;
   chargeSaleInCash:
     | ((request: ChargeSaleInCashRequest) => Promise<ChargeSaleInCashOutcome>)
@@ -516,6 +518,17 @@ function readCashMovementKinds(
   }
 }
 
+function readOpeningFloatSuggestion(
+  deps: RendererRequestDeps,
+): OpeningFloatSuggestion | null | undefined {
+  try {
+    return deps.openingFloatSuggestion?.();
+  } catch (error) {
+    deps.reportFailure("reading the opening float suggestion", error);
+    return undefined;
+  }
+}
+
 function readRestorationStanding(deps: RendererRequestDeps): RestorationStandingAnswer | undefined {
   try {
     return deps.restorationStanding?.();
@@ -876,6 +889,12 @@ export async function answerRendererRequest(
       return kinds === undefined
         ? { type: "cash-movement-kinds-unavailable", request_id: message.request_id }
         : { type: "cash-movement-kinds", request_id: message.request_id, kinds };
+    }
+    case "opening-float-suggestion-request": {
+      const suggestion = readOpeningFloatSuggestion(deps);
+      return suggestion === undefined
+        ? { type: "opening-float-suggestion-unavailable", request_id: message.request_id }
+        : { type: "opening-float-suggestion", request_id: message.request_id, suggestion };
     }
     case "scan-product":
       return {
