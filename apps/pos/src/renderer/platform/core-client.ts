@@ -217,6 +217,8 @@ export type SerialDevicesToRegister = Extract<
 
 export type MercadoPagoChargeKind = { method: "QR" } | { method: "POINT"; cardType: PointCardType };
 
+export type SignInUsers = { users: SignInUser[]; last_active_user_id: string | null };
+
 export interface CoreClient {
   connect(port: CorePort): void;
   enrollmentStatus(): Promise<EnrollmentStandingAnswer>;
@@ -228,7 +230,7 @@ export interface CoreClient {
   pinPolicy(): Promise<PinPolicy>;
   checkEnrollmentCode(typedCode: string): Promise<"code"[]>;
   checkPinCodeRedemption(typedCode: string, newPin: string): Promise<("reset_code" | "new_pin")[]>;
-  signInUsers(): Promise<SignInUser[]>;
+  signInUsers(): Promise<SignInUsers>;
   authorizers(permission: AuthorizablePermissionKey): Promise<SignInUser[]>;
   lockedClosers(): Promise<SignInUser[]>;
   signIn(userId: string, pin: string): Promise<SignInOutcome>;
@@ -607,7 +609,10 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         if (answer.type === "sign-in-users-unavailable") {
           throw new Error("the core could not read the users who can sign in");
         }
-        return answer.type === "sign-in-users" ? answer.users : undefined;
+        if (answer.type !== "sign-in-users") {
+          return undefined;
+        }
+        return { users: answer.users, last_active_user_id: answer.last_active_user_id };
       });
     },
     authorizers(permission) {

@@ -2,8 +2,11 @@ import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { SignInUsers } from "../platform/core-client";
 import { render } from "../shell/test-support/render-with-router";
 import { SignInScreen } from "./sign-in-screen";
+
+const roster = (users: SignInUser[]): SignInUsers => ({ users, last_active_user_id: null });
 
 const USERS: SignInUser[] = [
   { id: "u2", first_name: "Bruno" },
@@ -19,7 +22,7 @@ afterEach(() => {
 async function renderScreen(outcome: SignInOutcome) {
   return render(
     <SignInScreen
-      loadUsers={async () => USERS}
+      loadUsers={async () => roster(USERS)}
       signIn={async () => outcome}
       registerName={null}
       version={null}

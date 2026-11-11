@@ -2,9 +2,12 @@ import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { SignInUsers } from "../platform/core-client";
 import { render } from "../shell/test-support/render-with-router";
 import { sessionsKey } from "./sessions-queries";
 import { SignInScreen } from "./sign-in-screen";
+
+const roster = (users: SignInUser[]): SignInUsers => ({ users, last_active_user_id: null });
 
 const USERS: SignInUser[] = [
   { id: "u2", first_name: "Bruno" },
@@ -22,7 +25,7 @@ type Screen = Awaited<ReturnType<typeof render>>;
 function renderWithVersion(version: string | null) {
   return render(
     <SignInScreen
-      loadUsers={async () => USERS}
+      loadUsers={async () => roster(USERS)}
       signIn={async () => SIGNED_IN}
       registerName={null}
       version={version}
@@ -72,7 +75,7 @@ function pending() {
 async function renderScreen(signIn = answering(SIGNED_IN).signIn, users = USERS) {
   return render(
     <SignInScreen
-      loadUsers={async () => users}
+      loadUsers={async () => roster(users)}
       signIn={signIn}
       registerName={null}
       version={null}
@@ -93,8 +96,8 @@ async function enter(screen: Screen, firstName: string, pin: string) {
 describe("SignInScreen", () => {
   it("keeps the chosen person and the typed PIN when a later read of the users fails", async () => {
     const loadUsers = vi
-      .fn<() => Promise<SignInUser[]>>()
-      .mockResolvedValueOnce(USERS)
+      .fn<() => Promise<SignInUsers>>()
+      .mockResolvedValueOnce(roster(USERS))
       .mockRejectedValue(new Error("the core connection was replaced"));
     const screen = await render(
       <SignInScreen
@@ -353,7 +356,7 @@ describe("SignInScreen", () => {
   it("shows the users are loading before they arrive", async () => {
     const screen = await render(
       <SignInScreen
-        loadUsers={() => new Promise<SignInUser[]>(() => {})}
+        loadUsers={() => new Promise<SignInUsers>(() => {})}
         signIn={answering(SIGNED_IN).signIn}
         registerName={null}
         version={null}
@@ -385,7 +388,7 @@ describe("SignInScreen", () => {
       if (attempts === 1) {
         throw new Error("the core could not read them");
       }
-      return USERS;
+      return roster(USERS);
     };
     const screen = await render(
       <SignInScreen
@@ -404,16 +407,16 @@ describe("SignInScreen", () => {
     expect(attempts).toBe(2);
   });
 
-  it.each<{ state: string; loadUsers: () => Promise<SignInUser[]> }>([
-    { state: "loading", loadUsers: () => new Promise<SignInUser[]>(() => {}) },
+  it.each<{ state: string; loadUsers: () => Promise<SignInUsers> }>([
+    { state: "loading", loadUsers: () => new Promise<SignInUsers>(() => {}) },
     {
       state: "failed to load",
       loadUsers: async () => {
         throw new Error("the core could not read them");
       },
     },
-    { state: "empty", loadUsers: async () => [] },
-    { state: "loaded", loadUsers: async () => USERS },
+    { state: "empty", loadUsers: async () => roster([]) },
+    { state: "loaded", loadUsers: async () => roster(USERS) },
   ])("offers changing the PIN with a code while the users are $state", async ({ loadUsers }) => {
     const screen = await render(
       <SignInScreen
@@ -441,16 +444,16 @@ describe("SignInScreen", () => {
     expect(button.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it.each<{ state: string; loadUsers: () => Promise<SignInUser[]> }>([
-    { state: "loading", loadUsers: () => new Promise<SignInUser[]>(() => {}) },
+  it.each<{ state: string; loadUsers: () => Promise<SignInUsers> }>([
+    { state: "loading", loadUsers: () => new Promise<SignInUsers>(() => {}) },
     {
       state: "failed to load",
       loadUsers: async () => {
         throw new Error("the core could not read them");
       },
     },
-    { state: "empty", loadUsers: async () => [] },
-    { state: "loaded", loadUsers: async () => USERS },
+    { state: "empty", loadUsers: async () => roster([]) },
+    { state: "loaded", loadUsers: async () => roster(USERS) },
   ])("offers signing in for the first time while the users are $state", async ({ loadUsers }) => {
     const screen = await render(
       <SignInScreen

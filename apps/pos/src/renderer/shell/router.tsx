@@ -110,6 +110,7 @@ import type {
   SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
+  SignInUsers,
 } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
@@ -168,7 +169,7 @@ export interface RouterContext {
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
-  signInUsers: () => Promise<SignInUser[]>;
+  signInUsers: () => Promise<SignInUsers>;
   authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   lockedClosers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;

@@ -2,6 +2,7 @@ import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder, ScreenHeader } from "@purosur/ui";
 import { KeyRound, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
 import { useId, useState } from "react";
+import type { SignInUsers } from "../platform/core-client";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { SignInLockout } from "../platform/sign-in-lockout";
 import { usePinAttempt } from "../platform/use-pin-attempt";
@@ -12,7 +13,7 @@ import { sessionEyebrow } from "../shell/session-eyebrow";
 import { useSignInUsersQuery } from "./sessions-queries";
 
 export type SignInScreenProps = {
-  loadUsers: () => Promise<SignInUser[]>;
+  loadUsers: () => Promise<SignInUsers>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: string | null;
 };
@@ -63,17 +64,17 @@ function SignInPanel({ loadUsers, signIn, registerName }: SignInScreenProps) {
           onRetry={users.retry}
         />
       ) : null}
-      {!locked && users.status === "loaded" && users.value.length === 0 ? (
+      {!locked && users.status === "loaded" && users.value.users.length === 0 ? (
         <EmptyState
           variant="blank"
           icon={<UsersRound />}
           title="Todavía nadie ingresó en esta caja."
         />
       ) : null}
-      {!locked && users.status === "loaded" && users.value.length > 0 ? (
+      {!locked && users.status === "loaded" && users.value.users.length > 0 ? (
         <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
           <UserPicker
-            users={users.value}
+            users={users.value.users}
             value={chosen?.id ?? null}
             onChange={reset}
             labelledBy={headingId}
