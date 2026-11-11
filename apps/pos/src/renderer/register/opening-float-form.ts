@@ -1,5 +1,6 @@
+import type { OpeningFloatSuggestion } from "@purosur/contracts";
 import { openCashSessionMessageSchema } from "@purosur/contracts";
-import { parseAmountCents } from "@purosur/ui";
+import { formatAmountInput, parseAmountCents } from "@purosur/ui";
 
 const REQUIRED_MESSAGE = "Ingresá el fondo inicial.";
 export const openCashSessionRequestSchema = openCashSessionMessageSchema.omit({
@@ -11,7 +12,12 @@ export const INVALID_OPENING_FLOAT_MESSAGE = "Ingresá un importe válido, por e
 
 export type OpeningFloatFormValues = { openingFloat: string };
 
-export const EMPTY_OPENING_FLOAT_FORM: OpeningFloatFormValues = { openingFloat: "" };
+export function openingFloatFormFor(suggestion: OpeningFloatSuggestion): OpeningFloatFormValues {
+  return {
+    openingFloat:
+      suggestion.kind === "previous_close" ? formatAmountInput(suggestion.counted_cash) : "",
+  };
+}
 
 export function openingFloatRequestFrom({ openingFloat }: OpeningFloatFormValues): {
   opening_float: number;
