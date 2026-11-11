@@ -209,7 +209,7 @@ describe("RestoringScreen", () => {
   });
 
   it.each(["refused", "unreadable_event"] as const)(
-    "says the register restored from a copy could not catch up and cannot sell, when the failure is %s",
+    "says the register restored from a copy could not catch up, with no selling hold or connection notice, when the failure is %s",
     async (failure) => {
       const screen = await render(
         <RestoringScreen
