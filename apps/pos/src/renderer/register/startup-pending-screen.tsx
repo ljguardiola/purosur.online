@@ -466,7 +466,13 @@ export function StartupPendingScreen({
     !pending.value.may_go_selling
       ? pending.value
       : undefined;
-  useKeys([{ key: "Enter", run: onGoSelling, enabled: keptFromSelling === undefined }]);
+  useKeys([
+    {
+      key: "Enter",
+      run: onGoSelling,
+      enabled: keptFromSelling === undefined && refundOf === undefined,
+    },
+  ]);
 
   return (
     <RegisterFrame
