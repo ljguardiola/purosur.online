@@ -44,7 +44,6 @@ export type FindRefusalKind =
   | "voided"
   | "needs_connection"
   | "lookup_failed"
-  | "lacks_permission"
   | "not_a_ticket_qr"
   | "unavailable";
 
@@ -60,11 +59,6 @@ export function findRefusalText(kind: FindRefusalKind): { title: string; descrip
       return {
         title: "No se pudo buscar la venta en las otras cajas",
         description: "Probá de nuevo.",
-      };
-    case "lacks_permission":
-      return {
-        title: "Hacer devoluciones necesita permiso",
-        description: "Elegí quién autoriza, ingresá su PIN y volvé a escanear el ticket.",
       };
     case "not_a_ticket_qr":
       return {

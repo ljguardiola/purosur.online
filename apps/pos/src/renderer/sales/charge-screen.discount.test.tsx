@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
+import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
 import {
   chooseCash,
   renderScreen,
@@ -65,15 +66,22 @@ it("reads the cash charge with the discount typed and charges with it", async ()
   expect(chargeSaleInCash).not.toHaveBeenCalled();
 });
 
-it("asks for the authorization in the cash charge when the sale requires it for a discount on the total", async () => {
+it("asks for the authorization in the modal, with the change shortage subtitle, when the sale requires it for a discount on the total", async () => {
   const { screen } = await renderScreen({
     currentSale: async () => ({ ...SALE_OF_ONE_LINE, sale_discount_authorization_required: true }),
   });
   await chooseCash(screen);
 
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+    "5000",
+  );
   await userEvent.fill(screen.getByRole("textbox", { name: DISCOUNT_FIELD }), "10");
+  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 
-  await expect.element(screen.getByLabelText("PIN")).toBeVisible();
+  await expect
+    .element(authorizationDialog().getByText("Falta de cambio", { exact: true }))
+    .toBeVisible();
 });
 
 it("shows the total charged with the discount typed once the charge is completed", async () => {

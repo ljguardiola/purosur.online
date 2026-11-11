@@ -73,13 +73,6 @@ describe("the refusal of finding the sale", () => {
     });
   });
 
-  it("asks for someone with permission when the cashier lacks it", () => {
-    expect(findRefusalText("lacks_permission")).toEqual({
-      title: "Hacer devoluciones necesita permiso",
-      description: "Elegí quién autoriza, ingresá su PIN y volvé a escanear el ticket.",
-    });
-  });
-
   it("says a scanned code is not a ticket's QR", () => {
     expect(findRefusalText("not_a_ticket_qr")).toEqual({
       title: "Ese QR no es de un ticket",

@@ -17,7 +17,7 @@ import {
 } from "@purosur/ui";
 import { Printer, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "./authorization-section";
+import { AuthorizationModal } from "./authorization-modal";
 import {
   EMPTY_REPRINT_RECEIPT_FORM,
   invalidReasonMessage,
@@ -105,7 +105,6 @@ export function ReprintReceiptModal({
   const copy = receiptCopyPresentation(sale.next_copy);
   const comprobante = documentComprobante(document, sale);
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: !person.abilities.includes("reprint_receipt"),
     loadAuthorizers,
@@ -119,6 +118,7 @@ export function ReprintReceiptModal({
       const outcome = await reprint(sale.sale_id, reason, authorization.value).catch(
         (): "failed" => "failed",
       );
+      authorization.dismiss();
       if (outcome === "failed") {
         setNotice(FAILED_MESSAGE);
         return;
@@ -169,7 +169,11 @@ export function ReprintReceiptModal({
   });
 
   function handleSubmit() {
-    if (submitting || !authorization.ready) {
+    if (submitting) {
+      return;
+    }
+    if (!authorization.ready) {
+      authorization.ask();
       return;
     }
     setNotice(undefined);
@@ -217,7 +221,7 @@ export function ReprintReceiptModal({
             size="large"
             fullWidth
             icon={<Printer />}
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
             onPress={handleSubmit}
           >
             {copy.printButton}
@@ -236,10 +240,12 @@ export function ReprintReceiptModal({
             />
           )}
         </form.AppField>
-        <AuthorizationSection
+        <AuthorizationModal
           authorization={authorization}
+          subtitle="Reimprimir comprobante"
           action={AUTHORIZING}
-          disabled={submitting}
+          submitting={submitting}
+          onConfirm={handleSubmit}
         />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

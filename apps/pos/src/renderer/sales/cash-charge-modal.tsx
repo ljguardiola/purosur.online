@@ -25,8 +25,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
-import type { SignedInPerson } from "../shell/signed-in-person";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import { useAuthorization } from "../shell/use-authorization";
 import {
   cashChargeRequestFrom,
@@ -61,7 +60,6 @@ export type CashChargeModalProps = {
   discountOffered: boolean;
   appliedDiscountAmount: number | null;
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   readCharge: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
@@ -87,7 +85,6 @@ export function CashChargeModal({
   discountOffered,
   appliedDiscountAmount,
   authorizationRequired,
-  person,
   loadAuthorizers,
   previewSaleDiscount,
   readCharge,
@@ -110,6 +107,7 @@ export function CashChargeModal({
         ? charge(request.tendered)
         : chargeWithDiscount(request.tendered, request.discount_amount, authorization.value)
       ).catch((): ChargeSaleInCashWithChangeDiscountOutcome => ({ kind: "unavailable" }));
+      authorization.dismiss();
       switch (outcome.kind) {
         case "completed":
           authorization.performed();
@@ -167,7 +165,6 @@ export function CashChargeModal({
   const typedDiscount = typedChangeDiscount(values.discount);
   const discountInvalid = values.discount.trim() !== "" && typedDiscount === undefined;
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: authorizationRequired && typedDiscount !== undefined,
     loadAuthorizers,
@@ -241,7 +238,11 @@ export function CashChargeModal({
   }
 
   function handleSubmit() {
-    if ((covered === undefined && partial === undefined) || !authorization.ready) {
+    if (covered === undefined && partial === undefined) {
+      return;
+    }
+    if (!authorization.ready) {
+      authorization.ask();
       return;
     }
     setNotice(undefined);
@@ -279,7 +280,7 @@ export function CashChargeModal({
             fullWidth
             icon={<Check />}
             dataStatus={submitting ? "loading" : answer.status}
-            disabled={(covered === undefined && partial === undefined) || !authorization.ready}
+            disabled={covered === undefined && partial === undefined}
             onPress={handleSubmit}
           >
             {partial === undefined ? "Completar venta" : "Registrar pago parcial"}
@@ -414,10 +415,12 @@ export function CashChargeModal({
           </Card>
         )}
         {discountOffered ? (
-          <AuthorizationSection
+          <AuthorizationModal
             authorization={authorization}
+            subtitle="Falta de cambio"
             action={AUTHORIZING}
-            disabled={submitting}
+            submitting={submitting}
+            onConfirm={handleSubmit}
           />
         ) : null}
         {notice === undefined ? null : (
