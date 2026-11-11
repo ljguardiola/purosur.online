@@ -9,6 +9,7 @@ import { defaultClientConditions, defaultServerConditions } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
 import { globAwareModuleCache } from "./.github/scripts/glob-aware-module-cache.mjs";
 import { HeldRunReporter } from "./.github/scripts/held-run-reporter.mjs";
+import { RunScopedWarmupReporter } from "./.github/scripts/run-scoped-warmup-reporter.mjs";
 import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
@@ -112,6 +113,12 @@ export default defineConfig({
       new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
       new UnrunFilesReporter(),
       heldRunReporter,
+      // Transforming every backoffice screen on its first request starves a loaded run; starting
+      // them all with the server spreads that one-time cost before the tests ask for them.
+      new RunScopedWarmupReporter({
+        whenRunIncludes: "apps/backoffice/",
+        clientFiles: ["apps/backoffice/src/**/*-page.tsx"],
+      }),
     ],
     projects: [
       {
@@ -184,9 +191,6 @@ export default defineConfig({
       },
       {
         ...compiledReactProject(),
-        // Transforming every backoffice screen on its first request starves a loaded run; starting
-        // them all with the server spreads that one-time cost before the tests ask for them.
-        server: { warmup: { clientFiles: ["./apps/backoffice/src/**/*-page.tsx"] } },
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],
