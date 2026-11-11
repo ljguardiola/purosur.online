@@ -858,14 +858,6 @@ export function SaleScreen({
             description={localAlertText(diskFull).meaning}
           />
         )}
-        {batteryCritical === undefined ? null : (
-          <InlineNotice
-            tone="error"
-            icon={<BatteryLow />}
-            title={localAlertText(batteryCritical).title}
-            description={localAlertText(batteryCritical).meaning}
-          />
-        )}
         <form ref={field} noValidate className="relative" onSubmit={submit}>
           <SearchField
             label="Producto"
@@ -901,6 +893,14 @@ export function SaleScreen({
           />
           <ScanProblemMessage problem={shownProblem} />
         </form>
+        {batteryCritical === undefined ? null : (
+          <InlineNotice
+            tone="error"
+            icon={<BatteryLow />}
+            title={localAlertText(batteryCritical).title}
+            description={localAlertText(batteryCritical).meaning}
+          />
+        )}
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
         {answer === "not_permitted" ? (
           <EmptyState
