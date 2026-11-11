@@ -5,8 +5,9 @@ import {
   Modal as AriaModal,
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
+import { CardTitleRow, cardSurfaceClassName } from "../shared/card-surface";
 import { CloseButton } from "../shared/close-button";
-import { type Icon, iconSlotClassName } from "../shared/icon";
+import type { Icon } from "../shared/icon";
 import { FieldFocusingContent } from "./modal";
 
 export type CardModalProps = {
@@ -41,19 +42,22 @@ export function CardModal({
       isKeyboardDismissDisabled={!closable}
       className="fixed inset-0 z-overlay flex items-center justify-center bg-backdrop"
     >
-      <AriaModal className="flex max-h-modal w-110 max-w-modal shrink-0 flex-col rounded-xl bg-surface px-6 shadow-xl">
+      <AriaModal
+        className={`flex max-h-modal max-w-modal shrink-0 flex-col px-6 ${cardSurfaceClassName}`}
+      >
         <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
-          <div className="flex shrink-0 items-center gap-4 py-4">
-            <span
-              aria-hidden="true"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-action-subtle text-text-accent"
-            >
-              <span className={iconSlotClassName.md}>{icon}</span>
-            </span>
-            <AriaHeading id={titleId} slot="title" className="flex-1 text-title text-text">
-              {title}
-            </AriaHeading>
-            {closable ? <CloseButton onPress={() => onOpenChange(false)} escapeKeycap /> : null}
+          <div className="shrink-0 py-4">
+            <CardTitleRow
+              icon={icon}
+              title={
+                <AriaHeading id={titleId} slot="title" className="flex-1 text-title text-text">
+                  {title}
+                </AriaHeading>
+              }
+              end={
+                closable ? <CloseButton onPress={() => onOpenChange(false)} escapeKeycap /> : null
+              }
+            />
           </div>
           {subtitle !== undefined ? (
             <p className="border-t border-border py-3 text-body font-bold text-text">{subtitle}</p>

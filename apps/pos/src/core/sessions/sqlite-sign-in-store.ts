@@ -1,4 +1,3 @@
-import type { SignInUser } from "@purosur/contracts";
 import { decodePinSalt } from "@purosur/contracts";
 import type { RoleAccess } from "@purosur/domain";
 import type {
@@ -26,7 +25,6 @@ export interface ActivePerson {
 }
 
 export interface SignInStore extends PinSignInStore<PinCredential>, RememberedPeople {
-  signableUsers(): SignInUser[];
   firstNameOf(userId: string): string | undefined;
   signInRecord(userId: string): SignInRecord | undefined;
   signablePeople(): SignablePerson[];
@@ -59,18 +57,6 @@ export class SqliteSignInStore implements SignInStore {
   constructor(database: LocalDatabase) {
     this.database = database;
     this.pinReplacement = new SqlitePinReplacementStore(database);
-  }
-
-  signableUsers(): SignInUser[] {
-    return this.database
-      .prepare<[], SignInUser>(
-        `SELECT users.id AS id, users.first_name AS first_name
-         FROM users
-         JOIN pin_verifiers ON pin_verifiers.user_id = users.id
-         JOIN remembered_users ON remembered_users.user_id = users.id
-         WHERE users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
-      )
-      .all();
   }
 
   signInCandidates(): RememberedPerson[] {
@@ -121,7 +107,7 @@ export class SqliteSignInStore implements SignInStore {
   }
 
   signablePeople(): SignablePerson[] {
-    return this.signableUsers().flatMap(({ id }) => {
+    return this.signInCandidates().flatMap(({ id }) => {
       const record = this.signInRecord(id);
       return record === undefined
         ? []

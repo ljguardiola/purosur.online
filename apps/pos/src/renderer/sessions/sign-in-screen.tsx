@@ -1,16 +1,17 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
+import type { CardPanelProps } from "@purosur/ui";
 import {
   Button,
+  CardPanel,
   EmptyState,
-  InlineNotice,
+  LoadFailure,
   LoadingPlaceholder,
   sortedItems,
   textOrder,
   UserSelect,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { CircleX, KeyRound, Lock, RefreshCw, UserPlus, UsersRound } from "lucide-react";
-import type { ReactNode } from "react";
+import { CircleX, KeyRound, Lock, UserPlus, UsersRound } from "lucide-react";
 import { useState } from "react";
 import type { SignInUsers } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
@@ -20,7 +21,6 @@ import { usePinAttempt } from "../platform/use-pin-attempt";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { useSignInUsersQuery } from "./sessions-queries";
-import { SignInCardHeading } from "./sign-in-card-heading";
 
 export type SignInScreenProps = {
   loadUsers: () => Promise<SignInUsers>;
@@ -34,10 +34,10 @@ function alphabetically(users: readonly SignInUser[]): SignInUser[] {
   });
 }
 
-function SignInCard({ children }: { children: ReactNode }) {
+function SignInCard(props: CardPanelProps) {
   return (
-    <main className="flex w-110 max-w-full flex-col gap-4 rounded-xl bg-surface p-6 shadow-xl">
-      {children}
+    <main className="max-w-full">
+      <CardPanel {...props} />
     </main>
   );
 }
@@ -143,13 +143,12 @@ function SignInPanel({ loadUsers, signIn }: SignInScreenProps) {
 
   if (refusal?.kind === "locked") {
     return (
-      <SignInCard>
-        <SignInCardHeading
-          icon={<Lock />}
-          title={`${refusal.firstName} está bloqueado`}
-          titleRef={attempt.heading}
-          escapeKey
-        />
+      <SignInCard
+        icon={<Lock />}
+        title={`${refusal.firstName} está bloqueado`}
+        titleRef={attempt.heading}
+        escapeKeycap
+      >
         <SignInLockout consecutiveFailures={refusal.consecutiveFailures} />
       </SignInCard>
     );
@@ -160,43 +159,44 @@ function SignInPanel({ loadUsers, signIn }: SignInScreenProps) {
     label: person.first_name,
   }));
 
-  return (
-    <SignInCard>
-      {firstOption === undefined ? (
-        <SignInCardHeading icon={<UsersRound />} title="¿Quién abre la caja?" />
-      ) : (
-        <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
-          <UserSelect
-            label="USUARIO"
-            options={[firstOption, ...otherOptions]}
-            value={chosen?.id ?? null}
-            onChange={choose}
-            disabled={submitting}
-          />
-          <PinAttemptControls attempt={attempt} pinInput={attempt.pinInput} />
-        </form>
-      )}
+  const usersState = (
+    <>
       {users.status === "loading" ? <LoadingPlaceholder variant="list" items={3} /> : null}
       {users.status === "failed" ? (
-        <>
-          <InlineNotice
-            tone="error"
-            icon={<CircleX />}
-            title="No se pudieron cargar los usuarios"
-            description="Volvé a intentarlo en unos segundos."
-          />
-          <Button
-            fullWidth
-            icon={<RefreshCw />}
-            iconPosition="start"
-            keycap="R"
-            onPress={users.retry}
-          >
-            Reintentar
-          </Button>
-        </>
+        <LoadFailure
+          variant="keyboard"
+          keycap="R"
+          icon={<CircleX />}
+          title="No se pudieron cargar los usuarios"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={users.retry}
+        />
       ) : null}
       {users.status === "loaded" && firstOption === undefined ? <NobodyListed /> : <SignInLinks />}
+    </>
+  );
+
+  if (firstOption === undefined) {
+    return (
+      <SignInCard icon={<UsersRound />} title="¿Quién abre la caja?">
+        {usersState}
+      </SignInCard>
+    );
+  }
+
+  return (
+    <SignInCard>
+      <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
+        <UserSelect
+          label="USUARIO"
+          options={[firstOption, ...otherOptions]}
+          value={chosen?.id ?? null}
+          onChange={choose}
+          disabled={submitting}
+        />
+        <PinAttemptControls attempt={attempt} pinInput={attempt.pinInput} />
+      </form>
+      {usersState}
     </SignInCard>
   );
 }
