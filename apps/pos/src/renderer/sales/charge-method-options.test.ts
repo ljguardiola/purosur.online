@@ -26,6 +26,19 @@ function shown(options: ReturnType<typeof chargeMethodOptions>["options"]) {
 }
 
 describe("chargeMethodOptions", () => {
+  it("names the terminal options and the QR as the register's keys do", () => {
+    const { options } = loaded();
+
+    expect(options.map(({ label }) => label)).toEqual([
+      "Efectivo",
+      "Point débito",
+      "Point crédito",
+      "QR",
+      "Transferencia",
+      "Terminal independiente",
+    ]);
+  });
+
   it("offers cash, the terminal by debit and by credit, the QR, transfer and the standalone terminal, in that order, when every method is available", () => {
     const { options, belowMinimum } = loaded();
 

@@ -3,13 +3,14 @@ import { Eyebrow } from "../layout/eyebrow";
 
 export type FigureStatProps = {
   label: string;
-  size?: "display" | "heading" | undefined;
+  size?: "hero" | "display" | "heading" | undefined;
 } & (
   | { value: string; detail?: string | undefined; loading?: false | undefined }
   | { loading: true; value?: undefined; detail?: undefined }
 );
 
 const sizeClassName = {
+  hero: "text-hero",
   display: "text-display",
   heading: "text-heading",
 } as const;

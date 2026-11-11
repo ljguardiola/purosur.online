@@ -22,7 +22,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Pago con QR de Mercado Pago de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+        "Pago con Mercado Pago de $ 5.000,00 Aplicado a la venta antes de cobrar con otro medio.",
       );
     await expect.element(screen.getByRole("button", { name: APPLY })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);

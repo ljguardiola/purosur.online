@@ -167,7 +167,7 @@ describe("SaleScreen reading a barcode reader's codes", () => {
         scanProduct,
         currentSale: async () => SALE_OF_YERBA,
       });
-      await rendered.screen.getByRole("button", { name: "Vaciar carrito" }).click();
+      await rendered.screen.getByRole("button", { name: "Vaciar", exact: true }).click();
       await expect
         .element(rendered.screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }))
         .toBeVisible();

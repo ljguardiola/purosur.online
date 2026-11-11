@@ -50,8 +50,8 @@ function TableActionButton<T>({ action, item }: { action: TableAction<T>; item: 
     // Matches the visible action button's own footprint, so the other action doesn't shift.
     return <span aria-hidden="true" className="size-control-md shrink-0" />;
   }
-  const { icon, "aria-label": ariaLabel, onPress } = descriptor;
-  return <IconButton icon={icon} aria-label={ariaLabel} onPress={onPress} />;
+  const { icon, "aria-label": ariaLabel, disabled = false, onPress } = descriptor;
+  return <IconButton icon={icon} aria-label={ariaLabel} disabled={disabled} onPress={onPress} />;
 }
 
 function TableRowMenuButton<T>({ menu, item }: { menu: TableRowMenu<T>; item: T }) {

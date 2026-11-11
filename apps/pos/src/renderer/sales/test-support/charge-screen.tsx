@@ -24,6 +24,7 @@ import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { MercadoPagoChargeKind } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
+import type { ChargeMethod } from "../charge-method-options";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
 
@@ -163,6 +164,7 @@ export const AVAILABLE: PaymentMethodAvailability = {
 };
 
 export type Overrides = {
+  method?: ChargeMethod;
   paymentMethodAvailability?: () => Promise<PaymentMethodAvailability | null>;
   startMercadoPagoCharge?: (
     saleId: string,
@@ -283,6 +285,7 @@ export async function renderScreen(overrides: Overrides = {}) {
   const screen = await render(
     <ChargeScreen
       sessionId="s1"
+      {...(overrides.method === undefined ? {} : { method: overrides.method })}
       person={overrides.person ?? PERSON}
       lock={() => {}}
       currentSale={currentSale}
@@ -342,12 +345,12 @@ export async function chooseStandaloneTerminal(screen: Screen) {
 }
 
 export async function chooseQr(screen: Screen) {
-  await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+  await userEvent.click(screen.getByText("QR", { exact: true }));
 }
 
 export async function choosePoint(screen: Screen, cardType: "DEBIT" | "CREDIT" = "DEBIT") {
   await userEvent.click(
-    screen.getByText(cardType === "DEBIT" ? "Point · Débito" : "Point · Crédito", { exact: true }),
+    screen.getByText(cardType === "DEBIT" ? "Point débito" : "Point crédito", { exact: true }),
   );
 }
 

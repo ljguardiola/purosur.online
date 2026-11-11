@@ -106,6 +106,7 @@ function followedChargeStep(
 
 export type ChargeScreenProps = {
   sessionId: string;
+  method?: ChargeMethod;
   person: SignedInPerson;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
@@ -152,6 +153,7 @@ export type ChargeScreenProps = {
 
 export function ChargeScreen({
   sessionId,
+  method,
   person,
   lock,
   currentSale,
@@ -185,6 +187,7 @@ export function ChargeScreen({
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
   const [step, setStep] = useState<Step>({ name: "methods" });
   const [notice, setNotice] = useState<{ kind: "cancelled" }>();
+  const [preselected, setPreselected] = useState(method);
 
   function backToSale() {
     void navigate({ to: "/session" });
@@ -226,6 +229,22 @@ export function ChargeScreen({
   const qrMinimum = availability.status === "loaded" ? availability.value.qr_minimum : undefined;
   const pointMinimum =
     availability.status === "loaded" ? availability.value.point_minimum : undefined;
+  const preselectedOption = options.find((option) => option.value === preselected);
+  const waitingForAvailability =
+    preselectedOption === undefined && availability.status === "loading";
+  if (preselected !== undefined && chargeable !== undefined && !waitingForAvailability) {
+    setPreselected(undefined);
+    const noChargeInProgress = chargeInProgress === undefined || chargeInProgress === null;
+    if (
+      step.name === "methods" &&
+      noChargeInProgress &&
+      paidOrderToApply === undefined &&
+      preselectedOption !== undefined &&
+      preselectedOption.disabled !== true
+    ) {
+      setStep(stepOf(preselectedOption.value));
+    }
+  }
   const lineCount = sale?.lines.length ?? 0;
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
