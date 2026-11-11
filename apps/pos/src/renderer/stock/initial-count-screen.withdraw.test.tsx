@@ -7,7 +7,7 @@ function withdrawing(outcome: WithdrawInitialCountLineOutcome) {
   return vi.fn(async () => outcome);
 }
 
-describe("InitialCountScreen withdrawing a counted line", () => {
+describe("InitialCountScreen withdrawing a counted line with Supr", () => {
   it("withdraws the line and reads the count again so it is gone", async () => {
     const readInitialCount = vi
       .fn<() => Promise<ReadInitialCountOutcome>>()
@@ -16,7 +16,7 @@ describe("InitialCountScreen withdrawing a counted line", () => {
     const withdrawInitialCountLine = withdrawing({ kind: "withdrawn" });
     const { screen } = await renderScreen({ readInitialCount, withdrawInitialCountLine });
 
-    await userEvent.click(screen.getByRole("button", { name: "Quitar Queso cremoso" }));
+    await userEvent.keyboard("{Delete}");
 
     await expect
       .element(screen.getByRole("cell", { name: "Queso cremoso" }))
@@ -36,7 +36,7 @@ describe("InitialCountScreen withdrawing a counted line", () => {
         withdrawInitialCountLine: withdrawing({ kind } as WithdrawInitialCountLineOutcome),
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Quitar Queso cremoso" }));
+      await userEvent.keyboard("{Delete}");
 
       await expect.element(screen.getByText("Todavía no cargaste ninguna línea")).toBeVisible();
       await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
@@ -49,7 +49,7 @@ describe("InitialCountScreen withdrawing a counted line", () => {
       withdrawInitialCountLine: withdrawing({ kind: "unavailable" }),
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Quitar Queso cremoso" }));
+    await userEvent.keyboard("{Delete}");
 
     await expect.element(screen.getByText("No se pudo quitar la línea")).toBeVisible();
     await expect.element(screen.getByRole("cell", { name: "Queso cremoso" })).toBeVisible();
@@ -61,7 +61,7 @@ describe("InitialCountScreen withdrawing a counted line", () => {
       withdrawInitialCountLine: withdrawing({ kind: "not_permitted" }),
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Quitar Queso cremoso" }));
+    await userEvent.keyboard("{Delete}");
 
     await expect
       .element(screen.getByText("Ya no tenés permiso para cargar el inventario inicial"))
@@ -74,7 +74,7 @@ describe("InitialCountScreen withdrawing a counted line", () => {
       withdrawInitialCountLine: withdrawing({ kind: "not_offered" }),
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Quitar Queso cremoso" }));
+    await userEvent.keyboard("{Delete}");
 
     await expect
       .element(screen.getByText("La carga del inventario inicial ya no está disponible"))
@@ -82,12 +82,12 @@ describe("InitialCountScreen withdrawing a counted line", () => {
   });
 
   it("reports the end of the session when the core does not know who is signed in", async () => {
-    const { screen, onSessionInvalid } = await renderScreen({
+    const { onSessionInvalid } = await renderScreen({
       readInitialCount: vi.fn(async () => readOf([QUESO_LINE])),
       withdrawInitialCountLine: withdrawing({ kind: "not_signed_in" }),
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Quitar Queso cremoso" }));
+    await userEvent.keyboard("{Delete}");
 
     await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
   });
