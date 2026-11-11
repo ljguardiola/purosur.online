@@ -1,7 +1,10 @@
 import type { PreviewSaleDiscountOutcome } from "@purosur/contracts";
 import { expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { CashChargeModalScreen } from "./test-support/cash-charge-modal";
+import {
+  authorizationDialog,
+  authorizeInModal,
+} from "../shell/test-support/authorization-modal-steps";
 import {
   DISCOUNT_FIELD,
   renderCashChargeModal,
@@ -9,16 +12,6 @@ import {
 } from "./test-support/cash-charge-modal";
 
 const PIN_ARGS = { user_id: "u3", pin: "1234" };
-
-async function authorizeAs(
-  screen: CashChargeModalScreen["screen"],
-  firstName: string,
-  pin: string,
-) {
-  await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-  await userEvent.click(screen.getByRole("option", { name: firstName }));
-  await userEvent.type(screen.getByLabelText("PIN"), pin);
-}
 
 it("shows the amount to charge and the change with the discount typed beside the amount received, and one confirmation charges both", async () => {
   const { screen, field, discountField, complete, chargeSaleWithDiscount, callbacks, chargeSale } =
@@ -134,35 +127,54 @@ it("leaves the modal for the sale when charging says the sale has payments", asy
   await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBeGreaterThan(0);
 });
 
-it("asks for no authorization until a discount is typed, and then asks for it in the same modal", async () => {
-  const { screen, discountField, requestedAuthorizers } = await renderCashChargeModal({
-    authorizationRequired: true,
-  });
-
-  await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
+it("asks for no authorization until the charge with a discount is confirmed, and then asks for it in the modal", async () => {
+  const { field, discountField, complete, requestedAuthorizers, chargeSaleWithDiscount } =
+    await renderCashChargeModal({ authorizationRequired: true });
+  await userEvent.fill(field, "10000");
+  await expect.element(authorizationDialog()).not.toBeInTheDocument();
   await userEvent.fill(discountField, "100");
+  await expect.element(authorizationDialog()).not.toBeInTheDocument();
 
-  await expect.element(screen.getByLabelText("PIN")).toBeVisible();
+  await userEvent.click(complete);
+
+  await expect.element(authorizationDialog()).toBeVisible();
+  await expect
+    .element(authorizationDialog().getByText("Falta de cambio", { exact: true }))
+    .toBeVisible();
   expect(requestedAuthorizers).toEqual(["apply_total_discount"]);
+  expect(chargeSaleWithDiscount).not.toHaveBeenCalled();
 });
 
-it("waits for the authorizer and sends who authorizes with the PIN", async () => {
-  const { screen, field, discountField, complete, chargeSaleWithDiscount, callbacks } =
+it("charges with the discount and sends who authorizes with the PIN on Enter", async () => {
+  const { field, discountField, complete, chargeSaleWithDiscount, callbacks } =
     await renderCashChargeModal({ authorizationRequired: true });
   await userEvent.fill(field, "10000");
   await userEvent.fill(discountField, "100");
-  await expect.element(complete).toBeDisabled();
-
-  await authorizeAs(screen, "Sofía", "1234");
-  await expect.element(complete).toBeEnabled();
   await userEvent.click(complete);
+
+  await authorizeInModal({ as: "Sofía", pin: "1234" });
 
   await expect.poll(() => callbacks.onCompleted.mock.calls.length).toBe(1);
   expect(chargeSaleWithDiscount).toHaveBeenCalledWith(1_000_000, 10_000, PIN_ARGS);
 });
 
-it("shows a refused PIN and stays open", async () => {
-  const { screen, field, discountField, complete, callbacks } = await renderCashChargeModal({
+it("does not charge when the authorization modal is closed with Esc", async () => {
+  const { field, discountField, complete, chargeSaleWithDiscount, callbacks } =
+    await renderCashChargeModal({ authorizationRequired: true });
+  await userEvent.fill(field, "10000");
+  await userEvent.fill(discountField, "100");
+  await userEvent.click(complete);
+  await expect.element(authorizationDialog()).toBeVisible();
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.element(authorizationDialog()).not.toBeInTheDocument();
+  expect(chargeSaleWithDiscount).not.toHaveBeenCalled();
+  expect(callbacks.onCompleted).not.toHaveBeenCalled();
+});
+
+it("shows a refused PIN inside the authorization modal and stays open", async () => {
+  const { field, discountField, complete, callbacks } = await renderCashChargeModal({
     authorizationRequired: true,
     chargeWithDiscount: async () => ({
       kind: "wrong_pin",
@@ -172,11 +184,11 @@ it("shows a refused PIN and stays open", async () => {
   });
   await userEvent.fill(field, "10000");
   await userEvent.fill(discountField, "100");
-  await authorizeAs(screen, "Sofía", "1234");
-
   await userEvent.click(complete);
 
-  await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+  await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+  await expect.element(authorizationDialog().getByText("PIN incorrecto")).toBeVisible();
   expect(callbacks.onCompleted).not.toHaveBeenCalled();
 });
 

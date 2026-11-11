@@ -13,7 +13,7 @@ import { ScanBarcode, Search, TriangleAlert } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { SaleForReturnReading } from "../platform/core-client";
-import { AuthorizationSection } from "../shell/authorization-section";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
@@ -50,19 +50,26 @@ export function ReturnFindStep({
   onSessionInvalid,
 }: ReturnFindStepProps) {
   const [refusal, setRefusal] = useState<FindRefusalKind>();
+  const [looking, setLooking] = useState(false);
   const finding = useRef(false);
+  const lastReading = useRef<SaleForReturnReading | undefined>(undefined);
 
   async function look(reading: SaleForReturnReading) {
     if (finding.current) {
       return;
     }
     finding.current = true;
+    setLooking(true);
+    lastReading.current = reading;
     setRefusal(undefined);
-    const outcome = await findSaleForReturn(reading, authorization.value)
+    const sent = authorization.value;
+    const outcome = await findSaleForReturn(reading, sent)
       .catch((): "failed" => "failed")
       .finally(() => {
         finding.current = false;
+        setLooking(false);
       });
+    authorization.dismiss();
     if (outcome === "failed") {
       setRefusal("unavailable");
       return;
@@ -81,11 +88,11 @@ export function ReturnFindStep({
         onSessionInvalid();
         break;
       case "lacks_permission":
-        if (authorization.required) {
-          authorization.refuse(outcome);
-        } else {
+        if (sent === undefined) {
           onAuthorizationRequired();
-          setRefusal("lacks_permission");
+          authorization.ask();
+        } else {
+          authorization.refuse(outcome);
         }
         break;
       case "wrong_pin":
@@ -98,6 +105,12 @@ export function ReturnFindStep({
           setRefusal("unavailable");
         }
         break;
+    }
+  }
+
+  function retryLastReading() {
+    if (lastReading.current !== undefined) {
+      void look(lastReading.current);
     }
   }
 
@@ -183,10 +196,12 @@ export function ReturnFindStep({
               {...(notice.description === undefined ? {} : { description: notice.description })}
             />
           )}
-          <AuthorizationSection
+          <AuthorizationModal
             authorization={authorization}
+            subtitle="Devolución"
             action="hacer devoluciones"
-            disabled={submitting}
+            submitting={submitting || looking}
+            onConfirm={retryLastReading}
           />
         </SidePanel>
       }

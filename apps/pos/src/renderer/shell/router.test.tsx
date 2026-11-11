@@ -3016,7 +3016,8 @@ describe("the register's router", () => {
     );
 
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Cargar" }));
+    await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
 
     await expect.element(screen.getByRole("option", { name: "Grace" })).toBeVisible();
   });

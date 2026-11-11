@@ -8,7 +8,8 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { Button } from "@purosur/ui";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { AuthorizationSection } from "../authorization-section";
+import { useKeys } from "../../platform/key-layer";
+import { AuthorizationModal } from "../authorization-modal";
 import type { SignedInPerson } from "../signed-in-person";
 import { useAuthorization } from "../use-authorization";
 
@@ -30,17 +31,21 @@ export function GuardedCashInForm({
   submit,
 }: GuardedCashInFormProps) {
   const authorization = useAuthorization({
-    person,
     permission: "record_cash_in",
     loadAuthorizers,
     required,
   });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<AuthorizedBy | null | undefined>();
+  const [shortcutUsed, setShortcutUsed] = useState(false);
+  useKeys([{ key: "F9", run: () => setShortcutUsed(true) }]);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting || !authorization.ready) {
+  async function attempt() {
+    if (submitting) {
+      return;
+    }
+    if (!authorization.ready) {
+      authorization.ask();
       return;
     }
     setSubmitting(true);
@@ -54,17 +59,18 @@ export function GuardedCashInForm({
     }
   }
 
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void attempt();
+  }
+
   return (
     <form noValidate onSubmit={onSubmit}>
       <p>Operador: {person.first_name}</p>
-      <AuthorizationSection
-        authorization={authorization}
-        action="cargar movimientos de efectivo"
-        disabled={submitting}
-      />
-      <Button type="submit" disabled={submitting || !authorization.ready}>
+      <Button type="submit" disabled={submitting}>
         Cargar
       </Button>
+      {shortcutUsed ? <p>Atajo de la pantalla usado</p> : null}
       {done === undefined ? null : (
         <p>
           {done === null
@@ -72,6 +78,13 @@ export function GuardedCashInForm({
             : `Cargado con autorización de ${done.first_name}`}
         </p>
       )}
+      <AuthorizationModal
+        authorization={authorization}
+        subtitle="Registrar ingreso"
+        action="cargar movimientos de efectivo"
+        submitting={submitting}
+        onConfirm={() => void attempt()}
+      />
     </form>
   );
 }

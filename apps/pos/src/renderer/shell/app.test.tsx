@@ -3954,8 +3954,12 @@ describe("App", () => {
         screen.getByRole("radiogroup", { name: "Tipo de movimiento" }).getByText("Gasto"),
       );
 
+      await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar gasto" }));
+
       switchBrowserLanguage("de-DE");
-      await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
+      await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
 
       await expect
         .element(screen.getByRole("button", { name: "Descartar" }).first())

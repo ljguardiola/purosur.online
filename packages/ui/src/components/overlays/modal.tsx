@@ -150,7 +150,7 @@ function FocusFirstField({ bodyRef }: { bodyRef: RefObject<HTMLDivElement | null
   return null;
 }
 
-function FieldFocusingContent({
+export function FieldFocusingContent({
   bodyRef,
   focusPart,
   children,
