@@ -1,6 +1,5 @@
 import type { ScanProductOutcome } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   renderScreen,
@@ -212,27 +211,6 @@ describe("SaleScreen reading a barcode reader's codes", () => {
 
       await expect.element(screen.getByText(NOT_ADDED_TITLE)).toBeVisible();
       expect(scanProduct.mock.calls).toEqual([["7790009"]]);
-    });
-
-    it("does not scan the code while the window to leave the register is open", async () => {
-      const scanProduct = vi.fn(
-        async (): Promise<ScanProductOutcome> => ({
-          kind: "added",
-          removed_manual_discount: false,
-          removed_sale_discount: false,
-          sale: SALE_OF_YERBA,
-        }),
-      );
-      const { screen, readBarcode } = await renderScreen({ scanProduct });
-      await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
-      await expect
-        .element(screen.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" }))
-        .toBeVisible();
-
-      readBarcode("7790001");
-
-      await expect.element(screen.getByText(NOT_ADDED_TITLE)).toBeVisible();
-      expect(scanProduct).not.toHaveBeenCalled();
     });
   });
 });

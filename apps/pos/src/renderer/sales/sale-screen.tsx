@@ -69,7 +69,6 @@ import { WeighProductModal } from "./weigh-product-modal";
 export type SaleScreenProps = {
   sessionId: string;
   person: SignedInPerson;
-  registerName: string | null;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
@@ -196,7 +195,6 @@ function selectScanField(form: HTMLFormElement | null) {
 export function SaleScreen({
   sessionId,
   person,
-  registerName,
   lock,
   currentSale,
   scanProduct,
@@ -826,14 +824,7 @@ export function SaleScreen({
   return (
     <RegisterFrame
       background="subtle"
-      rail={
-        <OpenSessionRail
-          registerName={registerName}
-          lock={lock}
-          current="sale"
-          abilities={person.abilities}
-        />
-      }
+      rail={<OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />}
       aside={
         <PaymentPanel
           saleStatus={current.status}

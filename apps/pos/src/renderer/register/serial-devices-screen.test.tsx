@@ -44,13 +44,11 @@ const REGISTERED: RegisterSerialDevicesOutcome = {
 async function renderScreen({
   read = async (): Promise<ReadSerialDevicesOutcome> => NOTHING_REGISTERED,
   register = async (): Promise<RegisterSerialDevicesOutcome> => REGISTERED,
-  registerName = "Caja 1",
   withSkip = false,
   sessionOpen = false,
 }: {
   read?: () => Promise<ReadSerialDevicesOutcome>;
   register?: (devices: SerialDevicesToRegister) => Promise<RegisterSerialDevicesOutcome>;
-  registerName?: string | null;
   withSkip?: boolean;
   sessionOpen?: boolean;
 } = {}) {
@@ -63,7 +61,6 @@ async function renderScreen({
   const screen = await render(
     <SerialDevicesScreen
       person={PERSON}
-      registerName={registerName}
       sessionOpen={sessionOpen}
       signOut={vi.fn()}
       readSerialDevices={readSerialDevices}

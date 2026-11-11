@@ -181,7 +181,6 @@ export interface RouterContext {
     person: SignedInPerson,
     sessionId: string,
     countedCash: number,
-    leaving: boolean,
   ) => Promise<CloseCashSessionOutcome>;
   closeLockedCashSession: (
     sessionId: string,
@@ -619,11 +618,9 @@ const receiptPrinterRoute = createRoute({
       setReceiptPrinter,
       refreshCashSession,
     } = receiptPrinterRoute.useRouteContext();
-    const registerName = useRegisterName();
     return (
       <ReceiptPrinterScreen
         person={person}
-        registerName={registerName}
         sessionOpen={sessionOpen}
         signOut={signOut}
         readReceiptPrinter={readReceiptPrinter}
@@ -655,12 +652,10 @@ const serialDevicesRoute = createRoute({
       refreshCashSession,
     } = serialDevicesRoute.useRouteContext();
     const { offered } = serialDevicesRoute.useSearch();
-    const registerName = useRegisterName();
     const navigate = serialDevicesRoute.useNavigate();
     return (
       <SerialDevicesScreen
         person={person}
-        registerName={registerName}
         sessionOpen={sessionOpen}
         signOut={signOut}
         readSerialDevices={readSerialDevices}
@@ -759,13 +754,11 @@ const openSessionRoute = createRoute({
       refreshCashSession,
       registerStatus,
     } = openSessionRoute.useRouteContext();
-    const registerName = useRegisterName();
     const status = useRegisterStatusQuery(registerStatus);
     return (
       <SaleScreen
         sessionId={id}
         person={person}
-        registerName={registerName}
         lock={signOut}
         currentSale={currentSale}
         scanProduct={scanProduct}
@@ -842,7 +835,6 @@ function StartupPendingRoute() {
       person={person}
       sessionOwner={openedBy}
       openedAt={openedAt}
-      registerName={registerName}
       lock={signOut}
       loadStartupPending={startupPending}
       loadCashBalance={cashBalance}
@@ -904,13 +896,11 @@ const chargeRoute = createRoute({
       refreshCashSession,
     } = chargeRoute.useRouteContext();
     const { method } = chargeRoute.useSearch();
-    const registerName = useRegisterName();
     return (
       <ChargeScreen
         sessionId={id}
         {...(method === undefined ? {} : { method })}
         person={person}
-        registerName={registerName}
         lock={signOut}
         currentSale={currentSale}
         cashCharge={cashCharge}
@@ -955,11 +945,9 @@ const historyRoute = createRoute({
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
-    const registerName = useRegisterName();
     return (
       <SalesHistoryScreen
         person={person}
-        registerName={registerName}
         sessionOpen={sessionOpen}
         lock={signOut}
         salesHistory={salesHistory}
@@ -992,11 +980,9 @@ const deferredSaleRoute = createRoute({
       authorizers,
       refreshCashSession,
     } = deferredSaleRoute.useRouteContext();
-    const registerName = useRegisterName();
     return (
       <DeferredSaleScreen
         person={person}
-        registerName={registerName}
         sessionOpen={sessionOpen}
         lock={signOut}
         findDeferredSale={findDeferredSale}
@@ -1094,7 +1080,6 @@ const cashRoute = createRoute({
 const cashCountRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/cash-count",
-  validateSearch: (search: { leaving?: unknown }) => ({ leaving: search.leaving === true }),
   beforeLoad: ({ context }) => {
     const { id, person } = requireOpenSession(context);
     return { id, person };
@@ -1102,17 +1087,14 @@ const cashCountRoute = createRoute({
   component: function CashCountRoute() {
     const { id, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
       cashCountRoute.useRouteContext();
-    const registerName = useRegisterName();
-    const { leaving } = cashCountRoute.useSearch();
     return (
       <CashCountScreen
         sessionId={id}
-        registerName={registerName}
         abilities={person.abilities}
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
-        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash, leaving)}
+        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash)}
       />
     );
   },

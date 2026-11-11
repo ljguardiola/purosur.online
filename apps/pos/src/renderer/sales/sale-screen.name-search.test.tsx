@@ -363,9 +363,11 @@ describe("SaleScreen searching by name", () => {
 
     it("leaves the arrows and Enter to another focused control, without moving or adding a result", async () => {
       const addProduct = vi.fn<SaleScreenProps["addProduct"]>();
+      const lock = vi.fn();
       const { screen, field } = await renderScreen({
         searchProducts: answering(results([YERBA_FOUND, QUESO_FOUND])),
         addProduct,
+        lock,
       });
       await field.fill("a");
       await expect.element(screen.getByRole("option")).toHaveLength(2);
@@ -373,7 +375,7 @@ describe("SaleScreen searching by name", () => {
       screen.getByRole("navigation").getByRole("button", { name: "Salir" }).element().focus();
       await userEvent.keyboard("{ArrowDown}{Enter}");
 
-      await expect.element(screen.getByRole("dialog")).toBeVisible();
+      await expect.poll(() => lock.mock.calls).toHaveLength(1);
       await expect
         .element(screen.getByRole("option").nth(0))
         .toHaveAttribute("aria-selected", "true");

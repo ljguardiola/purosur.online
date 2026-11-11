@@ -1218,7 +1218,7 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Salir de la caja?" })
+          .getByRole("complementary", { name: "¿Salir de la caja?" })
           .getByRole("button", { name: "Salir" }),
       );
       await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
@@ -1482,7 +1482,7 @@ describe("App", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
@@ -1518,7 +1518,7 @@ describe("App", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
@@ -1540,7 +1540,7 @@ describe("App", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
@@ -1580,10 +1580,12 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -2039,7 +2041,6 @@ describe("App", () => {
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
 
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await resumeLockedRegister(screen);
 
@@ -3391,66 +3392,18 @@ describe("App", () => {
       expect(asked).not.toContain("sign-out");
     });
 
-    it("leaves the register locked in the opener's name from Salir, resumed with the opener's PIN", async () => {
+    it("locks the register in the opener's name from Salir, with no dialog, resumed with the opener's PIN", async () => {
       const { screen, asked } = await resumeGracesSession();
+
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
-
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
       await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
       expect(asked).toContain("sign-out");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
-    });
-
-    it("ends signed out at the entry screen when the close was started from Salir", async () => {
-      const { screen, closed, asked } = await resumeGracesSession({
-        closeCashSession: async () => ({
-          kind: "closed",
-          session: {
-            id: "s1",
-            expected_cash: 4_620_000,
-            counted_cash: 4_580_000,
-            difference: -40_000,
-          },
-        }),
-      });
-      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-      await userEvent.click(
-        screen
-          .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
-          .getByRole("button", { name: "Cerrar caja" }),
-      );
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
-
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
-      await expect
-        .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
-        .not.toBeInTheDocument();
-      expect(closed).toEqual([["s1", 4_580_000]]);
-      expect(asked).toContain("sign-out");
-    });
-
-    it("stays signed in on the cash count when the close from Salir is refused", async () => {
-      const { screen, asked } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
-      });
-      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-      await userEvent.click(
-        screen
-          .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
-          .getByRole("button", { name: "Cerrar caja" }),
-      );
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
-
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-      await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
-      expect(asked).not.toContain("sign-out");
     });
 
     it("stays on the cash count and offers the sale when it is still open", async () => {

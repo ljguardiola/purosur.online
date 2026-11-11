@@ -287,7 +287,6 @@ export async function renderScreen(overrides: Overrides = {}) {
       sessionId="s1"
       {...(overrides.method === undefined ? {} : { method: overrides.method })}
       person={overrides.person ?? PERSON}
-      registerName="Caja 1"
       lock={() => {}}
       currentSale={currentSale}
       cashCharge={cashCharge}

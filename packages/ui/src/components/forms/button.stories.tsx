@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowLeft, ArrowRight, Banknote, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Check, LogOut } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -46,6 +46,17 @@ export const PrimaryDestructiveHovered: Story = {
 
 export const PrimaryWithIcon: Story = {
   args: { icon: <Check /> },
+};
+
+export const PrimaryWithIconAtStart: Story = {
+  args: {
+    size: "large",
+    fullWidth: true,
+    keycap: "Enter",
+    icon: <LogOut />,
+    iconPosition: "start",
+    children: "Salir",
+  },
 };
 
 export const PrimaryDisabled: Story = {
