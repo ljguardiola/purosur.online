@@ -1,30 +1,36 @@
 import type {
   Authorization,
+  CashChargeAmounts,
   CashChargeAnswer,
   ChargeSaleInCashOutcome,
   ChargeSaleInCashWithChangeDiscountOutcome,
-  PreviewSaleDiscountOutcome,
-  SaleDiscountRequest,
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { SummaryRowProps } from "@purosur/ui";
 import {
   Button,
   Card,
+  CloseButton,
   FigureStat,
   fieldErrorMessage,
+  formatAmountInput,
   formatCents,
+  HighlightedFigure,
   InlineNotice,
   LoadFailure,
-  LoadingPlaceholder,
-  Modal,
+  OtherAmountField,
   parseAmountCents,
+  QuickAmountButton,
+  SidePanel,
   SummaryRowGroup,
   TextField,
   useRequestForm,
+  WarningBlock,
 } from "@purosur/ui";
-import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Banknote, Check, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import { useAuthorization } from "../shell/use-authorization";
 import {
@@ -39,7 +45,7 @@ import {
   PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
 import { saleDiscountValueMessage } from "./sale-discount-form";
-import { useCashChargeQuery, useSaleDiscountPreviewQuery } from "./sales-queries";
+import { useCashChargeAmountsQuery, useCashChargeQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
@@ -49,19 +55,20 @@ const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
 const PARTIAL_PAYMENT_HINT = "Si no alcanza para saldar la venta, el resto queda pendiente.";
 
+const QUICK_AMOUNT_KEYS = ["F6", "F7", "F8", "F9"] as const;
+
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
 
-export type CashChargeModalProps = {
+export type CashChargePanelProps = {
   saleId: string;
   total: number;
   paid: number;
   pending: number;
-  subtotal: number;
   discountOffered: boolean;
   appliedDiscountAmount: number | null;
   authorizationRequired: boolean;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
-  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
+  readAmounts: (saleDiscount?: number) => Promise<CashChargeAmounts | null>;
   readCharge: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeWithDiscount: (
@@ -69,34 +76,42 @@ export type CashChargeModalProps = {
     discountAmount: number,
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
-  onChooseAnotherMethod: () => void;
+  onBack: () => void;
   onCompleted: (charge: CompletedCharge) => void;
   onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
 
-export function CashChargeModal({
+function focusInput(box: HTMLElement | null) {
+  box?.querySelector("input")?.focus();
+}
+
+export function CashChargePanel({
   saleId,
   total,
   paid,
   pending,
-  subtotal,
   discountOffered,
   appliedDiscountAmount,
   authorizationRequired,
   loadAuthorizers,
-  previewSaleDiscount,
+  readAmounts,
   readCharge,
   charge,
   chargeWithDiscount,
-  onChooseAnotherMethod,
+  onBack,
   onCompleted,
   onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
-}: CashChargeModalProps) {
+}: CashChargePanelProps) {
   const [notice, setNotice] = useState<string>();
+  const [shortageOpen, setShortageOpen] = useState(false);
+  const [otherPicked, setOtherPicked] = useState(false);
+  const [discountRefused, setDiscountRefused] = useState(false);
+  const tenderedBox = useRef<HTMLDivElement>(null);
+  const otherBox = useRef<HTMLDivElement>(null);
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_CASH_CHARGE_FORM,
     request: { schema: chargeSaleInCashRequestSchema, from: cashChargeRequestFrom },
@@ -120,7 +135,7 @@ export function CashChargeModal({
           showFieldError("tendered", INVALID_AMOUNT_MESSAGE);
           break;
         case "discount_exceeds_sale":
-          showFieldError("discount", DISCOUNT_EXCEEDS_SALE_MESSAGE);
+          setDiscountRefused(true);
           break;
         case "wrong_pin":
         case "rate_limited":
@@ -176,48 +191,64 @@ export function CashChargeModal({
     saleDiscount: typedDiscount,
     read: readCharge,
   });
-  const preview = useSaleDiscountPreviewQuery({
-    subtotal,
-    discount: typedDiscount === undefined ? undefined : { kind: "AMOUNT", value: typedDiscount },
-    read: previewSaleDiscount,
+  const saleAmounts = useCashChargeAmountsQuery({ saleId, pending, read: readAmounts });
+  const amountsWithDiscount = useCashChargeAmountsQuery({
+    saleId,
+    pending,
+    saleDiscount: typedDiscount,
+    read: readAmounts,
   });
-  const previewed = preview.status === "loaded" ? preview.value : undefined;
-  const previewedTotal = previewed?.kind === "preview" ? previewed : undefined;
-  const toCharge = previewedTotal?.total ?? pending;
-  const previewLoading = typedDiscount !== undefined && preview.status === "loading";
-  const previewFailed = typedDiscount !== undefined && preview.status === "failed";
-  const totalShown = typedDiscount === undefined || previewedTotal !== undefined;
+  const ofSale = saleAmounts.status === "loaded" ? saleAmounts.value : undefined;
+  const quickAmounts = ofSale?.quick_amounts ?? [];
+  const suggestedDiscount = ofSale?.change_discount_option ?? undefined;
+  const amounts =
+    amountsWithDiscount.status === "loaded" && !amountsWithDiscount.refreshing
+      ? amountsWithDiscount.value
+      : undefined;
+  const amountsFailure =
+    saleAmounts.status === "failed"
+      ? saleAmounts
+      : amountsWithDiscount.status === "failed"
+        ? amountsWithDiscount
+        : undefined;
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
     loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
       ? undefined
       : loaded.value;
   const saleUnavailable =
-    loaded !== undefined && (answered === undefined || answered.kind === "sale_has_payments");
+    ofSale === null ||
+    (loaded !== undefined && (answered === undefined || answered.kind === "sale_has_payments"));
   const discountExceedsSale =
     typedDiscount !== undefined &&
-    (answered?.kind === "discount_exceeds_sale" || previewed?.kind === "discount_exceeds_sale");
+    (discountRefused ||
+      answered?.kind === "discount_exceeds_sale" ||
+      (amounts === null && ofSale !== undefined && ofSale !== null));
   const answeredMessage =
     tendered !== undefined && answered?.kind === "invalid_amount"
       ? INVALID_AMOUNT_MESSAGE
       : undefined;
+  const settled = amounts === null ? undefined : amounts;
   const covered =
     tendered !== undefined &&
     !discountInvalid &&
     answered?.kind === "covered" &&
-    totalShown &&
+    settled !== undefined &&
     !loaded?.refreshing
       ? { tendered, ...answered }
       : undefined;
-  const rounded = covered !== undefined && covered.cash_rounding > 0 ? covered : undefined;
   const partial =
     tendered !== undefined &&
     !discountInvalid &&
     answered?.kind === "partial" &&
-    totalShown &&
+    settled !== undefined &&
     !loaded?.refreshing
       ? answered
       : undefined;
+  const optionSelected =
+    shortageOpen && !otherPicked && suggestedDiscount !== undefined
+      ? typedDiscount === suggestedDiscount
+      : false;
 
   useEffect(() => {
     if (saleUnavailable) {
@@ -225,17 +256,20 @@ export function CashChargeModal({
     }
   }, [saleUnavailable, onSaleUnavailable]);
 
+  useEffect(() => {
+    focusInput(tenderedBox.current);
+  }, []);
+
   function tenderedMessage(typed: string): string | undefined {
     return typed.trim() !== "" && parseAmountCents(typed) === undefined
       ? INVALID_AMOUNT_MESSAGE
       : undefined;
   }
 
-  function discountMessage(typed: string): string | undefined {
-    return typed.trim() !== "" && typedChangeDiscount(typed) === undefined
+  const otherMessage =
+    otherPicked && values.discount.trim() !== "" && typedDiscount === undefined
       ? saleDiscountValueMessage("AMOUNT")
       : undefined;
-  }
 
   function handleSubmit() {
     if (covered === undefined && partial === undefined) {
@@ -249,85 +283,131 @@ export function CashChargeModal({
     void submit();
   }
 
+  function pickQuickAmount(index: number) {
+    const amount = quickAmounts[index];
+    if (amount !== undefined) {
+      setNotice(undefined);
+      form.setFieldValue("tendered", formatAmountInput(amount));
+    }
+  }
+
+  function changeDiscount(text: string) {
+    setDiscountRefused(false);
+    setNotice(undefined);
+    form.setFieldValue("discount", text);
+  }
+
+  function pickSuggestedDiscount() {
+    if (suggestedDiscount !== undefined) {
+      setOtherPicked(false);
+      changeDiscount(formatAmountInput(suggestedDiscount));
+    }
+  }
+
+  function pickOther() {
+    setOtherPicked(true);
+    changeDiscount("");
+    focusInput(otherBox.current);
+  }
+
+  function openShortage() {
+    setShortageOpen(true);
+    setOtherPicked(false);
+    form.setFieldValue(
+      "discount",
+      suggestedDiscount === undefined ? "" : formatAmountInput(suggestedDiscount),
+    );
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }
+
+  function closeShortage() {
+    setShortageOpen(false);
+    setOtherPicked(false);
+    form.setFieldValue("discount", "");
+    focusInput(tenderedBox.current);
+  }
+
+  function toggleShortage() {
+    if (shortageOpen) {
+      closeShortage();
+    } else {
+      openShortage();
+    }
+  }
+
+  useKeys([
+    { key: "Escape", run: onBack, enabled: !submitting },
+    { key: "Enter", run: handleSubmit },
+    ...QUICK_AMOUNT_KEYS.map((key, index) => ({
+      key,
+      run: () => pickQuickAmount(index),
+      enabled: !shortageOpen && !submitting && quickAmounts[index] !== undefined,
+    })),
+    { key: "F3", run: toggleShortage, enabled: discountOffered && !submitting },
+    { key: "0", run: pickOther, enabled: shortageOpen && !submitting },
+  ]);
+
+  const summaryRows: [SummaryRowProps, ...SummaryRowProps[]] = [
+    { label: "Total", value: formatCents(total) },
+    ...(paid > 0 ? [{ label: "Pagado", value: formatCents(paid) }] : []),
+    ...(typedDiscount === undefined
+      ? []
+      : [{ label: "Falta de cambio", value: `– ${formatCents(typedDiscount)}` }]),
+    ...(settled === undefined || settled.cash_rounding === 0
+      ? []
+      : [{ label: "Redondeo", value: `– ${formatCents(settled.cash_rounding)}` }]),
+  ];
+
   return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next) {
-          onChooseAnotherMethod();
-        }
-      }}
-      width="standard"
-      tone="info"
-      icon={<Banknote />}
-      context="COBRO EN EFECTIVO"
-      contextTone="info"
-      title="Ingresá el importe entregado"
-      closable={!submitting}
+    <SidePanel
+      label="Cobro en efectivo"
+      width="wide"
+      header={
+        <div className="flex items-center gap-3 px-6 pt-6">
+          <span
+            aria-hidden="true"
+            className="flex size-control-lg shrink-0 items-center justify-center rounded-full bg-surface-soft text-text-accent"
+          >
+            <Banknote className="size-icon-md" />
+          </span>
+          <h2 className="text-heading font-bold text-text">Efectivo</h2>
+          <span className="ml-auto">
+            <CloseButton escapeKeycap onPress={onBack} />
+          </span>
+        </div>
+      }
       footer={
         <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={onChooseAnotherMethod}
-          >
-            Cambiar de medio
-          </Button>
+          {discountOffered && !shortageOpen ? (
+            <div className="flex">
+              <Button variant="text" keycap="F3" disabled={submitting} onPress={toggleShortage}>
+                Falta de cambio
+              </Button>
+            </div>
+          ) : null}
           <Button
             size="large"
             fullWidth
             icon={<Check />}
+            keycap="Enter"
             dataStatus={submitting ? "loading" : answer.status}
             disabled={covered === undefined && partial === undefined}
             onPress={handleSubmit}
           >
-            {partial === undefined ? "Completar venta" : "Registrar pago parcial"}
+            {partial === undefined ? "Cobrar" : "Registrar pago parcial"}
           </Button>
         </>
       }
     >
-      <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          variant="filled"
-          orientation="horizontal"
-          rows={[
-            previewedTotal === undefined
-              ? { label: "Total de la venta", value: formatCents(total) }
-              : { label: "Después de promociones", value: formatCents(previewedTotal.subtotal) },
-            ...(previewedTotal === undefined
-              ? []
-              : [
-                  {
-                    label: "Descuento sobre el total",
-                    value: `− ${formatCents(previewedTotal.discount_amount)}`,
-                    tone: "error" as const,
-                  },
-                ]),
-            { label: "Pagado", value: formatCents(paid) },
-            ...(rounded === undefined
-              ? [
-                  {
-                    label: "A cobrar ahora",
-                    value: formatCents(toCharge),
-                    emphasized: true as const,
-                  },
-                ]
-              : [
-                  {
-                    label: "Redondeo",
-                    value: `− ${formatCents(rounded.cash_rounding)}`,
-                    tone: "error" as const,
-                  },
-                  {
-                    label: "A cobrar en efectivo",
-                    value: formatCents(rounded.applied),
-                    emphasized: true as const,
-                  },
-                ]),
-          ]}
-        />
+      {settled === undefined ? (
+        <FigureStat size="hero" label="A COBRAR" loading />
+      ) : (
+        <FigureStat size="hero" label="A COBRAR" value={formatCents(settled.amount_to_charge)} />
+      )}
+      <SummaryRowGroup rows={summaryRows} />
+      <div ref={tenderedBox}>
         <form.AppField
           name="tendered"
           validators={{ onChange: ({ value }) => tenderedMessage(value) }}
@@ -337,7 +417,7 @@ export function CashChargeModal({
             <TextField
               kind="amount"
               prefix="$"
-              label="Importe entregado por el cliente"
+              label="RECIBIDO"
               decimals={2}
               value={field.state.value}
               onChange={field.handleChange}
@@ -347,86 +427,109 @@ export function CashChargeModal({
             />
           )}
         </form.AppField>
-        {discountOffered ? (
-          <form.AppField
-            name="discount"
-            validators={{ onChange: ({ value }) => discountMessage(value) }}
-            listeners={{ onChange: () => setNotice(undefined) }}
-          >
-            {(field) => (
-              <TextField
-                kind="amount"
-                prefix="$"
-                label="Descuento por falta de cambio"
-                decimals={2}
-                value={field.state.value}
-                onChange={field.handleChange}
+      </div>
+      {shortageOpen ? (
+        <WarningBlock
+          title="FALTA DE CAMBIO"
+          action={
+            <Button
+              variant="text"
+              size="small"
+              keycap="F3"
+              disabled={submitting}
+              onPress={closeShortage}
+            >
+              Quitar
+            </Button>
+          }
+        >
+          <div className="grid grid-cols-2 gap-3">
+            {suggestedDiscount === undefined ? null : (
+              <QuickAmountButton
+                amount={`– ${formatCents(suggestedDiscount)}`}
+                selected={optionSelected}
                 disabled={submitting}
-                errorMessage={
-                  fieldErrorMessage(field.state.meta.errors) ??
-                  (discountExceedsSale ? DISCOUNT_EXCEEDS_SALE_MESSAGE : undefined)
-                }
+                onPress={pickSuggestedDiscount}
               />
             )}
-          </form.AppField>
-        ) : null}
-        {discountOffered && appliedDiscountAmount !== null && typedDiscount !== undefined ? (
-          <InlineNotice
-            tone="warning"
-            icon={<TriangleAlert />}
-            title={`Reemplaza el descuento sobre el total ya aplicado (${formatCents(appliedDiscountAmount)})`}
-          />
-        ) : null}
-        {(tendered !== undefined && answer.status === "loading") || previewLoading ? (
-          <LoadingPlaceholder variant="card" lines={2} />
-        ) : null}
-        {answer.status === "failed" ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo calcular el vuelto"
-            description="Volvé a intentarlo en unos segundos."
-            onRetry={answer.retry}
-          />
-        ) : null}
-        {previewFailed ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo calcular el total con el descuento"
-            description="Volvé a intentarlo en unos segundos."
-            onRetry={preview.retry}
-          />
-        ) : null}
-        {covered === undefined ? null : (
-          <Card variant="subtle">
-            <FigureStat
-              label="VUELTO A ENTREGAR"
-              detail={`${formatCents(covered.tendered)} − ${formatCents(covered.applied)}`}
-              value={formatCents(covered.change)}
+            <div ref={otherBox} className="col-start-2">
+              <OtherAmountField
+                label="Otro"
+                prefix="– $"
+                placeholder="Otro"
+                keyName="0"
+                value={otherPicked ? values.discount : ""}
+                selected={otherPicked}
+                disabled={submitting}
+                errorMessage={
+                  otherMessage ?? (discountExceedsSale ? DISCOUNT_EXCEEDS_SALE_MESSAGE : undefined)
+                }
+                onChange={(typed) => {
+                  setOtherPicked(true);
+                  changeDiscount(typed);
+                }}
+              />
+            </div>
+          </div>
+        </WarningBlock>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {quickAmounts.slice(0, QUICK_AMOUNT_KEYS.length).map((amount, index) => (
+            <QuickAmountButton
+              key={amount}
+              {...(index === 0 ? { label: "JUSTO" } : {})}
+              amount={formatCents(amount)}
+              keyName={QUICK_AMOUNT_KEYS[index]}
+              selected={tendered === amount}
+              disabled={submitting}
+              onPress={() => pickQuickAmount(index)}
             />
-          </Card>
-        )}
-        {partial === undefined ? null : (
-          <Card variant="subtle">
-            <FigureStat
-              label="QUEDA PENDIENTE"
-              detail={`${formatCents(toCharge)} − ${formatCents(partial.applied)}`}
-              value={formatCents(partial.pending)}
-            />
-          </Card>
-        )}
-        {discountOffered ? (
-          <AuthorizationModal
-            authorization={authorization}
-            subtitle="Falta de cambio"
-            action={AUTHORIZING}
-            submitting={submitting}
-            onConfirm={handleSubmit}
-          />
-        ) : null}
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
-      </div>
-    </Modal>
+          ))}
+        </div>
+      )}
+      {discountOffered && appliedDiscountAmount !== null && typedDiscount !== undefined ? (
+        <InlineNotice
+          tone="warning"
+          icon={<TriangleAlert />}
+          title={`Reemplaza el descuento sobre el total ya aplicado (${formatCents(appliedDiscountAmount)})`}
+        />
+      ) : null}
+      {answer.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudo calcular el vuelto"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={answer.retry}
+        />
+      ) : null}
+      {amountsFailure === undefined ? null : (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudo calcular el importe a cobrar"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={amountsFailure.retry}
+        />
+      )}
+      {covered === undefined ? null : (
+        <HighlightedFigure label="VUELTO" value={formatCents(covered.change)} />
+      )}
+      {partial === undefined ? null : (
+        <Card variant="subtle">
+          <FigureStat label="QUEDA PENDIENTE" value={formatCents(partial.pending)} />
+        </Card>
+      )}
+      {discountOffered ? (
+        <AuthorizationModal
+          authorization={authorization}
+          subtitle="Falta de cambio"
+          action={AUTHORIZING}
+          submitting={submitting}
+          onConfirm={handleSubmit}
+        />
+      ) : null}
+      {notice === undefined ? null : (
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
+      )}
+    </SidePanel>
   );
 }

@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoChargeOutcome,
   AnswerReceiptQuestionOutcome,
   Authorization,
+  CashChargeAmounts,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -12,11 +13,9 @@ import type {
   FollowMercadoPagoChargeOutcome,
   OpenSale,
   PaymentMethodAvailability,
-  PreviewSaleDiscountOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
-  SaleDiscountRequest,
   SignInUser,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
@@ -38,7 +37,7 @@ import type { MercadoPagoChargeKind } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { CashChargeModal } from "./cash-charge-modal";
+import { CashChargePanel } from "./cash-charge-panel";
 import type { CompletedPayment } from "./charge-completed-modal";
 import { ChargeCompletedModal } from "./charge-completed-modal";
 import type { ChargeMethod } from "./charge-method-options";
@@ -51,6 +50,7 @@ import type { ShownQrOrder } from "./qr-charge-modal";
 import { QrChargeModal } from "./qr-charge-modal";
 import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
 import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
+import { LockedSaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
   usePaymentMethodAvailabilityQuery,
@@ -115,6 +115,7 @@ export type ChargeScreenProps = {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
+  cashChargeAmounts: (saleId: string, saleDiscount?: number) => Promise<CashChargeAmounts | null>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount: (
     saleId: string,
@@ -122,7 +123,6 @@ export type ChargeScreenProps = {
     discountAmount: number,
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
-  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal: (
@@ -158,9 +158,9 @@ export function ChargeScreen({
   lock,
   currentSale,
   cashCharge,
+  cashChargeAmounts,
   chargeSaleInCash,
   chargeSaleInCashWithChangeDiscount,
-  previewSaleDiscount,
   loadAuthorizers,
   chargeSaleByTransfer,
   chargeSaleOnStandaloneTerminal,
@@ -253,7 +253,43 @@ export function ChargeScreen({
       background="subtle"
       rail={<OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />}
       aside={
-        sale === undefined ? null : (
+        sale === undefined ? null : step.name === "cash" ? (
+          <CashChargePanel
+            saleId={sale.id}
+            total={sale.total}
+            paid={sale.paid}
+            pending={sale.pending}
+            discountOffered={sale.sale_discount_refusal === null && sale.lines_lock === null}
+            appliedDiscountAmount={sale.sale_discount?.amount ?? null}
+            authorizationRequired={sale.sale_discount_authorization_required}
+            loadAuthorizers={loadAuthorizers}
+            readAmounts={(saleDiscount) =>
+              saleDiscount === undefined
+                ? cashChargeAmounts(sale.id)
+                : cashChargeAmounts(sale.id, saleDiscount)
+            }
+            readCharge={(tendered, saleDiscount) =>
+              saleDiscount === undefined
+                ? cashCharge(sale.id, tendered)
+                : cashCharge(sale.id, tendered, saleDiscount)
+            }
+            charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
+            chargeWithDiscount={(tendered, discountAmount, authorization) =>
+              chargeSaleInCashWithChangeDiscount(sale.id, tendered, discountAmount, authorization)
+            }
+            onBack={backToSale}
+            onCompleted={(charge) =>
+              setStep({
+                name: "completed",
+                payment: { method: "CASH", charge },
+                sale: { ...sale, total: charge.total },
+              })
+            }
+            onPartiallyPaid={backToMethodsWithBalance}
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
+        ) : (
           <ChargePaymentPanel
             total={sale.total}
             paid={step.name === "completed" ? step.sale.total : sale.paid}
@@ -273,7 +309,10 @@ export function ChargeScreen({
             onRetry={current.retry}
           />
         ) : null}
-        {sale === undefined ? null : (
+        {sale !== undefined && step.name === "cash" ? (
+          <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
+        ) : null}
+        {sale === undefined || step.name === "cash" ? null : (
           <>
             <ScreenHeader
               eyebrow={`COBRO · VENTA DE ${formatNumber(lineCount)} ${lines}`}
@@ -318,40 +357,6 @@ export function ChargeScreen({
           </>
         )}
       </main>
-      {sale !== undefined && step.name === "cash" ? (
-        <CashChargeModal
-          saleId={sale.id}
-          total={sale.total}
-          paid={sale.paid}
-          pending={sale.pending}
-          subtotal={sale.subtotal}
-          discountOffered={sale.sale_discount_refusal === null && sale.lines_lock === null}
-          appliedDiscountAmount={sale.sale_discount?.amount ?? null}
-          authorizationRequired={sale.sale_discount_authorization_required}
-          loadAuthorizers={loadAuthorizers}
-          previewSaleDiscount={previewSaleDiscount}
-          readCharge={(tendered, saleDiscount) =>
-            saleDiscount === undefined
-              ? cashCharge(sale.id, tendered)
-              : cashCharge(sale.id, tendered, saleDiscount)
-          }
-          charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
-          chargeWithDiscount={(tendered, discountAmount, authorization) =>
-            chargeSaleInCashWithChangeDiscount(sale.id, tendered, discountAmount, authorization)
-          }
-          onChooseAnotherMethod={() => setStep({ name: "methods" })}
-          onCompleted={(charge) =>
-            setStep({
-              name: "completed",
-              payment: { method: "CASH", charge },
-              sale: { ...sale, total: charge.total },
-            })
-          }
-          onPartiallyPaid={backToMethodsWithBalance}
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
       {sale !== undefined && step.name === "transfer" ? (
         <TransferChargeModal
           total={sale.total}

@@ -5,6 +5,7 @@ import {
   authorizeInModal,
 } from "../shell/test-support/authorization-modal-steps";
 import {
+  amountsOf,
   OTHER_DISCOUNT_FIELD,
   renderCashChargePanel,
   typeDiscount,

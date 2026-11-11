@@ -412,6 +412,10 @@ function Register({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
+    cashChargeAmounts: (saleId: string, saleDiscount?: number) =>
+      saleDiscount === undefined
+        ? core.cashChargeAmounts(saleId)
+        : core.cashChargeAmounts(saleId, saleDiscount),
     cashCharge: (saleId: string, tendered: number, saleDiscount?: number) =>
       saleDiscount === undefined
         ? core.cashCharge(saleId, tendered)
