@@ -90,12 +90,7 @@ export function AuthorizationModal({
     !submitting && secondsLeft === 0 && !refusedPerson && chosen !== null && pin !== "";
 
   useEffect(() => {
-    if (
-      asking &&
-      !submitting &&
-      secondsLeft === 0 &&
-      (refusal?.kind === "wrong_pin" || refusal?.kind === "rate_limited")
-    ) {
+    if (asking && !submitting && secondsLeft === 0) {
       pinInput.current?.focus();
     }
   }, [asking, submitting, secondsLeft, refusal, pinInput]);
