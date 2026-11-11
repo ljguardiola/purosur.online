@@ -324,3 +324,73 @@ test("keeps the centered variant out of the props of a load failure that retries
   }>().not.toExtend<LoadFailureProps>();
   expectTypeOf<"centered">().not.toExtend<LoadFailureVariant>();
 });
+
+function renderKeyboard(onRetry: () => void = () => {}) {
+  return render(
+    <div style={{ width: 400 }}>
+      <LoadFailure
+        variant="keyboard"
+        keycap="R"
+        icon={<ShieldX />}
+        title="No se pudieron cargar los usuarios"
+        description="Volvé a intentarlo en unos segundos."
+        onRetry={onRetry}
+      />
+    </div>,
+  );
+}
+
+test("keyboard: announces the failure and offers Reintentar with its key and the retry icon", async () => {
+  const onRetry = vi.fn();
+  const screen = await renderKeyboard(onRetry);
+
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("No se pudieron cargar los usuarios Volvé a intentarlo en unos segundos.");
+  const button = screen.getByRole("button", { name: "Reintentar" });
+  expect((button.element() as HTMLElement).querySelector("kbd")?.textContent).toBe("R");
+  expect((button.element() as HTMLElement).querySelectorAll("svg")).toHaveLength(1);
+  await userEvent.click(button);
+  expect(onRetry).toHaveBeenCalledTimes(1);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keyboard: draws Reintentar as the primary button with a keycap, as wide as the notice and 16px below it", async () => {
+  const screen = await renderKeyboard();
+
+  const button = screen.getByRole("button", { name: "Reintentar" }).element() as HTMLElement;
+  const notice = screen.getByRole("alert").element().parentElement as HTMLElement;
+  const noticeRect = notice.getBoundingClientRect();
+  const buttonRect = button.getBoundingClientRect();
+  expect(buttonRect.top).toBe(noticeRect.bottom + 16);
+  expect(buttonRect.left).toBe(noticeRect.left);
+  expect(buttonRect.width).toBe(noticeRect.width);
+
+  const reference = await render(
+    <Button fullWidth keycap="R">
+      Reference
+    </Button>,
+  );
+  const referenceButton = reference.getByRole("button", { name: "Reference" }).element();
+  for (const property of ["height", "backgroundColor", "color", "fontSize"] as const) {
+    expect(getComputedStyle(button)[property], property).toBe(
+      getComputedStyle(referenceButton)[property],
+    );
+  }
+});
+
+test("keyboard: requires the key that retries", () => {
+  expectTypeOf<{
+    variant: "keyboard";
+    icon: Icon;
+    title: string;
+    onRetry: () => void;
+  }>().not.toExtend<ComponentProps<typeof LoadFailure>>();
+  expectTypeOf<{
+    variant: "keyboard";
+    keycap: "R";
+    icon: Icon;
+    title: string;
+    onRetry: () => void;
+  }>().toExtend<ComponentProps<typeof LoadFailure>>();
+});

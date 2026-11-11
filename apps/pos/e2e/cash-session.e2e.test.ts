@@ -141,7 +141,8 @@ describe("the register's cash session", () => {
         .click();
     }
 
-    await page.getByText("Ana", { exact: true }).click();
+    await page.getByRole("button", { name: /USUARIO/ }).click();
+    await page.getByRole("option", { name: "Ana", exact: true }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
     await page.getByRole("button", { name: "Abrir caja" }).click();

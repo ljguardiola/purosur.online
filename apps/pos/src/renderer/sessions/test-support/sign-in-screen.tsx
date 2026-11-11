@@ -1,5 +1,6 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expect } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import type { SignInUsers } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
 import { SignInScreen } from "../sign-in-screen";
@@ -43,4 +44,15 @@ export function userSelect(screen: Screen) {
 
 export async function expectChosen(screen: Screen, firstName: string) {
   await expect.element(userSelect(screen).getByText(firstName, { exact: true })).toBeVisible();
+}
+
+export async function choose(screen: Screen, firstName: string) {
+  await userEvent.click(userSelect(screen));
+  await userEvent.click(page.getByRole("option", { name: firstName }));
+}
+
+export async function enter(screen: Screen, firstName: string, pin: string) {
+  await choose(screen, firstName);
+  await userEvent.type(screen.getByLabelText("PIN"), pin);
+  await userEvent.click(screen.getByRole("button", { name: /^Entrar/ }));
 }

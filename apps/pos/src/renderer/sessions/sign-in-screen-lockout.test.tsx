@@ -1,44 +1,15 @@
-import type { SignInOutcome, SignInUser } from "@purosur/contracts";
+import type { SignInOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
-import type { SignInUsers } from "../platform/core-client";
-import { render } from "../shell/test-support/render-with-router";
-import { SignInScreen } from "./sign-in-screen";
-import { userSelect } from "./test-support/sign-in-screen";
-
-const roster = (users: SignInUser[]): SignInUsers => ({ users, last_active_user_id: null });
-
-const USERS: SignInUser[] = [
-  { id: "u2", first_name: "Bruno" },
-  { id: "u1", first_name: "Ada" },
-];
-
-type Screen = Awaited<ReturnType<typeof render>>;
+import { userEvent } from "vitest/browser";
+import { choose, enter, renderSignIn, userSelect } from "./test-support/sign-in-screen";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-async function renderScreen(outcome: SignInOutcome) {
-  return render(
-    <SignInScreen
-      loadUsers={async () => roster(USERS)}
-      signIn={async () => outcome}
-      version={null}
-    />,
-  );
-}
-
-async function choose(screen: Screen, firstName: string) {
-  await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
-  await userEvent.click(page.getByRole("option", { name: firstName }));
-}
-
-async function enter(screen: Screen, firstName: string, pin: string) {
-  await choose(screen, firstName);
-  await userEvent.type(screen.getByLabelText("PIN"), pin);
-  await userEvent.click(screen.getByRole("button", { name: /^Entrar/ }));
+function renderScreen(outcome: SignInOutcome) {
+  return renderSignIn({ signIn: async () => outcome });
 }
 
 const WAITING_NOTICE_ENDING = "Quedan 6 intentos antes de que el usuario se bloquee.";
