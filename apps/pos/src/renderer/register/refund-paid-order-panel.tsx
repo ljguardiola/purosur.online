@@ -21,7 +21,7 @@ const REFUSALS = {
   unavailable: FAILED_MESSAGE,
 } as const;
 
-export type RefundPaidOrderModalProps = {
+export type RefundPaidOrderPanelProps = {
   order: Pick<
     StartupPending["paid_orders_without_sale"][number],
     "payment_transaction_id" | "method" | "amount" | "created_at"
@@ -35,14 +35,14 @@ export type RefundPaidOrderModalProps = {
   onClose: () => void;
 };
 
-export function RefundPaidOrderModal({
+export function RefundPaidOrderPanel({
   order,
   convertPaidOrderIntoRefund,
   onConverted,
   onGone,
   onSessionInvalid,
   onClose,
-}: RefundPaidOrderModalProps) {
+}: RefundPaidOrderPanelProps) {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
   const converting = useRef(false);

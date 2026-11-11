@@ -32,7 +32,7 @@ import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { RefundPaidOrderModal } from "./refund-paid-order-modal";
+import { RefundPaidOrderPanel } from "./refund-paid-order-panel";
 import type { StartupPendingAnswer } from "./register-queries";
 import {
   useCashBalanceQuery,
@@ -550,7 +550,7 @@ export function StartupPendingScreen({
         />
       )}
       {refundOf === undefined ? null : (
-        <RefundPaidOrderModal
+        <RefundPaidOrderPanel
           order={refundOf}
           convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
           onConverted={() => {

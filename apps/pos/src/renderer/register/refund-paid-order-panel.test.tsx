@@ -4,7 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { deferred } from "../platform/test-support/deferred";
-import { RefundPaidOrderModal } from "./refund-paid-order-modal";
+import { RefundPaidOrderPanel } from "./refund-paid-order-panel";
 
 const ORDER = {
   payment_transaction_id: "tx-1",
@@ -26,7 +26,7 @@ async function renderModal(options: { convert?: Convert } = {}) {
     onClose: vi.fn(),
   };
   const screen = await render(
-    <RefundPaidOrderModal order={ORDER} convertPaidOrderIntoRefund={convert} {...handlers} />,
+    <RefundPaidOrderPanel order={ORDER} convertPaidOrderIntoRefund={convert} {...handlers} />,
   );
   const dialog = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
   return { screen, dialog, convert, ...handlers };
@@ -36,7 +36,7 @@ function confirmButton(dialog: Awaited<ReturnType<typeof renderModal>>["dialog"]
   return dialog.getByRole("button", { name: "Pasar a reembolso" });
 }
 
-describe("RefundPaidOrderModal", () => {
+describe("RefundPaidOrderPanel", () => {
   it("shows the amount and time of the payment and what passing it to refund means", async () => {
     const { screen, dialog } = await renderModal();
 
