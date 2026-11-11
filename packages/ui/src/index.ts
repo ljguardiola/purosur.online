@@ -198,6 +198,8 @@ export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
 export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
+export type { SidePanelTitleProps } from "./components/layout/side-panel-title";
+export { SidePanelTitle } from "./components/layout/side-panel-title";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
