@@ -1,4 +1,4 @@
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, ElevatedPanel } from "@purosur/ui";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { Component, Fragment } from "react";
@@ -13,16 +13,17 @@ function RenderFailureNotice({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="h-screen w-full">
       <BrandPanelScreen>
-        <div className="flex w-full max-w-112 flex-col gap-4">
-          <InlineNotice
+        <main className="w-full max-w-110">
+          <ElevatedPanel
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo mostrar la pantalla"
-          />
-          <Button size="large" icon={<RefreshCw />} keycap="R" onPress={onRetry}>
-            Reintentar
-          </Button>
-        </div>
+          >
+            <Button size="large" icon={<RefreshCw />} keycap="R" onPress={onRetry}>
+              Reintentar
+            </Button>
+          </ElevatedPanel>
+        </main>
       </BrandPanelScreen>
     </div>
   );
