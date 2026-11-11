@@ -3,6 +3,7 @@ import type {
   CashCountPreview,
   ListedCashMovement,
   OpenCashSession,
+  OpeningFloatSuggestion,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   RecordableCashMovementKinds,
@@ -30,6 +31,7 @@ import {
   useCashMovementsQuery,
   useCashSessionQuery,
   useLockedClosersQuery,
+  useOpeningFloatSuggestionQuery,
   useReadSessionOpenSale,
   useReceiptPrinterQuery,
   useRegisterNameQuery,
@@ -1018,5 +1020,123 @@ describe("startup pending query", () => {
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(read).toHaveBeenCalledOnce();
+  });
+});
+
+type SuggestionRead = () => Promise<OpeningFloatSuggestion | null | "unavailable">;
+
+const PREVIOUS_CLOSE: OpeningFloatSuggestion = {
+  kind: "previous_close",
+  closed_at: "2026-11-04T20:14:00.000-03:00",
+  counted_cash: 14_400_000,
+};
+
+function SuggestionProbe({ read, seen }: { read: SuggestionRead; seen: string[] }) {
+  const described = describeData(useOpeningFloatSuggestionQuery(read), (value) =>
+    value.kind === "previous_close" ? String(value.counted_cash) : value.kind,
+  );
+  seen.push(described);
+  return <p>{described}</p>;
+}
+
+function renderSuggestion(
+  read: SuggestionRead,
+  queryClient = createQueryClient(),
+  seen: string[] = [],
+) {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SuggestionProbe read={read} seen={seen} />
+    </QueryClientProvider>,
+  );
+}
+
+async function showAndLeaveSuggestion(queryClient: QueryClient) {
+  const shown = await renderSuggestion(async () => PREVIOUS_CLOSE, queryClient);
+  await expect.element(shown.getByText("14400000")).toBeVisible();
+  await shown.unmount();
+  await expect
+    .poll(() => queryClient.getQueryCache().find({ queryKey: registerKeys.openingFloatSuggestion }))
+    .toBeUndefined();
+}
+
+describe("opening float suggestion query", () => {
+  it("is loading until the core answers, then holds the suggestion it answers", async () => {
+    let answer: (suggestion: OpeningFloatSuggestion) => void = () => {};
+    const screen = await renderSuggestion(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    await expect.element(screen.getByText("loading")).toBeVisible();
+
+    answer(PREVIOUS_CLOSE);
+
+    await expect.element(screen.getByText("14400000")).toBeVisible();
+  });
+
+  it("holds that there is no previous close", async () => {
+    const screen = await renderSuggestion(async () => ({ kind: "none" }));
+
+    await expect.element(screen.getByText("none")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderSuggestion(async () => "unavailable");
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("neither fails nor shows a suggestion while the core has none to give", async () => {
+    const read = vi.fn<SuggestionRead>(async () => null);
+    const screen = await renderSuggestion(read);
+
+    await expect.poll(() => read.mock.calls.length).toBe(1);
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("keeps the suggestion shown while it is read again", async () => {
+    let answer: (suggestion: OpeningFloatSuggestion) => void = () => {};
+    const read = vi
+      .fn<SuggestionRead>()
+      .mockResolvedValueOnce(PREVIOUS_CLOSE)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            answer = resolve;
+          }),
+      );
+    const queryClient = createQueryClient();
+    const seen: string[] = [];
+    const screen = await renderSuggestion(read, queryClient, seen);
+    await expect.element(screen.getByText("14400000")).toBeVisible();
+
+    void queryClient.invalidateQueries({ queryKey: registerKeys.openingFloatSuggestion });
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+    answer({ kind: "none" });
+
+    await expect.element(screen.getByText("none")).toBeVisible();
+    expect(seen.slice(seen.indexOf("14400000"))).not.toContain("loading");
+  });
+
+  it("is read again from loading when it is shown again, never showing the earlier suggestion", async () => {
+    const queryClient = createQueryClient();
+    await showAndLeaveSuggestion(queryClient);
+
+    const screen = await renderSuggestion(() => new Promise(() => {}), queryClient);
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    await expect.element(screen.getByText("14400000")).not.toBeInTheDocument();
+  });
+
+  it("fails when it is shown again and the core cannot answer, never showing the earlier suggestion", async () => {
+    const queryClient = createQueryClient();
+    await showAndLeaveSuggestion(queryClient);
+
+    const screen = await renderSuggestion(async () => "unavailable", queryClient);
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+    await expect.element(screen.getByText("14400000")).not.toBeInTheDocument();
   });
 });

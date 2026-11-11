@@ -8,6 +8,7 @@ import type {
   IdentifyLockedCloserOutcome,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpeningFloatSuggestion,
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
@@ -32,6 +33,7 @@ import {
   type OperationAuthorization,
   openCashSession,
   type RestorationProtocolEvidence,
+  suggestOpeningFloat,
 } from "@purosur/domain/register/use-cases";
 import {
   readPendingMercadoPagoPaymentsOf,
@@ -45,6 +47,7 @@ import type { ActionGate } from "../sessions/action-gate";
 import { authorizersOf } from "../sessions/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
+import { SqliteRegisterCloses } from "./sqlite-register-closes";
 
 export interface CashSessionRequestDeps {
   database: LocalDatabase;
@@ -298,6 +301,28 @@ export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionO
     cancel_refusal: standing.cancelRefusal,
     refunds_on_cancel: standing.refundsOnCancel.map(toWireRefund),
   };
+}
+
+export function openingFloatSuggestionFor({
+  database,
+  signedInPerson,
+  zoneRules,
+}: {
+  database: LocalDatabase;
+  signedInPerson: { userId(): string | undefined };
+  zoneRules: ZoneRulesSource;
+}): OpeningFloatSuggestion | null {
+  if (signedInPerson.userId() === undefined) {
+    return null;
+  }
+  const suggestion = suggestOpeningFloat({ closes: new SqliteRegisterCloses(database) });
+  return suggestion.kind === "none"
+    ? { kind: "none" }
+    : {
+        kind: "previous_close",
+        closed_at: inArgentinaTime(suggestion.closedAt, zoneRules.zoneRules()),
+        counted_cash: suggestion.countedCash,
+      };
 }
 
 export function currentCashSession(

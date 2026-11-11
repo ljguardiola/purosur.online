@@ -1,7 +1,8 @@
 import type { ReadInitialCountOutcome } from "@purosur/contracts";
-import { Button, Card } from "@purosur/ui";
+import { dataColumn, Table, TableCellText, useTableModel } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Package } from "lucide-react";
+import { useKeys } from "../platform/key-layer";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useInitialCountQuery } from "./stock-queries";
 
@@ -10,22 +11,42 @@ export type InitialCountOfferProps = {
   readInitialCount: () => Promise<ReadInitialCountOutcome>;
 };
 
+type StartingItem = { id: "initial-count"; title: string; description: string };
+
+const INITIAL_COUNT: StartingItem = {
+  id: "initial-count",
+  title: "Inventario inicial",
+  description: "Cargar el stock con el que arranca el local",
+};
+
+const STARTING_ITEMS = [INITIAL_COUNT];
+
+const COLUMNS = [
+  dataColumn({
+    id: "item",
+    header: "Para empezar",
+    render: (item: StartingItem) => (
+      <TableCellText icon={<Package />} description={item.description} strong>
+        {item.title}
+      </TableCellText>
+    ),
+  }),
+] as const;
+
 function Offer() {
   const navigate = useNavigate();
+  const openInitialCount = () => void navigate({ to: "/initial-count" });
+  useKeys([{ key: "N", run: openInitialCount, whileTyping: true }]);
+  const table = useTableModel({ items: STARTING_ITEMS, id: (item) => item.id, columns: COLUMNS });
   return (
-    <div className="max-w-110">
-      <Card>
-        <div className="flex flex-col gap-1">
-          <p className="text-heading text-text">Inventario inicial</p>
-          <p className="text-body text-text-subtle">Cargar el stock con el que arranca el local.</p>
-        </div>
-        <div className="self-start">
-          <Button icon={<Package />} onPress={() => void navigate({ to: "/initial-count" })}>
-            Cargar el inventario
-          </Button>
-        </div>
-      </Card>
-    </div>
+    <Table
+      table={table}
+      aria-label="Para empezar"
+      fill
+      legend={[{ keyName: "N", label: INITIAL_COUNT.title }]}
+      rowState={() => "selected"}
+      onRowPress={openInitialCount}
+    />
   );
 }
 
