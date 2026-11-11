@@ -24,7 +24,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
 import { paidPaymentName } from "../platform/payment-method-names";
-import { AuthorizationSection } from "../shell/authorization-section";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
 import type { CompletedReturn } from "./hand-over-refund-modal";
@@ -123,11 +123,7 @@ export function ReturnBuildStep({
     previewed !== undefined && firstRefusal === undefined && refundableTotal === 0;
   const refundTexts = refundTextsFor(sale.payments, refundableTotal, values.refunds);
   const canComplete =
-    !submitting &&
-    previewed !== undefined &&
-    !previewRefreshing &&
-    firstRefusal === undefined &&
-    authorization.ready;
+    !submitting && previewed !== undefined && !previewRefreshing && firstRefusal === undefined;
 
   function requestFrom(formValues: ReturnFormValues): ReturnRequest {
     return returnRequestFrom(sale, refundableTotal, formValues);
@@ -151,6 +147,7 @@ export function ReturnBuildStep({
       refunds: request.refunds,
       authorization: authorization.value,
     }).catch((): "failed" => "failed");
+    authorization.dismiss();
     if (outcome === "failed") {
       setNotice(COMPLETE_FAILED);
       return;
@@ -217,7 +214,7 @@ export function ReturnBuildStep({
           authorization.refuse(outcome);
         } else {
           onAuthorizationRequired();
-          setNotice("Elegí quién autoriza e ingresá su PIN.");
+          authorization.ask();
         }
         break;
       case "wrong_pin":
@@ -233,12 +230,22 @@ export function ReturnBuildStep({
     }
   }
 
+  function completeOrAsk() {
+    if (!authorization.ready) {
+      authorization.ask();
+      return;
+    }
+    void submit();
+  }
+
   const authorizer =
     authorization.authorizers.status === "loaded"
       ? authorization.authorizers.value.find(({ id }) => id === authorization.chosen)
       : undefined;
   const authorizedBy =
-    authorization.required && authorization.refusal === undefined ? authorizer : undefined;
+    authorization.value !== undefined && authorization.refusal === undefined
+      ? authorizer
+      : undefined;
   const eyebrow =
     sale.invoice === null
       ? "DEVOLUCIÓN"
@@ -261,13 +268,14 @@ export function ReturnBuildStep({
           label="Resumen de la devolución"
           footer={
             <>
-              {authorizedBy === undefined ? (
-                <AuthorizationSection
-                  authorization={authorization}
-                  action="hacer devoluciones"
-                  disabled={submitting}
-                />
-              ) : (
+              <AuthorizationModal
+                authorization={authorization}
+                subtitle="Devolución"
+                action="hacer devoluciones"
+                submitting={submitting}
+                onConfirm={completeOrAsk}
+              />
+              {authorizedBy === undefined ? null : (
                 <InlineNotice
                   tone="info"
                   icon={<ShieldCheck />}
@@ -283,7 +291,7 @@ export function ReturnBuildStep({
                 icon={<Check />}
                 disabled={!canComplete}
                 dataStatus={submitting ? "loading" : "loaded"}
-                onPress={() => void submit()}
+                onPress={completeOrAsk}
               >
                 Completar devolución
               </Button>

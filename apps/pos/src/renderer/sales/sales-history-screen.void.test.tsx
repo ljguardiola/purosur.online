@@ -1,6 +1,10 @@
 import type { SalesHistoryOutcome } from "@purosur/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import {
+  authorizationDialog,
+  authorizeInModal,
+} from "../shell/test-support/authorization-modal-steps";
 import {
   chooseSale,
   DETAIL,
@@ -56,16 +60,18 @@ describe("SalesHistoryScreen voiding a sale", () => {
       .toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Anular venta" }));
 
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-    await userEvent.click(screen.getByRole("option", { name: "Grace" }));
-    await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Anular y emitir nota de crédito" }));
+    await expect
+      .element(authorizationDialog().getByText("Anular venta", { exact: true }))
+      .toBeVisible();
+    await authorizeInModal({ as: "Grace", pin: "1234" });
 
-    expect(voidSale).toHaveBeenCalledExactlyOnceWith("sale-1", false, {
-      user_id: "u2",
-      pin: "1234",
-    });
+    await vi.waitFor(() =>
+      expect(voidSale).toHaveBeenCalledExactlyOnceWith("sale-1", false, {
+        user_id: "u2",
+        pin: "1234",
+      }),
+    );
   });
 
   it("closes the review, says the sale was voided and reads the sales again once it is voided", async () => {

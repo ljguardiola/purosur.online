@@ -19,7 +19,7 @@ import {
 import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
-import { AuthorizationSection } from "../shell/authorization-section";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import {
@@ -42,6 +42,7 @@ function invalidReasonMessage(maxLength: number): string {
 type KindPresentation = {
   submit: string;
   authorizing: string;
+  subtitle: string;
   cashBefore: string | undefined;
 };
 
@@ -49,16 +50,19 @@ const PRESENTATION = {
   CASH_IN: {
     submit: "Registrar ingreso",
     authorizing: "registrar ingresos de efectivo",
+    subtitle: "Registrar ingreso",
     cashBefore: undefined,
   },
   CASH_OUT: {
     submit: "Registrar gasto",
     authorizing: "registrar gastos",
+    subtitle: "Registrar gasto",
     cashBefore: "este gasto",
   },
   WITHDRAWAL: {
     submit: "Registrar retiro",
     authorizing: "retirar efectivo a la caja fuerte",
+    subtitle: "Retirar efectivo a la caja fuerte",
     cashBefore: "este retiro",
   },
 } as const satisfies Record<CashMovementKind, KindPresentation>;
@@ -104,7 +108,6 @@ export type RecordCashMovementModalProps = {
 
 function MovementModal({
   kinds,
-  person,
   registerName,
   openedAt,
   expectedCash: givenExpectedCash,
@@ -112,7 +115,7 @@ function MovementModal({
   recordCashMovement,
   onClose,
   onRecorded,
-}: Omit<RecordCashMovementModalProps, "open" | "loadKinds"> & {
+}: Omit<RecordCashMovementModalProps, "open" | "loadKinds" | "person"> & {
   kinds: RecordableCashMovementKinds;
 }) {
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
@@ -124,10 +127,15 @@ function MovementModal({
     fields: { kind: null, amount: "amount", reason: null },
     messages: { amount: amountMessage },
     onSubmit: async (request, { showFieldError }) => {
+      if (!authorization.ready) {
+        authorization.ask();
+        return;
+      }
       const outcome = await recordCashMovement({
         ...request,
-        authorization: authorization.ready ? authorization.value : undefined,
+        authorization: authorization.value,
       }).catch((): "failed" => "failed");
+      authorization.dismiss();
       if (outcome === "failed") {
         setNotice(FAILED_MESSAGE);
         return;
@@ -174,7 +182,6 @@ function MovementModal({
   });
   const { kind } = values;
   const authorization = useAuthorization({
-    person,
     permission: kinds[kind].permission,
     required: kinds[kind].authorization_required,
     loadAuthorizers,
@@ -187,7 +194,7 @@ function MovementModal({
   }
 
   function handleSubmit() {
-    if (submitting || !authorization.ready) {
+    if (submitting) {
       return;
     }
     setNotice(undefined);
@@ -224,7 +231,7 @@ function MovementModal({
             size="large"
             fullWidth
             icon={CASH_MOVEMENT_ICONS[kind]}
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
             onPress={handleSubmit}
           >
             {presentation.submit}
@@ -271,10 +278,12 @@ function MovementModal({
         <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />}
         </form.AppField>
-        <AuthorizationSection
+        <AuthorizationModal
           authorization={authorization}
+          subtitle={presentation.subtitle}
           action={presentation.authorizing}
-          disabled={submitting}
+          submitting={submitting}
+          onConfirm={handleSubmit}
         />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

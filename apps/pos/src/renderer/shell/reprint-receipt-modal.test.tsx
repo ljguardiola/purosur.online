@@ -11,6 +11,7 @@ import { deferred } from "../platform/test-support/deferred";
 import type { ReprintReceiptModalProps } from "./reprint-receipt-modal";
 import { ReprintReceiptModal } from "./reprint-receipt-modal";
 import type { SignedInPerson } from "./signed-in-person";
+import { authorizationDialog, authorizeInModal } from "./test-support/authorization-modal-steps";
 import { render } from "./test-support/render-with-router";
 
 type Sale = Extract<SaleHistoryDetailOutcome, { kind: "found" }>["detail"] &
@@ -106,12 +107,6 @@ type Screen = Awaited<ReturnType<typeof renderModal>>["screen"];
 
 async function typeReason(screen: Screen, reason: string) {
   await userEvent.fill(screen.getByRole("textbox", { name: REASON }), reason);
-}
-
-async function authorizeAs(screen: Screen, firstName: string, pin: string) {
-  await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-  await userEvent.click(screen.getByRole("option", { name: firstName }));
-  await userEvent.type(screen.getByLabelText("PIN"), pin);
 }
 
 describe("ReprintReceiptModal", () => {
@@ -227,31 +222,48 @@ describe("ReprintReceiptModal", () => {
   });
 
   describe("when the person may not reprint", () => {
-    it("asks someone with permission to authorize it", async () => {
-      const { screen, requested } = await renderModal({ person: WITHOUT_PERMISSION });
-
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-      await expect
-        .element(screen.getByText("Ada no tiene permiso para reimprimir comprobantes."))
-        .toBeVisible();
-      await expect.element(screen.getByRole("button", { name: REPRINT })).toBeDisabled();
-      expect(requested).toEqual(["reprint_receipt"]);
-    });
-
-    it("sends who authorizes and their PIN with the reason", async () => {
-      const { screen, reprint } = await renderModal({ person: WITHOUT_PERMISSION });
+    it("asks in the authorization modal, with the action's subtitle, instead of acting", async () => {
+      const { screen, requested, reprint } = await renderModal({ person: WITHOUT_PERMISSION });
       await typeReason(screen, "Otra copia");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: REPRINT }));
 
-      expect(reprint).toHaveBeenCalledExactlyOnceWith("sale-1", "Otra copia", {
-        user_id: "u3",
-        pin: "1234",
-      });
+      await expect.element(authorizationDialog()).toBeVisible();
+      await expect
+        .element(authorizationDialog().getByText("Reimprimir comprobante", { exact: true }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
+        .not.toBeInTheDocument();
+      expect(requested).toEqual(["reprint_receipt"]);
+      expect(reprint).not.toHaveBeenCalled();
     });
 
-    it("shows a refused PIN and stays open", async () => {
+    it("sends who authorizes and their PIN on Enter", async () => {
+      const { screen, reprint } = await renderModal({ person: WITHOUT_PERMISSION });
+      await typeReason(screen, "Otra copia");
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await vi.waitFor(() => expect(reprint).toHaveBeenCalledOnce());
+      expect(reprint.mock.lastCall).toContainEqual({ user_id: "u3", pin: "1234" });
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+    });
+
+    it("does not act when the authorization modal is closed with Esc", async () => {
+      const { screen, reprint, onReprinted } = await renderModal({ person: WITHOUT_PERMISSION });
+      await typeReason(screen, "Otra copia");
+      await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await expect.element(authorizationDialog()).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+      expect(reprint).not.toHaveBeenCalled();
+      expect(onReprinted).not.toHaveBeenCalled();
+    });
+
+    it("shows a refused PIN inside the authorization modal and stays open", async () => {
       const { screen, onReprinted } = await renderModal({
         person: WITHOUT_PERMISSION,
         reprintSaleReceipt: async () => ({
@@ -261,40 +273,43 @@ describe("ReprintReceiptModal", () => {
         }),
       });
       await typeReason(screen, "Otra copia");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: REPRINT }));
 
-      await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await expect.element(authorizationDialog().getByText("PIN incorrecto")).toBeVisible();
       expect(onReprinted).not.toHaveBeenCalled();
     });
 
-    it("says the chosen person cannot authorize it when the core refuses their permission", async () => {
-      const { screen } = await renderModal({
+    it("says inside the modal that the chosen person cannot authorize it", async () => {
+      const { screen, onReprinted } = await renderModal({
         person: WITHOUT_PERMISSION,
         reprintSaleReceipt: async () => ({ kind: "lacks_permission" }),
       });
       await typeReason(screen, "Otra copia");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: REPRINT }));
 
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
       await expect
-        .element(screen.getByText("Sofía no puede autorizar esto", { exact: true }))
+        .element(authorizationDialog().getByText("Sofía no puede autorizar esto", { exact: true }))
         .toBeVisible();
+      expect(onReprinted).not.toHaveBeenCalled();
     });
 
-    it("says who was locked out when the core locks the chosen person", async () => {
+    it("says inside the modal who was locked out", async () => {
       const { screen } = await renderModal({
         person: WITHOUT_PERMISSION,
         reprintSaleReceipt: async () => ({ kind: "locked", consecutive_failures: 8 }),
       });
       await typeReason(screen, "Otra copia");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: REPRINT }));
 
-      await expect.element(screen.getByText("Sofía está bloqueado", { exact: true })).toBeVisible();
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await expect
+        .element(authorizationDialog().getByText("Sofía está bloqueado", { exact: true }))
+        .toBeVisible();
     });
   });
 
@@ -583,14 +598,16 @@ describe("ReprintReceiptModal", () => {
         person: WITHOUT_PERMISSION,
       });
       await typeReason(screen, "Otra copia");
-      await authorizeAs(screen, "Grace", "1234");
 
       await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+      await authorizeInModal({ as: "Grace", pin: "1234" });
 
-      expect(reprint).toHaveBeenCalledExactlyOnceWith("sale-1", "Otra copia", {
-        user_id: "u2",
-        pin: "1234",
-      });
+      await vi.waitFor(() =>
+        expect(reprint).toHaveBeenCalledExactlyOnceWith("sale-1", "Otra copia", {
+          user_id: "u2",
+          pin: "1234",
+        }),
+      );
     });
 
     it("says a print of the credit note may still come out while one waits for the printer", async () => {

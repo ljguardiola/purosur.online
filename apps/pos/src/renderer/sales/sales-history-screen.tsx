@@ -279,7 +279,6 @@ export function SalesHistoryScreen({
           refunds={voiding.voidability.refunds}
           creditNoteCorrects={voiding.voidability.credit_note_corrects}
           authorizationRequired={voiding.void_authorization_required}
-          person={person}
           loadAuthorizers={loadAuthorizers}
           voidSale={voidSale}
           onVoided={(creditNote) => {
