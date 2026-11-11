@@ -218,6 +218,17 @@ describe("RenderFailureRecovery", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("announces the failure as an alert", async () => {
+    const screen = await render(
+      <RenderFailureRecovery reportFailure={vi.fn()}>
+        <ScreenThatAlwaysThrows />
+      </RenderFailureRecovery>,
+    );
+
+    const alert = screen.getByRole("alert");
+    await expect.poll(() => alert.element().textContent).toBe(NOTICE_TITLE);
+  });
+
   it("shows the screen again after Reintentar when it stops throwing", async () => {
     let reportedFailures = 0;
     const reportFailure = vi.fn(() => {

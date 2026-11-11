@@ -2532,6 +2532,30 @@ describe("the register's router", () => {
     },
   );
 
+  it.each([
+    ["/core-down", "down", "in_service"],
+    ["/updating", "updating", "in_service"],
+    ["/older-version", "refused", "in_service"],
+    ["/out-of-service", "up", "out_of_service"],
+  ] as const)(
+    "reads the running version on %s while the register cannot sell",
+    async (route, coreStatus, registerService) => {
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith(coreStatus, "enrolled", null, undefined, NO_SESSION, registerService),
+          registerVersion: async () => "1.0.1539",
+        },
+        route,
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screen.getByText("Versión 1.0.1539")).toBeVisible();
+      expect(router.state.location.pathname).toBe(route);
+    },
+  );
+
   it("opens the cash session through the router context", async () => {
     const opened: number[] = [];
     const router = createRegisterRouter(
