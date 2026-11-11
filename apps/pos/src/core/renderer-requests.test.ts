@@ -21,6 +21,7 @@ import type {
   CompleteReturnOutcome,
   EnrollmentStandingAnswer,
   FindDeferredSaleOutcome,
+  FindProductByCodeOutcome,
   FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
@@ -124,6 +125,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const transferCharges: { saleId: string }[] = [];
   const standaloneTerminalCharges: { saleId: string }[] = [];
   const searches: string[] = [];
+  const codeLookups: string[] = [];
   const additions: string[] = [];
   const weighedAdditions: string[] = [];
   const weighings: string[] = [];
@@ -150,6 +152,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     transferCharges,
     standaloneTerminalCharges,
     searches,
+    codeLookups,
     additions,
     weighedAdditions,
     weighings,
@@ -487,6 +490,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       searchProducts: async (query: string): Promise<SearchProductsOutcome> => {
         searches.push(query);
         return { kind: "results", products: [], more: false };
+      },
+      findProductByCode: async (code: string): Promise<FindProductByCodeOutcome> => {
+        codeLookups.push(code);
+        return { kind: "unknown_code" };
       },
       addProduct: async (productId: string): Promise<AddProductOutcome> => {
         additions.push(productId);
@@ -1967,6 +1974,60 @@ describe("answerRendererRequest", () => {
         type: "search-products",
         request_id: "r32",
         query: "a",
+      }),
+    ).toEqual(unavailable);
+  });
+
+  it("finds the product by its code and answers the outcome", async () => {
+    const outcome: FindProductByCodeOutcome = { kind: "no_open_session" };
+    const { deps: withLookup, codeLookups } = deps(true, {
+      findProductByCode: async () => outcome,
+    });
+    const recording = deps(true);
+
+    expect(
+      await answerRendererRequest(withLookup, {
+        type: "find-product-by-code",
+        request_id: "r30",
+        code: "111",
+      }),
+    ).toEqual({ type: "find-product-by-code-result", request_id: "r30", outcome });
+    expect(codeLookups).toEqual([]);
+    await answerRendererRequest(recording.deps, {
+      type: "find-product-by-code",
+      request_id: "r31",
+      code: "222",
+    });
+    expect(recording.codeLookups).toEqual(["222"]);
+  });
+
+  it("answers that finding a product by its code is unavailable when it fails or is not possible, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      findProductByCode: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { findProductByCode: undefined });
+    const unavailable = {
+      type: "find-product-by-code-result",
+      request_id: "r32",
+      outcome: { kind: "unavailable" },
+    };
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "find-product-by-code",
+        request_id: "r32",
+        code: "1",
+      }),
+    ).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "finding a product by its code", error }]);
+    expect(
+      await answerRendererRequest(withoutDatabase.deps, {
+        type: "find-product-by-code",
+        request_id: "r32",
+        code: "1",
       }),
     ).toEqual(unavailable);
   });
