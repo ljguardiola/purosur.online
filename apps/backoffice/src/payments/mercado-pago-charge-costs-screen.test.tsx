@@ -13,7 +13,6 @@ import { MercadoPagoChargeCostsScreen } from "./mercado-pago-charge-costs-screen
 import type { MercadoPagoChargeCostsScreenServices } from "./mercado-pago-charge-costs-services";
 import {
   emptyChargeCosts,
-  onlyOtherChargeCosts,
   weekChargeCosts,
 } from "./test-support/mercado-pago-charge-costs-fixtures";
 
@@ -93,11 +92,11 @@ test("shows the period's gross, fee, financing, taxes, net and pending charges a
   const screen = await renderScreen(createServices());
 
   const cards = [
-    ["Cobrado", formatSignedCents(120_000)],
-    ["Comisión de Mercado Pago", formatSignedCents(-4_790)],
-    ["Costo de financiación", formatSignedCents(-1_200)],
-    ["Impuestos", formatSignedCents(-1_006)],
-    ["Neto acreditado", formatSignedCents(113_004)],
+    ["Cobrado", formatSignedCents(100_000)],
+    ["Comisión de Mercado Pago", formatSignedCents(-3_990)],
+    ["Costo de financiación", formatSignedCents(-1_000)],
+    ["Impuestos", formatSignedCents(-838)],
+    ["Neto acreditado", formatSignedCents(94_172)],
     ["Cobros pendientes", "1"],
   ];
   for (const [label, value] of cards) {
@@ -176,9 +175,9 @@ test("totals the charges by day under a Día column, newest as the cloud answere
     await expect.element(table.getByRole("columnheader", { name })).toBeVisible();
   }
   const day = table.getByRole("row", { name: /^03\/10\/2026/ });
-  await expect.element(day.getByText(formatSignedCents(120_000), { exact: true })).toBeVisible();
-  await expect.element(day.getByText(formatSignedCents(-4_790), { exact: true })).toBeVisible();
-  await expect.element(day.getByText(formatSignedCents(113_004), { exact: true })).toBeVisible();
+  await expect.element(day.getByText(formatSignedCents(100_000), { exact: true })).toBeVisible();
+  await expect.element(day.getByText(formatSignedCents(-3_990), { exact: true })).toBeVisible();
+  await expect.element(day.getByText(formatSignedCents(94_172), { exact: true })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /^04\/10\/2026/ })).toBeVisible();
 });
 
@@ -192,7 +191,7 @@ test("totals the charges by month, written as month and year", async () => {
   await expect.element(table.getByText("Octubre 2026", { exact: true })).toBeVisible();
 });
 
-test("totals the charges by payment method, naming the charges outside the system Otros cobros", async () => {
+test("totals the charges by payment method", async () => {
   const screen = await renderScreen(createServices(), {
     filters: mercadoPagoChargeCostsFilters.parse({ group: "method" }),
   });
@@ -201,11 +200,9 @@ test("totals the charges by payment method, naming the charges outside the syste
   await expect.element(table.getByRole("columnheader", { name: "Medio de pago" })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /^QR/ })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /^Point/ })).toBeVisible();
-  const others = table.getByRole("row", { name: /^Otros cobros/ });
-  await expect.element(others.getByText(formatSignedCents(20_000), { exact: true })).toBeVisible();
 });
 
-test("totals the charges by register, naming the ones tied to no register Otros cobros", async () => {
+test("totals the charges by register", async () => {
   const screen = await renderScreen(createServices(), {
     filters: mercadoPagoChargeCostsFilters.parse({ group: "register" }),
   });
@@ -214,8 +211,6 @@ test("totals the charges by register, naming the ones tied to no register Otros 
   await expect.element(table.getByRole("columnheader", { name: "Caja" })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /^Caja 1/ })).toBeVisible();
   await expect.element(table.getByRole("row", { name: /^Caja 2/ })).toBeVisible();
-  const others = table.getByRole("row", { name: /^Otros cobros/ });
-  await expect.element(others.getByText(formatSignedCents(18_832), { exact: true })).toBeVisible();
 });
 
 test("offers the groupings by day, month, payment method and register, and reports the one chosen", async () => {
@@ -304,7 +299,7 @@ test("shows placeholders while the report loads", async () => {
 
   await expect.element(chargesTable(screen)).toHaveAttribute("aria-busy", "true");
   await expect.element(screen.getByText("Neto acreditado", { exact: true })).toBeVisible();
-  expect(screen.getByText(formatSignedCents(113_004)).query()).toBeNull();
+  expect(screen.getByText(formatSignedCents(94_172)).query()).toBeNull();
 });
 
 test("says there are no charges in the period when there are none, and once", async () => {
@@ -327,20 +322,11 @@ test("says there are no charges in the period when there are none, and once", as
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-accent"));
 });
 
-test("says no register charged in the period when only charges outside the system did, while the totals show them", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchMercadoPagoChargeCosts).mockResolvedValue({
-    kind: "ok",
-    value: onlyOtherChargeCosts,
-  });
+test("says nothing about charges made outside the system", async () => {
+  const screen = await renderScreen(createServices());
 
-  const screen = await renderScreen(services);
-
-  await expect.element(chargesTable(screen).getByText(NO_REGISTER_CHARGES)).toBeVisible();
-  await expect
-    .element(totalsTable(screen, "Totales por día").getByRole("row", { name: /^03\/10\/2026/ }))
-    .toBeVisible();
-  expect(screen.getByText(NO_CHARGES).query()).toBeNull();
+  await expect.element(chargesTable(screen).getByText("Caja 1")).toBeVisible();
+  expect(screen.getByText(/otros cobros/i).query()).toBeNull();
 });
 
 test("says there are no charges in the chosen period as a filtered result", async () => {

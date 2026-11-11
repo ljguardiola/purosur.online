@@ -22,6 +22,45 @@ export function settlementRow(overrides: Partial<SettlementReportRow> = {}): Set
   };
 }
 
+export function accountWithdrawalRow(overrides: Partial<SettlementReportRow> = {}) {
+  return settlementRow({
+    sourceId: "WITHDRAWAL1",
+    paymentMethod: "available_money",
+    paymentMethodType: "available_money",
+    grossAmount: -9_306_592,
+    feeAmount: 0,
+    taxesAmount: 0,
+    netAmount: -9_306_592,
+    ...overrides,
+  });
+}
+
+export function accountYieldRow(overrides: Partial<SettlementReportRow> = {}) {
+  return settlementRow({
+    sourceId: "YIELD1",
+    paymentMethod: null,
+    paymentMethodType: null,
+    grossAmount: 1_237,
+    feeAmount: 0,
+    taxesAmount: 0,
+    netAmount: 1_237,
+    ...overrides,
+  });
+}
+
+export function receivedTransferRow(overrides: Partial<SettlementReportRow> = {}) {
+  return settlementRow({
+    sourceId: "TRANSFER1",
+    paymentMethod: null,
+    paymentMethodType: null,
+    grossAmount: 2_500_000,
+    feeAmount: 0,
+    taxesAmount: 0,
+    netAmount: 2_500_000,
+    ...overrides,
+  });
+}
+
 export async function insertSettlementMovements<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
   rows: SettlementReportRow[],
