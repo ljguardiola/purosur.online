@@ -25,6 +25,7 @@ export function CardPanel({
       {icon === undefined ? null : (
         <CardTitleRow
           icon={icon}
+          gapClassName="gap-3"
           title={
             <h1
               ref={titleRef}

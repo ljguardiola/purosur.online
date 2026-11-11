@@ -49,6 +49,7 @@ export function CardModal({
           <div className="shrink-0 py-4">
             <CardTitleRow
               icon={icon}
+              gapClassName="gap-4"
               title={
                 <AriaHeading id={titleId} slot="title" className="flex-1 text-title text-text">
                   {title}

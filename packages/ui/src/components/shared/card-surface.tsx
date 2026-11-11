@@ -7,13 +7,15 @@ export function CardTitleRow({
   icon,
   title,
   end,
+  gapClassName,
 }: {
   icon: Icon;
   title: ReactNode;
   end?: ReactNode;
+  gapClassName: "gap-3" | "gap-4";
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-3">
+    <div className={`flex shrink-0 items-center ${gapClassName}`}>
       <span
         aria-hidden="true"
         className="flex size-9 shrink-0 items-center justify-center rounded-full bg-action-subtle text-text-accent"
