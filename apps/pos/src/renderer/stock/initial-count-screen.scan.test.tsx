@@ -177,6 +177,21 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     expect(findCountableProduct).not.toHaveBeenCalled();
   });
 
+  it("closes the results with Esc after a click elsewhere, staying on the screen", async () => {
+    const { screen, field } = await renderScreen({
+      searchCountableProducts: vi.fn(async () => results(YERBA_PRODUCT)),
+    });
+    await screen.router.navigate({ to: "/initial-count" });
+    await field.fill("yer");
+    await expect.element(screen.getByRole("listbox")).toBeVisible();
+    await userEvent.click(screen.getByText("Inventario inicial", { exact: true }).first());
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.router.state.location.pathname).toBe("/initial-count");
+  });
+
   it("opens the panel to count the product chosen from the results", async () => {
     const { screen, field } = await renderScreen({
       searchCountableProducts: vi.fn(async () => results(QUESO_PRODUCT, YERBA_PRODUCT)),
