@@ -460,7 +460,10 @@ test("keeps the amount that ends the title on one line however narrow the notice
     </div>,
   );
   const container = screen.container.firstElementChild as HTMLElement;
-  const title = screen.getByText(/^Pago con Mercado Pago de/).first().element();
+  const title = screen
+    .getByText(/^Pago con Mercado Pago de/)
+    .first()
+    .element();
 
   expect(title.textContent).toBe("Pago con Mercado Pago de $ 9.200,00");
   for (let width = 400; width >= 200; width -= 2) {

@@ -26,11 +26,7 @@ export function SidePanel({ children, label, footer, header, width = "panel" }: 
   const { box, inset } = WIDTHS[width];
 
   return (
-    <aside
-      id={panelId}
-      aria-label={label}
-      className={`flex h-full flex-col bg-surface ${box}`}
-    >
+    <aside id={panelId} aria-label={label} className={`flex h-full flex-col bg-surface ${box}`}>
       {header === undefined ? null : <div className="shrink-0">{header}</div>}
       <div
         ref={observeOverflow}

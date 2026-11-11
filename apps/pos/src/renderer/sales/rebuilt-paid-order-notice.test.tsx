@@ -193,7 +193,10 @@ describe("PaidOrderNotice", () => {
       </div>,
     );
     const container = screen.container.firstElementChild as HTMLElement;
-    const title = screen.getByText(/^Pago con Mercado Pago de/).first().element();
+    const title = screen
+      .getByText(/^Pago con Mercado Pago de/)
+      .first()
+      .element();
 
     for (let width = 352; width >= 200; width -= 2) {
       container.style.width = `${width}px`;
