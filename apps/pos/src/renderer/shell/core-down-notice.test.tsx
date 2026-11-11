@@ -13,7 +13,11 @@ describe("CoreDownNotice", () => {
 
     await expect.element(screen.getByText("Esperá un momento")).toBeVisible();
     await expect
-      .element(screen.getByText("La caja vuelve a funcionar sola en unos minutos", { exact: true }))
+      .element(
+        screen
+          .getByText("La caja vuelve a funcionar sola en unos minutos", { exact: true })
+          .first(),
+      )
       .toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
@@ -44,7 +48,9 @@ describe("CoreDownNotice", () => {
     );
 
     expect(
-      surfaceBehind(screen.getByText("La caja vuelve a funcionar sola en unos minutos").element()),
+      surfaceBehind(
+        screen.getByText("La caja vuelve a funcionar sola en unos minutos").first().element(),
+      ),
     ).toBe(surfaceBehind(reference.container.querySelector("p") as HTMLElement));
   });
 

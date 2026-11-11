@@ -13,7 +13,7 @@ describe("RegisterUpdatingNotice", () => {
 
     await expect.element(screen.getByText("Actualizando la caja")).toBeVisible();
     await expect
-      .element(screen.getByText("Vuelve a abrirse sola en un momento", { exact: true }))
+      .element(screen.getByText("Vuelve a abrirse sola en un momento", { exact: true }).first())
       .toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
@@ -37,9 +37,9 @@ describe("RegisterUpdatingNotice", () => {
       <InlineNotice tone="info" icon={<RefreshCw />} title="Reference" />,
     );
 
-    expect(surfaceBehind(screen.getByText("Vuelve a abrirse sola en un momento").element())).toBe(
-      surfaceBehind(reference.container.querySelector("p") as HTMLElement),
-    );
+    expect(
+      surfaceBehind(screen.getByText("Vuelve a abrirse sola en un momento").first().element()),
+    ).toBe(surfaceBehind(reference.container.querySelector("p") as HTMLElement));
   });
 
   it("shows the brand panel's logo with its accessible name", async () => {
