@@ -1595,3 +1595,55 @@ test("takes focus when it appears with autoFocus, so Enter presses it", async ()
   await userEvent.keyboard("{Enter}");
   expect(onPress).toHaveBeenCalledOnce();
 });
+
+function labelSpanWithKeycap(button: HTMLElement, label: string): HTMLElement {
+  const span = Array.from(button.querySelectorAll("span")).find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (span === undefined) {
+    throw new Error(`no span holds the label "${label}"`);
+  }
+  return span;
+}
+
+test("wraps a long label onto a second line instead of truncating it when wrapLabel is set", async () => {
+  const label = "Cobrar con el pago de Mercado Pago";
+  const screen = await render(
+    <div style={{ width: "340px", display: "flex" }}>
+      <Button size="large" fullWidth wrapLabel keycap="Enter">
+        {label}
+      </Button>
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
+  const span = labelSpanWithKeycap(button, label);
+
+  expect(span.scrollWidth).toBeLessThanOrEqual(span.clientWidth);
+  expect(lineCount(span.firstChild as ChildNode)).toBe(2);
+  expect(span.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    button.getBoundingClientRect().top,
+  );
+  expect(span.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    button.getBoundingClientRect().bottom,
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("truncates a long label without wrapLabel", async () => {
+  const label = "Cobrar con el pago de Mercado Pago";
+  const screen = await render(
+    <div style={{ width: "340px", display: "flex" }}>
+      <Button size="large" fullWidth keycap="Enter">
+        {label}
+      </Button>
+    </div>,
+  );
+
+  expectTruncatedWithEllipsis(
+    labelSpanWithKeycap(
+      screen.getByRole("button", { name: label }).element() as HTMLElement,
+      label,
+    ),
+    label,
+  );
+});

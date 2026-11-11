@@ -164,21 +164,15 @@ describe("ProductSearchResults", () => {
     expect(onChoose).toHaveBeenCalledExactlyOnceWith(QUESO);
   });
 
-  it("counts the results and tells how they are ordered and which keys drive the list", async () => {
+  it("shows the keys that drive the list as a legend under the results", async () => {
     const { screen } = await renderResults();
 
-    await expect
-      .element(screen.getByText("3 resultados · primero los más vendidos en esta caja"))
-      .toBeVisible();
-    await expect.element(screen.getByText("↑ ↓ elegir · Enter agregar · Esc cerrar")).toBeVisible();
-  });
-
-  it("writes 1 resultado in the singular", async () => {
-    const { screen } = await renderResults({ products: [YERBA] });
-
-    await expect
-      .element(screen.getByText("1 resultado · primero los más vendidos en esta caja"))
-      .toBeVisible();
+    const legend = screen.getByRole("listitem");
+    await expect.element(legend).toHaveLength(2);
+    await expect.element(legend.nth(0)).toHaveTextContent("↑↓Elegir");
+    await expect.element(legend.nth(1)).toHaveTextContent("EnterAgregar");
+    await expect.element(screen.getByText(/primero los más vendidos/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/resultado/)).not.toBeInTheDocument();
   });
 
   it("counts the results it shows in the warning that there are more", async () => {
@@ -192,7 +186,7 @@ describe("ProductSearchResults", () => {
       .toBeVisible();
   });
 
-  it("warns that there are more results instead of the footer, and scrolls the twenty it shows", async () => {
+  it("warns that there are more results above the legend, and scrolls the twenty it shows", async () => {
     const { screen } = await renderResults({
       products: Array.from({ length: 20 }, (_, position) => product(position)),
       more: true,
@@ -207,8 +201,7 @@ describe("ProductSearchResults", () => {
           .first(),
       )
       .toBeVisible();
-    await expect.element(screen.getByText(/primero los más vendidos/)).not.toBeInTheDocument();
-    await expect.element(screen.getByText(/↑ ↓ elegir/)).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("listitem")).toHaveLength(2);
     const list = screen.getByRole("listbox").element();
     expect(list.scrollHeight).toBeGreaterThan(list.clientHeight);
     await expectNoAccessibilityViolations(screen.container);

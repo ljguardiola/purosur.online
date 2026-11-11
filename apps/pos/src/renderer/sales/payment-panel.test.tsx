@@ -20,10 +20,13 @@ function renderPanel(props: Partial<PaymentPanelProps> = {}) {
       cancellable
       hasApprovedPayment={false}
       chargeRefusal={null}
+      paidOrderToApply={undefined}
+      canCharge
       canCancel
       canDiscount
       onDiscount={() => {}}
       onCharge={() => {}}
+      onChargePaidOrder={() => {}}
       onCancel={() => {}}
       {...props}
     />,
@@ -35,10 +38,82 @@ describe("PaymentPanel", () => {
     const screen = await renderPanel();
 
     await expectDrawnAsFigureStat(
-      screen.getByText("Total a cobrar").element(),
+      screen.getByText("Total", { exact: true }).element(),
       screen.getByText("$ 4.760,00").first().element(),
+      "hero",
     );
   });
+
+  describe("laying out the panel", () => {
+    it("keeps the ways to charge at the bottom, below Vaciar and the discount", async () => {
+      const screen = await renderPanel();
+
+      const top = (name: string) =>
+        screen.getByRole("button", { name }).element().getBoundingClientRect().top;
+      const bottom = (name: string) =>
+        screen.getByRole("button", { name }).element().getBoundingClientRect().bottom;
+      expect(top("Vaciar")).toBeLessThan(top("Cobrar en efectivo"));
+      expect(top("Aplicar descuento al total")).toBeLessThan(top("Cobrar en efectivo"));
+      expect(bottom("Otros medios")).toBeGreaterThan(bottom("Vaciar"));
+      expect(bottom("Otros medios")).toBeGreaterThan(bottom("QR"));
+    });
+
+    it("draws the cash icon to the left of Cobrar en efectivo", async () => {
+      const screen = await renderPanel();
+
+      const button = screen.getByRole("button", { name: "Cobrar en efectivo" }).element();
+      const label = Array.from(button.querySelectorAll("span")).find(
+        (span) => span.textContent?.trim() === "Cobrar en efectivo",
+      );
+      const icon = button.querySelector("svg");
+      expect(label).toBeDefined();
+      expect(icon).not.toBeNull();
+      expect(icon?.getBoundingClientRect().right).toBeLessThanOrEqual(
+        label?.getBoundingClientRect().left ?? 0,
+      );
+    });
+
+    it("keeps Cancelar venta above the ways to charge as well", async () => {
+      const screen = await renderPanel({ hasApprovedPayment: true });
+
+      const cancel = screen.getByRole("button", { name: "Cancelar venta" }).element();
+      const cash = screen.getByRole("button", { name: "Cobrar en efectivo" }).element();
+      expect(cancel.getBoundingClientRect().top).toBeLessThan(cash.getBoundingClientRect().top);
+    });
+
+    it("draws the arrow of Otros medios to the right of its text, before the F1 key", async () => {
+      const screen = await renderPanel();
+
+      const button = screen.getByRole("button", { name: "Otros medios" }).element();
+      const label = Array.from(button.querySelectorAll("span")).find(
+        (span) => span.textContent?.trim() === "Otros medios",
+      );
+      const arrow = button.querySelector("svg");
+      const key = Array.from(button.querySelectorAll("span")).find(
+        (span) => span.textContent === "F1",
+      );
+      expect(label).toBeDefined();
+      expect(arrow).not.toBeNull();
+      expect(key).toBeDefined();
+      const text = document.createRange();
+      text.selectNodeContents((label as HTMLElement).firstChild as Node);
+      const labelBox = text.getBoundingClientRect();
+      const arrowBox = (arrow as SVGElement).getBoundingClientRect();
+      const keyBox = (key as HTMLElement).getBoundingClientRect();
+      expect(arrowBox.left).toBeGreaterThanOrEqual(labelBox.right - 1);
+      expect(keyBox.left).toBeGreaterThanOrEqual(arrowBox.right);
+    });
+  });
+
+  it.each(["Point débito", "Point crédito", "QR"])(
+    "shows the label of the %s tile in full",
+    async (label) => {
+      const screen = await renderPanel();
+
+      const text = screen.getByText(label, { exact: true }).element();
+      expect(text.scrollWidth).toBeLessThanOrEqual(text.clientWidth);
+    },
+  );
 
   it("shows what is paid and the pending balance once part of the sale is paid", async () => {
     const screen = await renderPanel({ paid: 100_000, pending: 376_000 });
@@ -52,36 +127,32 @@ describe("PaymentPanel", () => {
   it("shows no paid or pending rows while nothing is paid", async () => {
     const screen = await renderPanel();
 
-    await expect.element(screen.getByText("Total a cobrar")).toBeVisible();
+    await expect.element(screen.getByText("Total", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Pagado")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Saldo pendiente")).not.toBeInTheDocument();
   });
 
-  it("offers Vaciar carrito for a cart with lines and no approved payment", async () => {
+  it("offers Vaciar for a cart with lines and no approved payment", async () => {
     const screen = await renderPanel();
 
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar" })).toBeEnabled();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
   });
 
-  it("offers Cancelar venta, not Vaciar carrito, once a payment was approved", async () => {
+  it("offers Cancelar venta, not Vaciar, once a payment was approved", async () => {
     const screen = await renderPanel({ hasApprovedPayment: true });
 
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
-    await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Vaciar" })).not.toBeInTheDocument();
   });
 
   it("offers neither action for an empty cart", async () => {
     const screen = await renderPanel({ lineCount: 0, total: 0, pending: 0 });
 
-    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Vaciar" })).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
@@ -90,20 +161,38 @@ describe("PaymentPanel", () => {
   it("offers no action for a sale that cannot be cancelled", async () => {
     const screen = await renderPanel({ cancellable: false });
 
-    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Vaciar" })).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
   });
 
-  it("counts the lines with the amount of the sale at list price", async () => {
+  it("counts the articles of the sale", async () => {
+    const screen = await renderPanel({ lineCount: 4 });
+
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
+    await expect.element(screen.getByText("4", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/líneas/)).not.toBeInTheDocument();
+  });
+
+  it("shows the amount of the sale at list price as its subtotal once a promotion saved something, counting the articles once", async () => {
     const screen = await renderPanel({ grossSubtotal: 520_000, promotionSavings: 20_000 });
 
-    await expect.element(screen.getByText("2 líneas")).toBeVisible();
+    await expect.element(screen.getByText("Subtotal")).toBeVisible();
     await expect.element(screen.getByText("$ 5.200,00")).toBeVisible();
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
+    await expect.element(screen.getByText(/líneas/)).not.toBeInTheDocument();
+  });
+
+  it("shows the subtotal, counting the articles once, once a discount on the total is applied", async () => {
+    const screen = await renderPanel({
+      saleDiscount: { kind: "AMOUNT", value: 24_000, amount: 24_000 },
+    });
+
+    await expect.element(screen.getByText("Subtotal")).toBeVisible();
+    await expect.element(screen.getByText("$ 5.000,00")).toBeVisible();
+    await expect.element(screen.getByText(/líneas/)).not.toBeInTheDocument();
   });
 
   it("shows what the promotions saved, leaving the total to charge as it is", async () => {
@@ -117,7 +206,7 @@ describe("PaymentPanel", () => {
   it("shows no promotion savings row while no promotion saves anything", async () => {
     const screen = await renderPanel();
 
-    await expect.element(screen.getByText("2 líneas")).toBeVisible();
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
     await expect.element(screen.getByText("Ahorro en promociones")).not.toBeInTheDocument();
   });
 
@@ -147,6 +236,13 @@ describe("PaymentPanel", () => {
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(screen.getByText("Descuento sobre el total")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
+  });
+
+  it("counts no articles once the sale cannot be read", async () => {
+    const screen = await renderPanel({ saleStatus: "failed", lineCount: 0, total: 0 });
+
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
+    await expect.element(screen.getByText("0", { exact: true })).toBeVisible();
   });
 
   it("says nothing of the discount on the total once the sale cannot be read", async () => {
@@ -219,15 +315,125 @@ describe("PaymentPanel", () => {
   it("offers no discount on the total once the sale cannot be read", async () => {
     const screen = await renderPanel({ saleStatus: "failed", canDiscount: false });
 
-    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Aplicar descuento al total" }))
       .not.toBeInTheDocument();
   });
 
-  it("counts the lines with the thousands separator", async () => {
+  it("counts the articles with the thousands separator", async () => {
     const screen = await renderPanel({ lineCount: 1998 });
 
-    await expect.element(screen.getByText("1.998 líneas")).toBeVisible();
+    await expect.element(screen.getByText("1.998", { exact: true })).toBeVisible();
+  });
+
+  describe("the ways to charge", () => {
+    it("offers cash on F12 as the main action and the terminal and QR on tiles with their keys", async () => {
+      const screen = await renderPanel();
+
+      const cash = screen.getByRole("button", { name: "Cobrar en efectivo" });
+      expect(cash.element().textContent).toMatch(/F12/);
+      expect(screen.getByRole("button", { name: "Point débito" }).element().textContent).toMatch(
+        /F9/,
+      );
+      expect(screen.getByRole("button", { name: "Point crédito" }).element().textContent).toMatch(
+        /F10/,
+      );
+      expect(screen.getByRole("button", { name: "QR" }).element().textContent).toMatch(/F11/);
+      expect(screen.getByRole("button", { name: "Otros medios" }).element().textContent).toMatch(
+        /F1$/,
+      );
+    });
+
+    it("asks to charge with the method of the button pressed, and with none for the other methods", async () => {
+      const onCharge = vi.fn();
+      const screen = await renderPanel({ onCharge });
+
+      await screen.getByRole("button", { name: "Cobrar en efectivo" }).click();
+      await screen.getByRole("button", { name: "Point débito" }).click();
+      await screen.getByRole("button", { name: "Point crédito" }).click();
+      await screen.getByRole("button", { name: "QR" }).click();
+      await screen.getByRole("button", { name: "Otros medios" }).click();
+
+      expect(onCharge.mock.calls).toEqual([
+        ["CASH"],
+        ["POINT_DEBIT"],
+        ["POINT_CREDIT"],
+        ["QR"],
+        [undefined],
+      ]);
+    });
+
+    it("disables every way to charge while the sale cannot be charged", async () => {
+      const screen = await renderPanel({ canCharge: false });
+
+      for (const name of [
+        "Cobrar en efectivo",
+        "Point débito",
+        "Point crédito",
+        "QR",
+        "Otros medios",
+      ]) {
+        await expect.element(screen.getByRole("button", { name })).toBeDisabled();
+      }
+    });
+
+    it("shows the paid order and its single button with Enter instead of the ways to charge", async () => {
+      const onChargePaidOrder = vi.fn();
+      const screen = await renderPanel({
+        paidOrderToApply: { method: "QR", amount: 920_000 },
+        onChargePaidOrder,
+      });
+
+      await expect
+        .element(screen.getByRole("status"))
+        .toHaveTextContent(
+          "Pago con Mercado Pago de $ 9.200,00 Aplicado a la venta antes de cobrar con otro medio.",
+        );
+      const apply = screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" });
+      expect(apply.element().textContent).toMatch(/Enter/);
+      for (const name of [
+        "Cobrar en efectivo",
+        "Point débito",
+        "Point crédito",
+        "QR",
+        "Otros medios",
+      ]) {
+        await expect.element(screen.getByRole("button", { name })).not.toBeInTheDocument();
+      }
+      await apply.click();
+      expect(onChargePaidOrder).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+      ["QR", "lucide-qr-code"],
+      ["POINT", "lucide-credit-card"],
+    ] as const)(
+      "draws the %s paid order's button with the same icon as its notice",
+      async (method, iconClass) => {
+        const screen = await renderPanel({ paidOrderToApply: { method, amount: 920_000 } });
+
+        const noticeIcon = screen.getByRole("status").element().parentElement?.querySelector("svg");
+        const buttonIcon = screen
+          .getByRole("button", { name: "Cobrar con el pago de Mercado Pago" })
+          .element()
+          .querySelector("svg");
+        expect(noticeIcon?.classList.contains(iconClass)).toBe(true);
+        expect(buttonIcon?.classList.contains(iconClass)).toBe(true);
+      },
+    );
+
+    it("disables the paid order's button while the core refuses the charge, saying why", async () => {
+      const screen = await renderPanel({
+        paidOrderToApply: { method: "QR", amount: 920_000 },
+        chargeRefusal: { kind: "no_buyer_identification_threshold" },
+        canCharge: false,
+      });
+
+      await expect.element(screen.getByText("Falta el tope de venta")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" }))
+        .toBeDisabled();
+    });
   });
 });

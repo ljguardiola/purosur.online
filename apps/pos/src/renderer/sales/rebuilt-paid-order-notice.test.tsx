@@ -1,9 +1,9 @@
 import type { ChargeSaleWithPaidOrderOutcome } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, staysOnOneLine } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
+import { PaidOrderNotice, RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
 
 const APPLY = "Cobrar con el pago de Mercado Pago";
 const FAILED = "No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.";
@@ -50,19 +50,19 @@ describe("RebuiltPaidOrderNotice", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Pago con QR de Mercado Pago de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+        "Pago con Mercado Pago de $ 5.000,00 Aplicado a la venta antes de cobrar con otro medio.",
       );
     await expect.element(screen.getByRole("button", { name: APPLY })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("names a Point paid order as Point", async () => {
+  it("names a Point paid order as Mercado Pago too", async () => {
     const { screen } = await renderNotice({ paidOrder: { ...QR_ORDER, method: "POINT" } });
 
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Pago con Point de $ 5.000,00 Aplicalo a la venta antes de cobrar con otro medio.",
+        "Pago con Mercado Pago de $ 5.000,00 Aplicado a la venta antes de cobrar con otro medio.",
       );
   });
 
@@ -182,5 +182,25 @@ describe("RebuiltPaidOrderNotice", () => {
     await userEvent.click(screen.getByRole("button", { name: APPLY }));
 
     await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("PaidOrderNotice", () => {
+  it("keeps the amount in the title from splitting across lines", async () => {
+    const screen = await render(
+      <div style={{ width: "352px" }}>
+        <PaidOrderNotice paidOrder={{ method: "QR", amount: 920_000 }} />
+      </div>,
+    );
+    const container = screen.container.firstElementChild as HTMLElement;
+    const title = screen
+      .getByText(/^Pago con Mercado Pago de/)
+      .first()
+      .element();
+
+    for (let width = 352; width >= 200; width -= 2) {
+      container.style.width = `${width}px`;
+      expect(staysOnOneLine(title, "$ 9.200,00"), `at ${width}px`).toBe(true);
+    }
   });
 });

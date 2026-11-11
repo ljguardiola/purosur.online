@@ -1,5 +1,14 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Archive, CircleAlert, Package, Pencil, SearchX, Trash2 } from "lucide-react";
+import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
+import {
+  Archive,
+  Barcode,
+  CircleAlert,
+  Package,
+  Pencil,
+  SearchX,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { plural } from "../../../messages/formatters";
@@ -9,6 +18,7 @@ import {
 } from "../../../test-support/story-interactions";
 import { Button } from "../../forms/button";
 import { Eyebrow } from "../../layout/eyebrow";
+import type { KeyLegendItem } from "../key-legend";
 import { Table } from "./table";
 import { actionsColumn, dataColumn, groupColumn } from "./table-columns";
 import { TablePagination } from "./table-pagination";
@@ -285,6 +295,39 @@ export const WithTwoActions: Story = {
     <ProductsTable
       aria-label="Productos"
       columns={twoActionColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+};
+
+const disabledActionColumns = [
+  ...baseColumns,
+  actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Editar ${item.name}`,
+        disabled: true,
+        onPress: () => {},
+      }),
+      (item: Product) => ({
+        icon: <Trash2 />,
+        "aria-label": `Eliminar ${item.name}`,
+        disabled: true,
+        onPress: () => {},
+      }),
+    ],
+  }),
+] as const;
+
+export const WithDisabledActions: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={disabledActionColumns}
       sort={sort}
       onSortChange={onSortChange}
     />
@@ -719,4 +762,64 @@ function PagedProductsTable({ initialPage }: { initialPage: number }) {
 
 export const Paged: Story = {
   render: () => <PagedProductsTable initialPage={3} />,
+};
+
+const saleLegend: readonly KeyLegendItem[] = [
+  { keyName: "ArrowUpDown", label: "Líneas" },
+  { keyName: "F2", label: "Buscar" },
+  { keyName: "Delete", label: "Quitar" },
+];
+
+const inTallCard: Decorator = (Story) => (
+  <div className="h-120 w-208">
+    <Story />
+  </div>
+);
+
+export const RegisterCard: Story = {
+  decorators: [inTallCard],
+  render: () => (
+    <ProductsTable
+      aria-label="Líneas de la venta"
+      columns={baseColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+      fill
+      legend={saleLegend}
+      rowState={(item) => (item.id === "3" ? "selected" : undefined)}
+    />
+  ),
+};
+
+export const RegisterCardEmpty: Story = {
+  decorators: [inTallCard],
+  render: () => (
+    <ProductsTable
+      aria-label="Líneas de la venta"
+      columns={baseColumns}
+      items={noProducts}
+      fill
+      legend={saleLegend.slice(1, 2)}
+      empty={{ icon: <Barcode />, title: "La venta está vacía", variant: "blank" }}
+    />
+  ),
+};
+
+export const RegisterCardFailure: Story = {
+  decorators: [inTallCard],
+  render: () => (
+    <ProductsTable
+      aria-label="Líneas de la venta"
+      columns={baseColumns}
+      items={noProducts}
+      fill
+      legend={[{ keyName: "R", label: "Reintentar" }]}
+      failure={{
+        variant: "centered",
+        icon: <TriangleAlert />,
+        title: "No se pudo cargar la venta",
+        description: "Volvé a intentarlo en unos segundos.",
+      }}
+    />
+  ),
 };
