@@ -29,7 +29,8 @@ export function PaidOrderNotice({
     <HighlightedNotice
       tone="info"
       icon={paidOrder.method === "QR" ? <QrCode /> : <CreditCard />}
-      title={`Pago con Mercado Pago de ${formatCents(paidOrder.amount).replace(" ", "\u00a0")}`}
+      title="Pago con Mercado Pago de"
+      titleAmount={formatCents(paidOrder.amount)}
       description="Aplicado a la venta antes de cobrar con otro medio."
       layout="row"
       actions={actions}

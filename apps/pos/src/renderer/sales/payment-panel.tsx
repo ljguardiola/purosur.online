@@ -112,7 +112,7 @@ export function PaymentPanel({
         },
   ];
   return (
-    <SidePanel label="Panel de cobro">
+    <SidePanel label="Panel de cobro" width="wide">
       <FigureStat size="hero" label="Total" value={formatCents(total)} />
       {saleStatus === "loading" ? (
         <LoadingPlaceholder variant="card" lines={2} />
@@ -221,7 +221,7 @@ export function PaymentPanel({
             size="large"
             fullWidth
             wrapLabel
-            icon={<QrCode />}
+            icon={paidOrderToApply.method === "QR" ? <QrCode /> : <CreditCard />}
             iconPosition="start"
             keycap="Enter"
             disabled={chargeRefusal !== null}
