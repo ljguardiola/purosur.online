@@ -44,7 +44,7 @@ export const ALMENDRAS_LINE: InitialCountLine = {
   counted: 4500,
   expires_on: null,
 };
-export const AVENA_LINE: InitialCountLine = {
+const AVENA_LINE: InitialCountLine = {
   movement_id: "m4",
   product_id: "p4",
   product_name: "Avena arrollada",
