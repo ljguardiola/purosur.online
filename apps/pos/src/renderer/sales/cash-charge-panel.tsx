@@ -11,7 +11,6 @@ import type { SummaryRowProps } from "@purosur/ui";
 import {
   Button,
   Card,
-  CloseButton,
   FigureStat,
   fieldErrorMessage,
   formatAmountInput,
@@ -23,6 +22,7 @@ import {
   parseAmountCents,
   QuickAmountButton,
   SidePanel,
+  SidePanelTitle,
   SummaryRowGroup,
   TextField,
   useRequestForm,
@@ -380,20 +380,11 @@ export function CashChargePanel({
       label="Cobro en efectivo"
       width="wide"
       header={
-        <div className="flex items-center gap-3 px-6 pt-6">
-          <span
-            aria-hidden="true"
-            className="flex size-control-lg shrink-0 items-center justify-center rounded-full bg-surface-soft text-text-accent"
-          >
-            <Banknote className="size-icon-md" />
-          </span>
-          <h2 className="text-heading font-bold text-text">Efectivo</h2>
-          {submitting ? null : (
-            <span className="ml-auto">
-              <CloseButton escapeKeycap onPress={onBack} />
-            </span>
-          )}
-        </div>
+        <SidePanelTitle
+          icon={<Banknote />}
+          title="Efectivo"
+          onClose={submitting ? undefined : onBack}
+        />
       }
       footer={
         <>

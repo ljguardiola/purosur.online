@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Wallet } from "lucide-react";
+import { Banknote, Wallet } from "lucide-react";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -23,3 +23,7 @@ export default meta;
 type Story = StoryObj<typeof SidePanelTitle>;
 
 export const Default: Story = {};
+
+export const WithEscape: Story = {
+  args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
+};
