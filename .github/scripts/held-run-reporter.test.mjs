@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { test } from "node:test";
 import { HeldRunReporter } from "./held-run-reporter.mjs";
 
@@ -6,19 +7,64 @@ const GRACE_MS = 60_000;
 const STALL_MS = 300_000;
 const ROOT = "/repo";
 
-function fakeVitest({ watch = false, openPages = {}, unhandledErrors = [], reporters = [] } = {}) {
+function fakeVitest({
+  watch = false,
+  openPages = {},
+  pagesNeverConnected = {},
+  unhandledErrors = [],
+  reporters = [],
+} = {}) {
+  const projects = ["node", "browser"].map((name) => ({
+    name,
+    browser:
+      name in openPages || name in pagesNeverConnected
+        ? {
+            vite: { httpServer: new EventEmitter() },
+            state: {
+              orchestrators: new Map((openPages[name] ?? []).map((id) => [id, {}])),
+              testers: new Map(),
+            },
+          }
+        : undefined,
+  }));
+  const sessions = new Map(
+    projects.flatMap((project) =>
+      [...(openPages[project.name] ?? []), ...(pagesNeverConnected[project.name] ?? [])].map(
+        (id) => [id, { project }],
+      ),
+    ),
+  );
   return {
     config: { root: ROOT, watch },
-    projects: ["node", "browser"].map((name) => ({
-      name,
-      browser:
-        name in openPages
-          ? { state: { orchestrators: new Map(openPages[name].map((id) => [id, {}])) } }
-          : undefined,
-    })),
+    projects,
+    _browserSessions: {
+      sessionIds: new Set(sessions.keys()),
+      getSession: (id) => sessions.get(id),
+    },
     state: { getUnhandledErrors: () => unhandledErrors },
     reporters,
   };
+}
+
+function browserOf(vitest) {
+  return vitest.projects.find((project) => project.name === "browser").browser;
+}
+
+function requestTestFrame(vitest, sessionId, file) {
+  browserOf(vitest).vite.httpServer.emit("request", {
+    url: `/?sessionId=${sessionId}&iframeId=${encodeURIComponent(`${ROOT}/${file}`)}`,
+  });
+}
+
+function askToConnectTestFrame(vitest, sessionId, testerId) {
+  browserOf(vitest).vite.httpServer.emit("upgrade", {
+    url: `/__vitest_browser_api__?type=tester&rpcId=${testerId}&sessionId=${sessionId}&projectName=browser`,
+  });
+}
+
+function connectTestFrame(vitest, sessionId, testerId) {
+  askToConnectTestFrame(vitest, sessionId, testerId);
+  browserOf(vitest).state.testers.set(testerId, {});
 }
 
 function spec(project, file) {
@@ -73,6 +119,9 @@ async function startedReporter(vitest, specs, { executed = specs, exit } = {}) {
   reporter.onTestRunStart(specs);
   const Sequencer = reporter.trackExecutedFiles(OrderPreservingSequencer);
   await new Sequencer(vitest).sort(executed);
+  for (const project of vitest.projects.filter((project) => project.browser)) {
+    reporter.onBrowserInit(project);
+  }
   return { reporter, lines, exits };
 }
 
@@ -326,9 +375,119 @@ test("ends the run when nothing in it progresses within the stall period while a
   assert.deepEqual(lines, [
     "held-run: no test finished and no test file started in the last 300s",
     'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
-      '"browser" has 1 browser page open: s1',
+      '"browser" has 1 browser page open: s1; no test frame was requested for it',
     "held-run: ending with a failure (1 files reported, 1 still to report)",
   ]);
+});
+
+test("says no browser page is open when a run stalls before its browser file's page opens", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { lines } = await startedReporter(fakeVitest({ openPages: { browser: [] } }), [
+    spec("browser", "never-started.test.tsx"),
+  ]);
+
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has no browser page open; no test frame was requested for it',
+  );
+});
+
+test("names the browser pages whose orchestrator never connected when a run stalls while they open", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const { lines } = await startedReporter(
+    fakeVitest({ openPages: { browser: ["s1"] }, pagesNeverConnected: { browser: ["s2"] } }),
+    [spec("browser", "never-started.test.tsx")],
+  );
+
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has 1 browser page open: s1 and 1 browser page whose orchestrator never connected: s2; ' +
+      "no test frame was requested for it",
+  );
+});
+
+test("names the page a browser file's test frame was requested on when the frame never connected", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({ openPages: { browser: ["s1"] } });
+  const { lines } = await startedReporter(vitest, [spec("browser", "never-started.test.tsx")]);
+
+  requestTestFrame(vitest, "s1", "never-started.test.tsx");
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has 1 browser page open: s1; ' +
+      "the test frame of never-started.test.tsx was requested on page s1 and never connected",
+  );
+});
+
+test("says a browser file's test frame connected when a run stalls after it connected", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({ openPages: { browser: ["s1"] } });
+  const { lines } = await startedReporter(vitest, [spec("browser", "never-started.test.tsx")]);
+
+  requestTestFrame(vitest, "s1", "never-started.test.tsx");
+  connectTestFrame(vitest, "s1", "t1");
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has 1 browser page open: s1; ' +
+      "the test frame of never-started.test.tsx connected on page s1",
+  );
+});
+
+test("says a browser file's test frame has no open connection when Vitest refused or closed it", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({ openPages: { browser: ["s1"] } });
+  const { lines } = await startedReporter(vitest, [spec("browser", "never-started.test.tsx")]);
+
+  requestTestFrame(vitest, "s1", "never-started.test.tsx");
+  askToConnectTestFrame(vitest, "s1", "t1");
+  browserOf(vitest).state.testers.set("t2", {});
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has 1 browser page open: s1; ' +
+      "the test frame of never-started.test.tsx was requested on page s1 and has no open connection",
+  );
+});
+
+test("names no test frame of another file when a browser file's own frame was never requested", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({ openPages: { browser: ["s1", "s2"] } });
+  const { reporter, lines } = await startedReporter(vitest, [
+    spec("browser", "a.test.tsx"),
+    spec("browser", "b.test.tsx"),
+  ]);
+
+  requestTestFrame(vitest, "s1", "a.test.tsx");
+  connectTestFrame(vitest, "s1", "tA");
+  reporter.onTestModuleQueued(startedModule("browser", "a.test.tsx"));
+  reporter.onTestModuleEnd(finishedModule("browser", "a.test.tsx"));
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: b.test.tsx; ' +
+      '"browser" has 2 browser pages open: s1, s2; no test frame was requested for it',
+  );
 });
 
 test("names each file still to report and the browser pages still open when it ends a stalled run", async (t) => {
@@ -347,7 +506,7 @@ test("names each file still to report and the browser pages still open when it e
     'held-run: no "browser" test finished in the last 300s while one of its files ran',
     'held-run: 1 "node" file still to report: a.test.ts',
     `held-run: 12 "browser" files still to report: ${files.join(", ")}; ` +
-      '"browser" has 2 browser pages open: s1, s2',
+      '"browser" has 2 browser pages open: s1, s2; no test frame was requested for them',
     "held-run: ending with a failure (0 files reported, 13 still to report)",
   ]);
 });
