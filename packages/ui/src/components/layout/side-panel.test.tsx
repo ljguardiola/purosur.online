@@ -13,7 +13,7 @@ test("is a complementary landmark named by its label", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("is 400px wide with a left border and the surface background", async () => {
+test("is 392px wide with a left border and the surface background", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "600px" }}>
       <SidePanel label="Panel">Contenido</SidePanel>
@@ -22,14 +22,14 @@ test("is 400px wide with a left border and the surface background", async () => 
   const panel = screen.getByRole("complementary").element();
   const style = getComputedStyle(panel);
 
-  expect(panel.getBoundingClientRect().width).toBe(400);
+  expect(panel.getBoundingClientRect().width).toBe(392);
   expect(style.borderLeftWidth).toBe("1px");
   expect(style.borderLeftColor).toBe(tokenRgb("border"));
   expect(style.borderRightWidth).toBe("0px");
   expect(style.backgroundColor).toBe(tokenRgb("surface"));
 });
 
-test("keeps its content 24px inside its edges", async () => {
+test("keeps its content 32px inside its edges", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "600px" }}>
       <SidePanel label="Panel">
@@ -40,9 +40,9 @@ test("keeps its content 24px inside its edges", async () => {
   const panel = screen.getByRole("complementary").element().getBoundingClientRect();
   const content = screen.getByText("Contenido").element().getBoundingClientRect();
 
-  expect(content.top - panel.top).toBeCloseTo(24, 0);
-  expect(content.left - panel.left).toBeCloseTo(1 + 24, 0);
-  expect(panel.right - content.right).toBeCloseTo(24, 0);
+  expect(content.top - panel.top).toBeCloseTo(32, 0);
+  expect(content.left - panel.left).toBeCloseTo(1 + 32, 0);
+  expect(panel.right - content.right).toBeCloseTo(32, 0);
 });
 
 test("stacks its children 16px apart", async () => {
@@ -58,7 +58,7 @@ test("stacks its children 16px apart", async () => {
   expect(second.top - first.bottom).toBeCloseTo(16, 0);
 });
 
-test("sits its footer at the bottom edge, 24px above it, in a tall container", async () => {
+test("sits its footer at the bottom edge, 32px above it, in a tall container", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "600px" }}>
       <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
@@ -70,7 +70,7 @@ test("sits its footer at the bottom edge, 24px above it, in a tall container", a
   const footer = screen.getByRole("button", { name: "Cancelar" }).element().getBoundingClientRect();
 
   expect(panel.height).toBe(600);
-  expect(footer.bottom).toBeCloseTo(panel.bottom - 24, 0);
+  expect(footer.bottom).toBeCloseTo(panel.bottom - 32, 0);
 });
 
 function scrollToTheEndAround(element: Element) {
@@ -101,7 +101,7 @@ test("scrolls a body taller than the panel inside itself, ending 16px above the 
   const lastLine = screen.getByText("Línea 40", { exact: true }).element();
 
   expect(panel.height).toBe(600);
-  expect(footer.bottom).toBeCloseTo(panel.bottom - 24, 0);
+  expect(footer.bottom).toBeCloseTo(panel.bottom - 32, 0);
   scrollToTheEndAround(lastLine);
   expect(footer.top - lastLine.getBoundingClientRect().bottom).toBeCloseTo(16, 0);
   expect(
@@ -109,7 +109,7 @@ test("scrolls a body taller than the panel inside itself, ending 16px above the 
   ).toEqual(footer);
 });
 
-test("scrolls a body taller than the panel and without a footer inside itself, ending 24px above the bottom edge", async () => {
+test("scrolls a body taller than the panel and without a footer inside itself, ending 32px above the bottom edge", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "600px" }}>
       <SidePanel label="Panel">{FORTY_LINES}</SidePanel>
@@ -120,7 +120,7 @@ test("scrolls a body taller than the panel and without a footer inside itself, e
 
   expect(panel.height).toBe(600);
   scrollToTheEndAround(lastLine);
-  expect(panel.bottom - lastLine.getBoundingClientRect().bottom).toBeCloseTo(24, 0);
+  expect(panel.bottom - lastLine.getBoundingClientRect().bottom).toBeCloseTo(32, 0);
 });
 
 test("lets the keyboard reach a body taller than the panel to scroll it", async () => {
@@ -233,4 +233,61 @@ test("fills its container with no left border when asked to fill it", async () =
 
   expect(panel.getBoundingClientRect().width).toBe(700);
   expect(getComputedStyle(panel).borderLeftWidth).toBe("0px");
+});
+
+test("is 400px wide with a left border when asked to be wide", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" width="wide">
+        Contenido
+      </SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element();
+
+  expect(panel.getBoundingClientRect().width).toBe(400);
+  expect(getComputedStyle(panel).borderLeftWidth).toBe("1px");
+});
+
+test("keeps the content of a wide panel 24px inside its edges, its footer included", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel
+        label="Panel"
+        width="wide"
+        footer={
+          <button type="button" style={{ width: "100%" }}>
+            Cancelar
+          </button>
+        }
+      >
+        <p style={{ width: "100%" }}>Contenido</p>
+      </SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element().getBoundingClientRect();
+  const content = screen.getByText("Contenido").element().getBoundingClientRect();
+  const footer = screen.getByRole("button", { name: "Cancelar" }).element().getBoundingClientRect();
+
+  expect(content.top - panel.top).toBeCloseTo(24, 0);
+  expect(content.left - panel.left).toBeCloseTo(1 + 24, 0);
+  expect(panel.right - content.right).toBeCloseTo(24, 0);
+  expect(footer.left - panel.left).toBeCloseTo(1 + 24, 0);
+  expect(panel.right - footer.right).toBeCloseTo(24, 0);
+  expect(panel.bottom - footer.bottom).toBeCloseTo(24, 0);
+});
+
+test("ends the body of a wide panel without a footer 24px above the bottom edge", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" width="wide">
+        {FORTY_LINES}
+      </SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element().getBoundingClientRect();
+  const lastLine = screen.getByText("Línea 40", { exact: true }).element();
+
+  scrollToTheEndAround(lastLine);
+  expect(panel.bottom - lastLine.getBoundingClientRect().bottom).toBeCloseTo(24, 0);
 });

@@ -1601,7 +1601,7 @@ function labelSpanWithKeycap(button: HTMLElement, label: string): HTMLElement {
     (candidate) => candidate.textContent === label,
   );
   if (span === undefined) {
-    throw new Error(`no span holds the label ""`);
+    throw new Error(`no span holds the label "${label}"`);
   }
   return span;
 }

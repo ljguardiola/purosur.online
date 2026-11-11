@@ -1,5 +1,5 @@
 import type { ChargeSaleWithPaidOrderOutcome } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, staysOnOneLine } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -187,12 +187,17 @@ describe("RebuiltPaidOrderNotice", () => {
 
 describe("PaidOrderNotice", () => {
   it("keeps the amount in the title from splitting across lines", async () => {
-    const screen = await render(<PaidOrderNotice paidOrder={{ method: "QR", amount: 920_000 }} />);
+    const screen = await render(
+      <div style={{ width: "352px" }}>
+        <PaidOrderNotice paidOrder={{ method: "QR", amount: 920_000 }} />
+      </div>,
+    );
+    const container = screen.container.firstElementChild as HTMLElement;
+    const title = screen.getByText(/^Pago con Mercado Pago de/).first().element();
 
-    const title = screen
-      .getByText(/^Pago con Mercado Pago de/)
-      .first()
-      .element();
-    expect(title.textContent).toBe("Pago con Mercado Pago de $ 9.200,00");
+    for (let width = 352; width >= 200; width -= 2) {
+      container.style.width = `${width}px`;
+      expect(staysOnOneLine(title, "$ 9.200,00"), `at ${width}px`).toBe(true);
+    }
   });
 });

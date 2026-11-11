@@ -390,6 +390,24 @@ describe("PaymentPanel", () => {
       expect(onChargePaidOrder).toHaveBeenCalledOnce();
     });
 
+    it.each([
+      ["QR", "lucide-qr-code"],
+      ["POINT", "lucide-credit-card"],
+    ] as const)(
+      "draws the %s paid order's button with the same icon as its notice",
+      async (method, iconClass) => {
+        const screen = await renderPanel({ paidOrderToApply: { method, amount: 920_000 } });
+
+        const noticeIcon = screen.getByRole("status").element().parentElement?.querySelector("svg");
+        const buttonIcon = screen
+          .getByRole("button", { name: "Cobrar con el pago de Mercado Pago" })
+          .element()
+          .querySelector("svg");
+        expect(noticeIcon?.classList.contains(iconClass)).toBe(true);
+        expect(buttonIcon?.classList.contains(iconClass)).toBe(true);
+      },
+    );
+
     it("disables the paid order's button while the core refuses the charge, saying why", async () => {
       const screen = await renderPanel({
         paidOrderToApply: { method: "QR", amount: 920_000 },

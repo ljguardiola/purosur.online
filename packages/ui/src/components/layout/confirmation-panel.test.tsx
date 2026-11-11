@@ -64,7 +64,7 @@ test("shows the action at the bottom with the Enter keycap and confirms when pre
   const action = screen.getByRole("button", { name: "Salir" });
 
   expect(action.element().querySelector("kbd")?.textContent).toBe("Enter");
-  expect(panelBox.bottom - action.element().getBoundingClientRect().bottom).toBeCloseTo(24, 0);
+  expect(panelBox.bottom - action.element().getBoundingClientRect().bottom).toBeCloseTo(32, 0);
   await userEvent.click(action);
 
   expect(onConfirm).toHaveBeenCalledOnce();

@@ -3,6 +3,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { staysOnOneLine } from "../../test/text-lines";
 import { rgbToHex, tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
@@ -443,4 +444,45 @@ test("keeps the text beside the icon in the row layout without an action", async
   expect(textRect.left - iconRect.right).toBeGreaterThan(15);
   expect(textRect.left - iconRect.right).toBeLessThan(17);
   expect(textRect.top).toBeLessThan(iconRect.bottom);
+});
+
+test("keeps the amount that ends the title on one line however narrow the notice is", async () => {
+  const screen = await render(
+    <div style={{ width: "400px" }}>
+      <HighlightedNotice
+        tone="info"
+        layout="row"
+        icon={<Info />}
+        title="Pago con Mercado Pago de"
+        titleAmount="$ 9.200,00"
+        description="Aplicado a la venta antes de cobrar con otro medio."
+      />
+    </div>,
+  );
+  const container = screen.container.firstElementChild as HTMLElement;
+  const title = screen.getByText(/^Pago con Mercado Pago de/).first().element();
+
+  expect(title.textContent).toBe("Pago con Mercado Pago de $ 9.200,00");
+  for (let width = 400; width >= 200; width -= 2) {
+    container.style.width = `${width}px`;
+    expect(staysOnOneLine(title, "$ 9.200,00"), `at ${width}px`).toBe(true);
+  }
+});
+
+test("announces the title's amount together with the title", async () => {
+  const screen = await render(
+    <HighlightedNotice
+      tone="info"
+      icon={<Info />}
+      title="Pago con Mercado Pago de"
+      titleAmount="$ 9.200,00"
+      description="Aplicado a la venta antes de cobrar con otro medio."
+    />,
+  );
+
+  await expect
+    .element(screen.getByRole("status"))
+    .toHaveTextContent(
+      "Pago con Mercado Pago de $ 9.200,00 Aplicado a la venta antes de cobrar con otro medio.",
+    );
 });
