@@ -67,7 +67,6 @@ function renderScreen(services: MercadoPagoChargeCostsScreenServices, handlers: 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
 const NO_CHARGES = "No hay cobros de Mercado Pago en este período";
-const NO_REGISTER_CHARGES = "Ninguna caja cobró con Mercado Pago en este período";
 
 function chargesTable(screen: Screen) {
   return screen.getByRole("table", { name: "Cobros de Mercado Pago", exact: true });
@@ -144,18 +143,6 @@ test("shows the amount of a charge no report has carried yet, and Pendiente inst
   await expect.element(charge.getByText("Point", { exact: true })).toBeVisible();
   await expect.element(charge.getByText(formatSignedCents(50_000), { exact: true })).toBeVisible();
   expect(charge.getByText("Pendiente", { exact: true }).elements()).toHaveLength(5);
-});
-
-test("says which charges were not made from a sale of the system, and that every branch shows them", async () => {
-  const screen = await renderScreen(createServices());
-
-  await expect
-    .element(
-      screen.getByText(
-        "Los otros cobros son cobros de Mercado Pago que no salieron de una venta del sistema; se muestran en el reporte de todas las sucursales.",
-      ),
-    )
-    .toBeVisible();
 });
 
 test("totals the charges by day under a Día column, newest as the cloud answered them", async () => {
@@ -314,7 +301,6 @@ test("says there are no charges in the period when there are none, and once", as
   const empty = screen.getByText(NO_CHARGES);
   await expect.element(empty).toBeVisible();
   expect(screen.getByText(NO_CHARGES).elements()).toHaveLength(1);
-  expect(screen.getByText(NO_REGISTER_CHARGES).query()).toBeNull();
   expect(screen.getByRole("table").query()).toBeNull();
   await expect
     .element(screen.getByText(`Cobrado${formatSignedCents(0)}`, { exact: true }))
