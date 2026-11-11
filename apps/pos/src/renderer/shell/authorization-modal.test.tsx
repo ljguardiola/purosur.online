@@ -418,6 +418,20 @@ describe("an action guarded by another person's PIN", () => {
       ]);
     });
 
+    it("focuses the PIN when the arrows choose someone else after a person turned out locked", async () => {
+      await openModal({ submit: recording({ kind: "locked", consecutive_failures: 8 }).submit });
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+      const dialog = authorizationDialog();
+      await expect.element(dialog.getByText("Sofía está bloqueado")).toBeVisible();
+
+      await userEvent.keyboard("{ArrowUp}");
+
+      await expect
+        .element(dialog.getByRole("button", { name: /USUARIO/ }))
+        .toMatchTextContent("Grace");
+      await expect.element(dialog.getByLabelText("PIN")).toHaveFocus();
+    });
+
     it("says the chosen person cannot authorize it when they lack the permission", async () => {
       const screen = await openModal({ submit: recording({ kind: "lacks_permission" }).submit });
 
