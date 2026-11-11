@@ -111,7 +111,8 @@ function TableHeaderRow<T extends RowData>({
     <tr className={variant === "nested" ? "h-control-sm" : "h-control-xl bg-surface-subtle"}>
       {headers.map(({ id, column }, index) => {
         const actionCount = columnActionCount(column);
-        const sortable = column.getCanSort();
+        const lockedFirst = index === 0 && locked !== undefined;
+        const sortable = column.getCanSort() && !lockedFirst;
         const sorted = column.getIsSorted();
         const direction: TableSortDirection | undefined = sorted
           ? SORT_DIRECTIONS[sorted]
@@ -147,7 +148,7 @@ function TableHeaderRow<T extends RowData>({
                 first={first}
                 last={last}
               />
-            ) : first && locked !== undefined ? (
+            ) : lockedFirst ? (
               <span className="flex items-center gap-4">
                 <span className="flex size-control-sm shrink-0 items-center justify-center text-text-subtle">
                   <Lock role="img" aria-label={locked.label} className="size-icon-md" />
