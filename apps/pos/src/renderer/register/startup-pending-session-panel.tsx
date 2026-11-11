@@ -29,7 +29,14 @@ function GoSelling({
 }: Pick<StartupPendingSessionPanelProps, "keptFromSelling" | "onGoSelling">) {
   if (keptFromSelling === undefined) {
     return (
-      <Button size="sale" fullWidth icon={<ShoppingBasket />} keycap="Enter" onPress={onGoSelling}>
+      <Button
+        size="sale"
+        fullWidth
+        icon={<ShoppingBasket />}
+        iconPosition="start"
+        keycap="Enter"
+        onPress={onGoSelling}
+      >
         Ir a vender
       </Button>
     );
@@ -42,6 +49,7 @@ function GoSelling({
           size="sale"
           fullWidth
           icon={<ShoppingBasket />}
+          iconPosition="start"
           keycap="Enter"
           disabledReason={SELLING_BLOCKED_REASON}
         >
@@ -55,6 +63,7 @@ function GoSelling({
       size="sale"
       fullWidth
       icon={<ShoppingBasket />}
+      iconPosition="start"
       keycap="Enter"
       disabledReason={CHECKING_REASON}
     >
