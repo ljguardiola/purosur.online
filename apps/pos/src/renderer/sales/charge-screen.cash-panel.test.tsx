@@ -154,6 +154,7 @@ async function cashPanelBodyAt1366By768(keys: string) {
     }),
   });
   await page.viewport(1366, 768);
+  screen.container.style.height = "768px";
   await chooseCash(screen);
   await expect.element(screen.getByRole("button", { name: /\$ 30\.000,00/ })).toBeVisible();
   await userEvent.keyboard(keys);
