@@ -47,7 +47,7 @@ const NOT_SAVED: Notice = {
   icon: "failure",
 };
 
-export type CountLineModalProps = {
+export type CountLinePanelProps = {
   product: CountableProduct;
   recordLine: (
     productId: string,
@@ -64,7 +64,7 @@ export type CountLineModalProps = {
   onClose: () => void;
 };
 
-export function CountLineModal({
+export function CountLinePanel({
   product,
   recordLine,
   weigh,
@@ -72,7 +72,7 @@ export function CountLineModal({
   onNotOffered,
   onSessionInvalid,
   onClose,
-}: CountLineModalProps) {
+}: CountLinePanelProps) {
   const { product_id: productId, sale_unit: saleUnit } = product;
   const [notice, setNotice] = useState<Notice>();
   const [weighingRefusal, setWeighingRefusal] = useState<{ notice: Notice; dismissed: boolean }>();

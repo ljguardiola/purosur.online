@@ -27,7 +27,7 @@ import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { CountLineModal } from "./count-line-modal";
+import { CountLinePanel } from "./count-line-panel";
 import type { CountableProduct, CountableSearchedProduct } from "./countable-product";
 import { InitialCountLines } from "./initial-count-lines";
 import { InitialCountSummaryPanel } from "./initial-count-summary-panel";
@@ -372,7 +372,7 @@ export function InitialCountScreen({
         ) : null}
       </main>
       {counting === undefined ? null : (
-        <CountLineModal
+        <CountLinePanel
           product={counting}
           recordLine={recordInitialCountLine}
           weigh={weighCountedProduct}
