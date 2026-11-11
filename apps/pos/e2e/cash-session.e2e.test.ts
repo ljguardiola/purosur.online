@@ -55,7 +55,7 @@ describe("the register's cash session", () => {
 
   it("opens with a float and, after a restart, comes back locked until the opener's PIN resumes it", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("link", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
@@ -72,7 +72,7 @@ describe("the register's cash session", () => {
     await restarted.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
     await restarted.getByRole("radio", { name: "Ana" }).waitFor();
     await restarted
-      .getByRole("link", { name: "Ingresar por primera vez" })
+      .getByRole("link", { name: "Primer ingreso" })
       .waitFor({ state: "detached" });
     await restarted.getByLabel("PIN").fill("4821");
     await restarted.getByRole("button", { name: "Retomar" }).click();
@@ -120,7 +120,7 @@ describe("the register's cash session", () => {
       .getByRole("button", { name: "Salir" })
       .click();
 
-    await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
+    await page.getByRole("button", { name: /USUARIO/ }).waitFor();
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor({ state: "detached" });
   });
 
@@ -130,7 +130,7 @@ describe("the register's cash session", () => {
       [BRUNO_EMAIL, "7314"],
       [CARLA_EMAIL, "5260"],
     ] as const) {
-      await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+      await page.getByRole("link", { name: "Primer ingreso" }).click();
       await page.getByLabel("Correo").fill(email);
       await page.getByRole("button", { name: "Continuar" }).click();
       await page.getByLabel("PIN").fill(pin);
@@ -165,7 +165,7 @@ describe("the register's cash session", () => {
     await page.getByLabel("Efectivo contado").fill("20.000,00");
     await page.getByRole("button", { name: "Cerrar caja" }).click();
 
-    await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
+    await page.getByRole("button", { name: /USUARIO/ }).waitFor();
     await page.getByRole("heading", { name: "Caja bloqueada" }).waitFor({ state: "detached" });
   });
 });

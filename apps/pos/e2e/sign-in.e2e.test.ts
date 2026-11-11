@@ -66,7 +66,7 @@ describe("signing in to the register", () => {
     const { page } = register;
     await page.getByText("Todavía nadie ingresó en esta caja.", { exact: true }).waitFor();
 
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("link", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
 
@@ -90,7 +90,7 @@ describe("signing in to the register", () => {
   it("gives a person with no PIN a code by email to choose one, signs them in and remembers them after Salir", async () => {
     const { page } = register;
 
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("link", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(CARLA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByRole("button", { name: "Mandarme un código por correo" }).click();

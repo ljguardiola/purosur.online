@@ -1,11 +1,12 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { SignInUsers } from "../platform/core-client";
 import { render } from "../shell/test-support/render-with-router";
 import { sessionsKey } from "./sessions-queries";
 import { SignInScreen } from "./sign-in-screen";
+import { userSelect } from "./test-support/sign-in-screen";
 
 const roster = (users: SignInUser[]): SignInUsers => ({ users, last_active_user_id: null });
 
@@ -27,7 +28,6 @@ function renderWithVersion(version: string | null) {
     <SignInScreen
       loadUsers={async () => roster(USERS)}
       signIn={async () => SIGNED_IN}
-      registerName={null}
       version={version}
     />,
   );
@@ -77,14 +77,14 @@ async function renderScreen(signIn = answering(SIGNED_IN).signIn, users = USERS)
     <SignInScreen
       loadUsers={async () => roster(users)}
       signIn={signIn}
-      registerName={null}
       version={null}
     />,
   );
 }
 
 async function choose(screen: Screen, firstName: string) {
-  await userEvent.click(screen.getByRole("radio", { name: firstName }), { force: true });
+  await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
+  await userEvent.click(page.getByRole("option", { name: firstName }));
 }
 
 async function enter(screen: Screen, firstName: string, pin: string) {
@@ -103,11 +103,10 @@ describe("SignInScreen", () => {
       <SignInScreen
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
-        registerName={null}
         version={null}
       />,
     );
-    await choose(screen, "Ada");
+    await choose(screen, "Bruno");
     await userEvent.type(screen.getByLabelText("PIN"), "12");
 
     void screen.queryClient.invalidateQueries({ queryKey: sessionsKey });
@@ -118,27 +117,34 @@ describe("SignInScreen", () => {
       )
       .toBe("error");
 
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
+    await expect.element(userSelect(screen)).toHaveTextContent("Bruno");
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
     await expect
       .element(screen.getByText("No se pudieron cargar los usuarios"))
       .not.toBeInTheDocument();
   });
 
-  it("asks who opens the register, offering every user by first name", async () => {
+  it("opens on the sign-in card with the person and the PIN, with no header", async () => {
     const screen = await renderScreen();
 
-    await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Quién abre la caja?" }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("radiogroup", { name: "¿Quién abre la caja?" }))
-      .toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Bruno" })).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeVisible();
+    await expect.element(userSelect(screen)).toBeVisible();
+    await expect.element(screen.getByText("USUARIO", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("PIN", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("0-9")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: /^Entrar/ })).toBeVisible();
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Sin sesión abierta")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("heading")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("offers every user by first name, in alphabetical order", async () => {
+    const screen = await renderScreen();
+
+    await userEvent.click(userSelect(screen));
+
+    const names = page.getByRole("option").elements().map((option) => option.textContent);
+    expect(names).toEqual(["Ada", "Bruno"]);
   });
 
   it("shows no status about the register, which has no name to show", async () => {
@@ -147,18 +153,8 @@ describe("SignInScreen", () => {
     await expect.element(screen.getByRole("contentinfo")).not.toBeInTheDocument();
   });
 
-  it("keeps the PIN and the button disabled until somebody is chosen", async () => {
+  it("focuses the PIN when the screen opens", async () => {
     const screen = await renderScreen();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
-
-    await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeDisabled();
-  });
-
-  it("focuses the PIN once somebody is chosen", async () => {
-    const screen = await renderScreen();
-
-    await choose(screen, "Ada");
 
     await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
     await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
@@ -233,13 +229,12 @@ describe("SignInScreen", () => {
 
     await enter(screen, "Ada", "1234");
 
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Bruno" })).toBeDisabled();
+    await expect.element(userSelect(screen)).toBeDisabled();
     await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
     request.finish({ kind: "unavailable" });
     await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
-    await expect.element(screen.getByRole("radio", { name: "Bruno" })).toBeEnabled();
+    await expect.element(userSelect(screen)).toBeEnabled();
+    await expect.element(userSelect(screen)).toHaveTextContent("Ada");
     await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("1234");
   });
@@ -358,13 +353,12 @@ describe("SignInScreen", () => {
       <SignInScreen
         loadUsers={() => new Promise<SignInUsers>(() => {})}
         signIn={answering(SIGNED_IN).signIn}
-        registerName={null}
         version={null}
       />,
     );
 
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
-    await expect.element(screen.getByRole("radiogroup")).not.toBeInTheDocument();
+    await expect.element(userSelect(screen)).not.toBeInTheDocument();
     await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién abre la caja?" }))
@@ -394,7 +388,6 @@ describe("SignInScreen", () => {
       <SignInScreen
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
-        registerName={null}
         version={null}
       />,
     );
@@ -403,7 +396,7 @@ describe("SignInScreen", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
+    await expect.element(userSelect(screen)).toBeVisible();
     expect(attempts).toBe(2);
   });
 
@@ -422,12 +415,11 @@ describe("SignInScreen", () => {
       <SignInScreen
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
-        registerName={null}
         version={null}
       />,
     );
 
-    const link = screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" });
+    const link = screen.getByRole("link", { name: "Cambiar PIN con código" });
     await expect.element(link).toBeVisible();
     expect(link.element().getAttribute("href")).toBe("/pin-code-redemption");
     await expectNoAccessibilityViolations(screen.container);
@@ -439,7 +431,7 @@ describe("SignInScreen", () => {
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeVisible();
     const button = screen.getByRole("button", { name: "Entrar" }).element();
     const link = screen
-      .getByRole("link", { name: "Tengo un código para cambiar el PIN" })
+      .getByRole("link", { name: "Cambiar PIN con código" })
       .element();
     expect(button.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -459,12 +451,11 @@ describe("SignInScreen", () => {
       <SignInScreen
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
-        registerName={null}
         version={null}
       />,
     );
 
-    const link = screen.getByRole("link", { name: "Ingresar por primera vez" });
+    const link = screen.getByRole("link", { name: "Primer ingreso" });
     await expect.element(link).toBeVisible();
     expect(link.element().getAttribute("href")).toBe("/first-sign-in");
     await expectNoAccessibilityViolations(screen.container);

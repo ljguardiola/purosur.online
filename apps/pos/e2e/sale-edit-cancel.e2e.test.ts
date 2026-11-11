@@ -71,7 +71,7 @@ describe("changing, removing and cancelling a sale on the register", () => {
 
   it("raises and lowers a quantity, removes a line, and cancels the sale", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("link", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
