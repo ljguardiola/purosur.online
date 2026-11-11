@@ -983,13 +983,7 @@ export function SaleScreen({
           paidOrderToApply={paidOrderToApply ?? undefined}
           canCharge={canChargeNow}
           canCancel={sale !== null && !editing && weighing === undefined}
-          canDiscount={
-            sale !== null &&
-            sale.sale_discount_refusal === null &&
-            editable &&
-            !editing &&
-            weighing === undefined
-          }
+          canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
           onDiscount={() => askToDiscount(true)}
           onCharge={charge}
           onChargePaidOrder={chargePaidOrder}

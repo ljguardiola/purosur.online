@@ -6,6 +6,7 @@ export type WaitingProductProps = {
   label: string;
   name: string;
   detail?: string | undefined;
+  more?: string | undefined;
   discardLabel: string;
   onDiscard: () => void;
 };
@@ -14,6 +15,7 @@ export function WaitingProduct({
   label,
   name,
   detail,
+  more,
   discardLabel,
   onDiscard,
 }: WaitingProductProps) {
@@ -30,6 +32,7 @@ export function WaitingProduct({
         <p className="text-body break-words">
           <span className="font-bold text-text">{name}</span>
           {detail === undefined ? null : <span className="text-text-subtle">{` · ${detail}`}</span>}
+          {more === undefined ? null : <span className="text-text-subtle">{` ${more}`}</span>}
         </p>
       </div>
       <Button variant="secondary" keycap="Delete" onPress={onDiscard}>

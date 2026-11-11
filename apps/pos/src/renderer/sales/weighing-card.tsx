@@ -2,6 +2,7 @@ import type { FoundProduct } from "@purosur/contracts";
 import {
   Button,
   formatCents,
+  formatNumber,
   formatWeight,
   InlineNotice,
   ScaleStatusBadge,
@@ -179,6 +180,7 @@ export function WeighingCard({
                   ? undefined
                   : `${formatCents(firstWaiting.unitPrice)} / ${unitLabel(firstWaiting.saleUnit)}`
               }
+              more={waiting.length > 1 ? `y ${formatNumber(waiting.length - 1)} más` : undefined}
               discardLabel="Descartar"
               onDiscard={onDiscardWaiting}
             />
