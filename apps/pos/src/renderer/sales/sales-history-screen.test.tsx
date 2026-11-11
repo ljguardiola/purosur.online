@@ -366,7 +366,7 @@ describe("SalesHistoryScreen", () => {
       await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Salir de la caja?" })
+          .getByRole("complementary", { name: "¿Salir de la caja?" })
           .getByRole("button", { name: "Salir" }),
       );
 

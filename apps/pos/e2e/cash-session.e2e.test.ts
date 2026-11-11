@@ -61,10 +61,9 @@ describe("the register's cash session", () => {
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
 
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
 
     await register.restart();
 
@@ -76,19 +75,18 @@ describe("the register's cash session", () => {
       .waitFor({ state: "detached" });
     await restarted.getByLabel("PIN").fill("4821");
     await restarted.getByRole("button", { name: "Retomar" }).click();
-    await restarted.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await restarted.getByRole("combobox", { name: "Producto" }).waitFor();
   });
 
   it("leaves the register locked from Salir and resumes it with the opener's PIN", async () => {
     const { page } = register;
     await page.getByRole("button", { name: "Salir" }).click();
-    await page.getByRole("button", { name: "Dejar bloqueada" }).click();
     await page.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
 
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Retomar" }).click();
 
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
   });
 
   it("closes with a cash count and leaves the person signed in without a session", async () => {
@@ -103,18 +101,22 @@ describe("the register's cash session", () => {
     await page.getByRole("button", { name: "Abrir caja" }).waitFor();
   });
 
-  it("asks to close the open session before leaving and ends at the entry screen once closed", async () => {
+  it("leaves from Salir once the session is closed and ends at the entry screen", async () => {
     const { page } = register;
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
-
-    await page.getByRole("button", { name: "Salir" }).click();
-    const dialog = page.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" });
-    await dialog.getByRole("button", { name: "Cerrar caja" }).click();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
+    await page.getByRole("link", { name: "Caja" }).click();
+    await page.getByRole("button", { name: "Cerrar caja" }).click();
     await page.getByLabel("Efectivo contado").fill("20.000,00");
     await page.getByRole("button", { name: "Cerrar caja" }).click();
+    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+
+    await page.getByRole("button", { name: "Salir" }).click();
+    await page
+      .getByRole("complementary", { name: "¿Salir de la caja?" })
+      .getByRole("button", { name: "Salir" })
+      .click();
 
     await page.getByRole("heading", { name: "¿Quién abre la caja?" }).waitFor();
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor({ state: "detached" });
@@ -133,18 +135,19 @@ describe("the register's cash session", () => {
       await page.getByRole("button", { name: "Entrar" }).click();
       await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
       await page.getByRole("button", { name: "Salir" }).click();
-      await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+      await page
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
+        .getByRole("button", { name: "Salir" })
+        .click();
     }
 
     await page.getByText("Ana", { exact: true }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await page.getByRole("button", { name: "Salir" }).click();
-    await page.getByRole("button", { name: "Dejar bloqueada" }).click();
 
     await page.getByRole("link", { name: "Otra persona cierra la caja" }).click();
     await page.getByRole("heading", { name: "¿Quién cierra la caja?" }).waitFor();

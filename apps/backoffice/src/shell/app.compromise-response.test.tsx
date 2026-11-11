@@ -16,7 +16,7 @@ function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });
 }
 
-const ASSISTANT = "Respuesta ante un compromiso";
+const ASSISTANT = "Ante una sospecha de compromiso";
 
 function servicesFor(capabilities: Capability[]) {
   const services = createAppServices({

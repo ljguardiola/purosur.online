@@ -19,6 +19,7 @@ import { ProductRecipeLookup } from "../../stock/product-recipe-lookup";
 import { ProductRecipeSection } from "../../stock/product-recipe-section";
 import { ProductStockSection } from "../../stock/product-stock-section";
 import type { AppServices } from "../app";
+import { createBranchTermServices } from "./branch-term";
 import {
   createRegisterPartsServices,
   type RegisterPartsServices,
@@ -131,6 +132,7 @@ export function createAppServices(
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
       fetchPricesPastReviewDeadlineReport: vi.fn().mockReturnValue(new Promise(() => {})),
+      branchTerm: createBranchTermServices(),
     },
     discountsListScreen: {
       fetchDiscounts: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -154,6 +156,7 @@ export function createAppServices(
       fetchExpiringLots: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
       discardExpiredLot: vi.fn(),
+      branchTerm: createBranchTermServices(),
     },
     stockBalancesScreen: {
       fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -231,6 +234,7 @@ export function createAppServices(
       editFreight: vi.fn(),
       fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    refundsBranchTerm: createBranchTermServices(),
     supplierPriceListsScreen: {
       fetchSupplierPriceLists: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -239,6 +243,7 @@ export function createAppServices(
       refreshSupplierPriceList: vi.fn(),
       fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
       createSupplier: vi.fn(),
+      branchTerm: createBranchTermServices(),
     },
     supplierPriceListReviewScreen: {
       fetchSupplierPriceListReview: vi.fn().mockReturnValue(new Promise(() => {})),

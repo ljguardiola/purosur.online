@@ -82,7 +82,7 @@ test("offers the product's fields, the name filled from the item's description, 
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Nuez mariposa extra light x 10 kg");
   await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
-  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
+  await expect.element(dialog.getByRole("group", { name: "Etiquetas" })).toBeVisible();
   const lastProductField = dialog.getByRole("button", { name: "Generar código interno" }).element();
   const quantity = dialog.getByRole("textbox", { name: /^Cantidad que trae/ }).element();
   expect(
@@ -159,7 +159,7 @@ test("creates the product with the name changed, the brand chosen and the net co
   await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "125");
   await userEvent.click(dialog.getByRole("button", { name: "g Unidad" }));
   await userEvent.click(page.getByRole("option", { name: "ml" }));
-  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar etiqueta" }));
   await userEvent.click(page.getByRole("menuitem", { name: "Sin TACC" }));
   await fillTheRest(dialog);
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
@@ -251,7 +251,7 @@ test("offers only the active brands, and the active tags, by name", async () => 
   const options = page.getByRole("option").all();
   expect(options.map((option) => option.element().textContent)).toEqual(["Sin marca", "Dulcor"]);
   await userEvent.keyboard("{Escape}");
-  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar etiqueta" }));
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
   expect(page.getByRole("menuitem", { name: "Sin colorantes" }).query()).toBeNull();
 });
@@ -280,8 +280,8 @@ test("offers to create a brand and a tag to a session that may manage the catalo
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Aceite de almendras");
-  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
-  await expect.element(page.getByRole("menuitem", { name: "Crear distintivo…" })).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar etiqueta" }));
+  await expect.element(page.getByRole("menuitem", { name: "Crear etiqueta…" })).toBeVisible();
 });
 
 test("creating a brand leaves the brands and the tags unread while the form is open, and reads them once the form closes", async () => {
@@ -294,7 +294,7 @@ test("creating a brand leaves the brands and the tags unread while the form is o
   vi.mocked(services.createBrand).mockResolvedValue({ kind: "ok", brand: cabriola });
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
-  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
+  await expect.element(dialog.getByRole("group", { name: "Etiquetas" })).toBeVisible();
   const brandsReads = vi.mocked(services.fetchProductCreationBrands).mock.calls.length;
   const tagsReads = vi.mocked(services.fetchProductCreationTags).mock.calls.length;
 
@@ -321,9 +321,9 @@ test("offers no way to create a brand or a tag to a session that may not manage 
   const dialog = dialogOf(screen);
   await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toBeVisible();
 
-  await userEvent.click(dialog.getByRole("button", { name: "Agregar distintivo" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar etiqueta" }));
   await expect.element(page.getByRole("menuitem", { name: "Sin TACC" })).toBeVisible();
-  expect(page.getByRole("menuitem", { name: "Crear distintivo…" }).query()).toBeNull();
+  expect(page.getByRole("menuitem", { name: "Crear etiqueta…" }).query()).toBeNull();
   await userEvent.keyboard("{Escape}");
   await userEvent.fill(dialog.getByRole("combobox", { name: /^Marca/ }), "Cabriola");
   expect(page.getByRole("option", { name: /^Crear marca/ }).query()).toBeNull();
@@ -364,7 +364,7 @@ test("says the tags are loading and creating waits for them", async () => {
   const dialog = dialogOf(screen);
 
   await expect.element(dialog.getByRole("button", { name: "Crear el producto" })).toBeDisabled();
-  expect(dialog.getByRole("group", { name: "Distintivos" }).query()).toBeNull();
+  expect(dialog.getByRole("group", { name: "Etiquetas" }).query()).toBeNull();
 });
 
 test("says the tags could not be opened, and reading them again recovers", async () => {
@@ -377,10 +377,10 @@ test("says the tags could not be opened, and reading them again recovers", async
   const screen = await renderModal({ services });
   const dialog = dialogOf(screen);
 
-  await expect.element(dialog.getByText("No pudimos abrir los distintivos")).toBeVisible();
+  await expect.element(dialog.getByText("No pudimos abrir las etiquetas")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(dialog.getByRole("group", { name: "Distintivos" })).toBeVisible();
+  await expect.element(dialog.getByRole("group", { name: "Etiquetas" })).toBeVisible();
 });
 
 test.each(["fetchProductCreationBrands", "fetchProductCreationTags"] as const)(

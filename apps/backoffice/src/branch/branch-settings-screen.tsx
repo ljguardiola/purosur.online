@@ -23,6 +23,7 @@ import {
   MESSAGES,
   REQUEST_FIELDS,
   requestFrom,
+  TERM_FIELDS,
   valuesFrom,
 } from "./branch-settings-form";
 import type { BranchSettingsScreenServices } from "./branch-settings-services";
@@ -206,25 +207,21 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
               <div className="min-w-0 flex-1">
                 <form.AppField name="expiringLotAlertDays">
                   {(field) => (
-                    <field.TextField kind="plain-text" label="Aviso de vencimiento" suffix="días" />
+                    <field.TextField kind="plain-text" {...TERM_FIELDS.expiringLotAlertDays} />
                   )}
                 </form.AppField>
               </div>
               <div className="min-w-0 flex-1">
                 <form.AppField name="unreviewedPriceAlertDays">
                   {(field) => (
-                    <field.TextField kind="plain-text" label="Precio sin revisar" suffix="días" />
+                    <field.TextField kind="plain-text" {...TERM_FIELDS.unreviewedPriceAlertDays} />
                   )}
                 </form.AppField>
               </div>
               <div className="min-w-0 flex-1">
                 <form.AppField name="goodConditionReturnDays">
                   {(field) => (
-                    <field.TextField
-                      kind="plain-text"
-                      label="Cambio en buen estado"
-                      suffix="días"
-                    />
+                    <field.TextField kind="plain-text" {...TERM_FIELDS.goodConditionReturnDays} />
                   )}
                 </form.AppField>
               </div>
@@ -238,8 +235,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
                   {(field) => (
                     <field.TextField
                       kind="plain-text"
-                      label="Listas leídas por día"
-                      description="Cuántas listas de proveedores puede leer esta sucursal por día. Al llegar al tope, no se pueden cargar más listas hasta el día siguiente."
+                      {...TERM_FIELDS.supplierPriceListDailyExtractionCap}
                     />
                   )}
                 </form.AppField>

@@ -1,7 +1,8 @@
 import { Button } from "../forms/button";
 import { Tooltip } from "../overlays/tooltip";
-import type { Icon } from "../shared/icon";
+import { type Icon, iconSlotClassName } from "../shared/icon";
 import { InlineNotice } from "./inline-notice";
+import { NoticeLiveRegion } from "./notice-live-region";
 import { PillButton } from "./pill-button";
 
 export type LoadFailureVariant = "section" | "screen" | "pill";
@@ -14,13 +15,39 @@ export type LoadFailureProps = {
   onRetry: () => void;
 };
 
-export function LoadFailure({
-  icon,
-  title,
-  description,
-  variant = "section",
-  onRetry,
-}: LoadFailureProps) {
+export type CenteredLoadFailureProps = Omit<LoadFailureProps, "variant" | "onRetry"> & {
+  variant: "centered";
+};
+
+export function LoadFailure(props: LoadFailureProps | CenteredLoadFailureProps) {
+  const { icon, title, description } = props;
+
+  if (props.variant === "centered") {
+    return (
+      <div className="flex flex-col items-center gap-3 px-8 py-6 text-center">
+        <span
+          aria-hidden="true"
+          className="flex size-22 shrink-0 items-center justify-center rounded-full bg-error-subtle text-error"
+        >
+          <span className={iconSlotClassName["4xl"]}>{icon}</span>
+        </span>
+        <NoticeLiveRegion
+          assertiveness="assertive"
+          text={[title, description].filter(Boolean).join(" ")}
+        />
+        <p aria-hidden="true" className="max-w-130 text-title text-text-accent">
+          {title}
+        </p>
+        {description ? (
+          <p aria-hidden="true" className="max-w-130 text-body text-text-subtle">
+            {description}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  const { variant = "section", onRetry } = props;
   if (variant === "pill") {
     const pill = (
       <PillButton tone="error" icon={icon} aria-label={`${title}. Reintentar`} onPress={onRetry}>

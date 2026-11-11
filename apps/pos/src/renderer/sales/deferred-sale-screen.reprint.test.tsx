@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
 import { FOUND_ISSUED, FOUND_PENDING, renderScreen } from "./test-support/deferred-sale-screen";
 
 const SEARCH = "Buscar venta";
@@ -95,9 +96,14 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
     });
 
     await userEvent.click(screen.getByRole("button", { name: REPRINT }));
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Motivo de la reimpresión" }),
+      "Otra copia",
+    );
+    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: REPRINT }));
 
     await expect
-      .element(screen.getByRole("button", { name: /Persona que autoriza/ }))
+      .element(authorizationDialog().getByText("Reimprimir comprobante", { exact: true }))
       .toBeVisible();
   });
 

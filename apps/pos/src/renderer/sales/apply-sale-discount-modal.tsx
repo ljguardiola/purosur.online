@@ -24,8 +24,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Check, Percent, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
-import type { SignedInPerson } from "../shell/signed-in-person";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import { useAuthorization } from "../shell/use-authorization";
 import { REQUIRED_REASON_MESSAGE } from "./adjust-line-form";
 import type { SaleDiscountKind } from "./sale-discount-form";
@@ -55,7 +54,6 @@ export type ApplySaleDiscountModalProps = {
   lineCount: number;
   subtotal: number;
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   applySaleDiscount: (
     discount: SaleDiscountRequest,
@@ -77,7 +75,6 @@ export function ApplySaleDiscountModal({
   lineCount,
   subtotal,
   authorizationRequired,
-  person,
   loadAuthorizers,
   applySaleDiscount,
   previewSaleDiscount,
@@ -88,7 +85,6 @@ export function ApplySaleDiscountModal({
 }: ApplySaleDiscountModalProps) {
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: authorizationRequired,
     loadAuthorizers,
@@ -108,9 +104,14 @@ export function ApplySaleDiscountModal({
       reason: REQUIRED_REASON_MESSAGE,
     },
     onSubmit: async ({ discount, reason }, { showFieldError }) => {
+      if (!authorization.ready) {
+        authorization.ask();
+        return;
+      }
       const outcome = await applySaleDiscount(discount, reason, authorization.value).catch(
         (): "failed" => "failed",
       );
+      authorization.dismiss();
       if (outcome === "failed") {
         setNotice(FAILED_MESSAGE);
         return;
@@ -173,7 +174,7 @@ export function ApplySaleDiscountModal({
   }
 
   function handleSubmit() {
-    if (submitting || !authorization.ready) {
+    if (submitting) {
       return;
     }
     setNotice(undefined);
@@ -211,7 +212,7 @@ export function ApplySaleDiscountModal({
             size="large"
             fullWidth
             icon={<Check />}
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
             onPress={handleSubmit}
           >
             Aplicar el descuento
@@ -296,10 +297,12 @@ export function ApplySaleDiscountModal({
           icon={<TriangleAlert />}
           title="Si después cambiás una línea, este descuento se quita y hay que volver a aplicarlo."
         />
-        <AuthorizationSection
+        <AuthorizationModal
           authorization={authorization}
+          subtitle="Descuento sobre el total"
           action={AUTHORIZING}
-          disabled={submitting}
+          submitting={submitting}
+          onConfirm={handleSubmit}
         />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

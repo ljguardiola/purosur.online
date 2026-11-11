@@ -9,7 +9,7 @@ describe("tagOptions", () => {
   test("lists the tags by name, marking the deactivated ones as inactive", () => {
     expect(tagOptions([vegano, sinColorantes, sinTacc, organico])).toEqual([
       { value: organico.id, label: "Orgánico" },
-      { value: sinColorantes.id, label: "Sin colorantes", status: "Inactivo" },
+      { value: sinColorantes.id, label: "Sin colorantes", status: "Inactiva" },
       { value: sinTacc.id, label: "Sin TACC" },
       { value: vegano.id, label: "Vegano" },
     ]);
@@ -23,7 +23,7 @@ describe("tagFieldHelp", () => {
 
   test("names the one chosen tag that was deactivated", () => {
     expect(tagFieldHelp([sinTacc, sinColorantes], [sinTacc.id, sinColorantes.id])).toEqual({
-      description: '"Sin colorantes" está dado de baja. No se ofrece para productos nuevos.',
+      description: '"Sin colorantes" está dada de baja. No se ofrece para productos nuevos.',
     });
   });
 
@@ -35,7 +35,7 @@ describe("tagFieldHelp", () => {
       ),
     ).toEqual({
       description:
-        '"Dietético" y "Sin colorantes" están dados de baja. No se ofrecen para productos nuevos.',
+        '"Dietético" y "Sin colorantes" están dadas de baja. No se ofrecen para productos nuevos.',
     });
   });
 
@@ -45,7 +45,7 @@ describe("tagFieldHelp", () => {
       tagFieldHelp([sinColorantes, dietetico, gluten], [sinColorantes.id, dietetico.id, gluten.id]),
     ).toEqual({
       description:
-        '"Sin colorantes", "Dietético" y "Sin gluten" están dados de baja. No se ofrecen para productos nuevos.',
+        '"Sin colorantes", "Dietético" y "Sin gluten" están dadas de baja. No se ofrecen para productos nuevos.',
     });
   });
 });

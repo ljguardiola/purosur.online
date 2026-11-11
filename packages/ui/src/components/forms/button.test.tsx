@@ -435,6 +435,54 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   expect(gap).toBeLessThan(13);
 });
 
+test("places the primary variant's icon before the text when the icon position is start, keeping the keycap at the far right", async () => {
+  const screen = await render(
+    <Button icon={<Check />} iconPosition="start" keycap="Enter" fullWidth>
+      Save
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
+  const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const labelRect = textNodeRect(button.querySelector("span.truncate")?.firstChild as ChildNode);
+  const keycapRect = (button.querySelector("kbd") as HTMLElement).getBoundingClientRect();
+
+  expect(iconRect.right).toBeLessThanOrEqual(labelRect.left);
+  expect(labelRect.right).toBeLessThanOrEqual(keycapRect.left);
+  expect(button.getBoundingClientRect().right - keycapRect.right).toBeLessThan(20);
+});
+
+test("keeps the primary variant's icon after the text when the icon position is end", async () => {
+  const screen = await render(
+    <Button icon={<Check />} iconPosition="end">
+      Save
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
+  const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const labelRect = textNodeRect(button.querySelector("span.truncate")?.firstChild as ChildNode);
+
+  expect(iconRect.left).toBeGreaterThanOrEqual(labelRect.right);
+});
+
+test("accepts an icon position on the primary variant only", () => {
+  expectTypeOf<{ iconPosition: "start" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "primary"; iconPosition: "end" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "secondary";
+    iconPosition: "end";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: false;
+    iconPosition: "end";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: true;
+    iconPosition: "start";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
 test("places the secondary variant's 18px icon before the text with its 8px gap", async () => {
   const screen = await render(
     <Button variant="secondary" icon={<X />}>
@@ -1546,4 +1594,56 @@ test("takes focus when it appears with autoFocus, so Enter presses it", async ()
   await expect.element(screen.getByRole("button", { name: "Sí" })).toHaveFocus();
   await userEvent.keyboard("{Enter}");
   expect(onPress).toHaveBeenCalledOnce();
+});
+
+function labelSpanWithKeycap(button: HTMLElement, label: string): HTMLElement {
+  const span = Array.from(button.querySelectorAll("span")).find(
+    (candidate) => candidate.textContent === label,
+  );
+  if (span === undefined) {
+    throw new Error(`no span holds the label "${label}"`);
+  }
+  return span;
+}
+
+test("wraps a long label onto a second line instead of truncating it when wrapLabel is set", async () => {
+  const label = "Cobrar con el pago de Mercado Pago";
+  const screen = await render(
+    <div style={{ width: "340px", display: "flex" }}>
+      <Button size="large" fullWidth wrapLabel keycap="Enter">
+        {label}
+      </Button>
+    </div>,
+  );
+  const button = screen.getByRole("button", { name: label }).element() as HTMLElement;
+  const span = labelSpanWithKeycap(button, label);
+
+  expect(span.scrollWidth).toBeLessThanOrEqual(span.clientWidth);
+  expect(lineCount(span.firstChild as ChildNode)).toBe(2);
+  expect(span.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    button.getBoundingClientRect().top,
+  );
+  expect(span.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    button.getBoundingClientRect().bottom,
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("truncates a long label without wrapLabel", async () => {
+  const label = "Cobrar con el pago de Mercado Pago";
+  const screen = await render(
+    <div style={{ width: "340px", display: "flex" }}>
+      <Button size="large" fullWidth keycap="Enter">
+        {label}
+      </Button>
+    </div>,
+  );
+
+  expectTruncatedWithEllipsis(
+    labelSpanWithKeycap(
+      screen.getByRole("button", { name: label }).element() as HTMLElement,
+      label,
+    ),
+    label,
+  );
 });

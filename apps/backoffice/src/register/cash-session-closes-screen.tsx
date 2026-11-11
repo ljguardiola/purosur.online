@@ -125,7 +125,7 @@ export function CashSessionClosesScreen({
       <Table
         aria-label={SCREEN_TITLE}
         table={table}
-        {...cloudTableState(data, "los cierres de sesión")}
+        {...cloudTableState(data, "los cierres de caja")}
         empty={{
           icon: <Calculator />,
           title: "No hay sesiones cerradas en este período",

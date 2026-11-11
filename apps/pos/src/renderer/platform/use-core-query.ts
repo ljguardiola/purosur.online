@@ -11,13 +11,15 @@ type CoreQuery<T> = {
   read: () => Promise<T | "unavailable">;
   enabled?: boolean;
   staleTime?: number | undefined;
+  gcTime?: number | undefined;
   refetchInterval?: ((value: T | undefined) => number | false) | undefined;
 };
 
-export function coreQueryOptions<T>({ queryKey, read, staleTime }: CoreQuery<T>) {
+export function coreQueryOptions<T>({ queryKey, read, staleTime, gcTime }: CoreQuery<T>) {
   return queryOptions({
     queryKey,
     ...(staleTime === undefined ? {} : { staleTime }),
+    ...(gcTime === undefined ? {} : { gcTime }),
     queryFn: async (): Promise<T> => {
       const answer = await read();
       if (answer === "unavailable") {
@@ -33,10 +35,11 @@ export function useCoreQuery<T>({
   read,
   enabled = true,
   staleTime,
+  gcTime,
   refetchInterval,
 }: CoreQuery<T>): CoreData<T> {
   const query = useQuery({
-    ...coreQueryOptions({ queryKey, read, staleTime }),
+    ...coreQueryOptions({ queryKey, read, staleTime, gcTime }),
     enabled,
     refetchInterval: (current) => refetchInterval?.(current.state.data) ?? false,
   });

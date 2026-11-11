@@ -9,6 +9,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { createBranchTermServices } from "./test-support/branch-term";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -100,7 +101,7 @@ test("lists Ventas y caja right after Inicio in the rail", async () => {
 
 test("following the Historial tab opens the returns history, and Pendientes comes back", async () => {
   const services = refundsServices(["refunds_area", "returns_report"]);
-  window.history.pushState(null, "", "/refunds?channel=without-api");
+  window.history.pushState(null, "", "/refunds?channel=outside-mercado-pago");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 
@@ -257,7 +258,7 @@ test("redirects /refunds/mercado-pago to /refunds with the channel Mercado Pago 
   expect(location()).toBe(`/refunds?channel=mercado-pago&register=${FRONT_REGISTER_ID}`);
 });
 
-test("redirects /refunds/outside-the-system to /refunds with the channel Sin API, the register and the method kept", async () => {
+test("redirects /refunds/outside-the-system to /refunds with the channel Fuera de Mercado Pago, the register and the method kept", async () => {
   const services = refundsServices(["refunds_area"]);
   window.history.pushState(
     null,
@@ -270,7 +271,7 @@ test("redirects /refunds/outside-the-system to /refunds with the channel Sin API
   await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
   expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   expect(location()).toBe(
-    `/refunds?channel=without-api&method=TRANSFER&register=${BACK_REGISTER_ID}`,
+    `/refunds?channel=outside-mercado-pago&method=TRANSFER&register=${BACK_REGISTER_ID}`,
   );
 });
 
@@ -290,6 +291,17 @@ test("redirects /reports/returns to /refunds/history keeping the period and the 
   expect(location()).toBe(
     "/refunds/history?from=2026-10-01&register=11111111-1111-4111-8111-111111111111&to=2026-10-07",
   );
+});
+
+test("opens the channel Fuera de Mercado Pago from the old without-api address and writes the new value", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(null, "", "/refunds?channel=without-api");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("$ 1.250,00", { exact: true }).query()).toBeNull();
+  await expect.poll(location).toBe("/refunds?channel=outside-mercado-pago");
 });
 
 test.each(["/refunds?channel=all", "/refunds?channel=unknown"])(
@@ -313,9 +325,9 @@ test("keeps the channel chosen in the address", async () => {
   await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
 
   await screen.getByRole("button", { name: /^Canal/ }).click();
-  await userEvent.click(screen.getByRole("option", { name: "Sin API" }));
+  await userEvent.click(screen.getByRole("option", { name: "Fuera de Mercado Pago" }));
 
-  await expect.poll(location).toBe("/refunds?channel=without-api");
+  await expect.poll(location).toBe("/refunds?channel=outside-mercado-pago");
   await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 });
@@ -332,4 +344,52 @@ test("keeps the register chosen in the address", async () => {
   await expect.poll(() => window.location.search).toBe(`?register=${FRONT_REGISTER_ID}`);
   await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+});
+
+test("shows the days a good-condition exchange is open on both tabs, with Cambiar for who can change the branch", async () => {
+  const services = refundsServices(["refunds_area", "returns_report", "branch_area"]);
+  window.history.pushState(null, "", "/refunds");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
+  await userEvent.click(screen.getByRole("tab", { name: "Historial" }));
+  await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
+});
+
+test("shows the days without Cambiar to who cannot change the branch", async () => {
+  const services = refundsServices(["returns_report"]);
+  window.history.pushState(null, "", "/refunds/history");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cambiar" }).query()).toBeNull();
+});
+
+test("shows the new days, answered by the cloud, once they are saved", async () => {
+  const services = refundsServices(["refunds_area", "branch_area"]);
+  services.refundsBranchTerm = createBranchTermServices({
+    fetchGoodConditionReturnDays: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "ok", value: 15 })
+      .mockResolvedValue({ kind: "ok", value: 20 }),
+  });
+  window.history.pushState(null, "", "/refunds");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar" }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("textbox", { name: "Cambio en buen estado" }))
+    .toHaveValue("15");
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Cambio en buen estado" }), "20");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  await expect.element(screen.getByText("Cambio en buen estado: 20 días")).toBeVisible();
+  expect(services.refundsBranchTerm.saveBranchSettings).toHaveBeenCalledWith(
+    expect.objectContaining({ good_condition_return_days: 20 }),
+  );
 });

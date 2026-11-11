@@ -116,28 +116,30 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
 
     const scanField = page.getByRole("combobox", { name: "Producto" });
-    const yerba = page.getByRole("listitem").filter({ hasText: "Yerba mate 1 kg" });
+    const yerba = page.getByRole("row").filter({ hasText: "Yerba mate 1 kg" });
 
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
-    await yerba.getByText("$ 2.380,00").waitFor();
-    await yerba.getByText("1", { exact: true }).waitFor();
+    await yerba.getByText("$ 2.380,00", { exact: true }).waitFor();
+    await yerba.getByText("1 u", { exact: true }).waitFor();
     expect(await scanField.inputValue()).toBe("");
 
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
-    await yerba.getByText("$ 4.760,00").waitFor();
-    await yerba.getByText("2", { exact: true }).waitFor();
+    await yerba.getByText("$ 4.760,00", { exact: true }).waitFor();
+    await yerba.getByText("2 u", { exact: true }).waitFor();
 
     await scanField.fill("0000000000000");
     await scanField.press("Enter");
-    await page.getByText("No hay ningún producto con ese código").waitFor();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "No hay ningún producto con ese código" })
+      .waitFor();
     expect(await scanField.inputValue()).toBe("0000000000000");
 
     await scanField.fill(ALFAJOR_CODE);
@@ -148,31 +150,29 @@ describe("scanning products into a sale on the register", () => {
   it("charges a line with the promotion that gives the larger discount as its quantity grows", async () => {
     const { page } = register;
     const scanField = page.getByRole("combobox", { name: "Producto" });
-    const fideos = page.getByRole("listitem").filter({ hasText: "Fideos 500 g" });
+    const fideos = page.getByRole("row").filter({ hasText: "Fideos 500 g" });
 
     await scanField.fill(FIDEOS_CODE);
     await scanField.press("Enter");
     await fideos.getByText("10 % de descuento").waitFor();
-    await fideos.getByText("$ 1.000,00").waitFor();
-    await fideos.getByText("$ 900,00").waitFor();
+    await fideos.getByText("$ 1.000,00", { exact: true }).waitFor();
+    await fideos.getByText("$ 900,00", { exact: true }).waitFor();
 
     await scanField.fill(FIDEOS_CODE);
     await scanField.press("Enter");
-    await fideos.getByText("$ 1.800,00").waitFor();
+    await fideos.getByText("$ 1.800,00", { exact: true }).waitFor();
 
     await scanField.fill(FIDEOS_CODE);
     await scanField.press("Enter");
     await fideos.getByText("Lleve 3, pague 2").waitFor();
-    await fideos.getByText("$ 3.000,00").waitFor();
-    await fideos.getByText("$ 2.000,00").waitFor();
+    await fideos.getByText("$ 3.000,00", { exact: true }).waitFor();
+    await fideos.getByText("$ 2.000,00", { exact: true }).waitFor();
   });
 
   it("charges the discounted sale in cash rounded down, shows the change and starts a new sale", async () => {
     const { page } = register;
 
-    await page.getByRole("button", { name: "Cobrar" }).click();
-    await page.getByRole("heading", { name: "Elegí el medio de pago" }).waitFor();
-    await page.getByText("Efectivo", { exact: true }).click();
+    await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("7.000,00");
     await page.getByText("VUELTO A ENTREGAR").waitFor();
     await page.getByText("Redondeo", { exact: true }).waitFor();
@@ -183,7 +183,7 @@ describe("scanning products into a sale on the register", () => {
     await page.getByText("$ 300,00").waitFor();
     await page.getByRole("button", { name: "Seguir vendiendo" }).click();
 
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await page.getByText("La venta está vacía").waitFor();
   });
 
@@ -193,13 +193,12 @@ describe("scanning products into a sale on the register", () => {
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
     await page
-      .getByRole("listitem")
+      .getByRole("row")
       .filter({ hasText: "Yerba mate 1 kg" })
-      .getByText("$ 2.380,00")
+      .getByText("$ 2.380,00", { exact: true })
       .waitFor();
 
-    await page.getByRole("button", { name: "Cobrar" }).click();
-    await page.getByText("Efectivo", { exact: true }).click();
+    await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("1.000,00");
     await page.getByRole("button", { name: "Registrar pago parcial" }).click();
 

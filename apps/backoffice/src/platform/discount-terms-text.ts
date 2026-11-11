@@ -5,7 +5,7 @@ import { formatProductDescription, type NetContent } from "@purosur/ui/formatter
 export const DISCOUNT_TARGET_KIND_LABELS = {
   PRODUCT: "Producto",
   CATEGORY: "Categoría",
-  TAG: "Distintivo",
+  TAG: "Etiqueta",
 } satisfies Record<DiscountTargetKind, string>;
 
 const WEEKDAY_NAMES = [

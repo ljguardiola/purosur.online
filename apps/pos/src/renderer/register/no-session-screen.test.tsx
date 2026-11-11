@@ -32,6 +32,7 @@ async function renderScreen({
       person={person}
       signOut={signOut}
       openCashSession={openCashSession}
+      readOpeningFloatSuggestion={async () => ({ kind: "none" })}
       offers={offers}
     />,
   );
@@ -39,17 +40,38 @@ async function renderScreen({
 }
 
 describe("NoSessionScreen", () => {
-  it("asks what to do, with no session open", async () => {
+  it("names the screen for assistive technology without drawing a title", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("heading", { name: "¿Qué querés hacer?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { level: 1, name: "¿Qué querés hacer?" }))
+      .toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("shows what the screen is given to offer under the question", async () => {
+  it("shows the scan field inert and a locked card while nothing is offered", async () => {
+    const { screen } = await renderScreen();
+
+    const field = screen.getByRole("searchbox", { name: "Producto" });
+    await expect.element(field).toBeVisible();
+    await expect.element(field).toBeDisabled();
+    await expect.element(field).toHaveAttribute("placeholder", "Escaneá o escribí el nombre");
+    await expect
+      .element(screen.getByRole("img", { name: "Caja sin sesión abierta" }))
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows what the screen is given to offer in place of the scan field and the locked card", async () => {
     const { screen } = await renderScreen({ offers: <p>Una oferta</p> });
 
     await expect.element(screen.getByText("Una oferta")).toBeVisible();
+    await expect
+      .element(screen.getByRole("searchbox", { name: "Producto" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("img", { name: "Caja sin sesión abierta" }))
+      .not.toBeInTheDocument();
   });
 
   it("takes no register name, which the frame's header shows", () => {
@@ -87,7 +109,9 @@ describe("NoSessionScreen", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    await expect.element(screen.getByRole("dialog", { name: "¿Salir de la caja?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .toBeVisible();
     expect(signOut).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(document.body);
   });
@@ -98,20 +122,22 @@ describe("NoSessionScreen", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
     expect(signOut).toHaveBeenCalledOnce();
   });
 
-  it("stays on the screen when leaving is cancelled", async () => {
+  it("stays on the screen when the leaving panel is closed", async () => {
     const { screen, signOut } = await renderScreen();
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .not.toBeInTheDocument();
     expect(signOut).not.toHaveBeenCalled();
   });
 
@@ -123,7 +149,7 @@ describe("NoSessionScreen", () => {
       .not.toBeInTheDocument();
   });
 
-  it("opens the cash drawer for the person with the float they typed", async () => {
+  it("opens the cash drawer for the person with the float suggested from the previous close", async () => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
     const openCashSession = vi.fn(
@@ -134,14 +160,20 @@ describe("NoSessionScreen", () => {
         person={{ ...PERSON, abilities: ["open_cash_session"] }}
         signOut={vi.fn()}
         openCashSession={openCashSession}
+        readOpeningFloatSuggestion={async () => ({
+          kind: "previous_close",
+          closed_at: "2026-11-04T20:14:00.000-03:00",
+          counted_cash: 14_400_000,
+        })}
       />,
     );
 
+    await expect
+      .element(screen.getByRole("textbox", { name: "Fondo inicial" }))
+      .toHaveValue("144.000,00");
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
-    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "150");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
-    expect(openCashSession).toHaveBeenCalledExactlyOnceWith(15_000);
+    expect(openCashSession).toHaveBeenCalledExactlyOnceWith(14_400_000);
     await expectNoAccessibilityViolations(screen.container);
   });
 });

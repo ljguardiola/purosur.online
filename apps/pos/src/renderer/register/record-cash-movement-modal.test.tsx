@@ -10,6 +10,10 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CashMovementInput } from "../platform/core-client";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import {
+  authorizationDialog,
+  authorizeInModal,
+} from "../shell/test-support/authorization-modal-steps";
 import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
 import { RecordCashMovementModal } from "./record-cash-movement-modal";
@@ -93,12 +97,6 @@ async function fill(screen: Screen, amount: string, reason: string, keys = false
     await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), amount);
   }
   await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), reason);
-}
-
-async function authorizeAs(screen: Screen, firstName: string, pin: string) {
-  await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-  await userEvent.click(screen.getByRole("option", { name: firstName }));
-  await userEvent.type(screen.getByLabelText("PIN"), pin);
 }
 
 describe("RecordCashMovementModal", () => {
@@ -487,15 +485,18 @@ describe("RecordCashMovementModal", () => {
     expect(requested).toEqual([]);
   });
 
-  it("asks for an authorizer when the core says one is needed", async () => {
+  it("asks for an authorizer in the modal, not in the panel, when the core says one is needed", async () => {
     const { screen, requested } = await renderModal({
       lacking: ["WITHDRAWAL"],
     });
 
     await choose(screen, "Retiro");
 
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeDisabled();
+    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
+    await expect.element(authorizationDialog()).not.toBeInTheDocument();
+    await fill(screen, "100", "Fin de turno");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+    await expect.element(authorizationDialog()).toBeVisible();
     expect(requested).toEqual(["withdraw_cash"]);
   });
 
@@ -554,35 +555,49 @@ describe("RecordCashMovementModal", () => {
   );
 
   describe("when the signed-in person lacks the kind's permission", () => {
+    it.each([
+      ["CASH_OUT", "Gasto", "Registrar gasto", "Registrar gasto"],
+      ["WITHDRAWAL", "Retiro", "Registrar retiro", "Retirar efectivo a la caja fuerte"],
+      ["CASH_IN", "Ingreso", "Registrar ingreso", "Registrar ingreso"],
+    ] as const)(
+      "asks in the modal with the subtitle of a %s movement",
+      async (kind, option, button, subtitle) => {
+        const { screen, recordCashMovement } = await renderModal({ lacking: [kind] });
+        await choose(screen, option);
+        await fill(screen, "100", "Fin de turno");
+
+        await userEvent.click(screen.getByRole("button", { name: button }));
+
+        await expect
+          .element(authorizationDialog().getByText(subtitle, { exact: true }))
+          .toBeVisible();
+        expect(recordCashMovement).not.toHaveBeenCalled();
+      },
+    );
+
+    it("shows the form's own refusal and asks for no authorization while the form is not valid", async () => {
+      const { screen, recordCashMovement } = await renderModal({ lacking: ["WITHDRAWAL"] });
+      await choose(screen, "Retiro");
+      await fill(screen, "", "Fin de turno");
+
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+      await expect.element(screen.getByText("Ingresá el importe.")).toBeVisible();
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+      expect(recordCashMovement).not.toHaveBeenCalled();
+    });
+
     it("asks for someone with that permission only for the kind that needs it", async () => {
       const { screen, requested } = await renderModal({
         lacking: ["WITHDRAWAL"],
       });
-      await expect
-        .element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO"))
-        .not.toBeInTheDocument();
-
-      await choose(screen, "Retiro");
-
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-      await expect
-        .element(screen.getByText("Ada no tiene permiso para retirar efectivo a la caja fuerte."))
-        .toBeVisible();
-      expect(requested).toEqual(["withdraw_cash"]);
-    });
-
-    it("asks again for the new kind's permission after the kind changes", async () => {
-      const { screen, requested } = await renderModal({
-        lacking: ["CASH_OUT", "WITHDRAWAL"],
-      });
       await choose(screen, "Gasto");
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-      await authorizeAs(screen, "Sofía", "1234");
+      await expect.element(screen.getByRole("button", { name: "Registrar gasto" })).toBeEnabled();
+      expect(requested).toEqual([]);
 
       await choose(screen, "Retiro");
 
-      await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
-      expect(requested).toEqual(["record_cash_expense", "withdraw_cash"]);
+      expect(requested).toEqual(["withdraw_cash"]);
     });
 
     it("asks for the authorizers of the permission the core names for the kind", async () => {
@@ -598,21 +613,20 @@ describe("RecordCashMovementModal", () => {
 
       await choose(screen, "Retiro");
 
-      await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
       expect(requested).toEqual(["close_anothers_register_session"]);
     });
 
-    it("keeps the button disabled until someone authorizes, then sends who and their PIN", async () => {
-      const { screen, recordCashMovement } = await renderModal({
+    it("sends who authorizes and their PIN on Enter, then closes", async () => {
+      const { screen, recordCashMovement, onRecorded } = await renderModal({
         lacking: ["WITHDRAWAL"],
       });
       await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
-      await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeDisabled();
-
-      await authorizeAs(screen, "Sofía", "1234");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await vi.waitFor(() => expect(onRecorded).toHaveBeenCalledOnce());
       expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
         kind: "WITHDRAWAL",
         amount: 10_000,
@@ -621,18 +635,47 @@ describe("RecordCashMovementModal", () => {
       });
     });
 
-    it("shows the PIN refusal and stays open", async () => {
+    it("takes the digits typed right after the authorization modal opens, without clicking its PIN field", async () => {
+      const { screen, recordCashMovement } = await renderModal({ lacking: ["WITHDRAWAL"] });
+      await choose(screen, "Retiro");
+      await fill(screen, "100", "Fin de turno");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+      await expect.element(authorizationDialog()).toBeVisible();
+
+      await userEvent.keyboard("1234");
+
+      await expect.element(authorizationDialog().getByLabelText("PIN")).toHaveValue("1234");
+      expect(recordCashMovement).not.toHaveBeenCalled();
+    });
+
+    it("does not record the movement when the authorization modal is closed with Esc", async () => {
+      const { screen, recordCashMovement, onClose } = await renderModal({
+        lacking: ["WITHDRAWAL"],
+      });
+      await choose(screen, "Retiro");
+      await fill(screen, "100", "Fin de turno");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+      await expect.element(authorizationDialog()).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.element(authorizationDialog()).not.toBeInTheDocument();
+      expect(recordCashMovement).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("shows the PIN refusal inside the authorization modal and stays open", async () => {
       const { screen, onRecorded } = await renderModal({
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 6 },
       });
       await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
-      await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
+      await expect.element(authorizationDialog().getByText("PIN incorrecto")).toBeVisible();
       expect(onRecorded).not.toHaveBeenCalled();
     });
 
@@ -643,9 +686,9 @@ describe("RecordCashMovementModal", () => {
       });
       await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
 
       await expect
         .poll(() => screen.getByRole("alert").query()?.textContent)
@@ -654,19 +697,19 @@ describe("RecordCashMovementModal", () => {
       expect(onRecorded).not.toHaveBeenCalled();
     });
 
-    it("says the authorizer cannot authorize the movement when the core refuses their permission", async () => {
+    it("says inside the modal that the authorizer cannot authorize the movement", async () => {
       const { screen, onRecorded } = await renderModal({
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "lacks_permission" },
       });
       await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
-      await authorizeAs(screen, "Sofía", "1234");
-
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
+      await authorizeInModal({ as: "Sofía", pin: "1234" });
+
       await expect
-        .element(screen.getByText("Sofía no puede autorizar esto", { exact: true }))
+        .element(authorizationDialog().getByText("Sofía no puede autorizar esto", { exact: true }))
         .toBeVisible();
       await expect.element(screen.getByText(/Ya no tenés permiso/)).not.toBeInTheDocument();
       expect(onRecorded).not.toHaveBeenCalled();

@@ -51,6 +51,16 @@ test("needs its items, whose labels come from the app", () => {
   expectTypeOf<{ items: [] }>().toExtend<KeyLegendProps>();
   expectTypeOf<{ items: [{ keyName: "F2"; label: string }] }>().toExtend<KeyLegendProps>();
   expectTypeOf<{ items: [{ keyName: "F2" }] }>().not.toExtend<KeyLegendProps>();
-  expectTypeOf<{ items: [{ keyName: "F1"; label: string }] }>().not.toExtend<KeyLegendProps>();
+  expectTypeOf<{ items: [{ keyName: "F1"; label: string }] }>().toExtend<KeyLegendProps>();
+  expectTypeOf<{ items: [{ keyName: "F0"; label: string }] }>().not.toExtend<KeyLegendProps>();
   expectTypeOf<object>().not.toExtend<KeyLegendProps>();
+});
+
+test("shows the keypad plus and minus keys as one pair with a single label", async () => {
+  const screen = await render(
+    <KeyLegend items={[{ keyName: "NumpadAddSubtract", label: "Cantidad" }]} />,
+  );
+
+  expect(screen.getByRole("listitem").element().textContent).toBe("+/−Cantidad");
+  expect(screen.container.querySelectorAll("kbd")).toHaveLength(1);
 });

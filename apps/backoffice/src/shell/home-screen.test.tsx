@@ -17,6 +17,7 @@ import type { BackofficeAccess } from "./backoffice-access";
 import { HomeScreen } from "./home-screen";
 import type { HomeScreenServices } from "./home-screen-services";
 import { accessWith, NO_CAPABILITIES_ACCESS } from "./test-support/backoffice-access";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { render } from "./test-support/render-with-router";
 
 beforeEach(() => {
@@ -136,7 +137,7 @@ test("shows Inicio with the open alerts' total, the alerts by level, the alert l
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Puro Sur")).toBeVisible();
+  expect(shownEyebrow()).toBeNull();
   await expect.element(screen.getByText("3 alertas abiertas", { exact: true })).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Alertas abiertas", level: 2 }))

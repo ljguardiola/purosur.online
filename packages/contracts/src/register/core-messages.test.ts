@@ -1140,6 +1140,59 @@ describe("cash movement kinds answers", () => {
   });
 });
 
+describe("opening float suggestion messages", () => {
+  const PREVIOUS_CLOSE = {
+    kind: "previous_close",
+    closed_at: "2026-11-04T20:14:00.000-03:00",
+    counted_cash: 14_400_000,
+  };
+
+  it("accepts a request for the opening float suggestion, and rejects it without its request id", () => {
+    const message = { type: "opening-float-suggestion-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "opening-float-suggestion-request" })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each([[PREVIOUS_CLOSE], [{ kind: "none" }], [null]])("accepts the answer %j", (suggestion) => {
+    const message = { type: "opening-float-suggestion", request_id: REQUEST_ID, suggestion };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["a close without when it closed", { kind: "previous_close", counted_cash: 14_400_000 }],
+    [
+      "a close without its counted cash",
+      { kind: "previous_close", closed_at: PREVIOUS_CLOSE.closed_at },
+    ],
+    ["a counted cash with cents fractions", { ...PREVIOUS_CLOSE, counted_cash: 1.5 }],
+    ["an unknown kind", { kind: "guessed" }],
+  ])("rejects %s", (_case, suggestion) => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "opening-float-suggestion",
+        request_id: REQUEST_ID,
+        suggestion,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts that the suggestion cannot be read, and rejects it without its request id", () => {
+    const message = { type: "opening-float-suggestion-unavailable", request_id: REQUEST_ID };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "opening-float-suggestion-unavailable",
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("register status messages", () => {
   const STANDINGS = { scale: "matching", reader: "not_registered" };
 

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowLeft, Banknote, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Check, LogOut, QrCode } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -46,6 +46,17 @@ export const PrimaryDestructiveHovered: Story = {
 
 export const PrimaryWithIcon: Story = {
   args: { icon: <Check /> },
+};
+
+export const PrimaryWithIconAtStart: Story = {
+  args: {
+    size: "large",
+    fullWidth: true,
+    keycap: "Enter",
+    icon: <LogOut />,
+    iconPosition: "start",
+    children: "Salir",
+  },
 };
 
 export const PrimaryDisabled: Story = {
@@ -198,4 +209,27 @@ export const SecondaryWithKeycap: Story = {
 
 export const TextWithKeycap: Story = {
   args: { variant: "text", keycap: "Escape", icon: <ArrowLeft />, children: "Volver" },
+};
+
+export const TextWithTrailingIconAndKeycap: Story = {
+  args: { variant: "text", keycap: "F1", trailingIcon: <ArrowRight />, children: "Otros medios" },
+};
+
+export const PrimaryWithWrappedLabel: Story = {
+  args: {
+    size: "large",
+    fullWidth: true,
+    wrapLabel: true,
+    icon: <QrCode />,
+    iconPosition: "start",
+    keycap: "Enter",
+  },
+  decorators: [
+    (Story) => (
+      <div className="flex w-88">
+        <Story />
+      </div>
+    ),
+  ],
+  render: (args) => <Button {...args}>Cobrar con el pago de Mercado Pago</Button>,
 };

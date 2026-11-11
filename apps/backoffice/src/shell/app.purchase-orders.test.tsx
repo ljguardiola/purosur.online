@@ -18,6 +18,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -87,6 +88,7 @@ test("opens Pedidos with its three tabs for a person with every purchasing capab
 
   await expect.element(screen.getByRole("heading", { name: "Pedidos", level: 1 })).toBeVisible();
   expect(document.title).toBe("Pedidos · Puro Sur");
+  expect(shownEyebrow()).toBe("Compras");
   await expect.element(screen.getByRole("tab", { name: "Pedidos", selected: true })).toBeVisible();
   await expectTabs(screen, ["Pedidos", "Sugerir pedido", "Comparar precios"]);
   await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();

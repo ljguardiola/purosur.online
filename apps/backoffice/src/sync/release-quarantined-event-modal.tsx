@@ -116,7 +116,7 @@ export function ReleaseQuarantinedEventModal({
       <div className="flex flex-col gap-4">
         {shown ? (
           <p className="text-body text-text">
-            {`La nube va a volver a intentar aplicar este ${quarantinedEventSentenceText(shown.eventType)} de la caja ${shown.registerName}. El evento no se modifica. Si vuelve a fallar en todos los intentos, queda otra vez en cuarentena y se abre una alerta nueva.`}
+            {`La nube va a volver a intentar aplicar este ${quarantinedEventSentenceText(shown.eventType)} de la caja ${shown.registerName}. El evento no se modifica. Si vuelve a fallar en todos los intentos, queda otra vez retenido y se abre una alerta nueva.`}
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (

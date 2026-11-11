@@ -1207,6 +1207,35 @@ test("renders no button at all for a row whose action reports undefined, keeping
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders a disabled button for an action the row offers but cannot run now, without running it", async () => {
+  const onPress = vi.fn();
+  const lockableColumns = [
+    ...columns,
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [
+        (p: Product) => ({
+          icon: <Trash2 />,
+          "aria-label": `Delete ${p.name}`,
+          disabled: p.id === coffee.id,
+          onPress,
+        }),
+      ],
+    }),
+  ] as const;
+
+  const screen = await render(<TestTable {...commonProps} columns={lockableColumns} />);
+
+  await expect.element(screen.getByRole("button", { name: "Delete Coffee" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Delete Tea" })).toBeEnabled();
+  screen
+    .getByRole("button", { name: "Delete Coffee" })
+    .element()
+    .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  expect(onPress).not.toHaveBeenCalled();
+});
+
 test("keeps the first action in the same column position across rows even when the second action is hidden on one of them", async () => {
   type Item = { id: string; isAdministrator: boolean };
   const itemRows: Item[] = [

@@ -408,6 +408,146 @@ describe("useKeys", () => {
     });
   });
 
+  describe("with a focused button", () => {
+    it("leaves Enter to the focused button instead of the screen's Enter", async () => {
+      const run = vi.fn();
+      const clicked = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Enter", run }]} />
+          <button type="button" onClick={clicked}>
+            Volver
+          </button>
+        </>,
+      );
+
+      screen.getByRole("button", { name: "Volver" }).element().focus();
+      await userEvent.keyboard("{Enter}");
+
+      expect(run).not.toHaveBeenCalled();
+      expect(clicked).toHaveBeenCalledTimes(1);
+    });
+
+    it("still runs the screen's other keys from the focused button", async () => {
+      const run = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Escape", run }]} />
+          <button type="button">Volver</button>
+        </>,
+      );
+
+      screen.getByRole("button", { name: "Volver" }).element().focus();
+      await userEvent.keyboard("{Escape}");
+
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("keys that act while typing", () => {
+    function press(target: Element, key: string, code: string) {
+      const event = new KeyboardEvent("keydown", { key, code, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    it("runs a letter flagged to act while typing from a focused field", async () => {
+      const run = vi.fn();
+      const screen = await renderLayer(
+        <Keys bindings={[{ key: "R", run, whileTyping: true }]} field />,
+      );
+      const field = screen.getByLabelText("Producto");
+
+      await userEvent.click(field);
+      await userEvent.keyboard("r");
+
+      expect(run).toHaveBeenCalledTimes(1);
+      await expect.element(field).toHaveValue("");
+    });
+
+    it("runs the keypad's plus and minus from a focused field without typing them", async () => {
+      const add = vi.fn();
+      const subtract = vi.fn();
+      const screen = await renderLayer(
+        <Keys
+          bindings={[
+            { key: "NumpadAdd", run: add, whileTyping: true },
+            { key: "NumpadSubtract", run: subtract, whileTyping: true },
+          ]}
+          field
+        />,
+      );
+      const field = screen.getByLabelText("Producto");
+      await userEvent.click(field);
+
+      const plus = press(field.element(), "+", "NumpadAdd");
+      const minus = press(field.element(), "-", "NumpadSubtract");
+
+      expect(add).toHaveBeenCalledTimes(1);
+      expect(subtract).toHaveBeenCalledTimes(1);
+      expect(plus.defaultPrevented).toBe(true);
+      expect(minus.defaultPrevented).toBe(true);
+    });
+
+    it("runs one binding for both keypad keys, telling which one was pressed", async () => {
+      const run = vi.fn();
+      const screen = await renderLayer(
+        <Keys bindings={[{ key: "NumpadAddSubtract", run, whileTyping: true }]} field />,
+      );
+      const field = screen.getByLabelText("Producto");
+      await userEvent.click(field);
+
+      press(field.element(), "+", "NumpadAdd");
+      press(field.element(), "-", "NumpadSubtract");
+      press(field.element(), "-", "Minus");
+
+      expect(run.mock.calls).toEqual([["+"], ["-"]]);
+    });
+
+    it("leaves the main keyboard's hyphen and plus to the focused field", async () => {
+      const add = vi.fn();
+      const subtract = vi.fn();
+      const screen = await renderLayer(
+        <Keys
+          bindings={[
+            { key: "NumpadAdd", run: add, whileTyping: true },
+            { key: "NumpadSubtract", run: subtract, whileTyping: true },
+          ]}
+          field
+        />,
+      );
+      const field = screen.getByLabelText("Producto");
+
+      await userEvent.click(field);
+      await userEvent.keyboard("a-b");
+
+      expect(subtract).not.toHaveBeenCalled();
+      expect(add).not.toHaveBeenCalled();
+      await expect.element(field).toHaveValue("a-b");
+    });
+
+    it("leaves the keypad's plus to the focused field unless the binding acts while typing", async () => {
+      const add = vi.fn();
+      const screen = await renderLayer(<Keys bindings={[{ key: "NumpadAdd", run: add }]} field />);
+      const field = screen.getByLabelText("Producto");
+      await userEvent.click(field);
+
+      const plus = press(field.element(), "+", "NumpadAdd");
+
+      expect(add).not.toHaveBeenCalled();
+      expect(plus.defaultPrevented).toBe(false);
+    });
+
+    it("runs the keypad's plus when no field is focused", async () => {
+      const add = vi.fn();
+      await renderLayer(<Keys bindings={[{ key: "NumpadAdd", run: add }]} />);
+
+      press(document.body, "+", "NumpadAdd");
+
+      expect(add).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("scoped to an element", () => {
     it("runs its keys while the focus is inside the element", async () => {
       const run = vi.fn();

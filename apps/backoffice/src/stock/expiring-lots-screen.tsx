@@ -26,6 +26,8 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { BranchTermChange } from "../shell/branch-term-change";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -39,6 +41,7 @@ import { useExpiringLotsQuery, useExpiringLotsReportQuery, useRefreshStock } fro
 import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type ExpiringLotsScreenProps = {
+  access: BackofficeAccess;
   filters: ExpiringLotsFilters;
   onFiltersChange: (filters: ExpiringLotsFilters) => void;
   onSessionEnded: () => void;
@@ -182,6 +185,7 @@ function refusedNotice(
 }
 
 export function ExpiringLotsScreen({
+  access,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -394,6 +398,17 @@ export function ExpiringLotsScreen({
               />
             }
           />
+          <div className="ml-auto">
+            <BranchTermChange
+              term="expiringLotAlertDays"
+              value={windowDays}
+              status={data.status}
+              access={access}
+              onSessionEnded={onSessionEnded}
+              onChanged={() => void refreshStock()}
+              services={services.branchTerm}
+            />
+          </div>
         </div>
         <Table
           aria-label="Vencimientos"

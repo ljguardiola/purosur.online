@@ -301,7 +301,7 @@ export function NewProductModal({
         />
         <NewTagModal
           open={tagCreation.open}
-          context="Distintivos"
+          context="Etiquetas"
           services={{ createTag }}
           onCreated={tagCreation.select}
           onClose={tagCreation.close}

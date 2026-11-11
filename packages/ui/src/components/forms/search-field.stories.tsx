@@ -1,5 +1,5 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
-import { Search } from "lucide-react";
+import { ScanBarcode, Search } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playPseudoHoverPaintsBoneFill,
@@ -44,6 +44,17 @@ export const Register: Story = {
 
 export const RegisterFilled: Story = {
   args: { value: "7791234567890" },
+};
+
+export const RegisterInvalid: Story = {
+  args: { value: "7790000000123", icon: <ScanBarcode />, invalid: true },
+};
+
+export const RegisterWithKeyAction: Story = {
+  args: {
+    value: "alm",
+    action: { label: "Cerrar", keyName: "Escape", onPress: () => {} },
+  },
 };
 
 const inBackofficeSize: Decorator = (Story) => (

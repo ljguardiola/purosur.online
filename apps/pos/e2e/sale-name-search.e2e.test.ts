@@ -69,19 +69,18 @@ describe("searching products by name into a sale on the register", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
 
     const field = page.getByRole("combobox", { name: "Producto" });
-    const cafe = page.getByRole("listitem").filter({ hasText: "Café molido 500 g" });
+    const cafe = page.getByRole("row").filter({ hasText: "Café molido 500 g" });
 
     await field.fill("CAFE mol");
     await page.getByRole("option", { name: /Café molido 500 g/ }).waitFor();
     await page.getByText("$ 2.380,00 / u").waitFor();
     await field.press("Enter");
-    await cafe.getByText("$ 2.380,00").waitFor();
+    await cafe.getByText("$ 2.380,00", { exact: true }).waitFor();
     expect(await field.inputValue()).toBe("");
 
     await field.fill("zzz");

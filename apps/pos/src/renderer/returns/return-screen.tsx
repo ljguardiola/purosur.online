@@ -61,20 +61,12 @@ function ReturnFlow({
   const [standing, setStanding] = useState<Standing>({ step: "find" });
   const [authorizationRequired, setAuthorizationRequired] = useState(false);
   const authorization = useAuthorization({
-    person,
     permission: "process_return",
     required: authorizationRequired,
     loadAuthorizers,
   });
 
-  const rail = (
-    <OpenSessionRail
-      registerName={registerName}
-      lock={lock}
-      current="return"
-      abilities={person.abilities}
-    />
-  );
+  const rail = <OpenSessionRail lock={lock} current="return" abilities={person.abilities} />;
 
   return (
     <>

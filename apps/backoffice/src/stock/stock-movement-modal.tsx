@@ -62,7 +62,7 @@ const KIND_OPTIONS = {
   adjustment: {
     value: "adjustment",
     label: "Ajuste",
-    description: "Corrige el stock de una compra o una tanda",
+    description: "Corrige el stock de una compra o una producción",
     icon: <ArrowDownUp />,
   },
 } as const satisfies Record<MovementKind, unknown>;

@@ -195,7 +195,6 @@ export async function renderScreen({
     <RegisterWindow>
       <SalesHistoryScreen
         person={person}
-        registerName="Caja 1"
         sessionOpen={sessionOpen}
         lock={lock}
         salesHistory={salesHistory}

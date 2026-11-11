@@ -76,49 +76,45 @@ describe("changing, removing and cancelling a sale on the register", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
-    await page.getByRole("heading", { name: "Venta en curso" }).waitFor();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
+    await page.getByRole("combobox", { name: "Producto" }).waitFor();
 
     const scanField = page.getByRole("combobox", { name: "Producto" });
     const panel = page.getByRole("complementary", { name: "Panel de cobro" });
-    const yerba = page.getByRole("listitem").filter({ hasText: "Yerba mate 1 kg" });
-    const alfajor = page.getByRole("listitem").filter({ hasText: "Alfajor triple" });
+    const yerba = page.getByRole("row").filter({ hasText: "Yerba mate 1 kg" });
+    const alfajor = page.getByRole("row").filter({ hasText: "Alfajor triple" });
 
     await scanField.fill(YERBA_CODE);
     await scanField.press("Enter");
-    await yerba.getByText("$ 2.380,00").waitFor();
+    await yerba.getByText("$ 2.380,00", { exact: true }).waitFor();
 
-    await page.getByRole("button", { name: "Subir la cantidad de Yerba mate 1 kg" }).click();
-    await yerba.getByText("$ 4.760,00").waitFor();
-    await yerba.getByText("2", { exact: true }).waitFor();
+    await page.keyboard.press("NumpadAdd");
+    await yerba.getByText("$ 4.760,00", { exact: true }).waitFor();
+    await yerba.getByText("2 u", { exact: true }).waitFor();
     await panel.getByText("$ 4.760,00").first().waitFor();
 
-    await page.getByRole("button", { name: "Bajar la cantidad de Yerba mate 1 kg" }).click();
-    await yerba.getByText("$ 2.380,00").waitFor();
-    await yerba.getByText("1", { exact: true }).waitFor();
-    await page
-      .getByRole("button", { name: "Bajar la cantidad de Yerba mate 1 kg", disabled: true })
-      .waitFor();
+    await page.keyboard.press("NumpadSubtract");
+    await yerba.getByText("$ 2.380,00", { exact: true }).waitFor();
+    await yerba.getByText("1 u", { exact: true }).waitFor();
 
     await scanField.fill(ALFAJOR_CODE);
     await scanField.press("Enter");
-    await alfajor.getByText("$ 500,00").waitFor();
+    await alfajor.getByText("$ 500,00", { exact: true }).waitFor();
     await panel.getByText("$ 2.880,00").first().waitFor();
-    await panel.getByText("2 líneas").waitFor();
+    await panel.getByText("2", { exact: true }).waitFor();
 
     await page.getByRole("button", { name: "Quitar Alfajor triple" }).click();
     await alfajor.waitFor({ state: "detached" });
     await panel.getByText("$ 2.380,00").first().waitFor();
-    await panel.getByText("1 línea").waitFor();
+    await panel.getByText("1", { exact: true }).waitFor();
 
-    await page.getByRole("button", { name: "Vaciar carrito" }).click();
+    await page.getByRole("button", { name: "Vaciar", exact: true }).click();
     await page.getByRole("heading", { name: "¿Vaciar el carrito?" }).waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
     await page.getByText("La venta está vacía").waitFor();
     await yerba.waitFor({ state: "detached" });
-    await panel.getByText("0 líneas").waitFor();
+    await panel.getByText("0", { exact: true }).waitFor();
   });
 });

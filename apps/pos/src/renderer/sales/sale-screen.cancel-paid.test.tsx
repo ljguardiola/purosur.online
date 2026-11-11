@@ -1,6 +1,9 @@
 import type { CancelPaidSaleOutcome, CurrentSaleAnswer, OpenSale } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import {
+  authorizationDialog,
+  authorizeInModal,
+} from "../shell/test-support/authorization-modal-steps";
 import { renderScreen, SALE_OF_YERBA } from "./test-support/sale-screen";
 
 const CASH_REFUND = {
@@ -124,17 +127,19 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     });
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
-    await userEvent.click(screen.getByRole("option", { name: "Grace" }));
-    await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await expect
+      .element(authorizationDialog().getByText("Cancelar venta con pagos", { exact: true }))
+      .toBeVisible();
+    await authorizeInModal({ as: "Grace", pin: "1234" });
 
     expect(loadAuthorizers).toHaveBeenCalledWith("void_sale");
-    expect(cancelPaidSale).toHaveBeenCalledExactlyOnceWith("sale-1", {
-      user_id: "u2",
-      pin: "1234",
-    });
+    await vi.waitFor(() =>
+      expect(cancelPaidSale).toHaveBeenCalledExactlyOnceWith("sale-1", {
+        user_id: "u2",
+        pin: "1234",
+      }),
+    );
   });
 
   it("reads the sale again when the core says it is no longer in progress", async () => {
@@ -212,7 +217,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
       cancelPaidSale,
     });
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await expect.element(screen.getByText(/no se cobra nada/)).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();

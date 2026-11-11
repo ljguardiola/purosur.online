@@ -31,7 +31,6 @@ import { VoidSaleModal } from "./void-sale-modal";
 
 export type SalesHistoryScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
   sessionOpen: boolean;
   lock: () => void;
   salesHistory: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
@@ -73,7 +72,6 @@ type FilterChoice = { session: SessionFilter; state: StateFilter; page: number }
 
 export function SalesHistoryScreen({
   person,
-  registerName,
   sessionOpen,
   lock,
   salesHistory,
@@ -149,14 +147,7 @@ export function SalesHistoryScreen({
   return (
     <RegisterFrame
       background="surface"
-      rail={
-        <SalesHistoryRail
-          person={person}
-          registerName={registerName}
-          sessionOpen={sessionOpen}
-          lock={lock}
-        />
-      }
+      rail={<SalesHistoryRail person={person} sessionOpen={sessionOpen} lock={lock} />}
       aside={
         <SaleHistoryDetailPanel
           saleId={selectedSaleId}
@@ -288,7 +279,6 @@ export function SalesHistoryScreen({
           refunds={voiding.voidability.refunds}
           creditNoteCorrects={voiding.voidability.credit_note_corrects}
           authorizationRequired={voiding.void_authorization_required}
-          person={person}
           loadAuthorizers={loadAuthorizers}
           voidSale={voidSale}
           onVoided={(creditNote) => {

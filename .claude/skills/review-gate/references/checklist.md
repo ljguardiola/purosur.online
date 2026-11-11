@@ -72,12 +72,14 @@ how a new one is judged.
 - A value one side of a boundary or a move produces or accepts that the
   other side refuses or reads otherwise: a reader replaced by a stricter
   one, a received code, a limit or typed text read differently by each layer
-  or each search of the same app, or a detail the original rendered for some
-  inputs left out of the copy that now serves them, such as a plain-object
-  lookup of a received code that answers for `constructor`, a limit two
-  layers apply in different units, or typed text folded by Postgres
+  or each search of the same app, a detail the original rendered for some
+  inputs left out of the copy that now serves them, or a prop a component's
+  type accepts that one of its rendering branches never passes on, such as
+  a plain-object lookup of a received code that answers for `constructor`, a
+  limit two layers apply in different units, typed text folded by Postgres
   `unaccent` in one list and by stripped NFD marks in another, so one finds
-  a record the other misses.
+  a record the other misses, or a `placeholder` dropped by the branch of a
+  text field that renders the read-only reason.
 - A key, guard, bound or derived value taken over another set than the one
   it stands for: wider or narrower than what it identifies, applied on only
   some of the paths into what it guards, true of an empty set or blind to
@@ -131,11 +133,14 @@ how a new one is judged.
 
 ### Screens
 
-- A screen out of step with the `packages/ui` pieces: hand-writing what a
-  piece named in build-screen covers (a panel total as `Eyebrow` plus a
-  `text-display` figure where `FigureStat` exists), or giving a piece more
-  items than its layout is made for (an unbounded list of supplier prices in
-  `OptionCardGroup`'s non-wrapping row).
+- A screen or a composed `packages/ui` piece out of step with the pieces it
+  uses: hand-writing what a piece named in build-screen covers (a panel total
+  as `Eyebrow` plus a `text-display` figure where `FigureStat` exists), giving
+  a piece more items than its layout is made for (an unbounded list of
+  supplier prices in `OptionCardGroup`'s non-wrapping row), or a composed
+  piece that keeps a hard-coded measure after its base piece changed it
+  (`DetailPanel`'s header kept at `px-8` after `SidePanel`'s body and footer
+  moved to `px-6`).
 - A screen standing in for an answer it does not have or a state it is not
   in: an action the cloud answers for shown disabled from a defaulted flag
   while the record loads, a URL filter rewritten as not offered because its
@@ -156,10 +161,15 @@ how a new one is judged.
 - A guard or a navigation out of step with where the person is: every route
   to a screen refused while the core refuses only one action, a person sent
   back to the screen they are leaving, an action left pressable while its
-  own request is out, so a second press sends it again, or a navigation that
-  changes one part of the location and drops the rest, such as a notice's
-  dismissal that clears history state with no `search`, closing the open
-  panel and dropping the list's filters.
+  own request is out, so a second press sends it again, a navigation that
+  changes one part of the location and drops the rest, a screen-wide key
+  taken ahead of the focused control that answers the same key, or a key an
+  open panel stops answering while its request is out falling through to
+  the frame's own binding, such as a notice's dismissal that clears history
+  state with no `search`, closing the open panel and dropping the list's
+  filters, Enter on a focused "Volver con Esc" button submitting the
+  enrollment code instead of going back, or Esc during a refund's conversion
+  navigating to the sale screen.
 
 ### User-facing text
 
@@ -169,14 +179,18 @@ how a new one is judged.
 - A locked control left plainly disabled: its tooltip dropped while a
   refusal shows elsewhere, so the control itself no longer says why it is
   locked.
-- A text saying more or other than what happened or what the domain does: a
-  success notice naming every role while only some saved, a cause the
-  answer does not carry ("La tarjeta no se aprobó" for a decline that may be
-  a QR payment), or a consequence nothing produces ("El Administrador ya
-  fue avisado" for a condition no alert reports).
-- A text that names what the app does not show or have: a help step telling
-  the person to press "Reimprimir como duplicado" on an icon-only button, or
-  a refusal sending the cashier to a returns screen the register lacks.
+- A text saying more or other than what happened, what the domain does or
+  what the app has: a success notice naming every role while only some
+  saved, a cause the answer does not carry ("La tarjeta no se aprobó" for a
+  decline that may be a QR payment), a consequence nothing produces ("El
+  Administrador ya fue avisado" for a condition no alert reports), or a help
+  step telling the person to press "Reimprimir como duplicado" on an
+  icon-only button.
+- A text left in the grammar of a word the change replaced: pronouns,
+  participles and adjectives still agreeing with the old noun after a rename
+  to one of another gender or number, such as "Ya estaba desactivado" and
+  "lo conservan" for an etiqueta that was a distintivo, filter options
+  "Activos" or a row's status badge "Inactivo" over a list of etiquetas.
 - Texts shown together that repeat or contradict each other: a refusal
   beside a standing notice saying the same, or "Seguir vendiendo igual" in
   the status bar that says "La caja no puede vender".
@@ -218,10 +232,11 @@ how a new one is judged.
   baseline taken while the app it started may still be working, a wait ended
   only by events a broken run may never raise, or a cleanup that ends a hung
   process with a signal it handles as the same quit that hung.
-- A test removed while nothing else verifies its rule: a case deleted with
-  the code it covered while the replacing code applies the same rule (an
-  adapter's ordering case dropped while the new adapter keeps the same
-  `ORDER BY`).
+- A test left out of step with the code it covers: removed while nothing
+  else verifies its rule (an adapter's ordering case dropped while the new
+  adapter keeps the same `ORDER BY`), or an end-to-end journey still driving
+  a control or a window the change removed (clicking "Dejar bloqueada" after
+  Salir stopped asking).
 - A migration that leaves data or rights other than the schema means: a
   backfill that guesses what old rows cannot prove (every recovery link
   marked sent while some failed and await a retry), a column for a shown

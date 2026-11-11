@@ -1,8 +1,8 @@
 import type { ChargeSaleWithPaidOrderOutcome, OpenSale } from "@purosur/contracts";
 import { Button, formatCents, HighlightedNotice, InlineNotice } from "@purosur/ui";
 import { CreditCard, QrCode, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
-import { paymentMethodName } from "../platform/payment-method-names";
 import type { CompletedPaidOrder } from "./charge-completed-modal";
 
 const FAILED_MESSAGE = "No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.";
@@ -17,6 +17,26 @@ export type RebuiltPaidOrderNoticeProps = {
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
+
+export function PaidOrderNotice({
+  paidOrder,
+  actions,
+}: {
+  paidOrder: Pick<NonNullable<OpenSale["rebuilt_paid_order"]>, "method" | "amount">;
+  actions?: ReactNode;
+}) {
+  return (
+    <HighlightedNotice
+      tone="info"
+      icon={paidOrder.method === "QR" ? <QrCode /> : <CreditCard />}
+      title="Pago con Mercado Pago de"
+      titleAmount={formatCents(paidOrder.amount)}
+      description="Aplicado a la venta antes de cobrar con otro medio."
+      layout="row"
+      actions={actions}
+    />
+  );
+}
 
 export function RebuiltPaidOrderNotice({
   paidOrder,
@@ -77,12 +97,8 @@ export function RebuiltPaidOrderNotice({
 
   return (
     <div className="flex flex-col gap-3">
-      <HighlightedNotice
-        tone="info"
-        icon={paidOrder.method === "QR" ? <QrCode /> : <CreditCard />}
-        title={`Pago con ${paymentMethodName(paidOrder.method)} de ${formatCents(paidOrder.amount)}`}
-        description="Aplicalo a la venta antes de cobrar con otro medio."
-        layout="row"
+      <PaidOrderNotice
+        paidOrder={paidOrder}
         actions={
           <Button
             size="large"

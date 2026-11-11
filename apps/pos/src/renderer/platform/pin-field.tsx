@@ -5,7 +5,6 @@ const MINIMUM_SLOTS = 6;
 export type PinFieldProps = {
   value: string;
   onChange: (value: string) => void;
-  compact?: boolean;
   disabled?: boolean;
   errorMessageId?: string;
   ref?: Ref<HTMLInputElement>;
@@ -14,7 +13,6 @@ export type PinFieldProps = {
 export function PinField({
   value,
   onChange,
-  compact = false,
   disabled = false,
   errorMessageId,
   ref,
@@ -29,8 +27,7 @@ export function PinField({
     invalid ? "inset-ring-error" : "inset-ring-border",
     "has-focus-visible:inset-ring-action has-focus-visible:focus-ring",
   ].join(" ");
-  const boxClassName = `${boxStateClassName} ${compact ? "h-12 w-max min-w-50 gap-2 px-3" : "h-16 gap-4 px-4"}`;
-  const dotClassName = compact ? "size-3" : "size-4";
+  const boxClassName = `${boxStateClassName} h-16 gap-4 px-4`;
   const disabledClassName = disabled ? "opacity-disabled" : "";
 
   const dots = slots.map((slot) => (
@@ -39,18 +36,16 @@ export function PinField({
       aria-hidden="true"
       data-pin-slot={slot.filled ? "filled" : "empty"}
       className={[
-        dotClassName,
-        "shrink-0 rounded-full border-2 border-border-strong",
+        "size-4 shrink-0 rounded-full border-2 border-border-strong",
         slot.filled ? "bg-surface-inverse" : "bg-transparent",
       ].join(" ")}
     />
   ));
 
   return (
-    <label className={`${compact ? "block" : "flex flex-col gap-1.5"} ${disabledClassName}`}>
-      {compact ? null : <span className="text-body font-bold text-text">PIN</span>}
+    <label className={`flex flex-col gap-1.5 ${disabledClassName}`}>
+      <span className="text-body font-bold text-text">PIN</span>
       <span className={boxClassName}>
-        {compact ? <span className="text-detail font-bold text-text">PIN</span> : null}
         {dots}
         <input
           ref={ref}

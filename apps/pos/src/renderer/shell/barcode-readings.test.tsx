@@ -2,7 +2,7 @@ import { Modal } from "@purosur/ui";
 import { CircleX } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { BarcodeReadings, useBarcodeReadings } from "./barcode-readings";
+import { BarcodeReadings, useBarcodeReadings, useRefuseBarcodeReadings } from "./barcode-readings";
 
 const NOTICE_TITLE = "No se agregó el producto escaneado";
 const NOTICE_DESCRIPTION =
@@ -56,6 +56,11 @@ function WithWindow({ open, take }: { open: boolean; take: (code: string) => voi
       </Modal>
     </>
   );
+}
+
+function WithRefusal({ refusing, take }: { refusing: boolean; take: (code: string) => void }) {
+  useRefuseBarcodeReadings(refusing);
+  return <Taker take={take} />;
 }
 
 describe("BarcodeReadings", () => {
@@ -175,6 +180,32 @@ describe("BarcodeReadings", () => {
         </BarcodeReadings>,
       );
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      core.read("7790001234567");
+
+      expect(take).toHaveBeenCalledExactlyOnceWith("7790001234567");
+    });
+  });
+
+  describe("while a part of the screen refuses readings", () => {
+    it("warns that the product was not added instead of handing the reading to the taker", async () => {
+      const take = vi.fn();
+      const { core, screen } = await renderReadings(<WithRefusal refusing take={take} />);
+
+      core.read("7790001234567");
+
+      await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+      expect(take).not.toHaveBeenCalled();
+    });
+
+    it("hands readings to the taker again once the part stops refusing them", async () => {
+      const take = vi.fn();
+      const { core, screen } = await renderReadings(<WithRefusal refusing take={take} />);
+
+      await screen.rerender(
+        <BarcodeReadings onBarcodeRead={core.onBarcodeRead}>
+          <WithRefusal refusing={false} take={take} />
+        </BarcodeReadings>,
+      );
       core.read("7790001234567");
 
       expect(take).toHaveBeenCalledExactlyOnceWith("7790001234567");

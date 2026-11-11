@@ -41,7 +41,7 @@ test("shows the breadcrumb, the heading and what the list is for", async () => {
 
   await expect.element(screen.getByText("Configuración")).toBeVisible();
   await expect
-    .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
     .toBeVisible();
   await expect
     .element(
@@ -67,15 +67,7 @@ test("shows the columns of the list", async () => {
       .getByRole("columnheader")
       .elements()
       .map((header) => header.textContent),
-  ).toEqual([
-    "Caja",
-    "Registro",
-    "Evento",
-    "Recibido",
-    "En cuarentena desde",
-    "Motivo",
-    "Acciones",
-  ]);
+  ).toEqual(["Caja", "Registro", "Evento", "Recibido", "Retenido desde", "Motivo", "Acciones"]);
 });
 
 test("shows each quarantined event with its register, event, times and why it was quarantined", async () => {
@@ -123,7 +115,7 @@ test("shows the table loading while the events are on their way", async () => {
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByRole("table", { name: "Eventos en cuarentena" }))
+    .element(screen.getByRole("table", { name: "Cambios de cajas retenidos" }))
     .toHaveAttribute("aria-busy", "true");
 });
 
@@ -136,7 +128,7 @@ test("shows an empty state when no event is in quarantine", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("No hay cambios de cajas retenidos")).toBeVisible();
 });
 
 test("shows a load error, and Reintentar reads the events again", async () => {
@@ -144,7 +136,7 @@ test("shows a load error, and Reintentar reads the events again", async () => {
   vi.mocked(services.fetchQuarantinedEvents).mockResolvedValueOnce({ kind: "failed" });
   const screen = await renderScreen(services);
   await expect
-    .element(screen.getByText("No pudimos abrir los eventos en cuarentena"))
+    .element(screen.getByText("No pudimos abrir los cambios de cajas retenidos"))
     .toBeVisible();
 
   vi.mocked(services.fetchQuarantinedEvents).mockResolvedValueOnce({
@@ -177,16 +169,16 @@ test("retrying a failed load starts again from the loading placeholder", async (
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
   await expect
-    .element(screen.getByText("No pudimos abrir los eventos en cuarentena"))
+    .element(screen.getByText("No pudimos abrir los cambios de cajas retenidos"))
     .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect
-    .element(screen.getByText("No pudimos abrir los eventos en cuarentena"))
+    .element(screen.getByText("No pudimos abrir los cambios de cajas retenidos"))
     .not.toBeInTheDocument();
   await expect
-    .element(screen.getByRole("table", { name: "Eventos en cuarentena" }))
+    .element(screen.getByRole("table", { name: "Cambios de cajas retenidos" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: { events: [quarantinedSale] } });
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
@@ -285,8 +277,8 @@ test("an event that is no longer in quarantine is announced and the list refresh
 
   await expect
     .element(screen.getByRole("alert"))
-    .toHaveTextContent("No se liberó el evento Este evento ya no está en cuarentena.");
-  await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
+    .toHaveTextContent("No se liberó el evento Este cambio ya no está retenido.");
+  await expect.element(screen.getByText("No hay cambios de cajas retenidos")).toBeVisible();
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });
 
@@ -306,7 +298,7 @@ test("an event the cloud does not find is announced and the list refreshes", asy
   await expect
     .element(screen.getByRole("alert"))
     .toHaveTextContent("No se liberó el evento No encontramos este evento.");
-  await expect.element(screen.getByText("No hay eventos en cuarentena")).toBeVisible();
+  await expect.element(screen.getByText("No hay cambios de cajas retenidos")).toBeVisible();
 });
 
 test("a failed release keeps the question open and the list as it was", async () => {

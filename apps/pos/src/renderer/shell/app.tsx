@@ -191,23 +191,14 @@ function Register({ core }: { core: CoreClient }) {
     return outcome;
   }
 
-  async function closeCashSession(
-    closer: SignedInPerson,
-    sessionId: string,
-    countedCash: number,
-    leaving: boolean,
-  ) {
+  async function closeCashSession(closer: SignedInPerson, sessionId: string, countedCash: number) {
     const outcome = await core.closeCashSession(sessionId, countedCash);
     if (outcome.kind === "not_signed_in") {
       setPerson(undefined);
     }
     if (outcome.kind === "closed") {
       await cancelCashSessionReads();
-      if (leaving) {
-        signOut();
-      } else {
-        setPerson(closer);
-      }
+      setPerson(closer);
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {
@@ -409,6 +400,7 @@ function Register({ core }: { core: CoreClient }) {
     sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
     cashMovementKinds: () => core.cashMovementKinds(),
+    openingFloatSuggestion: () => core.openingFloatSuggestion(),
     registerStatus: () => core.registerStatus(),
     recordCashMovement,
     redeemPinCode,

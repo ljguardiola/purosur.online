@@ -147,7 +147,7 @@ export function formatOperationNumber(number: number): string {
 const LOT_ORIGIN_WORDS = {
   purchase: "Compra",
   initial_count: "Inventario inicial",
-  assembly_batch: "Tanda",
+  assembly_batch: "Producción",
   technical: "Técnico",
 } as const;
 
@@ -215,6 +215,25 @@ export function formatDayAndTime(instant: string, timeZone = writtenTimeZone(ins
     timeZone,
   });
   return `${day} · ${time}`;
+}
+
+export function formatDayMonthAndTime(instant: string): string {
+  const moment = new Date(instant);
+  const timeZone = writtenTimeZone(instant);
+  const dayParts = new Intl.DateTimeFormat(LOCALE, {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone,
+  }).formatToParts(moment);
+  const part = (type: "day" | "month") => dayParts.find((each) => each.type === type)?.value;
+  const time = formatDate(moment, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+  });
+  return `${part("day")}/${part("month")} · ${time}`;
 }
 
 export function formatCountdown(seconds: number): string {

@@ -3,10 +3,9 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
 import { ArrowLeft, CircleX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
-import { AuthorizationSection } from "../shell/authorization-section";
+import { AuthorizationModal } from "../shell/authorization-modal";
 import type { Refund } from "../shell/refund-lines";
 import { RefundLines } from "../shell/refund-lines";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
@@ -20,7 +19,6 @@ export type CancelPaidSaleModalProps = {
   paid: number;
   refunds: readonly Refund[];
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   cancelPaidSale: (
     saleId: string,
@@ -38,7 +36,6 @@ export function CancelPaidSaleModal({
   paid,
   refunds,
   authorizationRequired,
-  person,
   loadAuthorizers,
   cancelPaidSale,
   onCancelled,
@@ -49,14 +46,17 @@ export function CancelPaidSaleModal({
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
-    person,
     permission: "void_sale",
     required: authorizationRequired,
     loadAuthorizers,
   });
 
   async function confirm() {
-    if (submitting || !authorization.ready) {
+    if (submitting) {
+      return;
+    }
+    if (!authorization.ready) {
+      authorization.ask();
       return;
     }
     setSubmitting(true);
@@ -65,6 +65,7 @@ export function CancelPaidSaleModal({
       (): "failed" => "failed",
     );
     setSubmitting(false);
+    authorization.dismiss();
     if (outcome === "failed") {
       setNotice(FAILED_MESSAGE);
       return;
@@ -135,7 +136,7 @@ export function CancelPaidSaleModal({
             size="large"
             icon={<X />}
             fullWidth
-            disabled={submitting || !authorization.ready}
+            disabled={submitting}
             onPress={() => void confirm()}
           >
             Cancelar la venta
@@ -151,10 +152,12 @@ export function CancelPaidSaleModal({
           ]}
         />
         <RefundLines refunds={refunds} />
-        <AuthorizationSection
+        <AuthorizationModal
           authorization={authorization}
+          subtitle="Cancelar venta con pagos"
           action={AUTHORIZING}
-          disabled={submitting}
+          submitting={submitting}
+          onConfirm={() => void confirm()}
         />
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />

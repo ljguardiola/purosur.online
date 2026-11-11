@@ -1,20 +1,20 @@
-import type { SignInUser } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
-  ComboBox,
+  Button,
+  CardModal,
   EmptyState,
-  Eyebrow,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
-  sortedItems,
-  textOrder,
+  PinDotsField,
+  UserSelect,
 } from "@purosur/ui";
-import { Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
+import { Lock, ShieldCheck, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
 import { useEffect, useId } from "react";
+import { useKeys } from "../platform/key-layer";
 import { waitDescription } from "../platform/pin-attempt-text";
-import { PinField } from "../platform/pin-field";
 import type { AuthorizationState, ShownRefusal } from "./use-authorization";
+import { sortedAuthorizers } from "./use-authorization";
 
 type Notice = { icon: Icon; title: string; description: string };
 
@@ -58,53 +58,93 @@ function noticeFor(refusal: ShownRefusal, secondsLeft: number): Notice | undefin
   }
 }
 
-export type AuthorizationSectionProps = {
+export type AuthorizationModalProps = {
   authorization: AuthorizationState;
+  subtitle: string;
   action: string;
-  disabled?: boolean;
+  submitting?: boolean;
+  onConfirm: () => void;
 };
 
-export function AuthorizationSection({
+export function AuthorizationModal({
   authorization,
+  subtitle,
   action,
-  disabled = false,
-}: AuthorizationSectionProps) {
+  submitting = false,
+  onConfirm,
+}: AuthorizationModalProps) {
   const noticeId = useId();
-  const { refusal, pinInput, secondsLeft } = authorization;
-
-  useEffect(() => {
-    if (
-      !disabled &&
-      secondsLeft === 0 &&
-      refusal !== undefined &&
-      refusal.kind !== "lacks_permission" &&
-      refusal.kind !== "locked"
-    ) {
-      pinInput.current?.focus();
-    }
-  }, [disabled, secondsLeft, refusal, pinInput]);
-
-  if (!authorization.required) {
-    return null;
-  }
-
-  const { authorizers } = authorization;
+  const { asking, authorizers, chosen, pin, refusal, secondsLeft, pinInput } = authorization;
   const options =
     authorizers.status === "loaded"
-      ? sortedItems(authorizers.value, {
-          order: textOrder((user: SignInUser) => user.first_name),
-          direction: "ascending",
-        }).map((user) => ({ value: user.id, label: user.first_name }))
+      ? sortedAuthorizers(authorizers.value).map((user) => ({
+          value: user.id,
+          label: user.first_name,
+        }))
       : [];
   const [firstOption, ...otherOptions] = options;
-  const notice = refusal === undefined ? undefined : noticeFor(refusal, authorization.secondsLeft);
+  const refusedPerson =
+    (refusal?.kind === "locked" || refusal?.kind === "lacks_permission") &&
+    refusal.userId === chosen;
+  const canConfirm =
+    !submitting && secondsLeft === 0 && !refusedPerson && chosen !== null && pin !== "";
+
+  useEffect(() => {
+    if (asking && !submitting && secondsLeft === 0 && !refusedPerson) {
+      pinInput.current?.focus();
+    }
+  }, [asking, submitting, secondsLeft, refusedPerson, pinInput]);
+
+  function move(step: 1 | -1) {
+    const current = options.findIndex((option) => option.value === chosen);
+    const next = options[Math.min(options.length - 1, Math.max(0, current + step))];
+    if (next !== undefined) {
+      authorization.choose(next.value);
+    }
+  }
+
+  useKeys(
+    [
+      {
+        key: "ArrowUpDown",
+        run: (pressed) => move(pressed === "ArrowDown" ? 1 : -1),
+        enabled: !submitting && firstOption !== undefined,
+      },
+      { key: "Enter", run: onConfirm, enabled: canConfirm },
+    ],
+    { modal: true, active: asking },
+  );
+
+  const notice = refusal === undefined ? undefined : noticeFor(refusal, secondsLeft);
   const pinRefused =
     notice !== undefined && (refusal?.kind === "wrong_pin" || refusal?.kind === "rate_limited");
 
   return (
-    <div className="flex flex-col gap-3">
-      <Eyebrow text="AUTORIZA ALGUIEN CON PERMISO" />
-      {authorizers.status === "loading" ? <LoadingPlaceholder variant="form" fields={1} /> : null}
+    <CardModal
+      open={asking}
+      onOpenChange={(open) => {
+        if (!open) {
+          authorization.cancel();
+        }
+      }}
+      icon={<ShieldCheck />}
+      title="Autorizar"
+      subtitle={subtitle}
+      closable={!submitting}
+      action={
+        <Button
+          fullWidth
+          icon={<ShieldCheck />}
+          iconPosition="start"
+          keycap="Enter"
+          disabled={!canConfirm}
+          onPress={onConfirm}
+        >
+          Autorizar
+        </Button>
+      }
+    >
+      {authorizers.status === "loading" ? <LoadingPlaceholder variant="form" fields={2} /> : null}
       {authorizers.status === "failed" ? (
         <LoadFailure
           icon={<TriangleAlert />}
@@ -121,31 +161,24 @@ export function AuthorizationSection({
         />
       ) : null}
       {firstOption === undefined ? null : (
-        <div className="flex items-end gap-3">
-          <div className="min-w-0 flex-1">
-            <ComboBox
-              label="Persona que autoriza"
-              placeholder="Elegí a la persona"
-              options={[firstOption, ...otherOptions]}
-              value={authorization.chosen}
-              onChange={authorization.choose}
-              disabled={disabled}
-            />
-          </div>
-          <PinField
+        <>
+          <UserSelect
+            label="USUARIO"
+            options={[firstOption, ...otherOptions]}
+            value={chosen}
+            onChange={authorization.choose}
+            disabled={submitting}
+          />
+          <PinDotsField
             ref={pinInput}
-            compact
-            value={authorization.pin}
+            label="PIN"
+            value={pin}
             onChange={authorization.type}
-            disabled={disabled || authorization.chosen === null || authorization.secondsLeft > 0}
+            autoFocus
+            disabled={submitting || chosen === null || refusedPerson || secondsLeft > 0}
             {...(pinRefused ? { errorMessageId: noticeId } : {})}
           />
-        </div>
-      )}
-      {firstOption === undefined ? null : (
-        <p className="text-detail text-text-subtle">
-          {authorization.person.first_name} no tiene permiso para {action}.
-        </p>
+        </>
       )}
       {notice === undefined ? null : (
         <div id={noticeId}>
@@ -157,6 +190,6 @@ export function AuthorizationSection({
           />
         </div>
       )}
-    </div>
+    </CardModal>
   );
 }

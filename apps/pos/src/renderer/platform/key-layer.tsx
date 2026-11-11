@@ -7,6 +7,7 @@ export type KeyBinding = {
   label?: string;
   run: (pressed: string) => void;
   enabled?: boolean;
+  whileTyping?: boolean;
 };
 
 export type KeyOptions = {
@@ -38,8 +39,16 @@ const ARROWS_UP_DOWN = ["ArrowUp", "ArrowDown"];
 const ARROWS_LEFT_RIGHT = ["ArrowLeft", "ArrowRight"];
 const TEXT_INPUT_TYPES = ["", "text", "search", "email", "password", "number", "tel", "url"];
 
-function matches(key: KeyName, pressed: string): boolean {
+function matches(
+  key: KeyName,
+  { key: pressed, code }: Pick<KeyboardEvent, "key" | "code">,
+): boolean {
   switch (key) {
+    case "NumpadAdd":
+    case "NumpadSubtract":
+      return code === key;
+    case "NumpadAddSubtract":
+      return code === "NumpadAdd" || code === "NumpadSubtract";
     case "Space":
       return pressed === " ";
     case "ArrowUpDown":
@@ -96,10 +105,17 @@ function candidatesFor(
     .reverse();
 }
 
-function bindingFor(candidates: readonly Registration[], pressed: string): KeyBinding | undefined {
+function bindingFor(
+  candidates: readonly Registration[],
+  event: KeyboardEvent,
+  typing: boolean,
+): KeyBinding | undefined {
   for (const registration of candidates) {
     const found = registration.bindings.current.find(
-      (binding) => binding.enabled !== false && matches(binding.key, pressed),
+      (binding) =>
+        binding.enabled !== false &&
+        (!typing || binding.whileTyping === true) &&
+        matches(binding.key, event),
     );
     if (found !== undefined) {
       return found;
@@ -127,11 +143,12 @@ export function KeyLayerProvider({ children }: { children: ReactNode }) {
       if ((fallback && event.defaultPrevented) || event.ctrlKey || event.altKey || event.metaKey) {
         return;
       }
-      if (event.key.length === 1 && isTextField(event.target)) {
+      if (event.key === "Enter" && event.target instanceof HTMLButtonElement) {
         return;
       }
+      const typing = event.key.length === 1 && isTextField(event.target);
       const candidates = candidatesFor(registrations.current, event, fallback);
-      const binding = bindingFor(candidates, event.key);
+      const binding = bindingFor(candidates, event, typing);
       if (binding !== undefined) {
         event.preventDefault();
         event.stopPropagation();

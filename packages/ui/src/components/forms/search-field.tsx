@@ -1,10 +1,12 @@
 import type { ComponentProps } from "react";
 import { useId } from "react";
 import {
+  Button as AriaButton,
   Focusable as AriaFocusable,
   Input as AriaInput,
   SearchField as AriaSearchField,
 } from "react-aria-components";
+import { Keycap, type KeyName } from "../data-display/keycap";
 import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { type FieldSize, useFieldSize } from "./field-size";
@@ -18,6 +20,10 @@ export type SearchFieldProps = {
   // No visible label is drawn for this field at either size: when supplied, it names the
   // field for assistive technology only, the same way the placeholder does when it is not.
   label?: string;
+  invalid?: boolean;
+  // A key shortcut shown at the field's right end. It draws the hint and takes the press; the
+  // caller binds the key itself.
+  action?: { label: string; keyName: KeyName; onPress: () => void };
   // Makes the field the combobox of a list of suggestions the caller draws under it.
   combobox?: { expanded: boolean; listboxId: string; activeOptionId?: string | undefined };
 } & (
@@ -43,6 +49,12 @@ const valueClassName: Record<FieldSize, string> = {
 };
 
 const lockedBoxClassName = `${fieldBoxStateClassName({ disabled: true })} focus-within:inset-ring-action`;
+
+function boxStateClassName(disabled: boolean, invalid: boolean): string {
+  return invalid && !disabled
+    ? "bg-surface inset-ring-2 inset-ring-error"
+    : fieldBoxStateClassName({ disabled });
+}
 
 const chipClassName =
   "inline-flex size-12 shrink-0 items-center justify-center rounded-md bg-action-subtle";
@@ -71,6 +83,8 @@ export function SearchField(props: SearchFieldProps) {
     disabled = false,
     disabledReason,
     combobox,
+    invalid = false,
+    action,
   } = props;
 
   const size = useFieldSize();
@@ -108,13 +122,14 @@ export function SearchField(props: SearchFieldProps) {
       onChange={onChange}
       isDisabled={disabled}
       isReadOnly={locked}
+      isInvalid={invalid}
       aria-label={label ?? placeholder}
       {...(locked ? { "aria-describedby": reasonId } : {})}
       className={locked ? "opacity-disabled" : fieldDisabledClassName}
     >
       <div
         className={`${fieldBoxClassName} ${frameClassName[size]} ${
-          locked ? lockedBoxClassName : fieldBoxStateClassName({ disabled })
+          locked ? lockedBoxClassName : boxStateClassName(disabled, invalid)
         }`}
       >
         {leading}
@@ -126,6 +141,18 @@ export function SearchField(props: SearchFieldProps) {
           </Tooltip>
         ) : (
           <AriaInput {...inputProps} />
+        )}
+        {action === undefined ? null : (
+          <AriaButton
+            slot={null}
+            onPress={action.onPress}
+            className="inline-flex shrink-0 items-center gap-2 rounded-md px-2 py-1 text-detail font-bold text-text-accent outline-none data-focus-visible:focus-ring"
+          >
+            <span aria-hidden="true" className="flex">
+              <Keycap keyName={action.keyName} />
+            </span>
+            {action.label}
+          </AriaButton>
         )}
       </div>
       {locked ? (

@@ -13,6 +13,8 @@ import type { LoadStatus } from "../shared/load-status";
 export type ButtonVariant = "primary" | "secondary" | "text";
 export type ButtonSize = "small" | "medium" | "large" | "sale";
 
+type ButtonIconPosition = "start" | "end";
+
 export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
 type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type"> & {
@@ -24,6 +26,7 @@ type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type">
   children: Exclude<ReactNode, null | undefined | boolean>;
   fullWidth?: boolean;
   keycap?: KeyName;
+  wrapLabel?: boolean;
 };
 
 export type ButtonProps = ButtonCommonProps &
@@ -33,6 +36,8 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        trailingIcon?: undefined;
+        iconPosition?: ButtonIconPosition;
         onTintedSurface?: undefined;
       }
     | {
@@ -40,6 +45,8 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        trailingIcon?: undefined;
+        iconPosition?: undefined;
         onTintedSurface?: boolean;
       }
     | {
@@ -47,6 +54,8 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: false;
         size?: ButtonTextSize;
         icon?: Icon;
+        trailingIcon?: Icon;
+        iconPosition?: undefined;
         onTintedSurface?: undefined;
       }
     | {
@@ -54,6 +63,8 @@ export type ButtonProps = ButtonCommonProps &
         destructive: true;
         size?: ButtonTextSize;
         icon?: undefined;
+        trailingIcon?: undefined;
+        iconPosition?: undefined;
         onTintedSurface?: undefined;
       }
   );
@@ -149,6 +160,7 @@ export function Button({
   size,
   destructive = false,
   icon,
+  trailingIcon,
   fullWidth = false,
   children,
   disabled = false,
@@ -156,6 +168,8 @@ export function Button({
   dataStatus,
   onTintedSurface = false,
   keycap,
+  wrapLabel = false,
+  iconPosition,
   ...props
 }: ButtonProps) {
   const color = destructive ? "destructive" : "regular";
@@ -174,15 +188,19 @@ export function Button({
     .filter(Boolean)
     .join(" ");
 
+  const iconPlacement = iconPosition ?? (variant === "primary" ? "end" : "start");
   const glyph = variant === "text" && destructive ? <X aria-hidden="true" /> : icon;
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
   const content = (
     <>
-      {variant !== "primary" && sizedIcon}
+      {iconPlacement === "start" && sizedIcon}
       {/* truncate on this justify-center flex container itself would clip both ends with no
           ellipsis; it needs its own box to truncate correctly. */}
-      <span className="truncate">{children}</span>
-      {variant === "primary" && sizedIcon}
+      <span className={wrapLabel ? "min-w-0 text-left" : "truncate"}>{children}</span>
+      {iconPlacement === "end" && sizedIcon}
+      {trailingIcon === undefined ? null : (
+        <span className={iconWrapperClassName[variant]}>{trailingIcon}</span>
+      )}
       {keycap === undefined ? null : (
         <span aria-hidden="true" className="ml-auto flex shrink-0">
           <Keycap keyName={keycap} variant={variant === "primary" ? "onPrimary" : "default"} />

@@ -86,10 +86,10 @@ test("lists the product's adjustments and losses in the order the cloud answered
     .getByRole("row")
     .elements()
     .map((row) =>
-      ["Corrección de una tanda", "Vencimiento"].find((r) => row.textContent?.includes(r)),
+      ["Corrección de una producción", "Vencimiento"].find((r) => row.textContent?.includes(r)),
     )
     .filter((reason) => reason !== undefined);
-  expect(reasons).toEqual(["Vencimiento", "Corrección de una tanda"]);
+  expect(reasons).toEqual(["Vencimiento", "Corrección de una producción"]);
   expect(movements.getByText("Rotura o derrame").query()).toBeNull();
 });
 

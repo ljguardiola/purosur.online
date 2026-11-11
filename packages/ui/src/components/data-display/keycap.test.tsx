@@ -10,11 +10,17 @@ const labels: ReadonlyArray<readonly [KeyName, string]> = [
   ["Enter", "Enter"],
   ["Delete", "Supr"],
   ["Space", "Espacio"],
+  ["F1", "F1"],
   ["F2", "F2"],
   ["F12", "F12"],
+  ["ArrowUp", "↑"],
+  ["ArrowDown", "↓"],
   ["ArrowUpDown", "↑↓"],
   ["ArrowLeftRight", "←→"],
   ["Digits", "0-9"],
+  ["NumpadAdd", "+"],
+  ["NumpadSubtract", "−"],
+  ["NumpadAddSubtract", "+/−"],
   ["Q", "Q"],
   ["7", "7"],
 ];
@@ -62,9 +68,15 @@ test("accepts only the names of the keys the register uses", () => {
   expectTypeOf<"Escape">().toExtend<KeyName>();
   expectTypeOf<"F12">().toExtend<KeyName>();
   expectTypeOf<"Digits">().toExtend<KeyName>();
+  expectTypeOf<"NumpadAdd">().toExtend<KeyName>();
+  expectTypeOf<"NumpadSubtract">().toExtend<KeyName>();
+  expectTypeOf<"NumpadAddSubtract">().toExtend<KeyName>();
+  expectTypeOf<"ArrowUp">().toExtend<KeyName>();
+  expectTypeOf<"ArrowDown">().toExtend<KeyName>();
   expectTypeOf<"Z">().toExtend<KeyName>();
   expectTypeOf<"9">().toExtend<KeyName>();
-  expectTypeOf<"F1">().not.toExtend<KeyName>();
+  expectTypeOf<"F1">().toExtend<KeyName>();
+  expectTypeOf<"F0">().not.toExtend<KeyName>();
   expectTypeOf<"F13">().not.toExtend<KeyName>();
   expectTypeOf<"a">().not.toExtend<KeyName>();
   expectTypeOf<"10">().not.toExtend<KeyName>();

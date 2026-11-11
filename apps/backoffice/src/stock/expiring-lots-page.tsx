@@ -6,11 +6,12 @@ import { defaultExpiringLotsScreenServices } from "./expiring-lots-services";
 const route = getRouteApi("/signed-in/stock-area/stock/expiries");
 
 export function ExpiringLotsPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   return (
     <ExpiringLotsScreen
+      access={session}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}

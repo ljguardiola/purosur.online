@@ -131,6 +131,8 @@ export type { FilePickerProps } from "./components/forms/file-picker";
 export { FilePicker } from "./components/forms/file-picker";
 export type { IconButtonProps } from "./components/forms/icon-button";
 export { IconButton } from "./components/forms/icon-button";
+export type { KeyTileProps } from "./components/forms/key-tile";
+export { KeyTile } from "./components/forms/key-tile";
 export type {
   LabelledFieldListItem,
   LabelledFieldListProps,
@@ -143,6 +145,8 @@ export { MenuButton } from "./components/forms/menu-button";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";
 export type { OptionCardGroupProps } from "./components/forms/option-card-group";
 export { OptionCardGroup } from "./components/forms/option-card-group";
+export type { PinDotsFieldProps } from "./components/forms/pin-dots-field";
+export { PinDotsField } from "./components/forms/pin-dots-field";
 export type { QuantityUnitFieldProps } from "./components/forms/quantity-unit-field";
 export { QuantityUnitField } from "./components/forms/quantity-unit-field";
 export type { RadioGroupProps } from "./components/forms/radio-group";
@@ -178,12 +182,20 @@ export type {
   ToggleChipOption,
 } from "./components/forms/toggle-chip-group";
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
+export type { UserSelectProps } from "./components/forms/user-select";
+export { UserSelect } from "./components/forms/user-select";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
+export type { ConfirmationPanelProps } from "./components/layout/confirmation-panel";
+export { ConfirmationPanel } from "./components/layout/confirmation-panel";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
+export type { ElevatedPanelProps } from "./components/layout/elevated-panel";
+export { ElevatedPanel } from "./components/layout/elevated-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
+export type { IconCardProps } from "./components/layout/icon-card";
+export { IconCard } from "./components/layout/icon-card";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
@@ -192,6 +204,8 @@ export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
 export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
+export type { SidePanelTitleProps } from "./components/layout/side-panel-title";
+export { SidePanelTitle } from "./components/layout/side-panel-title";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
@@ -206,6 +220,8 @@ export type { SectionNavItemProps } from "./components/navigation/section-nav-it
 export { SectionNavItem } from "./components/navigation/section-nav-item";
 export type { TabProps, TabsProps } from "./components/navigation/tabs";
 export { Tab, Tabs } from "./components/navigation/tabs";
+export type { CardModalProps } from "./components/overlays/card-modal";
+export { CardModal } from "./components/overlays/card-modal";
 export type {
   ModalBodyPadding,
   ModalHeaderLayout,
@@ -233,6 +249,7 @@ export {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDayMonthAndTime,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,

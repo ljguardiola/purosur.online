@@ -12,6 +12,7 @@ import {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDayMonthAndTime,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,
@@ -422,6 +423,16 @@ describe("formatDayAndTime", () => {
   });
 });
 
+describe("formatDayMonthAndTime", () => {
+  it("writes the day, the month and the time of the clock the instant is written in", () => {
+    expect(formatDayMonthAndTime("2026-11-04T20:14:00.000-03:00")).toBe("04/11 · 20:14");
+  });
+
+  it("writes them on the clock of the instant's own offset, not the machine's", () => {
+    expect(formatDayMonthAndTime("2026-11-04T23:14:00.000Z")).toBe("04/11 · 23:14");
+  });
+});
+
 describe("formatClockTime", () => {
   it("writes the hour and minutes of the clock the instant is written in", () => {
     expect(formatClockTime("2026-09-30T12:05:00.000-03:00")).toBe("12:05");
@@ -635,7 +646,7 @@ describe("formatLotName", () => {
   it.each([
     ["purchase", "Compra 03/11/2026"],
     ["initial_count", "Inventario inicial 03/11/2026"],
-    ["assembly_batch", "Tanda 03/11/2026"],
+    ["assembly_batch", "Producción 03/11/2026"],
     ["technical", "Técnico 03/11/2026"],
   ] as const)("names a lot of origin %s as %s", (origin, text) => {
     expect(formatLotName({ origin, day: "2026-11-03", number: null })).toBe(text);

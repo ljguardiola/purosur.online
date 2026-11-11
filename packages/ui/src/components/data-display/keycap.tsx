@@ -1,4 +1,4 @@
-type FunctionKeyNumber = 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+type FunctionKeyNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
 type Letter =
   | "A"
   | "B"
@@ -34,8 +34,13 @@ export type KeyName =
   | "Delete"
   | "Space"
   | `F${FunctionKeyNumber}`
+  | "ArrowUp"
+  | "ArrowDown"
   | "ArrowUpDown"
   | "ArrowLeftRight"
+  | "NumpadAdd"
+  | "NumpadSubtract"
+  | "NumpadAddSubtract"
   | "Digits"
   | Letter
   | Digit;
@@ -49,9 +54,14 @@ const specialLabel: Partial<Record<KeyName, string>> = {
   Escape: "Esc",
   Delete: "Supr",
   Space: "Espacio",
+  ArrowUp: "↑",
+  ArrowDown: "↓",
   ArrowUpDown: "↑↓",
   ArrowLeftRight: "←→",
   Digits: "0-9",
+  NumpadAdd: "+",
+  NumpadSubtract: "−",
+  NumpadAddSubtract: "+/−",
 };
 
 const keycapClassName =
