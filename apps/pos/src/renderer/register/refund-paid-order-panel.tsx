@@ -1,7 +1,7 @@
 import type { ConvertPaidOrderIntoRefundOutcome, StartupPending } from "@purosur/contracts";
 import { ConfirmationPanel, formatCents, formatClockTime } from "@purosur/ui";
 import { Undo2 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import { useRefuseBarcodeReadings } from "../shell/barcode-readings";
 import { FramePanel } from "../shell/register-frame";
@@ -43,10 +43,10 @@ export function RefundPaidOrderPanel({
   const [notice, setNotice] = useState<string>();
   const converting = useRef(false);
   const panel = useRef<HTMLDivElement | null>(null);
-  const focusWhenShown = useCallback((node: HTMLDivElement | null) => {
+  function focusWhenShown(node: HTMLDivElement | null) {
     panel.current = node;
     node?.focus();
-  }, []);
+  }
   useKeys([{ key: "Escape", run: onClose }], { fallback: true, active: !submitting });
   useKeys([{ key: "Enter", run: () => void confirm() }], { fallback: true, within: panel });
   useRefuseBarcodeReadings(true);
