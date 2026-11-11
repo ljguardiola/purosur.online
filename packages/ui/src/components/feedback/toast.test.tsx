@@ -20,6 +20,11 @@ function toast(overrides: Partial<ToastProps> & Pick<ToastProps, "onDismiss">): 
   );
 }
 
+function ToastUntilDismissed() {
+  const [shown, setShown] = useState(true);
+  return shown ? toast({ onDismiss: () => setShown(false) }) : <p>Nothing left</p>;
+}
+
 async function whileTimersFrozen(steps: () => Promise<void>): Promise<void> {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
@@ -108,7 +113,9 @@ test("announces a success toast politely, as a status", async () => {
 });
 
 test("announces an error toast right away, as an alert", async () => {
-  const screen = await render(toast({ tone: "error", icon: <TriangleAlert />, onDismiss: () => {} }));
+  const screen = await render(
+    toast({ tone: "error", icon: <TriangleAlert />, onDismiss: () => {} }),
+  );
 
   await expect
     .element(screen.getByRole("alert"))
@@ -116,12 +123,8 @@ test("announces an error toast right away, as an alert", async () => {
 });
 
 test("is gone once its screen stops showing it", async () => {
-  function Owner() {
-    const [shown, setShown] = useState(true);
-    return shown ? toast({ onDismiss: () => setShown(false) }) : <p>Nothing left</p>;
-  }
   await whileTimersFrozen(async () => {
-    const screen = await render(<Owner />);
+    const screen = await render(<ToastUntilDismissed />);
 
     vi.advanceTimersByTime(DEFAULT_LIFETIME_MS);
 
