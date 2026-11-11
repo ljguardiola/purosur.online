@@ -121,4 +121,19 @@ describe("ScanProblemMessage", () => {
     const below = screen.getByText("Below").element().getBoundingClientRect();
     expect(noticeBox?.bottom).toBeLessThanOrEqual(below.top);
   });
+
+  it("keeps the status region mounted while it tells of an unknown code, so the next problem is announced", async () => {
+    const screen = await render(<ScanProblemMessage problem={undefined} />);
+    const region = screen.getByRole("status").element();
+
+    await screen.rerender(<ScanProblemMessage problem={{ kind: "unknown_code" }} />);
+
+    expect(region.isConnected).toBe(true);
+
+    await screen.rerender(<ScanProblemMessage problem={{ kind: "remove_failed" }} />);
+
+    const message = screen.getByRole("status").filter({ hasText: "No se pudo quitar la línea" });
+    await expect.element(message).toBeInTheDocument();
+    expect(message.element()).toBe(region);
+  });
 });

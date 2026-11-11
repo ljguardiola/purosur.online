@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowLeft, Banknote, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Check } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -198,4 +198,8 @@ export const SecondaryWithKeycap: Story = {
 
 export const TextWithKeycap: Story = {
   args: { variant: "text", keycap: "Escape", icon: <ArrowLeft />, children: "Volver" },
+};
+
+export const TextWithTrailingIconAndKeycap: Story = {
+  args: { variant: "text", keycap: "F1", trailingIcon: <ArrowRight />, children: "Otros medios" },
 };

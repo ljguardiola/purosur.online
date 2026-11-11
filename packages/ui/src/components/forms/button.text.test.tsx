@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -160,4 +160,41 @@ test("accepts the plain text form with or without a caller's icon, at both drawn
 test("does not accept the plain text form at a size the design never draws it", () => {
   expectTypeOf<{ variant: "text"; size: "medium" }>().not.toExtend<ButtonPropsWithoutText>();
   expectTypeOf<{ variant: "text"; size: "sale" }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
+test("places a caller's trailing 18px icon after the label, with an 8px gap, and the key after it", async () => {
+  const screen = await render(
+    <Button variant="text" trailingIcon={<ArrowRight />} keycap="F1">
+      Otros medios
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Otros medios", exact: true });
+  const label = screen.getByText("Otros medios").element();
+  const icon = button.element().querySelector("svg") as SVGSVGElement;
+  const keycap = button.element().querySelector("kbd") as HTMLElement;
+
+  const iconRect = icon.getBoundingClientRect();
+  expect(iconRect.width).toBeGreaterThan(17);
+  expect(iconRect.width).toBeLessThan(19);
+  expect(getComputedStyle(icon).stroke).toBe(tokenRgb("text-accent"));
+  const gap = iconRect.left - textNodeRect(label.firstChild as ChildNode).right;
+  expect(gap).toBeGreaterThan(7);
+  expect(gap).toBeLessThan(9);
+  expect(keycap.getBoundingClientRect().left).toBeGreaterThan(iconRect.right);
+  await expect.element(button).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("takes a trailing icon only on the plain text form", () => {
+  expectTypeOf<{ variant: "text"; trailingIcon: Icon }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: true;
+    trailingIcon: Icon;
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ trailingIcon: Icon }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "secondary";
+    trailingIcon: Icon;
+  }>().not.toExtend<ButtonPropsWithoutText>();
 });
