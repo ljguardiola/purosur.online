@@ -1725,6 +1725,41 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("unavailable");
   });
 
+  it.each([
+    [
+      {
+        kind: "previous_close",
+        closed_at: "2026-11-04T20:14:00.000-03:00",
+        counted_cash: 14_400_000,
+      } as const,
+    ],
+    [{ kind: "none" } as const],
+    [null],
+  ])("asks the core for the opening float suggestion and resolves with %j", async (suggestion) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.openingFloatSuggestion();
+    port.answer({ type: "opening-float-suggestion", request_id: "request-1", suggestion });
+
+    expect(await asked).toEqual(suggestion);
+    expect(port.posted).toEqual([
+      { type: "opening-float-suggestion-request", request_id: "request-1" },
+    ]);
+  });
+
+  it("resolves unavailable when the core cannot read the opening float suggestion", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.openingFloatSuggestion();
+    port.answer({ type: "opening-float-suggestion-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
   it("asks the core to close a session with the cash counted and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

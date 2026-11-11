@@ -2,15 +2,16 @@ import type { EnrollmentOutcome } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import {
   Button,
+  ElevatedPanel,
   fieldErrorMessage,
   InlineNotice,
-  ScreenHeader,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import { Check, ShieldCheck, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { registerEyebrow } from "../shell/register-eyebrow";
 import { retryAfterText } from "../shell/retry-after-text";
@@ -84,6 +85,7 @@ export function EnrollmentScreen({
   return (
     <EnrollmentPanel
       eyebrow="NOTEBOOK NUEVA"
+      title="Dar de alta esta caja"
       version={version}
       status="Sin dar de alta"
       checkCode={checkCode}
@@ -97,10 +99,17 @@ export function ReEnrollmentScreen({
   checkCode,
   enroll,
   onBack,
-}: EnrollmentRequests & { registerName: string | null; onBack: () => void }) {
+  version,
+}: EnrollmentRequests & {
+  registerName: string | null;
+  onBack: () => void;
+  version: string | null;
+}) {
   return (
     <EnrollmentPanel
       eyebrow={registerEyebrow(registerName)}
+      title="Dar de alta de nuevo"
+      version={version}
       status="Dar de alta de nuevo"
       checkCode={checkCode}
       enroll={enroll}
@@ -111,6 +120,7 @@ export function ReEnrollmentScreen({
 
 function EnrollmentPanel({
   eyebrow,
+  title,
   status,
   version,
   checkCode,
@@ -118,6 +128,7 @@ function EnrollmentPanel({
   onBack,
 }: EnrollmentRequests & {
   eyebrow: string;
+  title: string;
   status: string;
   version?: string | null;
   onBack?: () => void;
@@ -140,11 +151,15 @@ function EnrollmentPanel({
     },
   });
 
+  useKeys([
+    { key: "Enter", run: () => void submitCode() },
+    { key: "Escape", run: () => onBack?.(), enabled: onBack !== undefined },
+  ]);
+
   const notice = outcome === undefined ? undefined : noticeFor(outcome);
   const codeRejected = outcome?.kind === "code_rejected";
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function submitCode() {
     if (submitting) {
       return;
     }
@@ -152,50 +167,63 @@ function EnrollmentPanel({
     void submit();
   }
 
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    submitCode();
+  }
+
   return (
     <BrandPanelScreen status={status} version={version}>
-      <main className="flex w-full max-w-110 flex-col gap-4">
-        <ScreenHeader
+      <main className="w-full max-w-110">
+        <ElevatedPanel
           eyebrow={eyebrow}
-          title="Dar de alta esta caja"
-          description="Escribí el código de alta que se genera en el backoffice, en Cajas. Vale 15 minutos y hace falta internet."
-        />
-        <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
-          <form.AppField name="code">
-            {(code) => {
-              const message = fieldErrorMessage(code.state.meta.errors);
-              return (
-                <TextField
-                  kind="plain-text"
-                  label="Código de alta"
-                  value={code.state.value}
-                  onChange={code.handleChange}
-                  {...(message === undefined && codeRejected
-                    ? { errorMessageId: noticeId }
-                    : { errorMessage: message })}
+          title={title}
+          icon={<ShieldCheck />}
+          {...(onBack === undefined
+            ? {}
+            : { escapeKey: { name: "Volver con Esc", onPress: onBack } })}
+        >
+          <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+            <form.AppField name="code">
+              {(code) => {
+                const message = fieldErrorMessage(code.state.meta.errors);
+                return (
+                  <TextField
+                    kind="plain-text"
+                    label="Código de alta"
+                    placeholder="Escribí el código del backoffice"
+                    value={code.state.value}
+                    onChange={code.handleChange}
+                    {...(message === undefined && codeRejected
+                      ? { errorMessageId: noticeId }
+                      : { errorMessage: message })}
+                  />
+                );
+              }}
+            </form.AppField>
+            {notice === undefined ? null : (
+              <div id={noticeId}>
+                <InlineNotice
+                  tone="error"
+                  icon={notice.icon}
+                  title={notice.title}
+                  description={notice.description}
                 />
-              );
-            }}
-          </form.AppField>
-          {notice === undefined ? null : (
-            <div id={noticeId}>
-              <InlineNotice
-                tone="error"
-                icon={notice.icon}
-                title={notice.title}
-                description={notice.description}
-              />
-            </div>
-          )}
-          <Button type="submit" fullWidth disabled={submitting}>
-            Dar de alta
-          </Button>
-          {onBack === undefined ? null : (
-            <Button variant="secondary" fullWidth onPress={onBack}>
-              Volver
+              </div>
+            )}
+            <Button
+              type="submit"
+              size="large"
+              fullWidth
+              icon={<Check />}
+              iconPosition="start"
+              keycap="Enter"
+              disabled={submitting}
+            >
+              Dar de alta
             </Button>
-          )}
-        </form>
+          </form>
+        </ElevatedPanel>
       </main>
     </BrandPanelScreen>
   );

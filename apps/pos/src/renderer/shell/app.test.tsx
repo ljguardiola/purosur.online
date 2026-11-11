@@ -223,6 +223,9 @@ function coreAnswering(
       }
       return outcome;
     },
+    async openingFloatSuggestion() {
+      return { kind: "none" };
+    },
     async cashSession() {
       cashSessionAsks.push("cash-session");
       return cashDrawer.cashSession === undefined ? openedByRegister : cashDrawer.cashSession();
@@ -999,14 +1002,12 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await expect
-      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("table", { name: "Para empezar" })).toBeVisible();
 
     answering.finishPull(null);
 
     await expect
-      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
+      .element(screen.getByRole("table", { name: "Para empezar" }))
       .not.toBeInTheDocument();
   });
 
@@ -3070,9 +3071,8 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
@@ -3095,9 +3095,8 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
   });
@@ -3117,9 +3116,8 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
@@ -3139,9 +3137,8 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
     expect(asked).toContain("sign-out");
@@ -3165,9 +3162,8 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect
       .element(screen.getByText("No se pudo abrir la caja. Probá de nuevo.").first())
@@ -3184,9 +3180,8 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect
       .element(screen.getByText("No tenés permiso para abrir la caja.").first())
@@ -3206,9 +3201,8 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
   });
@@ -3356,9 +3350,8 @@ describe("App", () => {
       await startClosing(screen);
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-      await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+      await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
 
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));

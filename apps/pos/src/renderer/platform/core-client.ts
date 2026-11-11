@@ -48,6 +48,7 @@ import type {
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
+  OpeningFloatSuggestion,
   PaymentMethodAvailability,
   PaymentsCoreToRendererMessage,
   PaymentsRendererToCoreMessage,
@@ -244,6 +245,7 @@ export interface CoreClient {
   recordCashMovement(input: CashMovementInput): Promise<RecordCashMovementOutcome>;
   cashMovements(): Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds(): Promise<RecordableCashMovementKinds | null | "unavailable">;
+  openingFloatSuggestion(): Promise<OpeningFloatSuggestion | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
   findProductByCode(code: string): Promise<FindProductByCodeOutcome>;
@@ -727,6 +729,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-movement-kinds" ? answer.kinds : undefined;
+        },
+      );
+    },
+    openingFloatSuggestion() {
+      return ask(
+        { type: "opening-float-suggestion-request", request_id: deps.newRequestId() },
+        (answer): OpeningFloatSuggestion | null | "unavailable" | undefined => {
+          if (answer.type === "opening-float-suggestion-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "opening-float-suggestion" ? answer.suggestion : undefined;
         },
       );
     },

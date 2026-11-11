@@ -147,6 +147,9 @@ export function KeyLayerProvider({ children }: { children: ReactNode }) {
       if ((fallback && event.defaultPrevented) || event.ctrlKey || event.altKey || event.metaKey) {
         return;
       }
+      if (event.key === "Enter" && event.target instanceof HTMLButtonElement) {
+        return;
+      }
       const typing = event.key.length === 1 && isTextField(event.target);
       const candidates = candidatesFor(registrations.current, event, fallback);
       const binding = bindingFor(candidates, event, typing);

@@ -182,6 +182,7 @@ export type {
   RecordSnapshotUploadedPorts,
 } from "./record-snapshot-uploaded.js";
 export { recordSnapshotUploaded } from "./record-snapshot-uploaded.js";
+export type { CashCountAtClose, RegisterCloses } from "./register-closes.js";
 export type {
   ObserveRegisterOwnConditionsPorts,
   RegisterConditionStartStore,
@@ -318,6 +319,11 @@ export type {
   StartContingencyReportingPorts,
 } from "./start-contingency-reporting.js";
 export { startContingencyReporting } from "./start-contingency-reporting.js";
+export type {
+  OpeningFloatSuggestion,
+  SuggestOpeningFloatPorts,
+} from "./suggest-opening-float.js";
+export { suggestOpeningFloat } from "./suggest-opening-float.js";
 export type {
   SnapshotUploadTally,
   UploadPendingSnapshotGenerationsOutcome,
