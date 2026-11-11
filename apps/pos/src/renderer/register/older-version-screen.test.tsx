@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { render } from "vitest-browser-react";
+import { elevatedCardOf, elevatedCardWithBadge } from "../shell/test-support/elevated-card";
 import { OlderVersionScreen } from "./older-version-screen";
 
 const TITLE = "Hay que instalar la versión vigente";
@@ -18,6 +19,14 @@ describe("OlderVersionScreen", () => {
       .not.toBeInTheDocument();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows its title as the heading of an elevated card with an info-tone badge", async () => {
+    const screen = await render(<OlderVersionScreen version={null} />);
+
+    const heading = screen.getByRole("heading", { level: 1, name: TITLE });
+    await expect.element(heading).toBeVisible();
+    expect(elevatedCardOf(heading.element())).toEqual(elevatedCardWithBadge("info"));
   });
 
   it("tells that the current version installs itself and what to do without internet", async () => {

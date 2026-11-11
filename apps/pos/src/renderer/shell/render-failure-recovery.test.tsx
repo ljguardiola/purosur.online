@@ -1,7 +1,5 @@
-import { InlineNotice } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
-import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -12,12 +10,12 @@ import { RenderFailureRecovery } from "./render-failure-recovery";
 import type { RouterContext } from "./router";
 import { createRegisterRouter } from "./router";
 import { startupPendingGate } from "./startup-pending-gate";
+import { elevatedCardOf, elevatedCardWithBadge } from "./test-support/elevated-card";
 import {
   holdWindowsScrollbarWidth,
   showInStoreNotebookWindow,
   windowOverflow,
 } from "./test-support/register-window";
-import { surfaceBehind } from "./test-support/surface-behind";
 
 const NOTICE_TITLE = "No se pudo mostrar la pantalla";
 const RETRY_LABEL = "Reintentar";
@@ -206,21 +204,16 @@ describe("RenderFailureRecovery", () => {
     expect(windowOverflow().horizontal).toBe(0);
   });
 
-  it("announces the failure as an alert on the error-tone surface, with Reintentar as a button", async () => {
+  it("shows the failure as the heading of an elevated card with an error-tone badge, with Reintentar as a button", async () => {
     const screen = await render(
       <RenderFailureRecovery reportFailure={vi.fn()}>
         <ScreenThatAlwaysThrows />
       </RenderFailureRecovery>,
     );
 
-    const alert = screen.getByRole("alert");
-    await expect.poll(() => alert.element().textContent).toContain(NOTICE_TITLE);
-    const reference = await render(
-      <InlineNotice tone="error" icon={<TriangleAlert />} title="Reference" />,
-    );
-    expect(surfaceBehind(screen.getByText(NOTICE_TITLE).first().element())).toBe(
-      surfaceBehind(reference.container.querySelector("p") as HTMLElement),
-    );
+    const heading = screen.getByRole("heading", { level: 1, name: NOTICE_TITLE });
+    await expect.element(heading).toBeVisible();
+    expect(elevatedCardOf(heading.element())).toEqual(elevatedCardWithBadge("error"));
     await expect.element(screen.getByRole("button", { name: RETRY_LABEL })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
