@@ -1795,7 +1795,9 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }));
+      await userEvent.click(
+        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
+      );
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");

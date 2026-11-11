@@ -1,6 +1,5 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expect } from "vitest";
-import { page, userEvent } from "vitest/browser";
 import type { SignInUsers } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
 import { SignInScreen } from "../sign-in-screen";
@@ -40,11 +39,6 @@ export async function renderSignIn({
 
 export function userSelect(screen: Screen) {
   return screen.getByRole("button", { name: /USUARIO/ });
-}
-
-export async function choose(screen: Screen, firstName: string) {
-  await userEvent.click(userSelect(screen));
-  await userEvent.click(page.getByRole("option", { name: firstName }));
 }
 
 export async function expectChosen(screen: Screen, firstName: string) {
