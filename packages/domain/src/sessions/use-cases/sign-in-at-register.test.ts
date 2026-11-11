@@ -40,7 +40,6 @@ function fixture(
     rememberedPeople: {
       remember: (userId) => calls.push(`remember ${userId}`),
       markLastActive: (userId) => calls.push(`mark last active ${userId}`),
-      signInCandidates: () => [],
     },
   };
   return {
