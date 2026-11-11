@@ -8,10 +8,13 @@ type Taker = (code: string) => void;
 interface Takers {
   register(taker: Taker): () => void;
   last(): Taker | undefined;
+  refuse(): () => void;
+  refused(): boolean;
 }
 
 function createTakers(): Takers {
   let registered: Taker[] = [];
+  const refusals = new Set<object>();
   return {
     register(taker) {
       registered.push(taker);
@@ -20,6 +23,14 @@ function createTakers(): Takers {
       };
     },
     last: () => registered.at(-1),
+    refuse() {
+      const refusal = {};
+      refusals.add(refusal);
+      return () => {
+        refusals.delete(refusal);
+      };
+    },
+    refused: () => refusals.size > 0,
   };
 }
 
@@ -27,7 +38,10 @@ function aWindowIsOpen() {
   return document.querySelector('[role="dialog"]') !== null;
 }
 
-const BarcodeReadingsContext = createContext<Takers["register"]>(() => () => {});
+const BarcodeReadingsContext = createContext<Pick<Takers, "register" | "refuse">>({
+  register: () => () => {},
+  refuse: () => () => {},
+});
 
 export function BarcodeReadings({
   onBarcodeRead,
@@ -43,7 +57,7 @@ export function BarcodeReadings({
     () =>
       onBarcodeRead((code) => {
         const taker = takers.last();
-        if (taker === undefined || aWindowIsOpen()) {
+        if (taker === undefined || takers.refused() || aWindowIsOpen()) {
           setUntaken((count) => (count ?? 0) + 1);
         } else {
           taker(code);
@@ -53,7 +67,7 @@ export function BarcodeReadings({
   );
 
   return (
-    <BarcodeReadingsContext value={takers.register}>
+    <BarcodeReadingsContext value={takers}>
       {children}
       {untaken === undefined ? null : (
         <FloatingNotification
@@ -70,7 +84,7 @@ export function BarcodeReadings({
 }
 
 export function useBarcodeReadings(take: ((code: string) => void) | undefined) {
-  const register = useContext(BarcodeReadingsContext);
+  const { register } = useContext(BarcodeReadingsContext);
   const latest = useRef(take);
   const taking = take !== undefined;
 
@@ -87,4 +101,9 @@ export function useBarcodeReadings(take: ((code: string) => void) | undefined) {
         : undefined,
     [taking, register],
   );
+}
+
+export function useRefuseBarcodeReadings(refusing: boolean) {
+  const { refuse } = useContext(BarcodeReadingsContext);
+  useEffect(() => (refusing ? refuse() : undefined), [refusing, refuse]);
 }

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { RegisterFrame } from "./register-frame";
+import { FramePanel, RegisterFrame } from "./register-frame";
 import type { RegisterStatusData } from "./register-status-context";
 import { RegisterStatusProvider } from "./register-status-context";
 
@@ -66,5 +67,58 @@ describe("RegisterFrame", () => {
     expect(header.left).toBeGreaterThanOrEqual(rail.right);
     expect(header.right).toBeLessThanOrEqual(panel.left);
     expect(panel.top).toBeLessThan(header.top + 1);
+  });
+
+  it("covers the aside with a panel rendered through the frame's panel slot, from the rail", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const screen = await render(
+      <div style={{ height: "600px", width: "1024px" }}>
+        <RegisterFrame
+          background="surface"
+          rail={
+            <nav aria-label="Riel">
+              <FramePanel>
+                <section aria-label="Confirmación" style={{ width: "100%" }}>
+                  confirmar
+                </section>
+              </FramePanel>
+            </nav>
+          }
+          aside={
+            <aside aria-label="Panel" style={{ width: "392px" }}>
+              panel
+            </aside>
+          }
+        >
+          <main>contenido</main>
+        </RegisterFrame>
+      </div>,
+    );
+
+    const aside = screen
+      .getByRole("complementary", { name: "Panel" })
+      .element()
+      .getBoundingClientRect();
+    const covering = screen
+      .getByRole("region", { name: "Confirmación" })
+      .element()
+      .getBoundingClientRect();
+    expect(covering.left).toBeLessThanOrEqual(aside.left);
+    expect(covering.right).toBeGreaterThanOrEqual(aside.right);
+    expect(covering.top).toBeLessThanOrEqual(aside.top);
+    expect(covering.bottom).toBeGreaterThanOrEqual(aside.bottom);
+    expect(document.elementFromPoint(aside.left + 10, aside.top + 10)).toBe(
+      screen.getByRole("region", { name: "Confirmación" }).element(),
+    );
+  });
+
+  it("shows no panel when nothing is rendered through the slot", async () => {
+    const screen = await render(frame());
+
+    await expect
+      .element(screen.getByRole("region", { name: "Confirmación" }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("complementary", { name: "Panel" })).toBeVisible();
   });
 });

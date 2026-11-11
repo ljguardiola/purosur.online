@@ -55,14 +55,7 @@ export function CashScreen({
   return (
     <RegisterFrame
       background="surface"
-      rail={
-        <OpenSessionRail
-          registerName={registerName}
-          lock={lock}
-          current="cash"
-          abilities={person.abilities}
-        />
-      }
+      rail={<OpenSessionRail lock={lock} current="cash" abilities={person.abilities} />}
       aside={
         <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO AHORA" balance={balance}>
           <Button
@@ -79,7 +72,7 @@ export function CashScreen({
             size="large"
             fullWidth
             icon={<Lock />}
-            onPress={() => void navigate({ to: "/cash-count", search: { leaving: false } })}
+            onPress={() => void navigate({ to: "/cash-count" })}
           >
             Cerrar caja
           </Button>

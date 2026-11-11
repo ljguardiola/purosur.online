@@ -186,7 +186,6 @@ async function renderScreen(overrides: Overrides = {}) {
       person={overrides.person ?? CASHIER}
       sessionOwner={OWNER}
       openedAt={OPENED_AT}
-      registerName="Caja 1"
       lock={() => {}}
       loadStartupPending={loadStartupPending}
       loadCashBalance={overrides.loadCashBalance ?? (async () => BALANCE)}

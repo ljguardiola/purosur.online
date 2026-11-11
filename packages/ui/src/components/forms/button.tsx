@@ -13,6 +13,8 @@ import type { LoadStatus } from "../shared/load-status";
 export type ButtonVariant = "primary" | "secondary" | "text";
 export type ButtonSize = "small" | "medium" | "large" | "sale";
 
+type ButtonIconPosition = "start" | "end";
+
 export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
 type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type"> & {
@@ -33,6 +35,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        iconPosition?: ButtonIconPosition;
         onTintedSurface?: undefined;
       }
     | {
@@ -40,6 +43,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        iconPosition?: undefined;
         onTintedSurface?: boolean;
       }
     | {
@@ -47,6 +51,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: false;
         size?: ButtonTextSize;
         icon?: Icon;
+        iconPosition?: undefined;
         onTintedSurface?: undefined;
       }
     | {
@@ -54,6 +59,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive: true;
         size?: ButtonTextSize;
         icon?: undefined;
+        iconPosition?: undefined;
         onTintedSurface?: undefined;
       }
   );
@@ -156,6 +162,7 @@ export function Button({
   dataStatus,
   onTintedSurface = false,
   keycap,
+  iconPosition,
   ...props
 }: ButtonProps) {
   const color = destructive ? "destructive" : "regular";
@@ -174,15 +181,16 @@ export function Button({
     .filter(Boolean)
     .join(" ");
 
+  const iconPlacement = iconPosition ?? (variant === "primary" ? "end" : "start");
   const glyph = variant === "text" && destructive ? <X aria-hidden="true" /> : icon;
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
   const content = (
     <>
-      {variant !== "primary" && sizedIcon}
+      {iconPlacement === "start" && sizedIcon}
       {/* truncate on this justify-center flex container itself would clip both ends with no
           ellipsis; it needs its own box to truncate correctly. */}
       <span className="truncate">{children}</span>
-      {variant === "primary" && sizedIcon}
+      {iconPlacement === "end" && sizedIcon}
       {keycap === undefined ? null : (
         <span aria-hidden="true" className="ml-auto flex shrink-0">
           <Keycap keyName={keycap} variant={variant === "primary" ? "onPrimary" : "default"} />

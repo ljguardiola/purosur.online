@@ -43,7 +43,6 @@ import { PrintDeferredInvoiceModal } from "./print-deferred-invoice-modal";
 
 export type DeferredSaleScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
   sessionOpen: boolean;
   lock: () => void;
   findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
@@ -59,7 +58,6 @@ export type DeferredSaleScreenProps = {
 
 export function DeferredSaleScreen({
   person,
-  registerName,
   sessionOpen,
   lock,
   findDeferredSale,
@@ -143,12 +141,7 @@ export function DeferredSaleScreen({
       background="subtle"
       rail={
         sessionOpen ? (
-          <OpenSessionRail
-            registerName={registerName}
-            lock={lock}
-            current="deferred_sale"
-            abilities={person.abilities}
-          />
+          <OpenSessionRail lock={lock} current="deferred_sale" abilities={person.abilities} />
         ) : (
           <NoSessionRail person={person} current="/deferred-sale" signOut={lock} />
         )

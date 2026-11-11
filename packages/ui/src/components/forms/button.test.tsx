@@ -435,6 +435,54 @@ test("places the primary variant's 24px icon after the text with its 12px gap", 
   expect(gap).toBeLessThan(13);
 });
 
+test("places the primary variant's icon before the text when the icon position is start, keeping the keycap at the far right", async () => {
+  const screen = await render(
+    <Button icon={<Check />} iconPosition="start" keycap="Enter" fullWidth>
+      Save
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
+  const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const labelRect = textNodeRect(button.querySelector("span.truncate")?.firstChild as ChildNode);
+  const keycapRect = (button.querySelector("kbd") as HTMLElement).getBoundingClientRect();
+
+  expect(iconRect.right).toBeLessThanOrEqual(labelRect.left);
+  expect(labelRect.right).toBeLessThanOrEqual(keycapRect.left);
+  expect(button.getBoundingClientRect().right - keycapRect.right).toBeLessThan(20);
+});
+
+test("keeps the primary variant's icon after the text when the icon position is end", async () => {
+  const screen = await render(
+    <Button icon={<Check />} iconPosition="end">
+      Save
+    </Button>,
+  );
+  const button = screen.getByRole("button", { name: "Save" }).element() as HTMLElement;
+  const iconRect = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const labelRect = textNodeRect(button.querySelector("span.truncate")?.firstChild as ChildNode);
+
+  expect(iconRect.left).toBeGreaterThanOrEqual(labelRect.right);
+});
+
+test("accepts an icon position on the primary variant only", () => {
+  expectTypeOf<{ iconPosition: "start" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{ variant: "primary"; iconPosition: "end" }>().toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "secondary";
+    iconPosition: "end";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: false;
+    iconPosition: "end";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+  expectTypeOf<{
+    variant: "text";
+    destructive: true;
+    iconPosition: "start";
+  }>().not.toExtend<ButtonPropsWithoutText>();
+});
+
 test("places the secondary variant's 18px icon before the text with its 8px gap", async () => {
   const screen = await render(
     <Button variant="secondary" icon={<X />}>
