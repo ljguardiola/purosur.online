@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
+import { PaidOrderNotice, RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
 
 const APPLY = "Cobrar con el pago de Mercado Pago";
 const FAILED = "No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.";
@@ -182,5 +182,17 @@ describe("RebuiltPaidOrderNotice", () => {
     await userEvent.click(screen.getByRole("button", { name: APPLY }));
 
     await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("PaidOrderNotice", () => {
+  it("keeps the amount in the title from splitting across lines", async () => {
+    const screen = await render(<PaidOrderNotice paidOrder={{ method: "QR", amount: 920_000 }} />);
+
+    const title = screen
+      .getByText(/^Pago con Mercado Pago de/)
+      .first()
+      .element();
+    expect(title.textContent).toBe("Pago con Mercado Pago de $ 9.200,00");
   });
 });
