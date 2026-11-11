@@ -16,3 +16,9 @@ test("shows its name as a tooltip when hovered", async () => {
 
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Cerrar");
 });
+
+test("is disabled when told so", async () => {
+  const screen = await render(<CloseButton onPress={() => {}} disabled />);
+
+  await expect.element(screen.getByRole("button", { name: "Cerrar" })).toBeDisabled();
+});
