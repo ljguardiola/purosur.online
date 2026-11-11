@@ -3,7 +3,7 @@ import type {
   AddWeighedProductOutcome,
   ScanProductOutcome,
 } from "@purosur/contracts";
-import { ElevatedNotice } from "@purosur/ui";
+import { ElevatedNotice, InlineNotice } from "@purosur/ui";
 import type { LucideIcon } from "lucide-react";
 import {
   Ban,
@@ -221,15 +221,28 @@ export function messageFor(problem: ScanProblem): Message {
 
 export function ScanProblemMessage({ problem }: { problem: ScanProblem | undefined }) {
   const message = problem === undefined ? undefined : messageFor(problem);
+  const inline = problem?.kind === "unknown_code";
   return (
-    <div className="absolute inset-x-0 top-full z-overlay mt-2">
-      <ElevatedNotice
-        notice={
-          message === undefined
-            ? undefined
-            : { icon: <message.icon />, title: message.title, description: message.help }
-        }
-      />
-    </div>
+    <>
+      {inline && message !== undefined ? (
+        <div className="mt-4">
+          <InlineNotice
+            tone="error"
+            icon={<message.icon />}
+            title={message.title}
+            description={message.help}
+          />
+        </div>
+      ) : null}
+      <div className="absolute inset-x-0 top-full z-overlay mt-2">
+        <ElevatedNotice
+          notice={
+            message === undefined || inline
+              ? undefined
+              : { icon: <message.icon />, title: message.title, description: message.help }
+          }
+        />
+      </div>
+    </>
   );
 }

@@ -5,8 +5,11 @@ import type {
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { ScanBarcode, Search } from "lucide-react";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   deferred,
@@ -46,7 +49,36 @@ function answering(outcome: SearchProductsOutcome) {
   return vi.fn<SaleScreenProps["searchProducts"]>(async () => outcome);
 }
 
+async function drawnIcon(icon: ReactElement) {
+  const reference = await render(<span>{icon}</span>);
+  const markup = reference.container.querySelector("svg")?.innerHTML;
+  await reference.unmount();
+  return markup;
+}
+
 describe("SaleScreen searching by name", () => {
+  describe("the icon of the field", () => {
+    it("shows a barcode while the field is empty or holds a code and a magnifier while it holds a name", async () => {
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND])),
+      });
+      const barcode = await drawnIcon(<ScanBarcode />);
+      const magnifier = await drawnIcon(<Search />);
+      const fieldIcon = () => screen.container.querySelector("form svg")?.innerHTML;
+      expect(barcode).not.toBe(magnifier);
+      expect(fieldIcon()).toBe(barcode);
+
+      await field.fill("yer");
+      await expect.poll(fieldIcon).toBe(magnifier);
+
+      await field.fill("7790009");
+      await expect.poll(fieldIcon).toBe(barcode);
+
+      await field.fill("");
+      await expect.poll(fieldIcon).toBe(barcode);
+    });
+  });
+
   describe("asking for the search", () => {
     it("asks the core for the text typed, without the blanks around it, once it has a letter", async () => {
       const searchProducts = answering(results([]));
@@ -141,12 +173,51 @@ describe("SaleScreen searching by name", () => {
         .toHaveAttribute("aria-activedescendant", screen.getByRole("option").first().element().id);
     });
 
+    it("offers Cerrar with its Esc key inside the field while the results are open, and not otherwise", async () => {
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND])),
+      });
+      await expect.element(screen.getByRole("button", { name: "Cerrar" })).not.toBeInTheDocument();
+
+      await field.fill("yer");
+
+      await expect.element(screen.getByRole("button", { name: "Cerrar" })).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Cerrar" }))
+        .toHaveTextContent("EscCerrar");
+    });
+
+    it("closes the results, keeping the text, when Cerrar is pressed", async () => {
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND])),
+      });
+      await field.fill("yer");
+
+      await screen.getByRole("button", { name: "Cerrar" }).click();
+
+      await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+      await expect.element(field).toHaveValue("yer");
+      await expect.element(field).toHaveFocus();
+    });
+
+    it("shows no stock beside the name and the price of each result", async () => {
+      const { screen, field } = await renderScreen({
+        searchProducts: answering(results([YERBA_FOUND, QUESO_FOUND])),
+      });
+
+      await field.fill("a");
+
+      const options = screen.getByRole("option");
+      await expect.element(options.nth(0)).toHaveTextContent("Yerba mate 1 kg$ 2.380,00 / u");
+      await expect.element(options.nth(1)).toHaveTextContent("Queso cremoso$ 12.500,00 / kg");
+    });
+
     it("overlays the sale lines with a box as wide as the field, leaving the lines where they are", async () => {
       const { screen, field } = await renderScreen({
         currentSale: async () => SALE_OF_YERBA,
         searchProducts: answering(results([YERBA_FOUND])),
       });
-      const line = screen.getByRole("listitem").first();
+      const line = screen.getByRole("row").nth(1);
       await expect.element(line).toBeVisible();
       const before = line.element().getBoundingClientRect().top;
       const fieldBox = (field.element() as HTMLElement).closest("form")?.getBoundingClientRect();
@@ -412,8 +483,8 @@ describe("SaleScreen searching by name", () => {
 
       await userEvent.keyboard("{Enter}");
 
-      const lines = screen.getByRole("listitem");
-      await expect.element(lines).toHaveLength(2);
+      const lines = screen.getByRole("row");
+      await expect.element(lines).toHaveLength(3);
       await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
       await expect.element(field).toHaveValue("");
       await expect.element(field).toHaveFocus();
@@ -523,7 +594,7 @@ describe("SaleScreen searching by name", () => {
         await expect.element(field).toHaveValue("yer");
         const input = field.element() as HTMLInputElement;
         await expect.poll(() => [input.selectionStart, input.selectionEnd]).toEqual([0, 3]);
-        await expect.element(screen.getByRole("listitem")).toHaveLength(1);
+        await expect.element(screen.getByRole("row")).toHaveLength(2);
         await expectNoAccessibilityViolations(screen.container);
       },
     );

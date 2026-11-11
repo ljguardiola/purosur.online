@@ -76,3 +76,7 @@ export const WithLongBodyFocused: Story = {
     )(context);
   },
 };
+
+export const Wide: Story = {
+  args: { ...WithFooter.args, width: "wide" },
+};

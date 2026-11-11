@@ -1,5 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Check, Info as InfoIcon, ShieldAlert, ShieldOff, ShoppingBasket, X } from "lucide-react";
+import {
+  Check,
+  Info as InfoIcon,
+  QrCode,
+  ShieldAlert,
+  ShieldOff,
+  ShoppingBasket,
+  X,
+} from "lucide-react";
 import { Button } from "../forms/button";
 import { HighlightedNotice } from "./highlighted-notice";
 
@@ -63,4 +71,22 @@ export const WithActionAtEnd: Story = {
       </Button>
     ),
   },
+};
+
+export const WithTitleAmount: Story = {
+  args: {
+    tone: "info",
+    layout: "row",
+    icon: <QrCode />,
+    title: "Pago con Mercado Pago de",
+    titleAmount: "$ 9.200,00",
+    description: "Aplicado a la venta antes de cobrar con otro medio.",
+  },
+  decorators: [
+    (Story) => (
+      <div className="flex w-88">
+        <Story />
+      </div>
+    ),
+  ],
 };

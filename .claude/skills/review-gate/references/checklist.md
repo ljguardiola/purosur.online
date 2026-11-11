@@ -133,11 +133,14 @@ how a new one is judged.
 
 ### Screens
 
-- A screen out of step with the `packages/ui` pieces: hand-writing what a
-  piece named in build-screen covers (a panel total as `Eyebrow` plus a
-  `text-display` figure where `FigureStat` exists), or giving a piece more
-  items than its layout is made for (an unbounded list of supplier prices in
-  `OptionCardGroup`'s non-wrapping row).
+- A screen or a composed `packages/ui` piece out of step with the pieces it
+  uses: hand-writing what a piece named in build-screen covers (a panel total
+  as `Eyebrow` plus a `text-display` figure where `FigureStat` exists), giving
+  a piece more items than its layout is made for (an unbounded list of
+  supplier prices in `OptionCardGroup`'s non-wrapping row), or a composed
+  piece that keeps a hard-coded measure after its base piece changed it
+  (`DetailPanel`'s header kept at `px-8` after `SidePanel`'s body and footer
+  moved to `px-6`).
 - A screen standing in for an answer it does not have or a state it is not
   in: an action the cloud answers for shown disabled from a defaulted flag
   while the record loads, a URL filter rewritten as not offered because its

@@ -15,7 +15,7 @@ function expectDrawnAlike(shown: Element, reference: Element) {
 export async function expectDrawnAsFigureStat(
   label: Element,
   value: Element,
-  size: "display" | "heading" = "display",
+  size: "hero" | "display" | "heading" = "display",
 ) {
   const reference = await render(<FigureStat size={size} label="Referencia" value="$ 1,00" />);
   const referenceLabel = reference.getByText("Referencia", { exact: true }).element();
