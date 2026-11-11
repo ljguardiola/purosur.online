@@ -1024,7 +1024,7 @@ describe("StartupPendingScreen", () => {
     };
 
     it("offers to rebuild the sale beside passing the order to refund", async () => {
-      const { screen } = await renderScreen({ loadStartupPending: async () => BLOCKED_BY_QR });
+      await renderScreen({ loadStartupPending: async () => BLOCKED_BY_QR });
 
       await expect
         .poll(legendOf)
@@ -1187,10 +1187,10 @@ describe("StartupPendingScreen", () => {
 
   describe("choosing a row and acting on it by key", () => {
     const rowsOf = rowsOfTable;
-    const MIXED = async () => MIXED_PENDING;
+    const mixedPending = async () => MIXED_PENDING;
 
     it("has no actions column and no button on a row", async () => {
-      const { screen } = await renderScreen({ loadStartupPending: MIXED });
+      const { screen } = await renderScreen({ loadStartupPending: mixedPending });
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
 
       await expect
@@ -1202,7 +1202,7 @@ describe("StartupPendingScreen", () => {
     });
 
     it("selects the first row and moves the selection with the arrows, never past either end", async () => {
-      const { screen } = await renderScreen({ loadStartupPending: MIXED });
+      const { screen } = await renderScreen({ loadStartupPending: mixedPending });
       await expect.element(rowsOf(screen).nth(1)).toHaveAttribute("aria-current", "true");
 
       await userEvent.keyboard("{ArrowUp}");
@@ -1214,7 +1214,7 @@ describe("StartupPendingScreen", () => {
     });
 
     it("selects a row when it is clicked", async () => {
-      const { screen } = await renderScreen({ loadStartupPending: MIXED });
+      const { screen } = await renderScreen({ loadStartupPending: mixedPending });
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
 
       await userEvent.click(screen.getByText("Factura de las 12:05"));
@@ -1223,7 +1223,7 @@ describe("StartupPendingScreen", () => {
     });
 
     it("shows the keys of the selected row: a paid order, a sale to print, then an invoice being consulted", async () => {
-      const { screen } = await renderScreen({ loadStartupPending: MIXED });
+      const { screen } = await renderScreen({ loadStartupPending: mixedPending });
 
       await expect
         .poll(legendOf)
@@ -1237,7 +1237,7 @@ describe("StartupPendingScreen", () => {
 
     it("acts on the selected row only: the sale below a selected paid order is not printed", async () => {
       const { screen, printOriginalReceipt, rebuildSaleAgainstPaidOrder } = await renderScreen({
-        loadStartupPending: MIXED,
+        loadStartupPending: mixedPending,
       });
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
 
