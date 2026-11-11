@@ -1435,6 +1435,19 @@ describe("StartupPendingScreen", () => {
       await expect.element(rowsOfTable(screen).nth(1)).toHaveAttribute("aria-current", "true");
     });
 
+    it("keeps the key legend of the table shown while the duplicate receipt dialog is open", async () => {
+      const { screen } = await renderScreen({
+        loadStartupPending: async () => ({
+          ...NOTHING,
+          sales_to_print: [OUTCOME_UNKNOWN, NEVER_PRINTED],
+        }),
+      });
+      await press(screen, "p", "Ticket sin confirmar");
+      await expect.element(screen.getByRole("dialog")).toBeVisible();
+
+      await expect.poll(legendOf).toEqual(["↑↓Pendientes", "PImprimir"]);
+    });
+
     it("ignores the keys of the screen while the sale is being rebuilt", async () => {
       const answer = deferred<RebuildSaleAgainstPaidOrderOutcome>();
       const { screen, onGoSelling, rebuildSaleAgainstPaidOrder } = await renderScreen({
@@ -1451,6 +1464,20 @@ describe("StartupPendingScreen", () => {
         .element(screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" }))
         .not.toBeInTheDocument();
       expect(onGoSelling).not.toHaveBeenCalled();
+    });
+
+    it("keeps the key legend of the table shown while the sale is being rebuilt", async () => {
+      const answer = deferred<RebuildSaleAgainstPaidOrderOutcome>();
+      const { screen, rebuildSaleAgainstPaidOrder } = await renderScreen({
+        loadStartupPending: async () => BLOCKED_BY_QR,
+        rebuildSaleAgainstPaidOrder: () => answer.promise,
+      });
+      await press(screen, "a", "Cobro con QR pagado sin venta");
+      await vi.waitFor(() => expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledOnce());
+
+      await expect
+        .poll(legendOf)
+        .toEqual(["↑↓Pendientes", "AArmar la venta", "RPasar a reembolso"]);
     });
   });
 
