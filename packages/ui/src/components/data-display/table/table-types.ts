@@ -85,6 +85,10 @@ type TableLoadProps =
   | { loading?: TableLoadingState; failure?: never }
   | { loading?: false; failure: LoadFailureProps | CenteredLoadFailureProps };
 
+// A locked table shows its rows dimmed and unpressable, with a lock icon named by `label` in the
+// first header cell, and shows no key legend.
+export type TableLock = { label: string };
+
 export type TableProps<T extends RowData> = {
   table: TableModel<T>;
   "aria-label": string;
@@ -96,4 +100,5 @@ export type TableProps<T extends RowData> = {
   footer?: ReactNode;
   legend?: readonly KeyLegendItem[];
   fill?: boolean;
+  locked?: TableLock;
 } & TableLoadProps;

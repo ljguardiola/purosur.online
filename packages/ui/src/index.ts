@@ -47,6 +47,7 @@ export type {
   TableColumn,
   TableColumnAlign,
   TableLoadingState,
+  TableLock,
   TableModel,
   TableProps,
   TableRowState,
@@ -145,10 +146,14 @@ export { MenuButton } from "./components/forms/menu-button";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";
 export type { OptionCardGroupProps } from "./components/forms/option-card-group";
 export { OptionCardGroup } from "./components/forms/option-card-group";
+export type { OtherAmountFieldProps } from "./components/forms/other-amount-field";
+export { OtherAmountField } from "./components/forms/other-amount-field";
 export type { PinDotsFieldProps } from "./components/forms/pin-dots-field";
 export { PinDotsField } from "./components/forms/pin-dots-field";
 export type { QuantityUnitFieldProps } from "./components/forms/quantity-unit-field";
 export { QuantityUnitField } from "./components/forms/quantity-unit-field";
+export type { QuickAmountButtonProps } from "./components/forms/quick-amount-button";
+export { QuickAmountButton } from "./components/forms/quick-amount-button";
 export type { RadioGroupProps } from "./components/forms/radio-group";
 export { RadioGroup } from "./components/forms/radio-group";
 export type { RequestSubmission } from "./components/forms/request-form/request-form";
@@ -200,6 +205,8 @@ export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
 export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
+export type { WarningBlockProps } from "./components/layout/warning-block";
+export { WarningBlock } from "./components/layout/warning-block";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";
@@ -227,6 +234,7 @@ export type { ModalPartProps } from "./components/overlays/modal-part";
 export { ModalPart } from "./components/overlays/modal-part";
 export type { TooltipProps } from "./components/overlays/tooltip";
 export { Tooltip } from "./components/overlays/tooltip";
+export { CloseButton } from "./components/shared/close-button";
 export type { Icon } from "./components/shared/icon";
 export type { LoadStatus } from "./components/shared/load-status";
 export type { NoticeTone, Tone } from "./components/shared/tone";
