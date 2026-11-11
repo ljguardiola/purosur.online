@@ -220,6 +220,9 @@ export function PaymentPanel({
           <Button
             size="large"
             fullWidth
+            wrapLabel
+            icon={<QrCode />}
+            iconPosition="start"
             keycap="Enter"
             disabled={chargeRefusal !== null}
             onPress={onChargePaidOrder}

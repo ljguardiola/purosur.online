@@ -26,6 +26,7 @@ type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type">
   children: Exclude<ReactNode, null | undefined | boolean>;
   fullWidth?: boolean;
   keycap?: KeyName;
+  wrapLabel?: boolean;
 };
 
 export type ButtonProps = ButtonCommonProps &
@@ -167,6 +168,7 @@ export function Button({
   dataStatus,
   onTintedSurface = false,
   keycap,
+  wrapLabel = false,
   iconPosition,
   ...props
 }: ButtonProps) {
@@ -194,7 +196,7 @@ export function Button({
       {iconPlacement === "start" && sizedIcon}
       {/* truncate on this justify-center flex container itself would clip both ends with no
           ellipsis; it needs its own box to truncate correctly. */}
-      <span className="truncate">{children}</span>
+      <span className={wrapLabel ? "min-w-0 text-left" : "truncate"}>{children}</span>
       {iconPlacement === "end" && sizedIcon}
       {trailingIcon === undefined ? null : (
         <span className={iconWrapperClassName[variant]}>{trailingIcon}</span>

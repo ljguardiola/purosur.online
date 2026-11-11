@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ArrowLeft, ArrowRight, Banknote, Check, LogOut } from "lucide-react";
+import { ArrowLeft, ArrowRight, Banknote, Check, LogOut, QrCode } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -213,4 +213,23 @@ export const TextWithKeycap: Story = {
 
 export const TextWithTrailingIconAndKeycap: Story = {
   args: { variant: "text", keycap: "F1", trailingIcon: <ArrowRight />, children: "Otros medios" },
+};
+
+export const PrimaryWithWrappedLabel: Story = {
+  args: {
+    size: "large",
+    fullWidth: true,
+    wrapLabel: true,
+    icon: <QrCode />,
+    iconPosition: "start",
+    keycap: "Enter",
+  },
+  decorators: [
+    (Story) => (
+      <div className="flex w-88">
+        <Story />
+      </div>
+    ),
+  ],
+  render: (args) => <Button {...args}>Cobrar con el pago de Mercado Pago</Button>,
 };
