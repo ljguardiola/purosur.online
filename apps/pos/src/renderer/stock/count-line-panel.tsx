@@ -5,15 +5,18 @@ import type {
 } from "@purosur/contracts";
 import {
   Button,
+  Eyebrow,
   formatWeightInput,
   InlineNotice,
-  Modal,
+  SidePanel,
+  SidePanelTitle,
   StatusIndicator,
   useRequestForm,
 } from "@purosur/ui";
 import { Check, Info, Package, Scale, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import type { ScaleWeighing, WeightReading } from "../platform/use-scale-weighing";
 import { useScaleWeighing } from "../platform/use-scale-weighing";
 import {
@@ -166,6 +169,8 @@ export function CountLinePanel({
     },
   });
 
+  const panel = useRef<HTMLFormElement>(null);
+  const counted = useRef<HTMLDivElement>(null);
   const latestSubmit = useRef(submit);
   const weightInField = useRef<"none" | "stable" | "unsteady">("none");
 
@@ -234,45 +239,76 @@ export function CountLinePanel({
     requestSubmit();
   }
 
+  function cancel() {
+    if (!submitting) {
+      onClose();
+    }
+  }
+
+  function writeWeight() {
+    typeInstead();
+    const input = counted.current?.querySelector("input");
+    input?.focus();
+    input?.select();
+  }
+
+  useEffect(() => {
+    counted.current?.querySelector("input")?.focus();
+  }, []);
+
+  function pressEnter() {
+    const focused = document.activeElement;
+    if (focused instanceof HTMLButtonElement) {
+      focused.click();
+    } else {
+      requestSubmit();
+    }
+  }
+
+  useKeys([
+    { key: "Escape", run: cancel },
+    { key: "F5", run: writeWeight, enabled: followingScale },
+  ]);
+  useKeys([{ key: "Enter", run: pressEnter }], { within: panel });
+
   return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next) {
-          onClose();
+    <form ref={panel} className="contents" noValidate onSubmit={handleSubmit}>
+      <SidePanel
+        width="wide"
+        label={product.name}
+        header={
+          <SidePanelTitle
+            icon={byWeight ? <Scale /> : <Package />}
+            title={product.name}
+            close={{ onPress: cancel, label: "Cancelar" }}
+          />
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={byWeight ? <Scale /> : <Package />}
-      context={byWeight ? "Producto por peso" : "Producto por unidad"}
-      title={product.name}
-      closable={!submitting}
-      footer={
-        <>
-          <Button variant="secondary" size="large" disabled={submitting} onPress={onClose}>
-            Cancelar
-          </Button>
+        footer={
           <Button
+            type="submit"
             size="large"
             fullWidth
             icon={<Check />}
+            iconPosition="start"
+            keycap="Enter"
             dataStatus={submitting || confirming ? "loading" : "loaded"}
-            onPress={requestSubmit}
           >
             Confirmar línea
           </Button>
-        </>
-      }
-    >
-      <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
-        {followingScale && phase.kind === "stable" ? (
-          <StatusIndicator tone="success">Lectura estable</StatusIndicator>
-        ) : null}
-        {followingScale && phase.kind !== "stable" ? (
-          <StatusIndicator tone="info" busy>
-            Pesando…
-          </StatusIndicator>
+        }
+      >
+        <Eyebrow text={byWeight ? "Producto por peso" : "Producto por unidad"} />
+        {followingScale ? (
+          <div className="flex items-center justify-between gap-4">
+            <Eyebrow text="Balanza" />
+            {phase.kind === "stable" ? (
+              <StatusIndicator tone="success">Lectura estable</StatusIndicator>
+            ) : (
+              <StatusIndicator tone="info" busy>
+                Pesando…
+              </StatusIndicator>
+            )}
+          </div>
         ) : null}
         {followingScale && zeroRefused ? (
           <InlineNotice tone="info" icon={<Info />} description={ZERO_WEIGHT_NOTE} />
@@ -284,44 +320,45 @@ export function CountLinePanel({
             description="La balanza no está disponible. Escribí el peso."
           />
         ) : null}
-        <form.AppField
-          name="counted"
-          listeners={{
-            onChange: () => {
-              typeInstead();
-              clearNotices();
-            },
-          }}
-        >
-          {(counted) =>
-            byWeight ? (
-              <counted.TextField
-                kind="weight"
-                suffix="kg"
-                label="Cantidad contada"
-                decimals={KG_DECIMALS}
-                description="Podés pesarlo en la balanza o escribir el peso."
-                disabled={submitting}
-              />
-            ) : (
-              <counted.TextField
-                kind="quantity"
-                suffix="u"
-                label="Cantidad contada"
-                inputMode="numeric"
-                disabled={submitting}
-              />
-            )
-          }
-        </form.AppField>
+        <div ref={counted} className="flex flex-col gap-3">
+          <form.AppField
+            name="counted"
+            listeners={{
+              onChange: () => {
+                typeInstead();
+                clearNotices();
+              },
+            }}
+          >
+            {(countedField) =>
+              byWeight ? (
+                <countedField.TextField
+                  kind="weight"
+                  suffix="kg"
+                  label="Cantidad contada"
+                  decimals={KG_DECIMALS}
+                  disabled={submitting}
+                />
+              ) : (
+                <countedField.TextField
+                  kind="quantity"
+                  suffix="u"
+                  label="Cantidad contada"
+                  inputMode="numeric"
+                  labelKeycap="Digits"
+                  disabled={submitting}
+                />
+              )
+            }
+          </form.AppField>
+          {followingScale ? (
+            <Button variant="text" keycap="F5" onPress={writeWeight}>
+              Escribir peso
+            </Button>
+          ) : null}
+        </div>
         <form.AppField name="expiresOn" listeners={{ onChange: clearNotices }}>
-          {(expiresOn) => (
-            <expiresOn.DateField
-              label="Vencimiento"
-              description="Si el mismo producto tiene otro vencimiento, se carga como una línea aparte."
-              disabled={submitting}
-            />
-          )}
+          {(expiresOn) => <expiresOn.DateField label="Vencimiento" disabled={submitting} />}
         </form.AppField>
         {shownNotice === undefined ? null : (
           <InlineNotice
@@ -330,7 +367,7 @@ export function CountLinePanel({
             title={shownNotice.title}
           />
         )}
-      </form>
-    </Modal>
+      </SidePanel>
+    </form>
   );
 }

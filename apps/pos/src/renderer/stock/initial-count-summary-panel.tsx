@@ -6,8 +6,10 @@ import {
   formatNumber,
   LoadingPlaceholder,
   SidePanel,
+  SidePanelTitle,
   SummaryRowGroup,
 } from "@purosur/ui";
+import { Check, Package } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 import { linesText, summaryOf } from "./initial-count-text";
 
@@ -16,30 +18,50 @@ const EYEBROW = "Cargado hasta ahora";
 export type InitialCountSummaryPanelProps = {
   state: CoreData<InitialCountLine[]>;
   onFinish: () => void;
+  onClose: () => void;
 };
 
 function Totals({ lines }: { lines: readonly InitialCountLine[] }) {
   const summary = summaryOf(lines);
   return (
     <>
-      <FigureStat label={EYEBROW} size="heading" value={linesText(summary.lines)} />
+      <FigureStat label={EYEBROW} size="hero" value={linesText(summary.lines)} />
       <SummaryRowGroup
         rows={[
           { label: "Productos distintos", value: formatNumber(summary.products) },
-          { label: "Con vencimiento", value: linesText(summary.withExpiry) },
-          { label: "Sin vencimiento", value: linesText(summary.withoutExpiry) },
+          { label: "Con vencimiento", value: formatNumber(summary.withExpiry) },
+          { label: "Sin vencimiento", value: formatNumber(summary.withoutExpiry) },
         ]}
       />
     </>
   );
 }
 
-export function InitialCountSummaryPanel({ state, onFinish }: InitialCountSummaryPanelProps) {
+export function InitialCountSummaryPanel({
+  state,
+  onFinish,
+  onClose,
+}: InitialCountSummaryPanelProps) {
   return (
     <SidePanel
+      width="wide"
       label="Resumen del inventario"
+      header={
+        <SidePanelTitle
+          icon={<Package />}
+          title="Inventario inicial"
+          close={{ onPress: onClose }}
+        />
+      }
       footer={
-        <Button size="large" fullWidth onPress={onFinish}>
+        <Button
+          size="large"
+          fullWidth
+          icon={<Check />}
+          iconPosition="start"
+          keycap="F12"
+          onPress={onFinish}
+        >
           Terminar la carga
         </Button>
       }
@@ -47,7 +69,7 @@ export function InitialCountSummaryPanel({ state, onFinish }: InitialCountSummar
       {state.status === "loaded" ? <Totals lines={state.value} /> : null}
       {state.status === "loading" ? (
         <>
-          <FigureStat label={EYEBROW} size="heading" loading />
+          <FigureStat label={EYEBROW} size="hero" loading />
           <LoadingPlaceholder variant="card" lines={3} />
         </>
       ) : null}
