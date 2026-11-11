@@ -49,6 +49,7 @@ export function Table<T extends RowData>({
   footer,
   legend,
   fill = false,
+  emptyKeepsHeaders = false,
 }: TableProps<T>): ReactElement {
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
@@ -58,9 +59,10 @@ export function Table<T extends RowData>({
     rows.length,
     empty !== undefined,
   );
-  const showEmptyState = displayMode === "empty";
+  const emptyBelowHeaders = fill && emptyKeepsHeaders && displayMode === "empty";
+  const showEmptyState = displayMode === "empty" && !emptyBelowHeaders;
   const showingPlaceholders = displayMode === "placeholders";
-  const messageOnly = fill && (displayMode === "failure" || displayMode === "empty");
+  const messageOnly = fill && (displayMode === "failure" || showEmptyState);
 
   const tableElement = (
     <>
@@ -165,12 +167,21 @@ export function Table<T extends RowData>({
     <>
       <div className={tableContainerClassName(variant, fill)}>
         {loading === "updating" && <TableUpdatingBar />}
-        {messageElement ??
+        {emptyBelowHeaders && empty !== undefined ? (
+          <>
+            {tableElement}
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
+              <EmptyState {...empty} />
+            </div>
+          </>
+        ) : (
+          (messageElement ??
           (fill ? (
             <div className="min-h-0 flex-1 overflow-y-auto">{tableElement}</div>
           ) : (
             tableElement
-          ))}
+          )))
+        )}
         {legend === undefined ? null : (
           <div className="shrink-0 border-t border-border bg-surface-subtle px-4 py-3">
             <KeyLegend items={legend} />
