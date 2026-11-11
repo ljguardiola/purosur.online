@@ -33,6 +33,16 @@ function fieldInput(canvasElement: HTMLElement): HTMLElement {
   return canvasElement.querySelector("input") as HTMLElement;
 }
 
+export const Placeholder: Story = {
+  args: {
+    kind: "plain-text",
+    label: "Código de alta",
+    value: "",
+    onChange: () => {},
+    placeholder: "Escribí el código del backoffice",
+  },
+};
+
 export const Amount: Story = {
   args: { kind: "amount", label: "Monto", value: "", onChange: () => {}, prefix: "$" },
 };

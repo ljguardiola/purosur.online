@@ -8,7 +8,7 @@ const closeButtonClassName =
   "transition-background outline-none data-hovered:bg-surface-soft " +
   "data-focus-visible:focus-ring";
 
-const escapeKeycapButtonClassName =
+export const escapeKeycapButtonClassName =
   "flex h-control-lg shrink-0 items-center justify-center rounded-lg px-1 outline-none " +
   "data-focus-visible:focus-ring data-disabled:opacity-disabled";
 
