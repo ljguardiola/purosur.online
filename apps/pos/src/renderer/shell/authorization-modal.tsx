@@ -90,10 +90,10 @@ export function AuthorizationModal({
     !submitting && secondsLeft === 0 && !refusedPerson && chosen !== null && pin !== "";
 
   useEffect(() => {
-    if (asking && !submitting && secondsLeft === 0) {
+    if (asking && !submitting && secondsLeft === 0 && !refusedPerson) {
       pinInput.current?.focus();
     }
-  }, [asking, submitting, secondsLeft, refusal, pinInput]);
+  }, [asking, submitting, secondsLeft, refusedPerson, pinInput]);
 
   function move(step: 1 | -1) {
     const current = options.findIndex((option) => option.value === chosen);
