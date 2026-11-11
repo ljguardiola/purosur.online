@@ -20,6 +20,22 @@ it("links to its screen through the router, showing its icon and label", async (
   await expectNoAccessibilityViolations(screen.container);
 });
 
+it("shows its keycap inside the link after the label, hidden from assistive technology", async () => {
+  const screen = await render(
+    <ScreenLink to="/first-sign-in" icon={<KeyRound />} label="Primer ingreso" keycap="F2" />,
+  );
+
+  const link = screen.getByRole("link", { name: "Primer ingreso" }).element();
+  const keycap = link.querySelector("kbd") as HTMLElement;
+  expect(keycap.textContent).toBe("F2");
+  expect(keycap.closest("[aria-hidden='true']")).not.toBeNull();
+  const label = screen.getByText("Primer ingreso").element();
+  expect(keycap.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+    label.getBoundingClientRect().right,
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 it("draws as the design system's text link, hover fill included", async () => {
   const screen = await render(
     <>
