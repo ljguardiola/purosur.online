@@ -84,9 +84,7 @@ describe("CashChargePanel", () => {
     await expect.element(screen.getByText("RECIBIDO")).toBeVisible();
     await expect.element(field).toHaveFocus();
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
-    await expect
-      .element(screen.getByText("Si no alcanza para saldar la venta, el resto queda pendiente."))
-      .toBeVisible();
+    await expect.element(screen.getByText(/el resto queda pendiente/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
