@@ -21,8 +21,8 @@ export const HeroSize: Story = {
   args: { size: "hero", label: "Total", value: "$ 25.192,50" },
 };
 
-export const PlainTone: Story = {
-  args: { size: "hero", tone: "plain", label: "Abierta por", value: "Lucas" },
+export const PlainVariant: Story = {
+  args: { size: "hero", variant: "plain", label: "Abierta por", value: "Lucas" },
 };
 
 export const HeadingSize: Story = {

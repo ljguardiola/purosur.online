@@ -47,7 +47,7 @@ test("draws a hero-size value at 48px bold in the accent text color", async () =
 
 test("draws a plain value in the main text color, at the same size", async () => {
   const screen = await render(
-    <FigureStat size="hero" tone="plain" label="Abierta por" value="Lucas" />,
+    <FigureStat size="hero" variant="plain" label="Abierta por" value="Lucas" />,
   );
   const style = getComputedStyle(screen.getByText("Lucas").element());
 

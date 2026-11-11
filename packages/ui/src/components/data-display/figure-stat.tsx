@@ -4,7 +4,7 @@ import { Eyebrow } from "../layout/eyebrow";
 export type FigureStatProps = {
   label: string;
   size?: "hero" | "display" | "heading" | undefined;
-  tone?: "accent" | "plain" | undefined;
+  variant?: "accent" | "plain" | undefined;
 } & (
   | { value: string; detail?: string | undefined; loading?: false | undefined }
   | { loading: true; value?: undefined; detail?: undefined }
@@ -16,12 +16,12 @@ const sizeClassName = {
   heading: "text-heading",
 } as const;
 
-const toneClassName = { accent: "text-text-accent", plain: "text-text" } as const;
+const variantClassName = { accent: "text-text-accent", plain: "text-text" } as const;
 
 export function FigureStat({
   label,
   size = "display",
-  tone = "accent",
+  variant = "accent",
   ...figure
 }: FigureStatProps) {
   return (
@@ -38,7 +38,7 @@ export function FigureStat({
           <PlaceholderLine widthPercent={60} />
         </div>
       ) : (
-        <p className={`${sizeClassName[size]} ${toneClassName[tone]}`}>{figure.value}</p>
+        <p className={`${sizeClassName[size]} ${variantClassName[variant]}`}>{figure.value}</p>
       )}
     </div>
   );

@@ -77,7 +77,7 @@ export function StartupPendingSessionPanel({
       header={<SidePanelTitle title="Sesión abierta" icon={<Wallet />} />}
       footer={<GoSelling keptFromSelling={keptFromSelling} onGoSelling={onGoSelling} />}
     >
-      <FigureStat size="hero" tone="plain" label="Abierta por" value={sessionOwner.first_name} />
+      <FigureStat size="hero" variant="plain" label="Abierta por" value={sessionOwner.first_name} />
       <SummaryRowGroup
         variant="plain"
         rows={
