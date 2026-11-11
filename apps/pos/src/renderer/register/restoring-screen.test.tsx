@@ -4,10 +4,11 @@ import { render } from "vitest-browser-react";
 import { RestoringScreen } from "./restoring-screen";
 
 describe("RestoringScreen", () => {
-  it("says the register restored from a copy cannot sell until it catches up with the cloud", async () => {
+  it("says the register restored from a copy cannot sell while it catches up with the cloud", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "in_progress", step: "reset_sync_identity", origin: "copy" }}
       />,
     );
@@ -16,12 +17,9 @@ describe("RestoringScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
       .toBeVisible();
+    await expect.element(screen.getByText("Poniéndose al día con la nube")).toBeVisible();
     await expect
-      .element(
-        screen.getByText(
-          "Antes de vender tiene que ponerse al día con la nube, para no repetir números de factura.",
-        ),
-      )
+      .element(screen.getByText("Antes de vender, para no repetir números de factura."))
       .toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
@@ -31,6 +29,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName={null}
+        version={null}
         standing={{ kind: "in_progress", step: "replenish", origin: "copy" }}
       />,
     );
@@ -42,6 +41,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "in_progress", step: "restore", origin: "copy" }}
       />,
     );
@@ -56,6 +56,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName={null}
+        version={null}
         standing={{ kind: "in_progress", step: "restore", origin: "copy" }}
       />,
     );
@@ -67,6 +68,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "in_progress", step: "replenish", origin: "no_copy" }}
       />,
     );
@@ -75,12 +77,9 @@ describe("RestoringScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
       .toBeVisible();
+    await expect.element(screen.getByText("Poniéndose al día con la nube")).toBeVisible();
     await expect
-      .element(
-        screen.getByText(
-          "Antes de vender tiene que ponerse al día con la nube, para no repetir números de factura.",
-        ),
-      )
+      .element(screen.getByText("Antes de vender, para no repetir números de factura."))
       .toBeVisible();
     await expect
       .element(screen.getByText("CAJA 2 · RESTAURADA DESDE UNA COPIA"))
@@ -91,6 +90,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName={null}
+        version={null}
         standing={{ kind: "without_connection", step: "replenish", origin: "no_copy" }}
       />,
     );
@@ -99,21 +99,58 @@ describe("RestoringScreen", () => {
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
   });
 
-  it("offers nothing to press", async () => {
+  it.each([
+    ["restoring", { kind: "in_progress", step: "restore", origin: "copy" }],
+    ["without connection", { kind: "without_connection", step: "replenish", origin: "no_copy" }],
+    [
+      "at the ticket recovery",
+      { kind: "in_progress", step: "recover_contingency_tickets", origin: "copy" },
+    ],
+    [
+      "unable to catch up",
+      { kind: "failed", step: "replenish", failure: "refused", origin: "copy" },
+    ],
+    ["unable to restore", { kind: "failed", step: "restore" }],
+  ] as const)("offers nothing to press and shows no key while %s", async (_state, standing) => {
     const screen = await render(
-      <RestoringScreen
-        registerName="Caja 2"
-        standing={{ kind: "in_progress", step: "reset_sync_identity", origin: "copy" }}
-      />,
+      <RestoringScreen registerName="Caja 2" version={null} standing={standing} />,
     );
 
     await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
+    expect(screen.container.querySelectorAll("kbd")).toHaveLength(0);
+  });
+
+  it("shows only the register's version under the brand", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        version="1.4.212"
+        standing={{ kind: "in_progress", step: "restore", origin: "copy" }}
+      />,
+    );
+
+    const footer = screen.container.querySelector("footer") as HTMLElement;
+    expect(footer.textContent).toBe("Versión 1.4.212");
+  });
+
+  it("shows no catching-up notice beside the ticket recovery notices", async () => {
+    const screen = await render(
+      <RestoringScreen
+        registerName="Caja 2"
+        version={null}
+        standing={{ kind: "in_progress", step: "recover_contingency_tickets", origin: "copy" }}
+      />,
+    );
+
+    await expect.element(screen.getByText("Revisá la impresora y el mostrador")).toBeVisible();
+    await expect.element(screen.getByText("Poniéndose al día con la nube")).not.toBeInTheDocument();
   });
 
   it("says the register cannot sell without the cloud and how to get connected", async () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "without_connection", step: "replenish", origin: "copy" }}
       />,
     );
@@ -122,13 +159,7 @@ describe("RestoringScreen", () => {
     await expect
       .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
       .toBeVisible();
-    await expect
-      .element(
-        screen.getByText(
-          "Antes de vender tiene que ponerse al día con la nube, para no repetir números de factura.",
-        ),
-      )
-      .toBeVisible();
+    await expect.element(screen.getByText("Poniéndose al día con la nube")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Sin conexión con la nube")).toBeVisible();
     await expect
       .element(
@@ -145,6 +176,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "without_connection", step: "restore", origin: "copy" }}
       />,
     );
@@ -155,7 +187,11 @@ describe("RestoringScreen", () => {
 
   it("says no copy of the register could be restored and to contact support", async () => {
     const screen = await render(
-      <RestoringScreen registerName="Caja 2" standing={{ kind: "failed", step: "restore" }} />,
+      <RestoringScreen
+        registerName="Caja 2"
+        version={null}
+        standing={{ kind: "failed", step: "restore" }}
+      />,
     );
 
     await expect.element(screen.getByText("CAJA 2 · SIN COPIA PARA RESTAURAR")).toBeVisible();
@@ -163,12 +199,8 @@ describe("RestoringScreen", () => {
       .element(screen.getByRole("heading", { name: "No se pudo restaurar la caja" }))
       .toBeVisible();
     await expect
-      .element(
-        screen.getByText(
-          "Ninguna copia de esta caja se pudo recuperar. Se vuelve a intentar la próxima vez que se inicie la aplicación.",
-        ),
-      )
-      .toBeVisible();
+      .element(screen.getByText(/Ninguna copia de esta caja se pudo recuperar/))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText("Contactá a soporte")).toBeVisible();
     await expect.element(screen.getByText("Mientras tanto la caja no puede vender.")).toBeVisible();
     await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
@@ -182,6 +214,7 @@ describe("RestoringScreen", () => {
       const screen = await render(
         <RestoringScreen
           registerName="Caja 2"
+          version={null}
           standing={{ kind: "failed", step: "replenish", failure, origin: "copy" }}
         />,
       );
@@ -192,7 +225,7 @@ describe("RestoringScreen", () => {
         .toBeVisible();
       await expect
         .element(screen.getByText("La caja no puede vender hasta ponerse al día con la nube."))
-        .toBeVisible();
+        .not.toBeInTheDocument();
       await expect.element(screen.getByText("Sin conexión con la nube")).not.toBeInTheDocument();
     },
   );
@@ -201,6 +234,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "failed", step: "replenish", failure: "refused", origin: "no_copy" }}
       />,
     );
@@ -215,6 +249,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{
           kind: "failed",
           step: "replenish",
@@ -241,6 +276,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "failed", step: "replenish", failure: "refused", origin: "copy" }}
       />,
     );
@@ -267,7 +303,9 @@ describe("RestoringScreen", () => {
   ] as const)(
     "asks to look for an unfiled backup ticket and to scan the tickets in the backoffice while %s at the ticket recovery",
     async (_kind, standing) => {
-      const screen = await render(<RestoringScreen registerName="Caja 2" standing={standing} />);
+      const screen = await render(
+        <RestoringScreen registerName="Caja 2" version={null} standing={standing} />,
+      );
 
       await expect
         .element(screen.getByRole("heading", { name: "La caja no puede vender todavía" }))
@@ -297,6 +335,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{
           kind: "without_connection",
           step: "recover_contingency_tickets",
@@ -313,6 +352,7 @@ describe("RestoringScreen", () => {
     const screen = await render(
       <RestoringScreen
         registerName="Caja 2"
+        version={null}
         standing={{ kind: "in_progress", step: "replenish", origin: "copy" }}
       />,
     );
