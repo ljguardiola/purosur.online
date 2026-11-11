@@ -69,6 +69,23 @@ describe("RegisterFrame", () => {
     expect(panel.top).toBeLessThan(header.top + 1);
   });
 
+  it("shows its title as the header's third crumb", async () => {
+    const screen = await render(
+      <RegisterStatusProvider value={STATUS}>
+        <RegisterFrame
+          background="surface"
+          rail={<nav aria-label="Riel">riel</nav>}
+          title="Inventario inicial"
+        >
+          <main>contenido</main>
+        </RegisterFrame>
+      </RegisterStatusProvider>,
+    );
+
+    await expect.element(screen.getByText("Inventario inicial", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Sin sesión abierta")).not.toBeInTheDocument();
+  });
+
   it("covers the aside with a panel rendered through the frame's panel slot, from the rail", async () => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
