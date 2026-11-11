@@ -29,7 +29,7 @@ function LockedRegister() {
             disabled
           />
         </div>
-        <ScaleCard label="Balanza" />
+        <ScaleCard />
       </div>
       <IconCard icon={<Lock />} label="Caja sin sesión abierta" />
     </div>

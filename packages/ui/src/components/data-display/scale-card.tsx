@@ -2,11 +2,10 @@ import { Scale } from "lucide-react";
 import { Eyebrow } from "../layout/eyebrow";
 
 export type ScaleCardProps = {
-  label: string;
   reading?: { value: string; settled: boolean } | undefined;
 };
 
-export function ScaleCard({ label, reading }: ScaleCardProps) {
+export function ScaleCard({ reading }: ScaleCardProps) {
   return (
     <div
       className={
@@ -23,7 +22,7 @@ export function ScaleCard({ label, reading }: ScaleCardProps) {
         <Scale />
       </span>
       <div className="flex min-w-0 flex-col">
-        <Eyebrow text={label} />
+        <Eyebrow text="Balanza" />
         {reading === undefined ? null : (
           <p className={`text-heading ${reading.settled ? "text-text" : "text-text-subtle"}`}>
             {reading.value}

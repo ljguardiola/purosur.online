@@ -1043,7 +1043,6 @@ export function SaleScreen({
             <ScanProblemMessage problem={shownProblem} />
           </form>
           <ScaleCard
-            label="Balanza"
             reading={
               scaleReading === undefined
                 ? undefined
