@@ -5,12 +5,12 @@ import {
   formatNumber,
   formatWeight,
   InlineNotice,
-  ScaleStatusBadge,
   WaitingProduct,
+  WeighingPanel,
   WeightReadout,
 } from "@purosur/ui";
-import { Info, Keyboard, Scale } from "lucide-react";
-import { useEffect, useId } from "react";
+import { Info, Keyboard } from "lucide-react";
+import { useEffect } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { ScaleWeighing } from "../platform/use-scale-weighing";
 import { useScaleWeighing } from "../platform/use-scale-weighing";
@@ -61,7 +61,6 @@ export function WeighingCard({
   onBarcodeRead,
   onClose,
 }: WeighingCardProps) {
-  const titleId = useId();
   const { phase, confirming, zeroRefused, confirm, typeInstead, ifNotTaken } =
     useScaleWeighing(weigh);
   const following =
@@ -97,11 +96,11 @@ export function WeighingCard({
   useEffect(() => () => onReading(undefined), [onReading]);
 
   useKeys([
-    { key: "Enter", run: confirm, enabled: stable && !confirming },
     { key: "F5", run: typeInstead, enabled: following },
     { key: "Escape", run: onClose, enabled: following },
     { key: "Delete", run: onDiscardWaiting, enabled: following && firstWaiting !== undefined },
   ]);
+  useKeys([{ key: "Enter", run: confirm, enabled: stable && !confirming }], { fallback: true });
 
   const typedModalNotice = phase.kind === "scale_unavailable" ? SCALE_UNAVAILABLE_NOTE : undefined;
   const typed = async (weight: number) => {
@@ -111,67 +110,19 @@ export function WeighingCard({
 
   return (
     <>
-      <section
-        aria-labelledby={titleId}
-        className="overflow-hidden rounded-lg border border-warning-soft bg-warning-subtle"
-      >
-        <div className="flex flex-col gap-4 p-6">
-          <div className="flex items-start gap-4">
-            <span
-              aria-hidden="true"
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-surface text-warning-strong *:size-icon-lg"
-            >
-              <Scale />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <h2 id={titleId} className="text-title text-text">
-                {productName}
-              </h2>
-              {unitPrice === null || unitPrice === undefined ? null : (
-                <p className="text-detail text-warning-strong">{`${formatCents(unitPrice)} / kg`}</p>
-              )}
-            </div>
-            <ScaleStatusBadge status={stable ? "stable" : "moving"}>
-              {stable ? "Estable" : "Moviéndose"}
-            </ScaleStatusBadge>
-            <Button variant="text" keycap="Escape" onPress={onClose}>
-              Cancelar
-            </Button>
-          </div>
-          <WeightReadout
-            weightLabel="Peso"
-            weight={formatWeight(shown?.weightThousandths ?? 0)}
-            amountLabel="Importe"
-            amount={formatCents(shown?.amount ?? 0)}
-            settled={stable}
-          />
-          {zeroRefused ? (
-            <InlineNotice tone="info" icon={<Info />} description={ZERO_WEIGHT_NOTE} />
-          ) : null}
-          <div className="flex gap-3">
-            <Button
-              size="large"
-              keycap="Enter"
-              disabled={!stable}
-              dataStatus={confirming ? "loading" : "loaded"}
-              onPress={confirm}
-            >
-              Confirmar
-            </Button>
-            <Button
-              variant="secondary"
-              size="large"
-              icon={<Keyboard />}
-              keycap="F5"
-              disabled={!following}
-              onPress={typeInstead}
-            >
-              Escribir peso
-            </Button>
-          </div>
-        </div>
-        {firstWaiting === undefined ? null : (
-          <div className="border-t border-dashed border-warning-soft bg-surface">
+      <WeighingPanel
+        title={productName}
+        detail={
+          unitPrice === null || unitPrice === undefined
+            ? undefined
+            : `${formatCents(unitPrice)} / kg`
+        }
+        status={stable ? "stable" : "moving"}
+        statusLabel={stable ? "Estable" : "Moviéndose"}
+        cancelLabel="Cancelar"
+        onCancel={onClose}
+        waiting={
+          firstWaiting === undefined ? undefined : (
             <WaitingProduct
               label="En espera"
               name={firstWaiting.name}
@@ -184,9 +135,41 @@ export function WeighingCard({
               discardLabel="Descartar"
               onDiscard={onDiscardWaiting}
             />
-          </div>
-        )}
-      </section>
+          )
+        }
+      >
+        <WeightReadout
+          weightLabel="Peso"
+          weight={formatWeight(shown?.weightThousandths ?? 0)}
+          amountLabel="Importe"
+          amount={formatCents(shown?.amount ?? 0)}
+          settled={stable}
+        />
+        {zeroRefused ? (
+          <InlineNotice tone="info" icon={<Info />} description={ZERO_WEIGHT_NOTE} />
+        ) : null}
+        <div className="flex gap-3">
+          <Button
+            size="large"
+            keycap="Enter"
+            disabled={!stable}
+            dataStatus={confirming ? "loading" : "loaded"}
+            onPress={confirm}
+          >
+            Confirmar
+          </Button>
+          <Button
+            variant="secondary"
+            size="large"
+            icon={<Keyboard />}
+            keycap="F5"
+            disabled={!following}
+            onPress={typeInstead}
+          >
+            Escribir peso
+          </Button>
+        </div>
+      </WeighingPanel>
       {typing ? (
         currentWeight === undefined ? (
           <AddWeighedProductModal

@@ -60,6 +60,8 @@ import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
+  useFindProductByCode,
+  useProductByCodeQuery,
   useReadCurrentSale,
   useResetCurrentSale,
   useSearchProducts,
@@ -137,13 +139,15 @@ type SaleEditOutcome =
 
 type SaleLine = OpenSale["lines"][number];
 
+type Priced = "by_code" | { unitPrice: number | null } | undefined;
+
 type Weighing =
   | {
       kind: "add";
       productId: string;
       productName: string;
       submitted: string;
-      unitPrice: number | null | undefined;
+      priced: Priced;
     }
   | { kind: "change"; line: SaleLine };
 
@@ -248,6 +252,7 @@ export function SaleScreen({
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
   const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
   const search = useSearchProducts(searchProducts);
+  const findByCode = useFindProductByCode(findProductByCode);
   const [selectedLineId, setSelectedLineId] = useState<string>();
   const [code, setCode] = useState("");
   const [problem, setProblem] = useState<ScanProblem>();
@@ -259,6 +264,7 @@ export function SaleScreen({
   const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const [weighing, setWeighing] = useState<Weighing>();
+  const [typedWhileWeighing, setTypedWhileWeighing] = useState(false);
   const [waiting, setWaitingState] = useState<WaitingEntry[]>([]);
   const [scaleReading, setScaleReading] = useState<ScaleReading>();
   const [adjusting, setAdjusting] = useState<SaleLine>();
@@ -291,6 +297,7 @@ export function SaleScreen({
 
   function type(typed: string) {
     setCode(typed);
+    setTypedWhileWeighing(weighingNow.current !== undefined);
     setProblem(undefined);
     setDismissed(false);
     const query = typed.trim();
@@ -338,6 +345,7 @@ export function SaleScreen({
   function askForWeight(asking: Weighing | undefined) {
     weighingNow.current = asking;
     setWeighing(asking);
+    setTypedWhileWeighing(false);
   }
 
   function setWaiting(next: WaitingEntry[]) {
@@ -365,20 +373,11 @@ export function SaleScreen({
     return weighingNow.current !== undefined || advancingWaiting.current;
   }
 
-  function currentCode() {
-    return field.current?.querySelector("input")?.value.trim() ?? "";
-  }
-
-  async function priceOfCode(code: string): Promise<number | null | undefined> {
-    const found = await findProductByCode(code).catch(() => undefined);
-    return found?.kind === "found" ? found.product.unit_price : undefined;
-  }
-
   async function take(
     submitted: string,
     outcome: TakenOutcome,
     failure: { kind: "scan_failed" } | { kind: "add_failed" },
-    priced?: "by_code" | { unitPrice: number | null },
+    priced?: Priced,
   ) {
     switch (outcome.kind) {
       case "added": {
@@ -411,22 +410,15 @@ export function SaleScreen({
       case "restoration_in_progress":
         refuse(submitted, outcome);
         break;
-      case "weight_needed": {
-        const unitPrice =
-          priced === "by_code"
-            ? await priceOfCode(submitted)
-            : priced === undefined
-              ? undefined
-              : priced.unitPrice;
+      case "weight_needed":
         askForWeight({
           kind: "add",
           productId: outcome.product_id,
           productName: outcome.product_name,
           submitted,
-          unitPrice,
+          priced,
         });
         break;
-      }
       case "sale_has_payments":
         setProblem(undefined);
         setCode((typed) => (typed.trim() === submitted ? "" : typed));
@@ -449,7 +441,7 @@ export function SaleScreen({
       const outcome = await addProduct(next.productId).catch(
         (): AddProductOutcome => ({ kind: "unavailable" }),
       );
-      await take(currentCode(), outcome, { kind: "add_failed" }, { unitPrice: next.unitPrice });
+      await take("", outcome, { kind: "add_failed" }, { unitPrice: next.unitPrice });
     }
     advancingWaiting.current = false;
   }
@@ -460,9 +452,7 @@ export function SaleScreen({
   }
 
   async function queueByCode(submitted: string) {
-    const outcome = await findProductByCode(submitted).catch(
-      (): FindProductByCodeOutcome => ({ kind: "unavailable" }),
-    );
+    const outcome = await findByCode(submitted);
     switch (outcome.kind) {
       case "found":
         enqueue({
@@ -587,11 +577,12 @@ export function SaleScreen({
   }
 
   async function add(product: FoundProduct) {
+    const submitted = code.trim();
     if (weighingOrWaiting()) {
       enqueue(product);
+      setCode((typed) => (typed.trim() === submitted ? "" : typed));
       return;
     }
-    const submitted = code.trim();
     const outcome = await addProduct(product.product_id).catch(
       (): AddProductOutcome => ({ kind: "unavailable" }),
     );
@@ -771,9 +762,7 @@ export function SaleScreen({
     }
     if (stillAsked) {
       askForWeight(undefined);
-      if (changed === undefined) {
-        void advanceWaiting();
-      }
+      void advanceWaiting();
     }
     return changed === undefined
       ? { kind: "closed" }
@@ -800,6 +789,15 @@ export function SaleScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
+  const priceByCode = useProductByCodeQuery({
+    code:
+      weighing?.kind === "add" && weighing.priced === "by_code" ? weighing.submitted : undefined,
+    read: findProductByCode,
+  });
+  const codeUnitPrice =
+    priceByCode.status === "loaded" && priceByCode.value.kind === "found"
+      ? priceByCode.value.product.unit_price
+      : undefined;
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const linesLock = sale?.lines_lock ?? null;
@@ -872,6 +870,11 @@ export function SaleScreen({
           setActiveIndex(Math.min(resultCount - 1, Math.max(0, activeIndex + step)));
         },
         enabled: choosing,
+      },
+      {
+        key: "Enter",
+        run: () => field.current?.requestSubmit(),
+        enabled: typedWhileWeighing && code.trim() !== "",
       },
       {
         key: "Enter",
@@ -1059,7 +1062,7 @@ export function SaleScreen({
         {weighing?.kind === "add" ? (
           <WeighingCard
             productName={weighing.productName}
-            unitPrice={weighing.unitPrice}
+            unitPrice={weighing.priced === "by_code" ? codeUnitPrice : weighing.priced?.unitPrice}
             weigh={(confirmedWeightThousandths) =>
               weighOnScale(weighing, confirmedWeightThousandths)
             }
@@ -1104,6 +1107,7 @@ export function SaleScreen({
             failed={current.status === "failed"}
             actions={{
               busy: editing,
+              weighing: weighing !== undefined,
               editable,
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
               onAdjust: askToAdjust,

@@ -66,6 +66,8 @@ export type { TextPreviewProps } from "./components/data-display/text-preview";
 export { TextPreview } from "./components/data-display/text-preview";
 export type { WaitingProductProps } from "./components/data-display/waiting-product";
 export { WaitingProduct } from "./components/data-display/waiting-product";
+export type { WeighingPanelProps } from "./components/data-display/weighing-panel";
+export { WeighingPanel } from "./components/data-display/weighing-panel";
 export type { WeightReadoutProps } from "./components/data-display/weight-readout";
 export { WeightReadout } from "./components/data-display/weight-readout";
 export type { CountdownRingProps } from "./components/feedback/countdown-ring";

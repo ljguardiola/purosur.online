@@ -27,6 +27,7 @@ type SaleLine = OpenSale["lines"][number];
 
 export type SaleLineActions = {
   busy: boolean;
+  weighing: boolean;
   editable: boolean;
   onChangeWeight: (line: SaleLine) => void;
   onAdjust: (line: SaleLine) => void;
@@ -99,7 +100,7 @@ export function SaleLines({
   useEffect(() => {
     latest.current = actions;
   });
-  const { busy, editable } = actions;
+  const { busy, weighing, editable } = actions;
   const columns = [
     dataColumn({
       id: "product",
@@ -136,7 +137,7 @@ export function SaleLines({
             ? {
                 icon: <Scale />,
                 "aria-label": `Cambiar el peso de ${line.product_name}`,
-                disabled: busy,
+                disabled: busy || weighing,
                 onPress: () => latest.current.onChangeWeight(line),
               }
             : undefined,
@@ -154,7 +155,7 @@ export function SaleLines({
             ? {
                 icon: <Trash2 />,
                 "aria-label": `Quitar ${line.product_name}`,
-                disabled: busy,
+                disabled: busy || weighing,
                 onPress: () => latest.current.onRemove(line),
               }
             : undefined,
