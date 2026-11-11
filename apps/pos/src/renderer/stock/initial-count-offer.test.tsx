@@ -32,7 +32,7 @@ describe("InitialCountOffer", () => {
 
     await expect.element(screen.getByText("Inventario inicial")).toBeVisible();
     await expect
-      .element(screen.getByText("Cargar el stock con el que arranca el local."))
+      .element(screen.getByText("Cargar el stock con el que arranca el local"))
       .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Cargar el inventario" }))

@@ -32,6 +32,7 @@ async function renderScreen({
       person={person}
       signOut={signOut}
       openCashSession={openCashSession}
+      readOpeningFloatSuggestion={async () => ({ kind: "none" })}
       offers={offers}
     />,
   );
@@ -127,7 +128,7 @@ describe("NoSessionScreen", () => {
       .not.toBeInTheDocument();
   });
 
-  it("opens the cash drawer for the person with the float they typed", async () => {
+  it("opens the cash drawer for the person with the float suggested from the previous close", async () => {
     await page.viewport(1280, 900);
     onTestFinished(() => page.viewport(414, 896));
     const openCashSession = vi.fn(
@@ -138,14 +139,20 @@ describe("NoSessionScreen", () => {
         person={{ ...PERSON, abilities: ["open_cash_session"] }}
         signOut={vi.fn()}
         openCashSession={openCashSession}
+        readOpeningFloatSuggestion={async () => ({
+          kind: "previous_close",
+          closed_at: "2026-11-04T20:14:00.000-03:00",
+          counted_cash: 14_400_000,
+        })}
       />,
     );
 
+    await expect
+      .element(screen.getByRole("textbox", { name: "Fondo inicial" }))
+      .toHaveValue("144.000,00");
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
-    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "150");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 
-    expect(openCashSession).toHaveBeenCalledExactlyOnceWith(15_000);
+    expect(openCashSession).toHaveBeenCalledExactlyOnceWith(14_400_000);
     await expectNoAccessibilityViolations(screen.container);
   });
 });
