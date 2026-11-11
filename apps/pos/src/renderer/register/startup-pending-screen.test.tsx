@@ -830,11 +830,53 @@ describe("StartupPendingScreen", () => {
         screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
       );
 
-      const dialog = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
-      await expect.element(dialog).toBeVisible();
+      const panel = screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" });
+      await expect.element(panel).toBeVisible();
       expect(convertPaidOrderIntoRefund).not.toHaveBeenCalled();
-      await userEvent.click(dialog.getByRole("button", { name: "Volver" }));
-      await expect.element(dialog).not.toBeInTheDocument();
+      await userEvent.keyboard("{Escape}");
+      await expect.element(panel).not.toBeInTheDocument();
+    });
+
+    it("replaces the session panel while the confirmation is open and has no Volver", async () => {
+      const { screen } = await renderScreen({ loadStartupPending: async () => BLOCKED_BY_QR });
+      const session = screen.getByRole("complementary", { name: "Sesión abierta" });
+      const sessionBox = session.element().getBoundingClientRect();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
+      );
+
+      const panel = screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" });
+      await expect.element(panel.getByText("Cobro con QR")).toBeVisible();
+      await expect.element(panel.getByText("$ 800,00")).toBeVisible();
+      await expect.element(panel.getByText("15:30")).toBeVisible();
+      await expect.element(panel.getByText("Pasa a ser")).toBeVisible();
+      await expect.element(panel.getByText("Reembolso pendiente")).toBeVisible();
+      await expect.element(panel.getByRole("button", { name: "Volver" })).not.toBeInTheDocument();
+      const covering = document.elementFromPoint(
+        sessionBox.left + sessionBox.width / 2,
+        sessionBox.top + sessionBox.height / 2,
+      );
+      expect(panel.element().contains(covering)).toBe(true);
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
+    });
+
+    it("confirms with Enter instead of going to sell while the confirmation is open", async () => {
+      const { screen, convertPaidOrderIntoRefund, onGoSelling } = await renderScreen({
+        loadStartupPending: async () => BLOCKED_BY_QR,
+      });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
+      );
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" }))
+        .toBeVisible();
+
+      await userEvent.keyboard("{Enter}");
+
+      await vi.waitFor(() =>
+        expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1"),
+      );
+      expect(onGoSelling).not.toHaveBeenCalled();
     });
 
     it("converts it on confirming, says so, and reads the items again so selling is allowed", async () => {
@@ -851,13 +893,15 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" }))
+        .not.toBeInTheDocument();
       await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
       await expectGoSellingOpen(screen);
     });
@@ -871,7 +915,7 @@ describe("StartupPendingScreen", () => {
       await userEvent.click(
         screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
       );
-      const confirmation = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
+      const confirmation = screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" });
       await expect.element(confirmation).toBeVisible();
       freezeTimersKeepingQueriesAnswered();
 
@@ -904,11 +948,13 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" }))
+        .not.toBeInTheDocument();
       await expect.element(screen.getByText("No queda nada pendiente")).toBeVisible();
     });
 
@@ -923,7 +969,7 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
@@ -941,7 +987,7 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 

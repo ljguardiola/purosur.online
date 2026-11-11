@@ -2,8 +2,9 @@ import type { ConvertPaidOrderIntoRefundOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { deferred } from "../platform/test-support/deferred";
+import { RegisterFrame } from "../shell/register-frame";
+import { render } from "../shell/test-support/render-with-router";
 import { RefundPaidOrderPanel } from "./refund-paid-order-panel";
 
 const ORDER = {
@@ -15,7 +16,7 @@ const ORDER = {
 
 type Convert = (paymentTransactionId: string) => Promise<ConvertPaidOrderIntoRefundOutcome>;
 
-async function renderModal(options: { convert?: Convert } = {}) {
+async function renderPanel(options: { convert?: Convert; method?: "QR" | "POINT" } = {}) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const convert = vi.fn<Convert>(options.convert ?? (async () => ({ kind: "converted" })));
@@ -26,32 +27,52 @@ async function renderModal(options: { convert?: Convert } = {}) {
     onClose: vi.fn(),
   };
   const screen = await render(
-    <RefundPaidOrderPanel order={ORDER} convertPaidOrderIntoRefund={convert} {...handlers} />,
+    <RegisterFrame background="surface" rail={null}>
+      <RefundPaidOrderPanel
+        order={{ ...ORDER, method: options.method ?? ORDER.method }}
+        convertPaidOrderIntoRefund={convert}
+        {...handlers}
+      />
+    </RegisterFrame>,
   );
-  const dialog = screen.getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" });
+  const dialog = screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" });
   return { screen, dialog, convert, ...handlers };
 }
 
-function confirmButton(dialog: Awaited<ReturnType<typeof renderModal>>["dialog"]) {
+function confirmButton(dialog: Awaited<ReturnType<typeof renderPanel>>["dialog"]) {
   return dialog.getByRole("button", { name: "Pasar a reembolso" });
 }
 
 describe("RefundPaidOrderPanel", () => {
-  it("shows the amount and time of the payment and what passing it to refund means", async () => {
-    const { screen, dialog } = await renderModal();
+  it("shows the amount and time of the payment and what it becomes", async () => {
+    const { screen, dialog } = await renderPanel();
 
     await expect.element(dialog.getByText("Cobro con QR")).toBeVisible();
     await expect.element(dialog.getByText("$ 800,00")).toBeVisible();
     await expect.element(dialog.getByText("Cobrado a las")).toBeVisible();
     await expect.element(dialog.getByText("15:30")).toBeVisible();
-    await expect.element(dialog.getByText(/se confirma después en el backoffice/)).toBeVisible();
-    await expect.element(dialog.getByText(/no se le cobra de nuevo/)).toBeVisible();
+    await expect.element(dialog.getByText("Pasa a ser")).toBeVisible();
+    await expect.element(dialog.getByText("Reembolso pendiente")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("names the payment method of the Point terminal", async () => {
+    const { dialog } = await renderPanel({ method: "POINT" });
+
+    await expect.element(dialog.getByText("Cobro con Point")).toBeVisible();
+  });
+
+  it("has an Esc close and no Volver button nor explanation", async () => {
+    const { dialog } = await renderPanel();
+
+    await expect.element(dialog.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
+    await expect.element(dialog.getByRole("button", { name: "Volver" })).not.toBeInTheDocument();
+    await expect.element(dialog.getByText(/no se le cobra de nuevo/)).not.toBeInTheDocument();
   });
 
   it("sends one request when the confirmation is pressed twice before the modal shows it is sending", async () => {
     const answer = deferred<ConvertPaidOrderIntoRefundOutcome>();
-    const { dialog, convert, onConverted } = await renderModal({ convert: () => answer.promise });
+    const { dialog, convert, onConverted } = await renderPanel({ convert: () => answer.promise });
     const confirm = confirmButton(dialog).element() as HTMLElement;
 
     confirm.click();
@@ -62,19 +83,37 @@ describe("RefundPaidOrderPanel", () => {
     expect(convert).toHaveBeenCalledOnce();
   });
 
-  it("closes without asking the core when going back", async () => {
-    const { dialog, convert, onClose } = await renderModal();
+  it("closes without asking the core when Esc is pressed", async () => {
+    const { convert, onClose } = await renderPanel();
 
-    await userEvent.click(dialog.getByRole("button", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(convert).not.toHaveBeenCalled();
   });
 
+  it("closes without asking the core when the Esc button is pressed", async () => {
+    const { dialog, convert, onClose } = await renderPanel();
+
+    await userEvent.click(dialog.getByRole("button", { name: "Cerrar con Esc" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(convert).not.toHaveBeenCalled();
+  });
+
+  it("passes the order to refund when Enter is pressed as soon as the panel opens", async () => {
+    const { dialog, convert, onConverted } = await renderPanel();
+
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() => expect(onConverted).toHaveBeenCalledOnce());
+    expect(convert).toHaveBeenCalledExactlyOnceWith("tx-1");
+  });
+
   it.each<ConvertPaidOrderIntoRefundOutcome["kind"]>(["converted", "already_resolved"])(
     "tells the screen the order is resolved when the core answers %s",
     async (kind) => {
-      const { dialog, convert, onConverted } = await renderModal({
+      const { dialog, convert, onConverted } = await renderPanel({
         convert: async () => ({ kind }),
       });
 
@@ -87,7 +126,7 @@ describe("RefundPaidOrderPanel", () => {
   );
 
   it("tells the screen when the core finds no such paid order", async () => {
-    const { dialog, onGone } = await renderModal({ convert: async () => ({ kind: "not_found" }) });
+    const { dialog, onGone } = await renderPanel({ convert: async () => ({ kind: "not_found" }) });
 
     await userEvent.click(confirmButton(dialog));
 
@@ -95,7 +134,7 @@ describe("RefundPaidOrderPanel", () => {
   });
 
   it("tells the route the session is no longer valid when the core finds nobody signed in", async () => {
-    const { dialog, onSessionInvalid } = await renderModal({
+    const { dialog, onSessionInvalid } = await renderPanel({
       convert: async () => ({ kind: "not_signed_in" }),
     });
 
@@ -113,8 +152,8 @@ describe("RefundPaidOrderPanel", () => {
       "Ya hay una venta armada con este cobro. Volvé a esa venta o cancelala antes de pasarlo a reembolso.",
     ],
     ["unavailable", "No se pudo pasar el cobro a reembolso. Probá de nuevo."],
-  ])("keeps the dialog open and says why on %s", async (kind, message) => {
-    const { screen, dialog, onConverted, onGone } = await renderModal({
+  ])("keeps the panel open and says why on %s", async (kind, message) => {
+    const { screen, dialog, onConverted, onGone } = await renderPanel({
       convert: async () => ({ kind }),
     });
 
@@ -131,7 +170,7 @@ describe("RefundPaidOrderPanel", () => {
       .fn<Convert>()
       .mockRejectedValueOnce(new Error("the core could not answer"))
       .mockResolvedValue({ kind: "converted" });
-    const { dialog, onConverted } = await renderModal({ convert });
+    const { dialog, onConverted } = await renderPanel({ convert });
 
     await userEvent.click(confirmButton(dialog));
     await expect
@@ -142,14 +181,16 @@ describe("RefundPaidOrderPanel", () => {
     await expect.poll(() => onConverted.mock.calls.length).toBe(1);
   });
 
-  it("sends one request and disables its buttons while the first is being answered", async () => {
+  it("sends one request, disables its buttons and ignores Esc while the first is being answered", async () => {
     const answer = deferred<ConvertPaidOrderIntoRefundOutcome>();
-    const { dialog, convert } = await renderModal({ convert: () => answer.promise });
+    const { dialog, convert, onClose } = await renderPanel({ convert: () => answer.promise });
 
     await userEvent.click(confirmButton(dialog));
     await expect.element(confirmButton(dialog)).toBeDisabled();
-    await expect.element(dialog.getByRole("button", { name: "Volver" })).toBeDisabled();
+    await expect.element(dialog.getByRole("button", { name: "Cerrar con Esc" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
 
     expect(convert).toHaveBeenCalledOnce();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
