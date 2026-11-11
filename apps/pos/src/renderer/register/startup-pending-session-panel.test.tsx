@@ -123,6 +123,19 @@ describe("StartupPendingSessionPanel", () => {
     expect(onGoSelling).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["while it may go selling", undefined],
+    ["while a paid order blocks selling", { ...KEPT_FROM_SELLING, selling_blocked: true }],
+    ["while the paid orders are being checked", KEPT_FROM_SELLING],
+  ])("shows the basket before the Ir a vender label %s", async (_, keptFromSelling) => {
+    const { panel } = await renderPanel(keptFromSelling === undefined ? {} : { keptFromSelling });
+    const button = goSelling(panel).element();
+    const icon = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+    const label = (button.querySelector("span.truncate") as HTMLElement).getBoundingClientRect();
+
+    expect(icon.right).toBeLessThanOrEqual(label.left);
+  });
+
   it("has no accessibility violations", async () => {
     const { screen } = await renderPanel({
       keptFromSelling: { ...KEPT_FROM_SELLING, selling_blocked: true },
