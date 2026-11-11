@@ -88,10 +88,7 @@ describe("mercadoPagoChargeCostsSchema", () => {
       { charges: [{ ...reported, method: "CASH" }] },
     ],
     ["a method group that does not exist", { methods: [{ method: "CASH", ...entry }] }],
-    [
-      "a group of charges that are not the system's",
-      { methods: [{ method: "OTHER", ...entry }] },
-    ],
+    ["a group of charges that are not the system's", { methods: [{ method: "OTHER", ...entry }] }],
     [
       "a register group with no register",
       { registers: [{ register_id: null, register_name: null, ...entry }] },
