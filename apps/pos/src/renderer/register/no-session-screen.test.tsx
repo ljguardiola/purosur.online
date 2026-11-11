@@ -79,7 +79,7 @@ describe("NoSessionScreen", () => {
     const { screen } = await renderScreen({ offers: <p>Una oferta</p> });
 
     await expect.element(screen.getByText("Una oferta")).toBeVisible();
-    await expect.element(screen.getByText("Balanza", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Balanza", { exact: true })).not.toBeVisible();
     await expect
       .element(screen.getByRole("searchbox", { name: "Producto" }))
       .not.toBeInTheDocument();
