@@ -225,6 +225,7 @@ function contextWith(
     person: person ?? undefined,
     cashSession,
     openCashSession: async () => ({ kind: "unavailable" }),
+    openingFloatSuggestion: async () => ({ kind: "none" }),
     closeCashSession: async () => ({ kind: "unavailable" }),
     closeLockedCashSession: async () => ({ kind: "unavailable" }),
     cancelLockedSale: async () => ({ kind: "unavailable" }),
@@ -1624,9 +1625,9 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect
-      .element(screen.getByText("Cargar el stock con el que arranca el local."))
+      .element(screen.getByText("Cargar el stock con el que arranca el local"))
       .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cargar el inventario" }));
+    await userEvent.click(screen.getByRole("row", { name: /Inventario inicial/ }));
     await expect.poll(() => router.state.location.pathname).toBe("/initial-count");
   });
 
@@ -2548,11 +2549,30 @@ describe("the register's router", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
-    await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
+    await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.poll(() => opened).toEqual([10_000]);
+  });
+
+  it("suggests the opening float read through the router context", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", { ...PERSON, abilities: ["open_cash_session"] }),
+        openingFloatSuggestion: async () => ({
+          kind: "previous_close",
+          closed_at: "2026-11-04T20:14:00.000-03:00",
+          counted_cash: 14_400_000,
+        }),
+      },
+      "/",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect
+      .element(screen.getByRole("textbox", { name: "Fondo inicial" }))
+      .toHaveValue("144.000,00");
   });
 
   it("signs the person out through the router context once leaving is confirmed", async () => {

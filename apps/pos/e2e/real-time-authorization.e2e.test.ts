@@ -116,9 +116,8 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await scanYerba();
 

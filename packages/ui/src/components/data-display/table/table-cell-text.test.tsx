@@ -1,3 +1,4 @@
+import { Package } from "lucide-react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
@@ -162,4 +163,24 @@ test("renders no second description line when none is given", async () => {
   const screen = await render(<TableCellText description="SKU-001">Coffee</TableCellText>);
 
   expect(screen.container.querySelectorAll("span")).toHaveLength(2);
+});
+
+test("leads its text with its icon in a round badge that assistive technology skips", async () => {
+  const screen = await render(
+    <TableCellText icon={<Package />} description="Cargar el stock con el que arranca el local">
+      Inventario inicial
+    </TableCellText>,
+  );
+  const badge = screen.container.querySelector("svg")?.parentElement?.parentElement as HTMLElement;
+  const text = screen.getByText("Inventario inicial", { exact: true }).element();
+  const badgeBox = badge.getBoundingClientRect();
+
+  expect(badge.getAttribute("aria-hidden")).toBe("true");
+  expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("surface"));
+  expect(badgeBox.width).toBe(badgeBox.height);
+  expect(Number.parseFloat(getComputedStyle(badge).borderTopLeftRadius)).toBeGreaterThanOrEqual(
+    badgeBox.width / 2,
+  );
+  expect(badgeBox.right).toBeLessThan(text.getBoundingClientRect().left);
+  await expectNoAccessibilityViolations(screen.container);
 });

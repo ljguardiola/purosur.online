@@ -38,6 +38,7 @@ import type {
   ListedCashMovement,
   ManualAdjustmentRequest,
   OpenCashSessionOutcome,
+  OpeningFloatSuggestion,
   PaymentMethodAvailability,
   PinCodeRedemptionOutcome,
   PinPolicy,
@@ -178,6 +179,7 @@ export interface RouterContext {
   registerVersion: () => Promise<string | null>;
   signOut: () => void;
   openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
+  openingFloatSuggestion: () => Promise<OpeningFloatSuggestion | null | "unavailable">;
   closeCashSession: (
     person: SignedInPerson,
     sessionId: string,
@@ -572,6 +574,7 @@ const signedInRoute = createRoute({
       person,
       signOut,
       openCashSession,
+      openingFloatSuggestion,
       readInitialCount,
       readClockGuard,
       correctRegisterClock,
@@ -595,6 +598,7 @@ const signedInRoute = createRoute({
           </>
         }
         openCashSession={openCashSession}
+        readOpeningFloatSuggestion={openingFloatSuggestion}
       />
     );
   },
@@ -1392,6 +1396,7 @@ export function createAppRouter(
     | "signIn"
     | "signOut"
     | "openCashSession"
+    | "openingFloatSuggestion"
     | "closeCashSession"
     | "closeLockedCashSession"
     | "cancelLockedSale"

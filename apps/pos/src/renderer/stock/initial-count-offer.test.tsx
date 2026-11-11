@@ -1,5 +1,6 @@
 import type { ReadInitialCountOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../shell/signed-in-person";
@@ -17,33 +18,62 @@ const OTHER: SignedInPerson = { user_id: "u2", first_name: "Linus", abilities: [
 async function renderOffer(
   read: () => Promise<ReadInitialCountOutcome>,
   person: SignedInPerson = COUNTER,
+  beside: ReactNode = null,
 ) {
   await page.viewport(1280, 720);
   const readInitialCount = vi.fn(read);
   const screen = await render(
-    <InitialCountOffer person={person} readInitialCount={readInitialCount} />,
+    <>
+      {beside}
+      <InitialCountOffer person={person} readInitialCount={readInitialCount} />
+    </>,
   );
   return { screen, readInitialCount };
 }
 
 describe("InitialCountOffer", () => {
-  it("offers to load the starting stock while the count is offered", async () => {
+  it("offers to load the starting stock as the selected row of what to start with", async () => {
     const { screen } = await renderOffer(async () => ({ kind: "read", offered: true, lines: [] }));
 
-    await expect.element(screen.getByText("Inventario inicial")).toBeVisible();
+    const list = screen.getByRole("table", { name: "Para empezar" });
+    await expect.element(list.getByRole("columnheader", { name: "Para empezar" })).toBeVisible();
+    const row = list.getByRole("row", { name: /Inventario inicial/ });
+    await expect.element(row).toBeVisible();
+    await expect.element(row).toHaveAttribute("aria-current", "true");
     await expect
-      .element(screen.getByText("Cargar el stock con el que arranca el local."))
+      .element(row.getByText("Cargar el stock con el que arranca el local"))
       .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
-      .toBeVisible();
+    await expect.element(screen.getByText("N", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("opens the initial count screen", async () => {
+  it("opens the initial count screen with N", async () => {
+    const { screen } = await renderOffer(async () => ({ kind: "read", offered: true, lines: [] }));
+    await expect.element(screen.getByRole("table", { name: "Para empezar" })).toBeVisible();
+
+    await userEvent.keyboard("n");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/initial-count");
+  });
+
+  it("opens the initial count screen with N while typing in another field", async () => {
+    const { screen } = await renderOffer(
+      async () => ({ kind: "read", offered: true, lines: [] }),
+      COUNTER,
+      <input aria-label="Fondo inicial" inputMode="decimal" />,
+    );
+    await expect.element(screen.getByRole("table", { name: "Para empezar" })).toBeVisible();
+    await userEvent.click(screen.getByRole("textbox", { name: "Fondo inicial" }));
+
+    await userEvent.keyboard("n");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/initial-count");
+  });
+
+  it("opens the initial count screen when its row is pressed", async () => {
     const { screen } = await renderOffer(async () => ({ kind: "read", offered: true, lines: [] }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Cargar el inventario" }));
+    await userEvent.click(screen.getByRole("row", { name: /Inventario inicial/ }));
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/initial-count");
   });

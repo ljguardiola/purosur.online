@@ -61,9 +61,8 @@ describe("the register's cash session", () => {
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
 
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
 
     await register.restart();
@@ -102,9 +101,8 @@ describe("the register's cash session", () => {
 
   it("leaves from Salir once the session is closed and ends at the entry screen", async () => {
     const { page } = register;
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await page.getByRole("link", { name: "Caja" }).click();
     await page.getByRole("button", { name: "Cerrar caja" }).click();
@@ -145,9 +143,8 @@ describe("the register's cash session", () => {
     await page.getByRole("option", { name: "Ana", exact: true }).click();
     await page.getByLabel("PIN").fill("4821");
     await page.getByRole("button", { name: "Entrar" }).click();
-    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByLabel("Fondo inicial").fill("20.000,00");
-    await page.getByRole("button", { name: "Abrir la caja" }).click();
+    await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await page.getByRole("button", { name: "Salir" }).click();
 
