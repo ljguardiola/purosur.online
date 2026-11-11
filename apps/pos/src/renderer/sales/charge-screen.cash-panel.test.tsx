@@ -97,7 +97,7 @@ it("shows the sale screen's search field above the locked lines, inert", async (
   const { screen, chargeSaleInCash } = await renderScreen();
   await chooseCash(screen);
 
-  const search = screen.getByRole("textbox", { name: "Producto" });
+  const search = screen.getByRole("searchbox", { name: "Producto" });
   await expect.element(search).toBeVisible();
   await expect.element(search).toHaveAttribute("placeholder", "Escaneá o escribí el nombre");
   await expect.element(search).toBeDisabled();

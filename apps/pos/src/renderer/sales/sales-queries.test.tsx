@@ -417,13 +417,15 @@ describe("cash charge amounts query", () => {
 
   it("asks the core with the discount on the total being typed", async () => {
     const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmountsAnswer | null>>(
-      async () => null,
+      async () => ({ kind: "discount_exceeds_sale" as const }),
     );
     const screen = await renderWithClient(
       <CashChargeAmountsProbe read={read} saleDiscount={10_000} />,
     );
 
-    await expect.element(screen.getByText("null")).toBeVisible();
+    await expect
+      .element(screen.getByText(JSON.stringify({ kind: "discount_exceeds_sale" })))
+      .toBeVisible();
     expect(read).toHaveBeenCalledExactlyOnceWith(10_000);
   });
 
