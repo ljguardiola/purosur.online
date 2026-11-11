@@ -675,26 +675,31 @@ describe("reading the amounts of a cash charge", () => {
   });
 
   const amounts = {
+    kind: "amounts",
     amount_to_charge: 2_510_000,
     cash_rounding: 9250,
     quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
     change_discount_option: 10_000,
   };
 
-  it.each([amounts, { ...amounts, change_discount_option: null }, null])(
-    "accepts the answer %j",
-    (answered) => {
-      const result = {
-        type: "cash-charge-amounts-result",
-        request_id: REQUEST_ID,
-        amounts: answered,
-      };
+  it.each([
+    amounts,
+    { ...amounts, change_discount_option: null },
+    { kind: "discount_exceeds_sale" },
+    null,
+  ])("accepts the answer %j", (answered) => {
+    const result = {
+      type: "cash-charge-amounts-result",
+      request_id: REQUEST_ID,
+      amounts: answered,
+    };
 
-      expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
-    },
-  );
+    expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+  });
 
   it.each([
+    { ...amounts, kind: undefined },
+    { ...amounts, kind: "another" },
     { ...amounts, amount_to_charge: -1 },
     { ...amounts, cash_rounding: -1 },
     { ...amounts, quick_amounts: [-1] },

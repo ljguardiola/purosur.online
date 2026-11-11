@@ -645,6 +645,7 @@ describe("createCoreClient", () => {
   it.each([
     [
       {
+        kind: "amounts",
         amount_to_charge: 2_510_000,
         cash_rounding: 9_250,
         quick_amounts: [2_510_000, 2_600_000],

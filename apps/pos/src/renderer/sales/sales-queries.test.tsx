@@ -1,5 +1,6 @@
 import type {
   CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
@@ -371,6 +372,7 @@ describe("product search", () => {
 });
 
 const AMOUNTS: CashChargeAmounts = {
+  kind: "amounts",
   amount_to_charge: 2_510_000,
   cash_rounding: 9_250,
   quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
@@ -383,7 +385,7 @@ function CashChargeAmountsProbe({
   pending = 2_519_250,
   saleDiscount,
 }: {
-  read: (saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+  read: (saleDiscount?: number) => Promise<CashChargeAmountsAnswer | null>;
   saleId?: string;
   pending?: number;
   saleDiscount?: number;
@@ -393,8 +395,9 @@ function CashChargeAmountsProbe({
 }
 
 describe("cash charge amounts query", () => {
-  it.each<[string, CashChargeAmounts | null]>([
+  it.each<[string, CashChargeAmountsAnswer | null]>([
     ["the amounts to charge", AMOUNTS],
+    ["a discount that exceeds the sale", { kind: "discount_exceeds_sale" }],
     ["no sale in progress", null],
   ])("holds %s as an answer, not a failure", async (_name, answer) => {
     const screen = await renderWithClient(<CashChargeAmountsProbe read={async () => answer} />);
@@ -403,7 +406,7 @@ describe("cash charge amounts query", () => {
   });
 
   it("asks the core for the sale without a discount", async () => {
-    const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmounts | null>>(
+    const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmountsAnswer | null>>(
       async () => null,
     );
     const screen = await renderWithClient(<CashChargeAmountsProbe read={read} />);
@@ -413,7 +416,7 @@ describe("cash charge amounts query", () => {
   });
 
   it("asks the core with the discount on the total being typed", async () => {
-    const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmounts | null>>(
+    const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmountsAnswer | null>>(
       async () => null,
     );
     const screen = await renderWithClient(

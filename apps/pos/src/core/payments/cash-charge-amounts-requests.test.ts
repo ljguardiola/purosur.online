@@ -38,6 +38,7 @@ describe("the amounts of a cash charge", () => {
     const saleId = await sellFor(2_519_250);
 
     expect(await cashChargeAmountsFor(deps(), { saleId })).toEqual({
+      kind: "amounts",
       amount_to_charge: 2_510_000,
       cash_rounding: 9250,
       quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
@@ -50,6 +51,7 @@ describe("the amounts of a cash charge", () => {
     await chargeSaleByTransferFor(deps(), { saleId, amount: 1_000_000 });
 
     expect(await cashChargeAmountsFor(deps(), { saleId })).toEqual({
+      kind: "amounts",
       amount_to_charge: 1_510_000,
       cash_rounding: 9250,
       quick_amounts: [1_510_000, 1_600_000, 2_000_000],
@@ -61,6 +63,7 @@ describe("the amounts of a cash charge", () => {
     const saleId = await sellFor(2_519_250);
 
     expect(await cashChargeAmountsFor(deps(), { saleId, saleDiscount: 10_000 })).toEqual({
+      kind: "amounts",
       amount_to_charge: 2_500_000,
       cash_rounding: 9250,
       quick_amounts: [2_500_000, 3_000_000, 4_000_000],
@@ -68,10 +71,19 @@ describe("the amounts of a cash charge", () => {
     });
   });
 
-  it("are none for a discount larger than the sale", async () => {
+  it("say the discount exceeds the sale for a discount larger than the sale", async () => {
     const saleId = await sellFor(2_519_250);
 
-    expect(await cashChargeAmountsFor(deps(), { saleId, saleDiscount: 2_519_251 })).toBeNull();
+    expect(await cashChargeAmountsFor(deps(), { saleId, saleDiscount: 2_519_251 })).toEqual({
+      kind: "discount_exceeds_sale",
+    });
+  });
+
+  it("are none for a discount on a sale that already has a payment, which is not a discount that exceeds it", async () => {
+    const saleId = await sellFor(2_519_250);
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 1_000_000 });
+
+    expect(await cashChargeAmountsFor(deps(), { saleId, saleDiscount: 10_000 })).toBeNull();
   });
 
   it("are none for a sale that is not the one open", async () => {

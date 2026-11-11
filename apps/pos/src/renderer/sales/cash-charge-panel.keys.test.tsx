@@ -10,6 +10,7 @@ const SALE = { total: 2_519_250, paid: 0, pending: 2_519_250 };
 function amountsFor(discount: number | undefined, quickAmounts: number[]): CashChargeAmounts {
   return discount === undefined
     ? {
+        kind: "amounts",
         amount_to_charge: 2_510_000,
         cash_rounding: 9_250,
         quick_amounts: quickAmounts,

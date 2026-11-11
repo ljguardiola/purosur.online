@@ -38,6 +38,7 @@ it("shows no key legend under the locked lines", async () => {
 it("asks the core for the amounts of the sale being charged and shows them", async () => {
   const { screen, cashChargeAmounts } = await renderScreen({
     cashChargeAmounts: async () => ({
+      kind: "amounts",
       amount_to_charge: 470_000,
       cash_rounding: 6_000,
       quick_amounts: [470_000, 500_000],
@@ -90,4 +91,22 @@ it("keeps the sale's lines locked, and offers no shortage of change, for a sale 
     )
     .toBeVisible();
   await expect.element(screen.getByText("Falta de cambio")).not.toBeInTheDocument();
+});
+
+it("shows the sale screen's search field above the locked lines, inert", async () => {
+  const { screen, chargeSaleInCash } = await renderScreen();
+  await chooseCash(screen);
+
+  const search = screen.getByRole("textbox", { name: "Producto" });
+  await expect.element(search).toBeVisible();
+  await expect.element(search).toHaveAttribute("placeholder", "Escaneá o escribí el nombre");
+  await expect.element(search).toBeDisabled();
+  await userEvent.keyboard("7790001{Enter}");
+  await userEvent.type(search, "yerba", { skipClick: true });
+
+  await expect.element(search).toHaveValue("");
+  await expect
+    .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
+    .toBeVisible();
+  expect(chargeSaleInCash).not.toHaveBeenCalled();
 });

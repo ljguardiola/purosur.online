@@ -86,9 +86,10 @@ it("shows no replacement warning when the sale has no discount on its total", as
     .not.toBeInTheDocument();
 });
 
-it("shows the discount refusal on the field when the core has no amounts for a discount that exceeds the sale", async () => {
+it("shows the discount refusal on the field when the core says the discount exceeds the sale", async () => {
   const panel = await renderCashChargePanel({
-    readAmounts: async (discount) => (discount === undefined ? amountsOf(960_000) : null),
+    readAmounts: async (discount) =>
+      discount === undefined ? amountsOf(960_000) : { kind: "discount_exceeds_sale" },
   });
   await userEvent.fill(panel.field, "10000");
 
@@ -98,6 +99,23 @@ it("shows the discount refusal on the field when the core has no amounts for a d
     .element(panel.screen.getByText("El descuento no puede ser mayor al total de la venta."))
     .toBeVisible();
   expect(panel.callbacks.onSaleUnavailable).not.toHaveBeenCalled();
+});
+
+it("says the amounts could not be worked out, not that the discount exceeds the sale, when the core has none for the discount typed", async () => {
+  const panel = await renderCashChargePanel({
+    readAmounts: async (discount) => (discount === undefined ? amountsOf(960_000) : null),
+  });
+  await userEvent.fill(panel.field, "10000");
+
+  await typeDiscount(panel, "100");
+
+  await expect
+    .element(panel.screen.getByText("No se pudo calcular el importe a cobrar"))
+    .toBeVisible();
+  await expect
+    .element(panel.screen.getByText("El descuento no puede ser mayor al total de la venta."))
+    .not.toBeInTheDocument();
+  await expect.element(panel.complete).toBeDisabled();
 });
 
 it("shows the discount refusal on the field when charging says it exceeds the sale", async () => {

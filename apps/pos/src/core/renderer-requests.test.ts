@@ -1629,6 +1629,7 @@ describe("answerRendererRequest", () => {
 
   it("answers the amounts of a cash charge of the sale with its discount", async () => {
     const amounts = {
+      kind: "amounts" as const,
       amount_to_charge: 2_510_000,
       cash_rounding: 9250,
       quick_amounts: [2_510_000, 2_600_000],

@@ -1,6 +1,7 @@
 import type {
   Authorization,
   CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ChargeSaleInCashOutcome,
   ChargeSaleInCashWithChangeDiscountOutcome,
@@ -35,6 +36,7 @@ export function amountsOf(
   rest: Partial<CashChargeAmounts> = {},
 ): CashChargeAmounts {
   return {
+    kind: "amounts",
     amount_to_charge: amountToCharge,
     cash_rounding: 0,
     quick_amounts: [amountToCharge],
@@ -55,7 +57,7 @@ export type PanelOptions = {
   authorizationRequired?: boolean;
   appliedDiscountAmount?: number | null;
   discountOffered?: boolean;
-  readAmounts?: (discount?: number) => Promise<CashChargeAmounts | null>;
+  readAmounts?: (discount?: number) => Promise<CashChargeAmountsAnswer | null>;
   readCharge?: (tendered: number, discount?: number) => Promise<CashChargeAnswer>;
   charge?: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeWithDiscount?: (
