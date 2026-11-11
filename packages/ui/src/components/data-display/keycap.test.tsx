@@ -21,6 +21,7 @@ const labels: ReadonlyArray<readonly [KeyName, string]> = [
   ["NumpadAdd", "+"],
   ["NumpadSubtract", "−"],
   ["NumpadAddSubtract", "+/−"],
+  ["Tab", "Tab"],
   ["Q", "Q"],
   ["7", "7"],
 ];
@@ -80,5 +81,6 @@ test("accepts only the names of the keys the register uses", () => {
   expectTypeOf<"F13">().not.toExtend<KeyName>();
   expectTypeOf<"a">().not.toExtend<KeyName>();
   expectTypeOf<"10">().not.toExtend<KeyName>();
-  expectTypeOf<"Tab">().not.toExtend<KeyName>();
+  expectTypeOf<"Tab">().toExtend<KeyName>();
+  expectTypeOf<"Shift">().not.toExtend<KeyName>();
 });

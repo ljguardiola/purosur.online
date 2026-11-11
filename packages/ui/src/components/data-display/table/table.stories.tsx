@@ -805,6 +805,20 @@ export const RegisterCardEmpty: Story = {
   ),
 };
 
+export const RegisterCardEmptyWithHeaders: Story = {
+  decorators: [inTallCard],
+  render: () => (
+    <ProductsTable
+      aria-label="Líneas cargadas"
+      columns={baseColumns}
+      items={noProducts}
+      fill
+      emptyKeepsHeaders
+      empty={{ icon: <Barcode />, title: "Todavía no cargaste ninguna línea", variant: "blank" }}
+    />
+  ),
+};
+
 export const RegisterCardFailure: Story = {
   decorators: [inTallCard],
   render: () => (

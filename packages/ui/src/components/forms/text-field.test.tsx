@@ -1683,3 +1683,36 @@ test("asks for a keyboard with the decimal comma when it has decimals", async ()
 
   expect(fieldInput(screen, "Amount").inputMode).toBe("decimal");
 });
+
+test("shows the given key as a keycap at the right of the label, leaving the field's name the label", async () => {
+  const screen = await render(
+    <TextField
+      kind="quantity"
+      label="Cantidad contada"
+      value=""
+      onChange={() => {}}
+      suffix="u"
+      labelKeycap="Digits"
+    />,
+  );
+
+  const input = fieldInput(screen, "Cantidad contada");
+  const keycap = fieldWrapper(screen, "Cantidad contada").querySelector("kbd");
+  const label = screen.getByText("Cantidad contada").element().getBoundingClientRect();
+
+  expect(keycap?.textContent).toBe("0-9");
+  expect(keycap?.getBoundingClientRect().left).toBeGreaterThan(label.right);
+  expect(keycap?.getBoundingClientRect().right).toBeCloseTo(
+    input.parentElement?.getBoundingClientRect().right ?? 0,
+    0,
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws no keycap beside the label unless one is given", async () => {
+  const screen = await render(
+    <TextField kind="quantity" label="Cantidad contada" value="" onChange={() => {}} suffix="u" />,
+  );
+
+  expect(fieldWrapper(screen, "Cantidad contada").querySelector("kbd")).toBeNull();
+});

@@ -23,3 +23,11 @@ export default meta;
 type Story = StoryObj<typeof SidePanelTitle>;
 
 export const Default: Story = {};
+
+export const WithEscapeKeycap: Story = {
+  args: { close: { onPress: () => {} } },
+};
+
+export const WithLabelledEscapeKeycap: Story = {
+  args: { close: { onPress: () => {}, label: "Cancelar" } },
+};
