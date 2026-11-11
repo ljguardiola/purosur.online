@@ -47,7 +47,7 @@ export function RefundPaidOrderPanel({
     panel.current = node;
     node?.focus();
   }
-  useKeys([{ key: "Escape", run: onClose }], { fallback: true, active: !submitting });
+  useKeys([{ key: "Escape", run: submitting ? () => {} : onClose }], { fallback: true });
   useKeys([{ key: "Enter", run: () => void confirm() }], { fallback: true, within: panel });
   useRefuseBarcodeReadings(true);
 

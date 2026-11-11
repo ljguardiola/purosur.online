@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent } from "react";
+import { CloseButton } from "../shared/close-button";
 import type { Icon } from "../shared/icon";
 import { type NoticeTone, toneClassName } from "../shared/tone";
 import { NoticeFrame } from "./notice-frame";
@@ -36,6 +37,13 @@ export function Toast({ tone, icon, title, description, onDismiss }: ToastProps)
       iconSize="sm"
       iconBadgeClassName={circleClassName}
       announcement={[title, description]}
+      trailing={
+        expires ? undefined : (
+          <span className="ml-auto">
+            <CloseButton onPress={onDismiss} />
+          </span>
+        )
+      }
     >
       <p className="text-body font-bold text-text">{title}</p>
       <p className="text-detail font-semibold leading-sm text-text">{description}</p>

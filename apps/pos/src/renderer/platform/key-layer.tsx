@@ -78,6 +78,14 @@ function isInsideDialog(target: EventTarget | null): boolean {
   );
 }
 
+function activatesFocusedControl({ key, target }: KeyboardEvent): boolean {
+  return (
+    (key === "Enter" || key === " ") &&
+    target instanceof Element &&
+    target.matches("a[href], button")
+  );
+}
+
 function reaches(registration: Registration, target: EventTarget | null): boolean {
   if (registration.within === undefined) {
     return true;
@@ -140,7 +148,12 @@ export function KeyLayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function handle(event: KeyboardEvent, fallback: boolean) {
-      if ((fallback && event.defaultPrevented) || event.ctrlKey || event.altKey || event.metaKey) {
+      if (
+        (fallback && (event.defaultPrevented || activatesFocusedControl(event))) ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey
+      ) {
         return;
       }
       const typing = event.key.length === 1 && isTextField(event.target);

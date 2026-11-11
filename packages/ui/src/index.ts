@@ -102,6 +102,8 @@ export type { StatusPillButtonProps } from "./components/feedback/status-pill-bu
 export { StatusPillButton } from "./components/feedback/status-pill-button";
 export type { ToastProps } from "./components/feedback/toast";
 export { Toast } from "./components/feedback/toast";
+export type { ToastStackProps } from "./components/feedback/toast-stack";
+export { ToastStack } from "./components/feedback/toast-stack";
 export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
 export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {
@@ -194,6 +196,8 @@ export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
+export type { PanelHeadingProps } from "./components/layout/panel-heading";
+export { PanelHeading } from "./components/layout/panel-heading";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";

@@ -18,7 +18,7 @@ import {
   StatusIndicator,
   Table,
   TableCellText,
-  Toast,
+  ToastStack,
   useTableModel,
 } from "@purosur/ui";
 import { CheckCheck, Printer, TriangleAlert, Undo2 } from "lucide-react";
@@ -51,6 +51,8 @@ const CONSULTING_PAID_ORDERS =
   "Puede haber un cobro pagado para esta caja sin venta. La caja lo está consultando.";
 
 const FAILED_PROBLEM = { title: "No se pudo imprimir el ticket", description: "Probá de nuevo." };
+
+type Problem = { title: string; description: string };
 
 const PRINT_PROBLEMS = {
   busy: {
@@ -243,14 +245,12 @@ function loadingOf(data: Exclude<CoreData<unknown>, { status: "failed" }>): Tabl
 
 function PendingTable({
   data,
-  items,
   printingSaleIds,
   selectedId,
   legend,
   onSelect,
 }: {
   data: CoreData<StartupPendingAnswer>;
-  items: readonly PendingItem[];
   printingSaleIds: ReadonlySet<string>;
   selectedId: string | undefined;
   legend: readonly LegendItem[];
@@ -275,7 +275,11 @@ function PendingTable({
         ),
     }),
   ] as const;
-  const table = useTableModel({ items, id: (item) => item.id, columns });
+  const table = useTableModel({
+    items: data.status === "loaded" ? pendingItemsOf(data.value) : [],
+    id: (item) => item.id,
+    columns,
+  });
   return (
     <Table
       aria-label="Pendientes"
@@ -328,7 +332,11 @@ export function StartupPendingScreen({
   const [rebuildingSale, setRebuildingSale] = useState(false);
   const [selectedId, setSelectedId] = useState<string>();
   const [sent, setSent] = useState<ReceiptCopyShown>();
-  const [problem, setProblem] = useState<{ title: string; description: string }>();
+  const [problem, setProblem] = useState<Problem & { itemId: string }>();
+
+  function showProblem(itemId: string, shown: Problem) {
+    setProblem({ ...shown, itemId });
+  }
 
   async function printOriginal(saleId: string) {
     if (printingSaleIds.has(saleId)) {
@@ -343,7 +351,7 @@ export function StartupPendingScreen({
       return still;
     });
     if (outcome === "failed") {
-      setProblem(FAILED_PROBLEM);
+      showProblem(saleId, FAILED_PROBLEM);
       return;
     }
     switch (outcome.kind) {
@@ -360,10 +368,10 @@ export function StartupPendingScreen({
         onSessionInvalid();
         break;
       case "unavailable":
-        setProblem(FAILED_PROBLEM);
+        showProblem(saleId, FAILED_PROBLEM);
         break;
       default:
-        setProblem(PRINT_PROBLEMS[outcome.kind]);
+        showProblem(saleId, PRINT_PROBLEMS[outcome.kind]);
     }
   }
 
@@ -393,7 +401,7 @@ export function StartupPendingScreen({
         onSessionInvalid();
         break;
       default:
-        setProblem(REBUILD_PROBLEMS[outcome.kind]);
+        showProblem(order.payment_transaction_id, REBUILD_PROBLEMS[outcome.kind]);
     }
   }
 
@@ -429,6 +437,7 @@ export function StartupPendingScreen({
   const selected = items.find(({ id }) => id === selectedId) ?? items[0];
   const selectedPaidOrder = selected?.paidOrder;
   const selectedSale = selected?.sale;
+  const shownProblem = items.some(({ id }) => id === problem?.itemId) ? problem : undefined;
   const screenFree = refundOf === undefined && duplicateOf === undefined && !rebuildingSale;
 
   function moveSelection(pressed: string) {
@@ -440,12 +449,13 @@ export function StartupPendingScreen({
     setSelectedId(items[next]?.id);
   }
 
-  const legend = useKeys([
+  useKeys(
+    [{ key: "Enter", run: onGoSelling, enabled: keptFromSelling === undefined && screenFree }],
     {
-      key: "Enter",
-      run: onGoSelling,
-      enabled: keptFromSelling === undefined && screenFree,
+      fallback: true,
     },
+  );
+  const legend = useKeys([
     {
       key: "ArrowUpDown",
       label: "Pendientes",
@@ -507,45 +517,56 @@ export function StartupPendingScreen({
         />
       }
     >
-      <main className="relative flex min-w-0 flex-1 flex-col gap-4 px-8 pt-4 pb-6">
+      <main className="flex min-w-0 flex-1 flex-col gap-4 px-8 pt-4 pb-6">
         {clockGuard}
-        <PendingTable
-          data={pending}
-          items={items}
-          printingSaleIds={printingSaleIds}
-          selectedId={selected?.id}
-          legend={legend}
-          onSelect={(item) => setSelectedId(item.id)}
-        />
-        <div className="absolute bottom-20 left-8 flex flex-col gap-2">
-          {refunded ? (
-            <Toast
-              tone="success"
-              icon={<Undo2 />}
-              title="El cobro quedó como reembolso"
-              description="Se confirma después en el backoffice."
-              onDismiss={() => setRefunded(false)}
-            />
-          ) : null}
-          {sent === undefined ? null : (
-            <Toast
-              tone="success"
-              icon={<Printer />}
-              title="El ticket sale en cuanto la impresora esté lista"
-              description={`${receiptCopyPresentation(sent).comesOutAs}.`}
-              onDismiss={() => setSent(undefined)}
-            />
-          )}
-          {problem === undefined ? null : (
-            <Toast
-              tone="error"
-              icon={<TriangleAlert />}
-              title={problem.title}
-              description={problem.description}
-              onDismiss={() => setProblem(undefined)}
-            />
-          )}
-        </div>
+        <ToastStack
+          toasts={[
+            ...(refunded
+              ? [
+                  {
+                    id: "refunded",
+                    tone: "success" as const,
+                    icon: <Undo2 />,
+                    title: "El cobro quedó como reembolso",
+                    description: "Se confirma después en el backoffice.",
+                    onDismiss: () => setRefunded(false),
+                  },
+                ]
+              : []),
+            ...(sent === undefined
+              ? []
+              : [
+                  {
+                    id: "sent",
+                    tone: "success" as const,
+                    icon: <Printer />,
+                    title: "El ticket sale en cuanto la impresora esté lista",
+                    description: `${receiptCopyPresentation(sent).comesOutAs}.`,
+                    onDismiss: () => setSent(undefined),
+                  },
+                ]),
+            ...(shownProblem === undefined
+              ? []
+              : [
+                  {
+                    id: "problem",
+                    tone: "error" as const,
+                    icon: <TriangleAlert />,
+                    title: shownProblem.title,
+                    description: shownProblem.description,
+                    onDismiss: () => setProblem(undefined),
+                  },
+                ]),
+          ]}
+        >
+          <PendingTable
+            data={pending}
+            printingSaleIds={printingSaleIds}
+            selectedId={selected?.id}
+            legend={legend}
+            onSelect={(item) => setSelectedId(item.id)}
+          />
+        </ToastStack>
       </main>
       {duplicateOf === undefined ? null : (
         <ReprintReceiptModal
@@ -577,6 +598,9 @@ export function StartupPendingScreen({
           convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
           onConverted={() => {
             setRefundOf(undefined);
+            setProblem((shown) =>
+              shown?.itemId === refundOf.payment_transaction_id ? undefined : shown,
+            );
             setRefunded(true);
             void refreshPending();
           }}
