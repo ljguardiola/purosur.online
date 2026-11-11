@@ -480,6 +480,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       startMercadoPagoCharge: undefined,
       followMercadoPagoCharge: undefined,
       paymentMethodAvailability: undefined,
+      cashChargeAmounts: undefined,
       abandonMercadoPagoCharge: undefined,
       convertPaidOrderIntoRefund: undefined,
       rebuildSaleAgainstPaidOrder: undefined,
@@ -1623,6 +1624,47 @@ describe("answerRendererRequest", () => {
     expect(failing.failures).toEqual([
       { context: "reading which payment methods are available", error },
     ]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(none);
+  });
+
+  it("answers the amounts of a cash charge of the sale with its discount", async () => {
+    const amounts = {
+      amount_to_charge: 2_510_000,
+      cash_rounding: 9250,
+      quick_amounts: [2_510_000, 2_600_000],
+      change_discount_option: 10_000,
+    };
+    const requests: unknown[] = [];
+    const { deps: withAmounts } = deps(true, {
+      cashChargeAmounts: async (request) => {
+        requests.push(request);
+        return amounts;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withAmounts, {
+        type: "cash-charge-amounts",
+        request_id: "r68",
+        sale_id: "s1",
+        sale_discount: 10_000,
+      }),
+    ).toEqual({ type: "cash-charge-amounts-result", request_id: "r68", amounts });
+    expect(requests).toEqual([{ saleId: "s1", saleDiscount: 10_000 }]);
+  });
+
+  it("answers no cash charge amounts when the register has no database or reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashChargeAmounts: async () => {
+        throw error;
+      },
+    });
+    const message = { type: "cash-charge-amounts", request_id: "r69", sale_id: "s1" } as const;
+    const none = { type: "cash-charge-amounts-result", request_id: "r69", amounts: null };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(none);
+    expect(failing.failures).toEqual([{ context: "reading the amounts of a cash charge", error }]);
     expect(await answerRendererRequest(deps(true).deps, message)).toEqual(none);
   });
 

@@ -648,3 +648,66 @@ describe("a Mercado Pago charge refused until the paid order is applied", () => 
     expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
   });
 });
+
+describe("reading the amounts of a cash charge", () => {
+  const message = { type: "cash-charge-amounts", request_id: REQUEST_ID, sale_id: "s1" };
+
+  it("accepts a request for a sale", () => {
+    expect(paymentsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts a request with a discount for shortage of change", () => {
+    const discounted = { ...message, sale_discount: 10_000 };
+
+    expect(paymentsRendererToCoreMessageSchema.parse(discounted)).toEqual(discounted);
+  });
+
+  it.each([0, -1, 0.5])("rejects the discount %s", (sale_discount) => {
+    expect(
+      paymentsRendererToCoreMessageSchema.safeParse({ ...message, sale_discount }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a request without its sale", () => {
+    expect(
+      paymentsRendererToCoreMessageSchema.safeParse({ ...message, sale_id: undefined }).success,
+    ).toBe(false);
+  });
+
+  const amounts = {
+    amount_to_charge: 2_510_000,
+    cash_rounding: 9250,
+    quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
+    change_discount_option: 10_000,
+  };
+
+  it.each([amounts, { ...amounts, change_discount_option: null }, null])(
+    "accepts the answer %j",
+    (answered) => {
+      const result = {
+        type: "cash-charge-amounts-result",
+        request_id: REQUEST_ID,
+        amounts: answered,
+      };
+
+      expect(paymentsCoreToRendererMessageSchema.parse(result)).toEqual(result);
+    },
+  );
+
+  it.each([
+    { ...amounts, amount_to_charge: -1 },
+    { ...amounts, cash_rounding: -1 },
+    { ...amounts, quick_amounts: [-1] },
+    { ...amounts, quick_amounts: [2_510_000.5] },
+    { ...amounts, change_discount_option: 0 },
+    { ...amounts, change_discount_option: undefined },
+  ])("rejects the answer %j", (answered) => {
+    expect(
+      paymentsCoreToRendererMessageSchema.safeParse({
+        type: "cash-charge-amounts-result",
+        request_id: REQUEST_ID,
+        amounts: answered,
+      }).success,
+    ).toBe(false);
+  });
+});
