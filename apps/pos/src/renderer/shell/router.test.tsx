@@ -7,7 +7,7 @@ import type {
   RegisterStatus,
   StartupPending,
 } from "@purosur/contracts";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { notifyManager, QueryClientProvider } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
   createRoute,
@@ -19,6 +19,7 @@ import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
+import { KeyLayerProvider } from "../platform/key-layer";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
 import { registerStatusQueryOptions } from "../register/register-queries";
@@ -81,7 +82,6 @@ const REVOKED: Enrollment = "revoked";
 const COMPLETED: Restoration = { kind: "completed" };
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const SIGN_IN_TITLE = "¿Quién abre la caja?";
-const STARTUP_PENDING_TITLE = "Hay cosas para resolver";
 const NOTHING_PENDING: StartupPending = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
@@ -184,7 +184,7 @@ const screenFor: Record<
     screen.getByRole("heading", { level: 1, name: "Balanza y lector" }),
   "/initial-count": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
-  "/startup-pending": (screen) => screen.getByRole("heading", { name: STARTUP_PENDING_TITLE }),
+  "/startup-pending": (screen) => screen.getByRole("table", { name: "Pendientes" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -357,7 +357,9 @@ const screenFailure = new Error("screen failed to render");
 function render(ui: ReactNode) {
   return renderInPage(ui, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <KeyLayerProvider>{children}</KeyLayerProvider>
+      </QueryClientProvider>
     ),
   });
 }
@@ -397,6 +399,15 @@ function GuardedScreen() {
 
 function FailingScreen(): ReactNode {
   throw screenFailure;
+}
+
+function freezeTimersKeepingQueriesAnswered() {
+  notifyManager.setScheduler(queueMicrotask);
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  onTestFinished(() => {
+    vi.useRealTimers();
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+  });
 }
 
 describe("routeFor", () => {
@@ -2012,12 +2023,10 @@ describe("the register's router", () => {
       const screen = await render(<RouterProvider router={router} />);
 
       await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
-      await expect
-        .element(screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
     });
 
-    it("passes the order to refund through the core and goes on to the sale by itself once its notice is dismissed", async () => {
+    it("passes the order to refund through the core and goes on to the sale by itself once its notice has gone", async () => {
       let answer = BLOCKED_BY_PAID_ORDER;
       const convertPaidOrderIntoRefund = vi.fn<RouterContext["convertPaidOrderIntoRefund"]>(
         async () => {
@@ -2036,19 +2045,19 @@ describe("the register's router", () => {
         "/session",
       );
       const screen = await render(<RouterProvider router={router} />);
-      await userEvent.click(
-        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
-      );
-      await userEvent.click(
-        screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
-          .getByRole("button", { name: "Pasar a reembolso" }),
-      );
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
+      await userEvent.keyboard("r");
+      const confirmation = screen.getByRole("complementary", {
+        name: "¿Pasar el cobro a reembolso?",
+      });
+      await expect.element(confirmation).toBeVisible();
+      freezeTimersKeepingQueriesAnswered();
+      await userEvent.click(confirmation.getByRole("button", { name: "Pasar a reembolso" }));
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
       expect(router.state.location.pathname).toBe("/startup-pending");
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+      await vi.advanceTimersByTimeAsync(5000);
 
       await expect.element(screenFor["/session"](screen)).toBeVisible();
       expect(router.state.location.pathname).toBe("/session");
