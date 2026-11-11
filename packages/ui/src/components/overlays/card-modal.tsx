@@ -46,9 +46,9 @@ export function CardModal({
           <div className="flex shrink-0 items-center gap-4 py-4">
             <span
               aria-hidden="true"
-              className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-action-subtle text-text-accent"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-action-subtle text-text-accent"
             >
-              <span className={iconSlotClassName.xl}>{icon}</span>
+              <span className={iconSlotClassName.md}>{icon}</span>
             </span>
             <AriaHeading id={titleId} slot="title" className="flex-1 text-title text-text">
               {title}
@@ -56,7 +56,7 @@ export function CardModal({
             {closable ? <CloseButton onPress={() => onOpenChange(false)} escapeKeycap /> : null}
           </div>
           {subtitle !== undefined ? (
-            <p className="border-t border-border py-3 text-body text-text-subtle">{subtitle}</p>
+            <p className="border-t border-border py-3 text-body font-bold text-text">{subtitle}</p>
           ) : null}
           <div ref={bodyRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-2">
             <FieldFocusingContent bodyRef={bodyRef} focusPart={() => {}}>

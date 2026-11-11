@@ -16,13 +16,13 @@ export type PinDotsFieldProps = {
 const minimumDots = 6;
 
 const dotClassName = {
-  filled: "size-3 rounded-full bg-surface-inverse",
-  empty: "size-3 rounded-full bg-border",
+  filled: "size-3.5 rounded-full bg-surface-inverse",
+  empty: "size-3.5 rounded-full bg-border",
 } as const;
 
 function boxClassName(invalid: boolean): string {
   return (
-    "relative flex h-16 items-center justify-center gap-3 rounded-lg bg-surface inset-ring-2 " +
+    "relative flex h-16 items-center justify-center gap-4 rounded-lg bg-surface inset-ring-2 " +
     `${invalid ? "inset-ring-error" : "inset-ring-border"} focus-within:inset-ring-action`
   );
 }
