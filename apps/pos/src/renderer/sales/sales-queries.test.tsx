@@ -454,6 +454,14 @@ describe("cash charge amounts query", () => {
     await expect.element(screen.getByText("loading")).toBeVisible();
   });
 
+  it("fails when the core has no amounts for a discount, which is never a discount that exceeds the sale", async () => {
+    const screen = await renderWithClient(
+      <CashChargeAmountsProbe read={async () => null} saleDiscount={10_000} />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
   it("fails when the core cannot answer", async () => {
     const screen = await renderWithClient(
       <CashChargeAmountsProbe
