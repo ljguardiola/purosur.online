@@ -165,9 +165,7 @@ export class HeldRunReporter {
       this.#log(
         `held-run: ${plural(moduleIds.length, `"${project}" file`)} still to report: ` +
           moduleIds.map((moduleId) => relative(this.#vitest.config.root, moduleId)).join(", ") +
-          this.#openPages([project], "has")
-            .map((line) => `; ${line}`)
-            .join(""),
+          this.#startingStep(project),
       );
     }
     await this.#reportRunEnd("failed");
@@ -178,14 +176,26 @@ export class HeldRunReporter {
     this.#exit(1);
   }
 
-  #openPages(projectNames, verb) {
+  #startingStep(projectName) {
+    const state = this.#vitest.projects.find((project) => project.name === projectName)?.browser
+      ?.state;
+    if (!state) return "";
+    if (state.orchestrators.size === 0) return `; "${projectName}" has no browser page open`;
+    const pages = `${plural(state.orchestrators.size, "browser page")} open: ${[...state.orchestrators.keys()].join(", ")}`;
+    const frames =
+      state.testers.size === 0
+        ? "no test frame connected"
+        : `${plural(state.testers.size, "test frame")} connected: ${[...state.testers.keys()].join(", ")}`;
+    return `; "${projectName}" has ${pages} and ${frames}`;
+  }
+
+  #openPages() {
     return this.#vitest.projects
-      .filter((project) => projectNames.includes(project.name))
       .map((project) => ({ name: project.name, sessions: project.browser?.state.orchestrators }))
       .filter(({ sessions }) => sessions && sessions.size > 0)
       .map(
         ({ name, sessions }) =>
-          `"${name}" ${verb} ${plural(sessions.size, "browser page")} open: ${[...sessions.keys()].join(", ")}`,
+          `"${name}" still has ${plural(sessions.size, "browser page")} open: ${[...sessions.keys()].join(", ")}`,
       );
   }
 
@@ -200,10 +210,7 @@ export class HeldRunReporter {
 
   async #endHeldRun() {
     this.#stop();
-    const openPages = this.#openPages(
-      this.#vitest.projects.map((project) => project.name),
-      "still has",
-    );
+    const openPages = this.#openPages();
     this.#log(
       `held-run: every test file reported ${this.#graceMs / 1000}s ago and Vitest has not ended. ` +
         (openPages.length > 0 ? openPages.join("; ") : "no browser page is open"),
