@@ -893,7 +893,7 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
@@ -915,7 +915,9 @@ describe("StartupPendingScreen", () => {
       await userEvent.click(
         screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
       );
-      const confirmation = screen.getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" });
+      const confirmation = screen.getByRole("complementary", {
+        name: "¿Pasar el cobro a reembolso?",
+      });
       await expect.element(confirmation).toBeVisible();
       freezeTimersKeepingQueriesAnswered();
 
@@ -948,7 +950,7 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
@@ -969,7 +971,7 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 
@@ -987,7 +989,7 @@ describe("StartupPendingScreen", () => {
 
       await userEvent.click(
         screen
-          .getByRole("panel", { name: "¿Pasar el cobro a reembolso?" })
+          .getByRole("complementary", { name: "¿Pasar el cobro a reembolso?" })
           .getByRole("button", { name: "Pasar a reembolso" }),
       );
 

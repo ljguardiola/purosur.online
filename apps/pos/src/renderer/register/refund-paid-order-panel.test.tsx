@@ -102,7 +102,7 @@ describe("RefundPaidOrderPanel", () => {
   });
 
   it("passes the order to refund when Enter is pressed as soon as the panel opens", async () => {
-    const { dialog, convert, onConverted } = await renderPanel();
+    const { convert, onConverted } = await renderPanel();
 
     await userEvent.keyboard("{Enter}");
 
