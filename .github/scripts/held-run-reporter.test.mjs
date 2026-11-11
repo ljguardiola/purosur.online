@@ -56,12 +56,15 @@ function requestTestFrame(vitest, sessionId, file) {
   });
 }
 
-function connectTestFrame(vitest, sessionId, testerId) {
-  const browser = browserOf(vitest);
-  browser.vite.httpServer.emit("upgrade", {
+function askToConnectTestFrame(vitest, sessionId, testerId) {
+  browserOf(vitest).vite.httpServer.emit("upgrade", {
     url: `/__vitest_browser_api__?type=tester&rpcId=${testerId}&sessionId=${sessionId}&projectName=browser`,
   });
-  browser.state.testers.set(testerId, {});
+}
+
+function connectTestFrame(vitest, sessionId, testerId) {
+  askToConnectTestFrame(vitest, sessionId, testerId);
+  browserOf(vitest).state.testers.set(testerId, {});
 }
 
 function spec(project, file) {
@@ -443,6 +446,25 @@ test("says a browser file's test frame connected when a run stalls after it conn
     'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
       '"browser" has 1 browser page open: s1; ' +
       "the test frame of never-started.test.tsx connected on page s1",
+  );
+});
+
+test("says a browser file's test frame has no open connection when Vitest refused or closed it", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({ openPages: { browser: ["s1"] } });
+  const { lines } = await startedReporter(vitest, [spec("browser", "never-started.test.tsx")]);
+
+  requestTestFrame(vitest, "s1", "never-started.test.tsx");
+  askToConnectTestFrame(vitest, "s1", "t1");
+  browserOf(vitest).state.testers.set("t2", {});
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.equal(
+    lines[1],
+    'held-run: 1 "browser" file still to report: never-started.test.tsx; ' +
+      '"browser" has 1 browser page open: s1; ' +
+      "the test frame of never-started.test.tsx was requested on page s1 and has no open connection",
   );
 });
 
