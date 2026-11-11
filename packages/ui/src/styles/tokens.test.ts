@@ -164,7 +164,16 @@ describe("font weights", () => {
 });
 
 describe("text styles", () => {
-  const textStyleRoles = ["display", "title", "heading", "subheading", "body", "detail", "caption"];
+  const textStyleRoles = [
+    "hero",
+    "display",
+    "title",
+    "heading",
+    "subheading",
+    "body",
+    "detail",
+    "caption",
+  ];
   const sizes = [...stylesheet.matchAll(/--text-([a-z]+):\s*([^;]+);/g)].map(([, name, value]) => ({
     name: name ?? "",
     value: (value ?? "").trim(),

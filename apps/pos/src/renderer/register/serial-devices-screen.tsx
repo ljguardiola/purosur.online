@@ -50,7 +50,6 @@ const NOT_SAVED: Notice = {
 
 export type SerialDevicesScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
   sessionOpen: boolean;
   signOut: () => void;
   readSerialDevices: () => Promise<ReadSerialDevicesOutcome>;
@@ -216,7 +215,6 @@ function StandingIndicators({ standings }: { standings: Read["standings"] }) {
 
 export function SerialDevicesScreen({
   person,
-  registerName,
   sessionOpen,
   signOut,
   readSerialDevices,
@@ -235,12 +233,7 @@ export function SerialDevicesScreen({
       background="surface"
       rail={
         sessionOpen ? (
-          <OpenSessionRail
-            registerName={registerName}
-            lock={signOut}
-            current="serial_devices"
-            abilities={person.abilities}
-          />
+          <OpenSessionRail lock={signOut} current="serial_devices" abilities={person.abilities} />
         ) : (
           <NoSessionRail person={person} current="/serial-devices" signOut={signOut} />
         )

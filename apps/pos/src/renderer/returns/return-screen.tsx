@@ -66,14 +66,7 @@ function ReturnFlow({
     loadAuthorizers,
   });
 
-  const rail = (
-    <OpenSessionRail
-      registerName={registerName}
-      lock={lock}
-      current="return"
-      abilities={person.abilities}
-    />
-  );
+  const rail = <OpenSessionRail lock={lock} current="return" abilities={person.abilities} />;
 
   return (
     <>

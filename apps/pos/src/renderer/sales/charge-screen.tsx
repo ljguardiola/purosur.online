@@ -107,7 +107,6 @@ function followedChargeStep(
 export type ChargeScreenProps = {
   sessionId: string;
   person: SignedInPerson;
-  registerName: string | null;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
   cashCharge: (
@@ -154,7 +153,6 @@ export type ChargeScreenProps = {
 export function ChargeScreen({
   sessionId,
   person,
-  registerName,
   lock,
   currentSale,
   cashCharge,
@@ -234,14 +232,7 @@ export function ChargeScreen({
   return (
     <RegisterFrame
       background="subtle"
-      rail={
-        <OpenSessionRail
-          registerName={registerName}
-          lock={lock}
-          current="sale"
-          abilities={person.abilities}
-        />
-      }
+      rail={<OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />}
       aside={
         sale === undefined ? null : (
           <ChargePaymentPanel

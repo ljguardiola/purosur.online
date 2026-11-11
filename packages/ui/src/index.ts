@@ -184,6 +184,8 @@ export type { UserSelectProps } from "./components/forms/user-select";
 export { UserSelect } from "./components/forms/user-select";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
+export type { ConfirmationPanelProps } from "./components/layout/confirmation-panel";
+export { ConfirmationPanel } from "./components/layout/confirmation-panel";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";

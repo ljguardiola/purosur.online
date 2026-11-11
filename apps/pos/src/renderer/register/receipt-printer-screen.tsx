@@ -40,7 +40,6 @@ const NOT_SAVED: Notice = {
 
 export type ReceiptPrinterScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
   sessionOpen: boolean;
   signOut: () => void;
   readReceiptPrinter: () => Promise<ReadReceiptPrinterOutcome>;
@@ -128,7 +127,6 @@ function ReceiptPrinterForm({
 
 export function ReceiptPrinterScreen({
   person,
-  registerName,
   sessionOpen,
   signOut,
   readReceiptPrinter,
@@ -149,12 +147,7 @@ export function ReceiptPrinterScreen({
       background="surface"
       rail={
         sessionOpen ? (
-          <OpenSessionRail
-            registerName={registerName}
-            lock={signOut}
-            current="receipt_printer"
-            abilities={person.abilities}
-          />
+          <OpenSessionRail lock={signOut} current="receipt_printer" abilities={person.abilities} />
         ) : (
           <NoSessionRail person={person} current="/receipt-printer" signOut={signOut} />
         )
