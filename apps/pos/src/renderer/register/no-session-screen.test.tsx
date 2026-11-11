@@ -40,17 +40,36 @@ async function renderScreen({
 }
 
 describe("NoSessionScreen", () => {
-  it("asks what to do, with no session open", async () => {
+  it("names the screen for assistive technology without drawing a title", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("heading", { name: "¿Qué querés hacer?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { level: 1, name: "¿Qué querés hacer?" }))
+      .toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("shows what the screen is given to offer under the question", async () => {
+  it("shows the scan field inert and a locked card while nothing is offered", async () => {
+    const { screen } = await renderScreen();
+
+    const field = screen.getByRole("searchbox", { name: "Producto" });
+    await expect.element(field).toBeVisible();
+    await expect.element(field).toBeDisabled();
+    await expect.element(field).toHaveAttribute("placeholder", "Escaneá o escribí el nombre");
+    await expect
+      .element(screen.getByRole("img", { name: "Caja sin sesión abierta" }))
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows what the screen is given to offer in place of the scan field and the locked card", async () => {
     const { screen } = await renderScreen({ offers: <p>Una oferta</p> });
 
     await expect.element(screen.getByText("Una oferta")).toBeVisible();
+    await expect.element(screen.getByRole("searchbox", { name: "Producto" })).not.toBeVisible();
+    await expect
+      .element(screen.getByRole("img", { name: "Caja sin sesión abierta" }))
+      .not.toBeVisible();
   });
 
   it("takes no register name, which the frame's header shows", () => {
