@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Banknote, Wallet } from "lucide-react";
+import { Banknote, Undo2, Wallet } from "lucide-react";
+import { CloseButton } from "../shared/close-button";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -23,6 +24,15 @@ export default meta;
 type Story = StoryObj<typeof SidePanelTitle>;
 
 export const Default: Story = {};
+
+export const Warning: Story = {
+  args: {
+    icon: <Undo2 />,
+    title: "¿Pasar el cobro a reembolso?",
+    tone: "warning",
+    children: <CloseButton onPress={() => undefined} />,
+  },
+};
 
 export const WithEscape: Story = {
   args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
