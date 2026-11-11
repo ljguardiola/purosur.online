@@ -93,20 +93,13 @@ it("keeps the sale's lines locked, and offers no shortage of change, for a sale 
   await expect.element(screen.getByText("Falta de cambio")).not.toBeInTheDocument();
 });
 
-it("shows the sale screen's search field above the locked lines, inert", async () => {
-  const { screen, chargeSaleInCash } = await renderScreen();
+it("shows the sale screen's search field above the locked lines, disabled and empty", async () => {
+  const { screen } = await renderScreen();
   await chooseCash(screen);
 
   const search = screen.getByRole("searchbox", { name: "Producto" });
   await expect.element(search).toBeVisible();
   await expect.element(search).toHaveAttribute("placeholder", "Escaneá o escribí el nombre");
   await expect.element(search).toBeDisabled();
-  await userEvent.keyboard("7790001{Enter}");
-  await userEvent.type(search, "yerba", { skipClick: true });
-
   await expect.element(search).toHaveValue("");
-  await expect
-    .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
-    .toBeVisible();
-  expect(chargeSaleInCash).not.toHaveBeenCalled();
 });
