@@ -261,12 +261,16 @@ function PendingTable({
       id: "item",
       header: "Pendiente",
       render: (item: PendingItem) => (
-        <TableCellText description={item.detail}>{item.title}</TableCellText>
+        <TableCellText strong description={item.detail}>
+          {item.title}
+        </TableCellText>
       ),
     }),
     dataColumn({
       id: "state",
       header: "Estado",
+      align: "end",
+      width: 170,
       render: (item: PendingItem) =>
         itemState(
           item,
@@ -284,16 +288,17 @@ function PendingTable({
     <Table
       aria-label="Pendientes"
       table={table}
+      fill
       legend={legend}
       rowState={(item) => (item.id === selectedId ? "selected" : undefined)}
       onRowPress={onSelect}
       {...(data.status === "failed"
         ? {
             failure: {
+              variant: "centered" as const,
               icon: <TriangleAlert />,
               title: "No se pudo leer lo que quedó pendiente",
               description: "Podés ir a vender igual.",
-              onRetry: data.retry,
             },
           }
         : { loading: loadingOf(data) })}
@@ -455,50 +460,54 @@ export function StartupPendingScreen({
       fallback: true,
     },
   );
-  const legend = useKeys([
-    {
-      key: "ArrowUpDown",
-      label: "Pendientes",
-      run: moveSelection,
-      enabled: screenFree && items.length > 0,
-    },
-    {
-      key: "A",
-      label:
-        selectedPaidOrder?.rebuilt_sale_id === null ? "Armar la venta" : "Volver a la venta armada",
-      run: () => {
-        if (selectedPaidOrder?.rebuilt_sale_id === null) {
-          void rebuild(selectedPaidOrder);
-        } else {
-          onGoToSale();
-        }
+  const legend = useKeys(
+    [
+      {
+        key: "ArrowUpDown",
+        label: "Pendientes",
+        run: moveSelection,
+        enabled: items.length > 0,
       },
-      enabled: screenFree && selectedPaidOrder !== undefined,
-    },
-    {
-      key: "R",
-      label: pending.status === "failed" ? "Reintentar" : "Pasar a reembolso",
-      run: () => {
-        if (pending.status === "failed") {
-          pending.retry();
-        } else {
-          setRefundOf(selectedPaidOrder);
-        }
+      {
+        key: "A",
+        label:
+          selectedPaidOrder?.rebuilt_sale_id === null
+            ? "Armar la venta"
+            : "Volver a la venta armada",
+        run: () => {
+          if (selectedPaidOrder?.rebuilt_sale_id === null) {
+            void rebuild(selectedPaidOrder);
+          } else {
+            onGoToSale();
+          }
+        },
+        enabled: selectedPaidOrder !== undefined,
       },
-      enabled: screenFree && (pending.status === "failed" || selectedPaidOrder !== undefined),
-    },
-    {
-      key: "P",
-      label: "Imprimir",
-      run: () => {
-        if (selectedSale !== undefined) {
-          print(selectedSale);
-        }
+      {
+        key: "R",
+        label: pending.status === "failed" ? "Reintentar" : "Pasar a reembolso",
+        run: () => {
+          if (pending.status === "failed") {
+            pending.retry();
+          } else {
+            setRefundOf(selectedPaidOrder);
+          }
+        },
+        enabled: pending.status === "failed" || selectedPaidOrder !== undefined,
       },
-      enabled:
-        screenFree && selectedSale !== undefined && !printingSaleIds.has(selectedSale.sale_id),
-    },
-  ]);
+      {
+        key: "P",
+        label: "Imprimir",
+        run: () => {
+          if (selectedSale !== undefined) {
+            print(selectedSale);
+          }
+        },
+        enabled: selectedSale !== undefined && !printingSaleIds.has(selectedSale.sale_id),
+      },
+    ],
+    { active: screenFree },
+  );
 
   return (
     <RegisterFrame

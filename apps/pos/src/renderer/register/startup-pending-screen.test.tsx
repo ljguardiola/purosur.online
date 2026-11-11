@@ -449,22 +449,6 @@ describe("StartupPendingScreen", () => {
     expect(onGoSelling).toHaveBeenCalledOnce();
   });
 
-  it("leaves Enter to a focused Reintentar instead of going selling", async () => {
-    const load = vi
-      .fn<() => Promise<StartupPending>>()
-      .mockRejectedValueOnce(new Error("core down"))
-      .mockResolvedValue({ ...NOTHING, sales_to_print: [NEVER_PRINTED] });
-    const { screen, onGoSelling } = await renderScreen({ loadStartupPending: load });
-    const retry = screen.getByRole("button", { name: "Reintentar" });
-    await expect.element(retry).toBeVisible();
-
-    (retry.element() as HTMLElement).focus();
-    await userEvent.keyboard("{Enter}");
-
-    await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
-    expect(onGoSelling).not.toHaveBeenCalled();
-  });
-
   it("leaves Enter to a focused link of the rail instead of going selling", async () => {
     const { screen, onGoSelling } = await renderScreen();
     const cash = screen.getByRole("link", { name: "Caja" });
@@ -489,7 +473,7 @@ describe("StartupPendingScreen", () => {
     expect(onGoSelling).toHaveBeenCalledOnce();
   });
 
-  it("fails to load with a retry that reads the items again, keeping Ir a vender enabled", async () => {
+  it("fails to load with an R retry that reads the items again, keeping Ir a vender enabled", async () => {
     const load = vi
       .fn<() => Promise<StartupPending | "not_permitted">>()
       .mockRejectedValueOnce(new Error("the core could not answer"))
@@ -497,7 +481,8 @@ describe("StartupPendingScreen", () => {
     const { screen } = await renderScreen({ loadStartupPending: load });
 
     await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await expect.element(screen.getByText("Podés ir a vender igual.")).toBeVisible();
+    await userEvent.keyboard("r");
 
     await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
   });

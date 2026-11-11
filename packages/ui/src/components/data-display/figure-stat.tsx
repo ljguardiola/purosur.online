@@ -4,6 +4,7 @@ import { Eyebrow } from "../layout/eyebrow";
 export type FigureStatProps = {
   label: string;
   size?: "hero" | "display" | "heading" | undefined;
+  tone?: "accent" | "plain" | undefined;
 } & (
   | { value: string; detail?: string | undefined; loading?: false | undefined }
   | { loading: true; value?: undefined; detail?: undefined }
@@ -15,7 +16,14 @@ const sizeClassName = {
   heading: "text-heading",
 } as const;
 
-export function FigureStat({ label, size = "display", ...figure }: FigureStatProps) {
+const toneClassName = { accent: "text-text-accent", plain: "text-text" } as const;
+
+export function FigureStat({
+  label,
+  size = "display",
+  tone = "accent",
+  ...figure
+}: FigureStatProps) {
   return (
     <div className="flex flex-col gap-1" aria-busy={figure.loading ? true : undefined}>
       <Eyebrow text={label} />
@@ -30,7 +38,7 @@ export function FigureStat({ label, size = "display", ...figure }: FigureStatPro
           <PlaceholderLine widthPercent={60} />
         </div>
       ) : (
-        <p className={`${sizeClassName[size]} text-text-accent`}>{figure.value}</p>
+        <p className={`${sizeClassName[size]} ${toneClassName[tone]}`}>{figure.value}</p>
       )}
     </div>
   );
