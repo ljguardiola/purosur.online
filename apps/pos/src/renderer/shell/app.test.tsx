@@ -997,13 +997,13 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect
-      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
+      .element(screen.getByRole("table", { name: "Para empezar" }))
       .toBeVisible();
 
     answering.finishPull(null);
 
     await expect
-      .element(screen.getByRole("button", { name: "Cargar el inventario" }))
+      .element(screen.getByRole("table", { name: "Para empezar" }))
       .not.toBeInTheDocument();
   });
 

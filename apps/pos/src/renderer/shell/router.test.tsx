@@ -1622,7 +1622,7 @@ describe("the register's router", () => {
     await expect
       .element(screen.getByText("Cargar el stock con el que arranca el local"))
       .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cargar el inventario" }));
+    await userEvent.keyboard("n");
     await expect.poll(() => router.state.location.pathname).toBe("/initial-count");
   });
 
