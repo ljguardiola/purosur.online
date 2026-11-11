@@ -5,8 +5,8 @@ import {
   formatCents,
   formatClockTime,
   InlineNotice,
-  PanelHeading,
   SidePanel,
+  SidePanelTitle,
   SummaryRowGroup,
 } from "@purosur/ui";
 import { ShoppingBasket, TriangleAlert, Wallet } from "lucide-react";
@@ -74,7 +74,7 @@ export function StartupPendingSessionPanel({
   return (
     <SidePanel
       label="Sesión abierta"
-      header={<PanelHeading title="Sesión abierta" icon={<Wallet />} />}
+      header={<SidePanelTitle title="Sesión abierta" icon={<Wallet />} />}
       footer={<GoSelling keptFromSelling={keptFromSelling} onGoSelling={onGoSelling} />}
     >
       <FigureStat size="hero" tone="plain" label="Abierta por" value={sessionOwner.first_name} />

@@ -5,8 +5,8 @@ import { Button } from "../forms/button";
 import { CloseButton } from "../shared/close-button";
 import type { Icon } from "../shared/icon";
 import { Eyebrow } from "./eyebrow";
-import { PanelHeading } from "./panel-heading";
 import { SidePanel } from "./side-panel";
+import { SidePanelTitle } from "./side-panel-title";
 
 type ConfirmationDetail = { label: string; value: string };
 
@@ -43,9 +43,9 @@ export function ConfirmationPanel({
     <SidePanel
       label={title}
       header={
-        <PanelHeading title={title} icon={icon} tone={tone}>
+        <SidePanelTitle title={title} icon={icon} tone={tone}>
           <CloseButton onPress={onClose} escapeKeycap disabled={busy} />
-        </PanelHeading>
+        </SidePanelTitle>
       }
       footer={
         <Button

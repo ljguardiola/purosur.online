@@ -198,8 +198,6 @@ export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { IconCardProps } from "./components/layout/icon-card";
 export { IconCard } from "./components/layout/icon-card";
-export type { PanelHeadingProps } from "./components/layout/panel-heading";
-export { PanelHeading } from "./components/layout/panel-heading";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
 export { PuroSurIsotype } from "./components/layout/puro-sur-isotype";
 export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
