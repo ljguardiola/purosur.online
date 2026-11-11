@@ -1,4 +1,4 @@
-import type { CashChargeAmounts } from "@purosur/contracts";
+import type { CashChargeAmountsAnswer } from "@purosur/contracts";
 import { amountToChargeInCash, changeDiscountOption, quickCashAmounts } from "@purosur/domain";
 import {
   currentSaleFor,
@@ -19,7 +19,7 @@ type CashChargeAmountsDeps = Pick<
 async function amountDueOf(
   deps: CashChargeAmountsDeps,
   { saleId, saleDiscount }: CashChargeAmountsRequest,
-): Promise<number | null> {
+): Promise<number | "discount_exceeds_sale" | null> {
   const sale = await currentSaleFor(deps);
   if (sale === null || sale === "not_permitted" || sale.id !== saleId) {
     return null;
@@ -30,19 +30,26 @@ async function amountDueOf(
   const preview = await previewSaleDiscountFor(deps, {
     discount: { kind: "AMOUNT", value: saleDiscount },
   });
+  if (preview.kind === "discount_exceeds_sale") {
+    return "discount_exceeds_sale";
+  }
   return preview.kind === "preview" ? preview.total : null;
 }
 
 export async function cashChargeAmountsFor(
   deps: CashChargeAmountsDeps,
   request: CashChargeAmountsRequest,
-): Promise<CashChargeAmounts | null> {
+): Promise<CashChargeAmountsAnswer | null> {
   const amountDue = await amountDueOf(deps, request);
   if (amountDue === null) {
     return null;
   }
+  if (amountDue === "discount_exceeds_sale") {
+    return { kind: "discount_exceeds_sale" };
+  }
   const amountToCharge = amountToChargeInCash(amountDue);
   return {
+    kind: "amounts",
     amount_to_charge: amountToCharge,
     cash_rounding: amountDue - amountToCharge,
     quick_amounts: quickCashAmounts(amountDue),

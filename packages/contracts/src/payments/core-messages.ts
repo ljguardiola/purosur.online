@@ -8,7 +8,7 @@ import {
   requestIdSchema,
   restorationInProgressOutcomeSchema,
 } from "../shared/index.js";
-import { cashChargeAmountsSchema } from "./cash-charge-amounts.js";
+import { cashChargeAmountsAnswerSchema } from "./cash-charge-amounts.js";
 import { paymentMethodAvailabilitySchema } from "./payment-method-availability.js";
 
 const startMercadoPagoChargeFields = {
@@ -217,7 +217,7 @@ export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   z.object({
     type: z.literal("cash-charge-amounts-result"),
     request_id: requestIdSchema,
-    amounts: cashChargeAmountsSchema.nullable(),
+    amounts: cashChargeAmountsAnswerSchema.nullable(),
   }),
   z.object({
     type: z.literal("payment-method-availability-result"),

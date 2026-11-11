@@ -2,7 +2,7 @@ import type {
   AbandonMercadoPagoChargeOutcome,
   AnswerReceiptQuestionOutcome,
   Authorization,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -29,9 +29,10 @@ import {
   OptionCardGroup,
   plural,
   ScreenHeader,
+  SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Info, TriangleAlert } from "lucide-react";
+import { Info, ScanBarcode, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MercadoPagoChargeKind } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -115,7 +116,10 @@ export type ChargeScreenProps = {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
-  cashChargeAmounts: (saleId: string, saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+  cashChargeAmounts: (
+    saleId: string,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount: (
     saleId: string,
@@ -310,7 +314,17 @@ export function ChargeScreen({
           />
         ) : null}
         {sale !== undefined && step.name === "cash" ? (
-          <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
+          <>
+            <SearchField
+              label="Producto"
+              disabled
+              placeholder="Escaneá o escribí el nombre"
+              icon={<ScanBarcode />}
+              value=""
+              onChange={() => {}}
+            />
+            <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
+          </>
         ) : null}
         {sale === undefined || step.name === "cash" ? null : (
           <>

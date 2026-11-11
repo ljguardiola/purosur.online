@@ -12,7 +12,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -354,7 +354,7 @@ export interface CoreClient {
   readSerialDevices(): Promise<ReadSerialDevicesOutcome>;
   registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
   cashCharge(saleId: string, tendered: number, saleDiscount?: number): Promise<CashChargeAnswer>;
-  cashChargeAmounts(saleId: string, saleDiscount?: number): Promise<CashChargeAmounts | null>;
+  cashChargeAmounts(saleId: string, saleDiscount?: number): Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount(
     saleId: string,

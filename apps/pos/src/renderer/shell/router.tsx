@@ -10,7 +10,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -214,7 +214,10 @@ export interface RouterContext {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
-  cashChargeAmounts: (saleId: string, saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+  cashChargeAmounts: (
+    saleId: string,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount: (
     saleId: string,

@@ -10,7 +10,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -154,7 +154,7 @@ export interface RendererRequestDeps {
     | undefined;
   paymentMethodAvailability: (() => Promise<PaymentMethodAvailability | null>) | undefined;
   cashChargeAmounts:
-    | ((request: CashChargeAmountsRequest) => Promise<CashChargeAmounts | null>)
+    | ((request: CashChargeAmountsRequest) => Promise<CashChargeAmountsAnswer | null>)
     | undefined;
   abandonMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
@@ -624,7 +624,7 @@ async function readPaymentMethodAvailability(
 async function readCashChargeAmounts(
   deps: RendererRequestDeps,
   request: CashChargeAmountsRequest,
-): Promise<CashChargeAmounts | null> {
+): Promise<CashChargeAmountsAnswer | null> {
   try {
     return (await deps.cashChargeAmounts?.(request)) ?? null;
   } catch (error) {

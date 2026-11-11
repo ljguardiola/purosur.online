@@ -1,6 +1,6 @@
 import type {
   Authorization,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ChargeSaleInCashOutcome,
   ChargeSaleInCashWithChangeDiscountOutcome,
@@ -68,7 +68,7 @@ export type CashChargePanelProps = {
   appliedDiscountAmount: number | null;
   authorizationRequired: boolean;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
-  readAmounts: (saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+  readAmounts: (saleDiscount?: number) => Promise<CashChargeAmountsAnswer | null>;
   readCharge: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeWithDiscount: (
@@ -198,13 +198,15 @@ export function CashChargePanel({
     saleDiscount: typedDiscount,
     read: readAmounts,
   });
-  const ofSale = saleAmounts.status === "loaded" ? saleAmounts.value : undefined;
+  const ofSaleAnswer = saleAmounts.status === "loaded" ? saleAmounts.value : undefined;
+  const ofSale = ofSaleAnswer?.kind === "amounts" ? ofSaleAnswer : undefined;
   const quickAmounts = ofSale?.quick_amounts ?? [];
   const suggestedDiscount = ofSale?.change_discount_option ?? undefined;
   const amounts =
     amountsWithDiscount.status === "loaded" && !amountsWithDiscount.refreshing
       ? amountsWithDiscount.value
       : undefined;
+  const settled = amounts?.kind === "amounts" ? amounts : undefined;
   const amountsFailure =
     saleAmounts.status === "failed"
       ? saleAmounts
@@ -217,18 +219,17 @@ export function CashChargePanel({
       ? undefined
       : loaded.value;
   const saleUnavailable =
-    ofSale === null ||
+    ofSaleAnswer === null ||
     (loaded !== undefined && (answered === undefined || answered.kind === "sale_has_payments"));
   const discountExceedsSale =
     typedDiscount !== undefined &&
     (discountRefused ||
       answered?.kind === "discount_exceeds_sale" ||
-      (amounts === null && ofSale !== undefined && ofSale !== null));
+      amounts?.kind === "discount_exceeds_sale");
   const answeredMessage =
     tendered !== undefined && answered?.kind === "invalid_amount"
       ? INVALID_AMOUNT_MESSAGE
       : undefined;
-  const settled = amounts === null ? undefined : amounts;
   const covered =
     tendered !== undefined &&
     !discountInvalid &&

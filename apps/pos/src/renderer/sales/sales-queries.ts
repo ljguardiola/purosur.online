@@ -1,7 +1,7 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
   AnswerReceiptQuestionOutcome,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
@@ -348,11 +348,16 @@ export function useCashChargeAmountsQuery({
   saleId: string;
   pending: number;
   saleDiscount?: number | undefined;
-  read: (saleDiscount?: number) => Promise<CashChargeAmounts | null>;
-}): CoreData<CashChargeAmounts | null> {
+  read: (saleDiscount?: number) => Promise<CashChargeAmountsAnswer | null>;
+}): CoreData<CashChargeAmountsAnswer | null> {
   return useCoreQuery({
     queryKey: salesKeys.cashChargeAmounts(saleId, pending, saleDiscount),
-    read: () => (saleDiscount === undefined ? read() : read(saleDiscount)),
+    read: async () => {
+      if (saleDiscount === undefined) {
+        return read();
+      }
+      return (await read(saleDiscount)) ?? "unavailable";
+    },
   });
 }
 
