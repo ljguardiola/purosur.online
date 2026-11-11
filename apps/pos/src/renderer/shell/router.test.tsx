@@ -2225,6 +2225,12 @@ describe("the register's router", () => {
           change: 0,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return {
@@ -2242,11 +2248,8 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2380,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
@@ -2299,6 +2302,12 @@ describe("the register's router", () => {
           change: 0,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
         refreshCashSession: refreshed,
       },
@@ -2307,11 +2316,8 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2380,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
     await expect.poll(() => refreshed.mock.calls.length).toBe(1);
   });

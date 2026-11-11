@@ -12,8 +12,10 @@ describe("ChargeScreen · chosen method", () => {
   it("opens the cash charge straight away when cash was chosen", async () => {
     const { screen } = await renderScreen({ method: "CASH" });
 
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
-    await expect.element(screen.getByRole("dialog").getByText("Total de la venta")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("opens the QR charge when the QR was chosen", async () => {
