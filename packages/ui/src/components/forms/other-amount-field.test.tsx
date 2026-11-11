@@ -41,6 +41,13 @@ test("is a text field named by its label, with its placeholder and key shown", a
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("is disabled with its prefix dimmed and still passes the accessibility checks", async () => {
+  const screen = await render(field({ disabled: true }));
+
+  await expect.element(screen.getByRole("textbox", { name: "Otro descuento" })).toBeDisabled();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("shows its prefix before the input and its key after it", async () => {
   const screen = await render(<div style={{ width: 170 }}>{field()}</div>);
 
