@@ -1338,6 +1338,7 @@ const reEnrollRoute = createRoute({
         checkCode={checkEnrollmentCode}
         enroll={enroll}
         onBack={() => void navigate({ to: routeFor(context) })}
+        version={useRegisterVersion()}
       />
     );
   },
