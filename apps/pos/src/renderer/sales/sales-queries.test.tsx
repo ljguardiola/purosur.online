@@ -1,4 +1,5 @@
 import type {
+  CashChargeAmounts,
   CashChargeAnswer,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
@@ -21,6 +22,7 @@ import type { SalesHistoryQuery } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import {
   useAdjustmentPreviewQuery,
+  useCashChargeAmountsQuery,
   useCashChargeQuery,
   useCurrentSaleQuery,
   usePaymentMethodAvailabilityQuery,
@@ -365,6 +367,98 @@ describe("product search", () => {
     await userEvent.click(screen.getByRole("button", { name: "search" }));
 
     await expect.poll(() => document.title).toBe("unavailable");
+  });
+});
+
+const AMOUNTS: CashChargeAmounts = {
+  amount_to_charge: 2_510_000,
+  cash_rounding: 9_250,
+  quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
+  change_discount_option: 10_000,
+};
+
+function CashChargeAmountsProbe({
+  read,
+  saleId = "sale-1",
+  pending = 2_519_250,
+  saleDiscount,
+}: {
+  read: (saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+  saleId?: string;
+  pending?: number;
+  saleDiscount?: number;
+}) {
+  const amounts = useCashChargeAmountsQuery({ saleId, pending, saleDiscount, read });
+  return <p>{amounts.status === "loaded" ? JSON.stringify(amounts.value) : amounts.status}</p>;
+}
+
+describe("cash charge amounts query", () => {
+  it.each<[string, CashChargeAmounts | null]>([
+    ["the amounts to charge", AMOUNTS],
+    ["no sale in progress", null],
+  ])("holds %s as an answer, not a failure", async (_name, answer) => {
+    const screen = await renderWithClient(<CashChargeAmountsProbe read={async () => answer} />);
+
+    await expect.element(screen.getByText(JSON.stringify(answer))).toBeVisible();
+  });
+
+  it("asks the core for the sale without a discount", async () => {
+    const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmounts | null>>(
+      async () => null,
+    );
+    const screen = await renderWithClient(<CashChargeAmountsProbe read={read} />);
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("asks the core with the discount on the total being typed", async () => {
+    const read = vi.fn<(saleDiscount?: number) => Promise<CashChargeAmounts | null>>(
+      async () => null,
+    );
+    const screen = await renderWithClient(
+      <CashChargeAmountsProbe read={read} saleDiscount={10_000} />,
+    );
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith(10_000);
+  });
+
+  it.each<[string, string, number, number | undefined]>([
+    ["another sale", "sale-2", 2_519_250, undefined],
+    ["another pending balance of the sale", "sale-1", 2_000_000, undefined],
+    ["a discount on the total being typed", "sale-1", 2_519_250, 10_000],
+  ])("never shows the answer given for %s", async (_what, saleId, pending, saleDiscount) => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <CashChargeAmountsProbe read={async () => AMOUNTS} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText(JSON.stringify(AMOUNTS))).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <CashChargeAmountsProbe
+          read={() => new Promise(() => {})}
+          saleId={saleId}
+          pending={pending}
+          {...(saleDiscount === undefined ? {} : { saleDiscount })}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderWithClient(
+      <CashChargeAmountsProbe
+        read={() => Promise.reject(new Error("the connection was replaced"))}
+      />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
   });
 });
 

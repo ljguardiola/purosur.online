@@ -259,6 +259,7 @@ function contextWith(
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     currentSale: async () => null,
     cashCharge: async () => ({ kind: "invalid_amount" }),
+    cashChargeAmounts: async () => null,
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     chargeSaleInCashWithChangeDiscount: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),

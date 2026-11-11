@@ -113,6 +113,7 @@ function coreAnswering(
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
     cashCharge?: CoreClient["cashCharge"];
+    cashChargeAmounts?: CoreClient["cashChargeAmounts"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     chargeSaleOnStandaloneTerminal?: CoreClient["chargeSaleOnStandaloneTerminal"];
@@ -420,6 +421,11 @@ function coreAnswering(
       return sales.cashCharge === undefined
         ? { kind: "invalid_amount" }
         : sales.cashCharge(saleId, tendered);
+    },
+    async cashChargeAmounts(saleId, saleDiscount) {
+      return sales.cashChargeAmounts === undefined
+        ? null
+        : sales.cashChargeAmounts(saleId, saleDiscount);
     },
     async chargeSaleInCash(saleId, tendered) {
       return sales.chargeSaleInCash === undefined
