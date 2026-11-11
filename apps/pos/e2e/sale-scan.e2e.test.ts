@@ -137,7 +137,10 @@ describe("scanning products into a sale on the register", () => {
 
     await scanField.fill("0000000000000");
     await scanField.press("Enter");
-    await page.getByText("No hay ningún producto con ese código").waitFor();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "No hay ningún producto con ese código" })
+      .waitFor();
     expect(await scanField.inputValue()).toBe("0000000000000");
 
     await scanField.fill(ALFAJOR_CODE);
@@ -171,8 +174,6 @@ describe("scanning products into a sale on the register", () => {
     const { page } = register;
 
     await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
-    await page.getByRole("heading", { name: "Elegí el medio de pago" }).waitFor();
-    await page.getByText("Efectivo", { exact: true }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("7.000,00");
     await page.getByText("VUELTO A ENTREGAR").waitFor();
     await page.getByText("Redondeo", { exact: true }).waitFor();
@@ -199,7 +200,6 @@ describe("scanning products into a sale on the register", () => {
       .waitFor();
 
     await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
-    await page.getByText("Efectivo", { exact: true }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("1.000,00");
     await page.getByRole("button", { name: "Registrar pago parcial" }).click();
 
