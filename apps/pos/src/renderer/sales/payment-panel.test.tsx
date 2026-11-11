@@ -58,6 +58,21 @@ describe("PaymentPanel", () => {
       expect(bottom("Otros medios")).toBeGreaterThan(bottom("QR"));
     });
 
+    it("draws the cash icon to the left of Cobrar en efectivo", async () => {
+      const screen = await renderPanel();
+
+      const button = screen.getByRole("button", { name: "Cobrar en efectivo" }).element();
+      const label = Array.from(button.querySelectorAll("span")).find(
+        (span) => span.textContent?.trim() === "Cobrar en efectivo",
+      );
+      const icon = button.querySelector("svg");
+      expect(label).toBeDefined();
+      expect(icon).not.toBeNull();
+      expect(icon?.getBoundingClientRect().right).toBeLessThanOrEqual(
+        label?.getBoundingClientRect().left ?? 0,
+      );
+    });
+
     it("keeps Cancelar venta above the ways to charge as well", async () => {
       const screen = await renderPanel({ hasApprovedPayment: true });
 
