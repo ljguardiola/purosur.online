@@ -191,7 +191,7 @@ function coreAnswering(
     },
     async signInUsers() {
       usersLoads += 1;
-      return [{ id: "u1", first_name: "Ada" }];
+      return { users: [{ id: "u1", first_name: "Ada" }], last_active_user_id: null };
     },
     async lockedClosers() {
       return cashDrawer.lockedClosers === undefined ? [] : cashDrawer.lockedClosers();

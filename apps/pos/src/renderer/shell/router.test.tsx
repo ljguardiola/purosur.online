@@ -246,7 +246,10 @@ function contextWith(
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
     registerVersion: async () => null,
-    signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
+    signInUsers: async () => ({
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: null,
+    }),
     authorizers: async () => [{ id: "u2", first_name: "Grace" }],
     lockedClosers: async () => [],
     signIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
