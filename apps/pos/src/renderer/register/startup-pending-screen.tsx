@@ -12,7 +12,6 @@ import type {
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { TableLoadingState } from "@purosur/ui";
 import {
-  actionsColumn,
   dataColumn,
   formatCents,
   formatClockTime,
@@ -22,9 +21,10 @@ import {
   Toast,
   useTableModel,
 } from "@purosur/ui";
-import { CheckCheck, Printer, ShoppingCart, TriangleAlert, Undo2 } from "lucide-react";
+import { CheckCheck, Printer, TriangleAlert, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import type { LegendItem } from "../platform/key-layer";
 import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -206,13 +206,6 @@ function pendingItemsOf(pending: StartupPendingAnswer): PendingItem[] {
   return [...paidOrders, ...others, ...unchecked];
 }
 
-function printLabel(sale: SaleToPrint): string {
-  const time = formatClockTime(sale.completed_at);
-  return sale.standing === "never_printed"
-    ? `Imprimir el ticket de la venta de las ${time}`
-    : `Reimprimir como duplicado la venta de las ${time}`;
-}
-
 function itemState(
   item: PendingItem,
   printingSaleIds: ReadonlySet<string>,
@@ -250,18 +243,18 @@ function loadingOf(data: Exclude<CoreData<unknown>, { status: "failed" }>): Tabl
 
 function PendingTable({
   data,
+  items,
   printingSaleIds,
-  onPrint,
-  onRebuild,
-  onGoToSale,
-  onRefund,
+  selectedId,
+  legend,
+  onSelect,
 }: {
   data: CoreData<StartupPendingAnswer>;
+  items: readonly PendingItem[];
   printingSaleIds: ReadonlySet<string>;
-  onPrint: (sale: SaleToPrint) => void;
-  onRebuild: (order: PaidOrder) => void;
-  onGoToSale: () => void;
-  onRefund: (order: PaidOrder) => void;
+  selectedId: string | undefined;
+  legend: readonly LegendItem[];
+  onSelect: (item: PendingItem) => void;
 }) {
   const columns = [
     dataColumn({
@@ -281,53 +274,15 @@ function PendingTable({
           data.status === "loaded" && data.value !== "not_permitted" && data.value.selling_blocked,
         ),
     }),
-    actionsColumn({
-      id: "actions",
-      header: "Acción",
-      actions: [
-        (item: PendingItem) => {
-          const { sale } = item;
-          return sale === undefined
-            ? undefined
-            : { icon: <Printer />, "aria-label": printLabel(sale), onPress: () => onPrint(sale) };
-        },
-        ({ paidOrder }: PendingItem) => {
-          if (paidOrder === undefined) {
-            return undefined;
-          }
-          const time = formatClockTime(paidOrder.created_at);
-          return paidOrder.rebuilt_sale_id === null
-            ? {
-                icon: <ShoppingCart />,
-                "aria-label": `Armar la venta con el cobro de las ${time}`,
-                onPress: () => onRebuild(paidOrder),
-              }
-            : {
-                icon: <ShoppingCart />,
-                "aria-label": `Volver a la venta armada con el cobro de las ${time}`,
-                onPress: onGoToSale,
-              };
-        },
-        ({ paidOrder }: PendingItem) =>
-          paidOrder === undefined
-            ? undefined
-            : {
-                icon: <Undo2 />,
-                "aria-label": `Pasar a reembolso el cobro de las ${formatClockTime(paidOrder.created_at)}`,
-                onPress: () => onRefund(paidOrder),
-              },
-      ],
-    }),
   ] as const;
-  const table = useTableModel({
-    items: data.status === "loaded" ? pendingItemsOf(data.value) : [],
-    id: (item) => item.id,
-    columns,
-  });
+  const table = useTableModel({ items, id: (item) => item.id, columns });
   return (
     <Table
       aria-label="Pendientes"
       table={table}
+      legend={legend}
+      rowState={(item) => (item.id === selectedId ? "selected" : undefined)}
+      onRowPress={onSelect}
       {...(data.status === "failed"
         ? {
             failure: {
@@ -370,6 +325,8 @@ export function StartupPendingScreen({
   const [refundOf, setRefundOf] = useState<PaidOrder>();
   const [refunded, setRefunded] = useState(false);
   const rebuilding = useRef(false);
+  const [rebuildingSale, setRebuildingSale] = useState(false);
+  const [selectedId, setSelectedId] = useState<string>();
   const [sent, setSent] = useState<ReceiptCopyShown>();
   const [problem, setProblem] = useState<{ title: string; description: string }>();
 
@@ -415,11 +372,13 @@ export function StartupPendingScreen({
       return;
     }
     rebuilding.current = true;
+    setRebuildingSale(true);
     setProblem(undefined);
     const outcome = await rebuildSaleAgainstPaidOrder(order.payment_transaction_id).catch(
       (): RebuildSaleAgainstPaidOrderOutcome => ({ kind: "unavailable" }),
     );
     rebuilding.current = false;
+    setRebuildingSale(false);
     switch (outcome.kind) {
       case "rebuilt":
       case "already_open":
@@ -466,11 +425,68 @@ export function StartupPendingScreen({
     !pending.value.may_go_selling
       ? pending.value
       : undefined;
-  useKeys([
+  const items = pending.status === "loaded" ? pendingItemsOf(pending.value) : [];
+  const selected = items.find(({ id }) => id === selectedId) ?? items[0];
+  const selectedPaidOrder = selected?.paidOrder;
+  const selectedSale = selected?.sale;
+  const screenFree = refundOf === undefined && duplicateOf === undefined && !rebuildingSale;
+
+  function moveSelection(pressed: string) {
+    const index = items.findIndex(({ id }) => id === selected?.id);
+    const next = Math.min(
+      items.length - 1,
+      Math.max(0, index + (pressed === "ArrowDown" ? 1 : -1)),
+    );
+    setSelectedId(items[next]?.id);
+  }
+
+  const legend = useKeys([
     {
       key: "Enter",
       run: onGoSelling,
-      enabled: keptFromSelling === undefined && refundOf === undefined,
+      enabled: keptFromSelling === undefined && screenFree,
+    },
+    {
+      key: "ArrowUpDown",
+      label: "Pendientes",
+      run: moveSelection,
+      enabled: screenFree && items.length > 0,
+    },
+    {
+      key: "A",
+      label:
+        selectedPaidOrder?.rebuilt_sale_id === null ? "Armar la venta" : "Volver a la venta armada",
+      run: () => {
+        if (selectedPaidOrder?.rebuilt_sale_id === null) {
+          void rebuild(selectedPaidOrder);
+        } else {
+          onGoToSale();
+        }
+      },
+      enabled: screenFree && selectedPaidOrder !== undefined,
+    },
+    {
+      key: "R",
+      label: pending.status === "failed" ? "Reintentar" : "Pasar a reembolso",
+      run: () => {
+        if (pending.status === "failed") {
+          pending.retry();
+        } else {
+          setRefundOf(selectedPaidOrder);
+        }
+      },
+      enabled: screenFree && (pending.status === "failed" || selectedPaidOrder !== undefined),
+    },
+    {
+      key: "P",
+      label: "Imprimir",
+      run: () => {
+        if (selectedSale !== undefined) {
+          print(selectedSale);
+        }
+      },
+      enabled:
+        screenFree && selectedSale !== undefined && !printingSaleIds.has(selectedSale.sale_id),
     },
   ]);
 
@@ -495,11 +511,11 @@ export function StartupPendingScreen({
         {clockGuard}
         <PendingTable
           data={pending}
+          items={items}
           printingSaleIds={printingSaleIds}
-          onPrint={print}
-          onRebuild={(order) => void rebuild(order)}
-          onGoToSale={onGoToSale}
-          onRefund={setRefundOf}
+          selectedId={selected?.id}
+          legend={legend}
+          onSelect={(item) => setSelectedId(item.id)}
         />
         <div className="absolute bottom-20 left-8 flex flex-col gap-2">
           {refunded ? (
