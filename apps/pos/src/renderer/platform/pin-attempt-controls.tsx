@@ -26,6 +26,7 @@ export function PinAttemptControls({
         value={attempt.pin}
         onChange={attempt.type}
         autoFocus
+        errorRingWhileFocused
         disabled={attempt.submitting || disabled}
         {...(attempt.pinRefused ? { errorMessageId: noticeId } : {})}
       />
