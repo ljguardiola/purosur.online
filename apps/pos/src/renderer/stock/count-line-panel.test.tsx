@@ -44,15 +44,17 @@ async function renderPanel({
   const onSessionInvalid = vi.fn();
   const onClose = vi.fn();
   const screen = await render(
-    <CountLinePanel
-      product={product}
-      recordLine={recording}
-      weigh={weighing}
-      onRecorded={onRecorded}
-      onNotOffered={onNotOffered}
-      onSessionInvalid={onSessionInvalid}
-      onClose={onClose}
-    />,
+    <div style={{ height: 700, display: "flex", justifyContent: "flex-end" }}>
+      <CountLinePanel
+        product={product}
+        recordLine={recording}
+        weigh={weighing}
+        onRecorded={onRecorded}
+        onNotOffered={onNotOffered}
+        onSessionInvalid={onSessionInvalid}
+        onClose={onClose}
+      />
+    </div>,
   );
   return { screen, recording, weighing, onRecorded, onNotOffered, onSessionInvalid, onClose };
 }
@@ -86,39 +88,146 @@ function confirm(screen: Rendered["screen"]) {
 }
 
 describe("CountLinePanel", () => {
-  it("titles the window with the product sold by weight and offers the scale or typing", async () => {
-    const { screen } = await renderPanel();
+  it("titles the panel with the product sold by weight, with the scale icon, and offers the scale or typing", async () => {
+    const { screen } = await renderPanel({
+      weigh: async () => ({ kind: "weighed", weight_thousandths: 4400 }),
+    });
 
-    await expect.element(screen.getByRole("dialog", { name: "Queso cremoso" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { level: 2, name: "Queso cremoso" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Queso cremoso" }))
+      .toBeVisible();
     await expect.element(screen.getByText("Producto por peso")).toBeVisible();
-    await expect
-      .element(screen.getByText("Podés pesarlo en la balanza o escribir el peso."))
-      .toBeVisible();
+    await expect.element(screen.getByText("Balanza", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("group", { name: /^Vencimiento/ })).toBeVisible();
-    await expect
-      .element(
-        screen.getByText(
-          "Si el mismo producto tiene otro vencimiento, se carga como una línea aparte.",
-        ),
-      )
-      .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
       .toHaveAttribute("inputmode", "decimal");
   });
 
-  it("titles the window with the product sold by unit and gives no scale help", async () => {
+  it("writes no help under the fields", async () => {
+    const { screen } = await renderPanel();
+
+    await expect
+      .element(screen.getByText("Podés pesarlo en la balanza o escribir el peso."))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Si el mismo producto tiene otro vencimiento", { exact: false }))
+      .not.toBeInTheDocument();
+  });
+
+  it("titles the panel with the product sold by unit and gives no scale help", async () => {
     const { screen, weighing } = await renderPanel({ product: YERBA });
 
     await expect.element(screen.getByText("Producto por unidad")).toBeVisible();
+    await expect.element(screen.getByText("Balanza", { exact: true })).not.toBeInTheDocument();
     await expect
-      .element(screen.getByText("Podés pesarlo en la balanza o escribir el peso."))
+      .element(screen.getByRole("button", { name: "Escribir peso" }))
       .not.toBeInTheDocument();
     expect(weighing).not.toHaveBeenCalled();
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
       .toHaveAttribute("inputmode", "numeric");
+  });
+
+  it("shows the 0-9 keycap beside the quantity of a product sold by unit, with the suffix u", async () => {
+    const { screen } = await renderPanel({ product: YERBA });
+
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" }).element();
+    const wrapper = field.parentElement?.parentElement as HTMLElement;
+    expect(wrapper.querySelector("kbd")?.textContent).toBe("0-9");
+    expect(field.parentElement?.textContent).toBe("u");
+  });
+
+  it("shows no 0-9 keycap on the weight, with the suffix kg", async () => {
+    const { screen } = await renderPanel();
+
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" }).element();
+    const wrapper = field.parentElement?.parentElement as HTMLElement;
+    expect(wrapper.querySelector("kbd")).toBeNull();
+    expect(field.parentElement?.textContent).toBe("kg");
+  });
+
+  it("shows no letter keycap at the expiry", async () => {
+    const { screen } = await renderPanel();
+
+    const expiry = screen.getByRole("group", { name: /^Vencimiento/ }).element();
+    expect(expiry.closest("div")?.parentElement?.querySelector("kbd")).toBeNull();
+  });
+
+  it("shows the Esc keycap and Cancelar at the top right, and cancels from either", async () => {
+    const { screen, onClose, recording } = await renderPanel({ product: YERBA });
+
+    const cancel = screen.getByRole("button", { name: "Cancelar" });
+    expect(cancel.element().querySelector("kbd")?.textContent).toBe("Esc");
+    await userEvent.click(cancel);
+    await userEvent.keyboard("{Escape}");
+
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(recording).not.toHaveBeenCalled();
+  });
+
+  it("offers Confirmar línea with the Enter keycap, and records with Enter typed in the quantity", async () => {
+    const { screen, recording } = await renderPanel({ product: YERBA });
+    const confirmButton = screen.getByRole("button", { name: "Confirmar línea" }).element();
+    expect(confirmButton.querySelector("kbd")?.textContent).toBe("Enter");
+
+    await typeCounted(screen, "24");
+    await userEvent.keyboard("{Enter}");
+
+    expect(recording).toHaveBeenCalledWith(YERBA.product_id, 24_000, null);
+  });
+
+  it("records with Enter typed in the expiry", async () => {
+    const { screen, recording } = await renderPanel({ product: YERBA });
+    await typeCounted(screen, "24");
+
+    await typeExpiry(screen, "15032027");
+    await userEvent.keyboard("{Enter}");
+
+    expect(recording).toHaveBeenCalledWith(YERBA.product_id, 24_000, "2027-03-15");
+  });
+
+  it("focuses the quantity when it opens", async () => {
+    const { screen } = await renderPanel({ product: YERBA });
+
+    await expect.element(screen.getByRole("textbox", { name: "Cantidad contada" })).toHaveFocus();
+  });
+
+  it("offers to type the weight with F5 while following the scale, and stops following it", async () => {
+    const { screen } = await renderPanel({
+      weigh: async () => ({ kind: "weighed", weight_thousandths: 1000 }),
+    });
+    const write = screen.getByRole("button", { name: "Escribir peso" });
+    expect(write.element().querySelector("kbd")?.textContent).toBe("F5");
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    await expect.element(field).toHaveValue("1,000");
+
+    await userEvent.keyboard("{F5}");
+
+    await expect.element(write).not.toBeInTheDocument();
+    await expect.element(field).toHaveFocus();
+    await expect.element(screen.getByText("Lectura estable")).not.toBeInTheDocument();
+  });
+
+  it("stops following the scale and selects the weight when Escribir peso is pressed", async () => {
+    const { screen } = await renderPanel({
+      weigh: async () => ({ kind: "weighed", weight_thousandths: 1000 }),
+    });
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    await expect.element(field).toHaveValue("1,000");
+
+    await userEvent.click(screen.getByRole("button", { name: "Escribir peso" }));
+
+    await expect.element(field).toHaveFocus();
+    await expect
+      .element(screen.getByRole("button", { name: "Escribir peso" }))
+      .not.toBeInTheDocument();
+    await userEvent.keyboard("2");
+    await expect.element(field).toHaveValue("2");
   });
 
   it("fills the weight with the stable reading of the scale", async () => {
