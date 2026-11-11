@@ -1,7 +1,7 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import type { CoreData } from "../platform/use-core-query";
-import { renderScreen } from "./test-support/sale-screen";
+import { renderScreen, SALE_OF_YERBA } from "./test-support/sale-screen";
 
 const BATTERY_CRITICAL_TITLE = "No se pueden abrir ventas nuevas: queda poca batería";
 const BATTERY_CRITICAL_MEANING =
@@ -36,6 +36,30 @@ describe("SaleScreen while the battery is critical", () => {
 
     await expect.element(screen.getByText(BATTERY_CRITICAL_TITLE)).toBeVisible();
     await expect.element(screen.getByText(BATTERY_CRITICAL_MEANING)).toBeVisible();
+  });
+
+  it("places the notice between the search field and the lines", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA,
+      registerStatus: statusHolding([
+        {
+          kind: "sales_denied",
+          reason: "battery_critical",
+          level: "critical",
+          since: "2026-10-29T09:30:00.000-03:00",
+        },
+      ]),
+    });
+
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    const notice = screen.getByText(BATTERY_CRITICAL_TITLE).element().getBoundingClientRect();
+    const field = screen
+      .getByRole("combobox", { name: "Producto" })
+      .element()
+      .getBoundingClientRect();
+    const lines = screen.getByText("Yerba mate 1 kg").element().getBoundingClientRect();
+    expect(notice.top).toBeGreaterThanOrEqual(field.bottom);
+    expect(notice.bottom).toBeLessThanOrEqual(lines.top);
   });
 
   it("shows nothing of the battery while the register holds no condition", async () => {
