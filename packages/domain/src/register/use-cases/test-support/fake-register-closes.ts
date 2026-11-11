@@ -20,7 +20,7 @@ export class FakeRegisterCloses implements RegisterCloses {
     return this.identity;
   }
 
-  latestCloses(): CashCountAtClose[] {
+  latestCloseOfEachRegister(): CashCountAtClose[] {
     return this.closes.map((close) => ({ ...close }));
   }
 }

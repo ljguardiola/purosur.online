@@ -68,29 +68,4 @@ describe("suggestOpeningFloat", () => {
       countedCash: 14_400_000,
     });
   });
-
-  it("takes the latest of the register's closes", () => {
-    const closes = new FakeRegisterCloses({
-      identity: IDENTITY,
-      closes: [
-        {
-          registerId: "register-1",
-          closedAt: new Date("2026-11-03T23:00:00.000Z"),
-          countedCash: 1_000_000,
-        },
-        { registerId: "register-1", closedAt: CLOSED_AT, countedCash: 14_400_000 },
-        {
-          registerId: "register-1",
-          closedAt: new Date("2026-11-02T23:00:00.000Z"),
-          countedCash: 2_000_000,
-        },
-      ],
-    });
-
-    expect(suggestOpeningFloat({ closes })).toEqual({
-      kind: "previous_close",
-      closedAt: CLOSED_AT,
-      countedCash: 14_400_000,
-    });
-  });
 });
