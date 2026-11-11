@@ -51,14 +51,14 @@ export function PinDotsField({
   }
 
   return (
-    <div className={`flex flex-col gap-1.5 ${disabled ? "opacity-disabled" : ""}`}>
+    <div className="flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <span id={labelId} className={fieldLabelClassName.register}>
           {label}
         </span>
         <Keycap keyName="Digits" />
       </div>
-      <div className={boxClassName(invalid)}>
+      <div className={`${boxClassName(invalid)} ${disabled ? "opacity-disabled" : ""}`}>
         {dots}
         <input
           ref={mergeRefs(inputRef, ref)}
