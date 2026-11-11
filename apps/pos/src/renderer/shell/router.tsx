@@ -1163,16 +1163,8 @@ const signInRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
-    const registerName = useRegisterName();
     const version = useRegisterVersion();
-    return (
-      <SignInScreen
-        loadUsers={signInUsers}
-        signIn={signIn}
-        registerName={registerName}
-        version={version}
-      />
-    );
+    return <SignInScreen loadUsers={signInUsers} signIn={signIn} version={version} />;
   },
 });
 

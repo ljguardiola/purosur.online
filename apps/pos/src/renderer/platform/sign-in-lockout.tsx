@@ -2,16 +2,14 @@ import { Button, InlineNotice } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, KeyRound } from "lucide-react";
 
-export function SignInLockout({
-  consecutiveFailures,
-  backLabel,
-  onBack,
-}: {
-  consecutiveFailures: number;
-  backLabel: string;
-  onBack: () => void;
-}) {
+type SignInLockoutProps = { consecutiveFailures: number } & (
+  | { backLabel: string; onBack: () => void }
+  | { backLabel?: undefined; onBack?: undefined }
+);
+
+export function SignInLockout({ consecutiveFailures, backLabel, onBack }: SignInLockoutProps) {
   const navigate = useNavigate();
+  const keyboardOnly = onBack === undefined;
 
   return (
     <>
@@ -27,15 +25,19 @@ export function SignInLockout({
       <Button
         fullWidth
         icon={<KeyRound />}
+        iconPosition={keyboardOnly ? "start" : "end"}
+        {...(keyboardOnly ? { keycap: "F3" as const } : {})}
         onPress={() => navigate({ to: "/pin-code-redemption" })}
       >
         Tengo un código
       </Button>
-      <div className="self-start">
-        <Button variant="text" icon={<ArrowLeft />} onPress={onBack}>
-          {backLabel}
-        </Button>
-      </div>
+      {keyboardOnly ? null : (
+        <div className="self-start">
+          <Button variant="text" icon={<ArrowLeft />} onPress={onBack}>
+            {backLabel}
+          </Button>
+        </div>
+      )}
     </>
   );
 }
