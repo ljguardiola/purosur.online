@@ -197,7 +197,17 @@ describe("readSaleHistoryDetail", () => {
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
   });
 
-  it("says a voided sale's receipt is not printed", () => {
+  it("says a voided sale's receipt is reprinted once its original was attempted", () => {
+    const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
+    const ledger = new FakeReceiptLedger({
+      sales: [voidedSale({ printAttemptedAt: FIRST_PRINT_AT })],
+    });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
+  });
+
+  it("says a voided sale's receipt is not printed when its original was never attempted", () => {
     const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
     const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
     const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
