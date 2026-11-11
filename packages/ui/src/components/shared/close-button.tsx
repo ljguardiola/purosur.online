@@ -15,14 +15,17 @@ const escapeKeycapButtonClassName =
 export function CloseButton({
   onPress,
   escapeKeycap = false,
+  disabled = false,
 }: {
   onPress: () => void;
   escapeKeycap?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <IconOnlyButton
       name={escapeKeycap ? "Cerrar con Esc" : "Cerrar"}
       onPress={onPress}
+      disabled={disabled}
       className={escapeKeycap ? escapeKeycapButtonClassName : closeButtonClassName}
     >
       {escapeKeycap ? (
