@@ -284,7 +284,6 @@ export async function renderScreen(overrides: Overrides = {}) {
     <ChargeScreen
       sessionId="s1"
       person={overrides.person ?? PERSON}
-      registerName="Caja 1"
       lock={() => {}}
       currentSale={currentSale}
       cashCharge={cashCharge}

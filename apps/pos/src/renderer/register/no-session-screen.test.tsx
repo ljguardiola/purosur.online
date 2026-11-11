@@ -87,7 +87,9 @@ describe("NoSessionScreen", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    await expect.element(screen.getByRole("dialog", { name: "¿Salir de la caja?" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .toBeVisible();
     expect(signOut).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(document.body);
   });
@@ -98,20 +100,22 @@ describe("NoSessionScreen", () => {
 
     await userEvent.click(
       screen
-        .getByRole("dialog", { name: "¿Salir de la caja?" })
+        .getByRole("complementary", { name: "¿Salir de la caja?" })
         .getByRole("button", { name: "Salir" }),
     );
 
     expect(signOut).toHaveBeenCalledOnce();
   });
 
-  it("stays on the screen when leaving is cancelled", async () => {
+  it("stays on the screen when the leaving panel is closed", async () => {
     const { screen, signOut } = await renderScreen();
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+      .not.toBeInTheDocument();
     expect(signOut).not.toHaveBeenCalled();
   });
 

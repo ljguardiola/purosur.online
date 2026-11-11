@@ -79,7 +79,10 @@ describe("signing in to the register", () => {
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
 
     await page.getByRole("button", { name: "Salir" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+    await page
+      .getByRole("complementary", { name: "¿Salir de la caja?" })
+      .getByRole("button", { name: "Salir" })
+      .click();
     await page.getByText("Ana", { exact: true }).waitFor();
     await page.getByText("Bruno", { exact: true }).waitFor({ state: "detached" });
   });
@@ -99,7 +102,10 @@ describe("signing in to the register", () => {
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
 
     await page.getByRole("button", { name: "Salir" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Salir" }).click();
+    await page
+      .getByRole("complementary", { name: "¿Salir de la caja?" })
+      .getByRole("button", { name: "Salir" })
+      .click();
     await page.getByText("Carla", { exact: true }).waitFor();
   });
 });

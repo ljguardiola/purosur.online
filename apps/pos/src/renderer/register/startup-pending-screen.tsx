@@ -104,7 +104,6 @@ export type StartupPendingScreenProps = {
   person: SignedInPerson;
   sessionOwner: SignedInPerson;
   openedAt: string;
-  registerName: string | null;
   lock: () => void;
   loadStartupPending: () => Promise<StartupPendingAnswer>;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
@@ -353,7 +352,6 @@ export function StartupPendingScreen({
   person,
   sessionOwner,
   openedAt,
-  registerName,
   lock,
   loadStartupPending,
   loadCashBalance,
@@ -481,14 +479,7 @@ export function StartupPendingScreen({
   return (
     <RegisterFrame
       background="surface"
-      rail={
-        <OpenSessionRail
-          registerName={registerName}
-          lock={lock}
-          current="sale"
-          abilities={person.abilities}
-        />
-      }
+      rail={<OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />}
       aside={
         <SidePanel
           label="Sesión abierta"

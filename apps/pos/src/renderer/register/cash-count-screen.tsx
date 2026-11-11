@@ -31,7 +31,6 @@ const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", i
 
 export type CashCountScreenProps = {
   sessionId: string;
-  registerName: string | null;
   abilities: readonly RegisterAbility[];
   lock: () => void;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
@@ -41,7 +40,6 @@ export type CashCountScreenProps = {
 
 export function CashCountScreen({
   sessionId,
-  registerName,
   abilities,
   lock,
   loadCashBalance,
@@ -111,14 +109,7 @@ export function CashCountScreen({
     <form className="h-full w-full" noValidate onSubmit={handleSubmit}>
       <RegisterFrame
         background="surface"
-        rail={
-          <OpenSessionRail
-            registerName={registerName}
-            lock={lock}
-            current="cash"
-            abilities={abilities}
-          />
-        }
+        rail={<OpenSessionRail lock={lock} current="cash" abilities={abilities} />}
         aside={
           <ExpectedCashPanel eyebrow="EFECTIVO ESPERADO" balance={balance}>
             <Button
