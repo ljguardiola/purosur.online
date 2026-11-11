@@ -62,10 +62,24 @@ describe("NoSessionScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("shows the balanza card beside the scan field, with no reading", async () => {
+    const { screen } = await renderScreen();
+
+    const field = screen.getByRole("searchbox", { name: "Producto" });
+    const label = screen.getByText("Balanza", { exact: true });
+    await expect.element(label).toBeVisible();
+    expect(label.element().parentElement?.textContent).toBe("Balanza");
+    const fieldBox = field.element().getBoundingClientRect();
+    const cardBox = label.element().getBoundingClientRect();
+    expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+    expect(cardBox.top).toBeLessThan(fieldBox.bottom);
+  });
+
   it("shows what the screen is given to offer in place of the scan field and the locked card", async () => {
     const { screen } = await renderScreen({ offers: <p>Una oferta</p> });
 
     await expect.element(screen.getByText("Una oferta")).toBeVisible();
+    await expect.element(screen.getByText("Balanza", { exact: true })).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("searchbox", { name: "Producto" }))
       .not.toBeInTheDocument();
