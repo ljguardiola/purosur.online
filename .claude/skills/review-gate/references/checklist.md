@@ -162,11 +162,14 @@ how a new one is judged.
   to a screen refused while the core refuses only one action, a person sent
   back to the screen they are leaving, an action left pressable while its
   own request is out, so a second press sends it again, a navigation that
-  changes one part of the location and drops the rest, or a screen-wide key
-  taken ahead of the focused control that answers the same key, such as a
-  notice's dismissal that clears history state with no `search`, closing the
-  open panel and dropping the list's filters, or Enter on a focused "Volver
-  con Esc" button submitting the enrollment code instead of going back.
+  changes one part of the location and drops the rest, a screen-wide key
+  taken ahead of the focused control that answers the same key, or a key an
+  open panel stops answering while its request is out falling through to
+  the frame's own binding, such as a notice's dismissal that clears history
+  state with no `search`, closing the open panel and dropping the list's
+  filters, Enter on a focused "Volver con Esc" button submitting the
+  enrollment code instead of going back, or Esc during a refund's conversion
+  navigating to the sale screen.
 
 ### User-facing text
 
