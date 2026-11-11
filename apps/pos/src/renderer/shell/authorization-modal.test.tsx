@@ -1,5 +1,5 @@
 import type { Authorization, SignInUser } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, insetBoundary } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "./signed-in-person";
@@ -299,6 +299,18 @@ describe("an action guarded by another person's PIN", () => {
       await expect.element(dialog.getByLabelText("PIN")).toHaveFocus();
       await expect.element(dialog.getByLabelText("PIN")).toBeInvalid();
       await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it("keeps the action ring on the focused PIN box after a wrong PIN", async () => {
+      await openModal({ submit: recording(NO_WAIT).submit });
+
+      await authorizeInModal({ pin: "9999" });
+
+      const pin = authorizationDialog().getByLabelText("PIN");
+      await expect.element(pin).toHaveFocus();
+      await expect.element(pin).toBeInvalid();
+      const box = pin.element().parentElement as HTMLElement;
+      expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("action", "2px"));
     });
 
     it("says one attempt is left in the singular", async () => {

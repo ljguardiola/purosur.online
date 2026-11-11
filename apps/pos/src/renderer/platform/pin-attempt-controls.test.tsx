@@ -1,4 +1,4 @@
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, insetBoundary } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -48,5 +48,17 @@ describe("PinAttemptControls", () => {
 
     await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("keeps the error ring on the focused PIN box after a wrong PIN", async () => {
+    const screen = await render(<Controls />);
+
+    await userEvent.type(screen.getByLabelText("PIN"), "1234{Enter}");
+
+    const pin = screen.getByLabelText("PIN");
+    await expect.element(pin).toHaveAttribute("aria-invalid", "true");
+    await expect.element(pin).toHaveFocus();
+    const box = pin.element().parentElement as HTMLElement;
+    expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("error", "2px"));
   });
 });

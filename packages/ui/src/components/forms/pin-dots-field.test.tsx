@@ -94,11 +94,11 @@ test("covers the box with the input so a click anywhere in it focuses the input"
   expect(box.getBoundingClientRect().height).toBe(64);
 });
 
-function FieldWithMessageElsewhere() {
+function FieldWithMessageElsewhere({ errorRingWhileFocused }: { errorRingWhileFocused?: boolean }) {
   const messageId = useId();
   return (
     <>
-      <Harness errorMessageId={messageId} />
+      <Harness errorMessageId={messageId} errorRingWhileFocused={errorRingWhileFocused} />
       <p id={messageId}>PIN incorrecto</p>
     </>
   );
@@ -113,7 +113,7 @@ test("marks the input invalid and described by the error message", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("keeps the error ring while an invalid field is focused", async () => {
+test("shows the action ring while an invalid field is focused", async () => {
   const screen = await render(<FieldWithMessageElsewhere />);
 
   const input = screen.getByLabelText("PIN", { exact: true });
@@ -121,7 +121,28 @@ test("keeps the error ring while an invalid field is focused", async () => {
 
   await expect.element(input).toHaveFocus();
   const box = input.element().parentElement as HTMLElement;
+  expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("action", "2px"));
+});
+
+test("keeps the error ring while an invalid field that asks for it is focused", async () => {
+  const screen = await render(<FieldWithMessageElsewhere errorRingWhileFocused />);
+
+  const input = screen.getByLabelText("PIN", { exact: true });
+  await userEvent.click(input);
+
+  await expect.element(input).toHaveFocus();
+  const box = input.element().parentElement as HTMLElement;
   expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("error", "2px"));
+});
+
+test("shows the action ring while a valid field that asks for the error ring is focused", async () => {
+  const screen = await render(<Harness errorRingWhileFocused />);
+
+  const input = screen.getByLabelText("PIN", { exact: true });
+  await userEvent.click(input);
+
+  const box = input.element().parentElement as HTMLElement;
+  expect(getComputedStyle(box).boxShadow).toContain(insetBoundary("action", "2px"));
 });
 
 test("shows the action ring while a valid field is focused", async () => {
