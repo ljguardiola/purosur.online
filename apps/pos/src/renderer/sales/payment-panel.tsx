@@ -208,12 +208,12 @@ export function PaymentPanel({
             </div>
             <Button
               variant="text"
+              trailingIcon={<ArrowRight />}
               keycap="F1"
               disabled={!canCharge}
               onPress={() => onCharge(undefined)}
             >
               Otros medios
-              <ArrowRight aria-hidden="true" className="ml-2 inline size-icon-md" />
             </Button>
           </>
         ) : (

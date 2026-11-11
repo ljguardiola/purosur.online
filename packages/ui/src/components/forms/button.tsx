@@ -33,6 +33,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        trailingIcon?: undefined;
         onTintedSurface?: undefined;
       }
     | {
@@ -40,6 +41,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: boolean;
         size?: ButtonSize;
         icon?: Icon;
+        trailingIcon?: undefined;
         onTintedSurface?: boolean;
       }
     | {
@@ -47,6 +49,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive?: false;
         size?: ButtonTextSize;
         icon?: Icon;
+        trailingIcon?: Icon;
         onTintedSurface?: undefined;
       }
     | {
@@ -54,6 +57,7 @@ export type ButtonProps = ButtonCommonProps &
         destructive: true;
         size?: ButtonTextSize;
         icon?: undefined;
+        trailingIcon?: undefined;
         onTintedSurface?: undefined;
       }
   );
@@ -149,6 +153,7 @@ export function Button({
   size,
   destructive = false,
   icon,
+  trailingIcon,
   fullWidth = false,
   children,
   disabled = false,
@@ -183,6 +188,9 @@ export function Button({
           ellipsis; it needs its own box to truncate correctly. */}
       <span className="truncate">{children}</span>
       {variant === "primary" && sizedIcon}
+      {trailingIcon === undefined ? null : (
+        <span className={iconWrapperClassName[variant]}>{trailingIcon}</span>
+      )}
       {keycap === undefined ? null : (
         <span aria-hidden="true" className="ml-auto flex shrink-0">
           <Keycap keyName={keycap} variant={variant === "primary" ? "onPrimary" : "default"} />
