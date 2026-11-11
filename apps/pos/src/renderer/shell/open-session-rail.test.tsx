@@ -8,7 +8,6 @@ import { render } from "./test-support/render-with-router";
 describe("OpenSessionRail", () => {
   it("needs the person's abilities, so no screen can leave its entries out", () => {
     expectTypeOf<{
-      registerName: string | null;
       lock: () => void;
       current: "cash";
     }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
@@ -16,12 +15,7 @@ describe("OpenSessionRail", () => {
 
   it("shows Venta, Historial, Devolver and Caja, and Salir last", async () => {
     const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="sale"
-        abilities={["view_sales_history"]}
-      />,
+      <OpenSessionRail lock={() => {}} current="sale" abilities={["view_sales_history"]} />,
     );
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
@@ -30,18 +24,14 @@ describe("OpenSessionRail", () => {
   });
 
   it("draws Venta with a shopping cart", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="sale" />);
 
     const icon = screen.getByRole("button", { name: "Venta" }).element().querySelector("svg");
     expect(icon?.classList.contains("lucide-shopping-cart")).toBe(true);
   });
 
   it("marks Venta as current on the sale screen", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="sale" />);
 
     await expect
       .element(screen.getByRole("button", { name: "Venta" }))
@@ -52,9 +42,7 @@ describe("OpenSessionRail", () => {
   });
 
   it("marks Caja as current on the cash screens and sends Venta to the sale", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="cash" />);
 
     await expect
       .element(screen.getByRole("link", { name: "Caja" }))
@@ -65,9 +53,7 @@ describe("OpenSessionRail", () => {
   });
 
   it("goes back to the sale on Escape from another screen", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="cash" />);
     await screen.router.navigate({ to: "/cash" });
 
     await userEvent.keyboard("{Escape}");
@@ -76,9 +62,7 @@ describe("OpenSessionRail", () => {
   });
 
   it("goes back to the sale on Escape from the charge, though Venta is marked there", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="sale" />);
     await screen.router.navigate({ to: "/charge" });
 
     await userEvent.keyboard("{Escape}");
@@ -87,9 +71,7 @@ describe("OpenSessionRail", () => {
   });
 
   it("leaves Escape unhandled on the sale", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="sale" />);
     await screen.router.navigate({ to: "/session" });
     const handled = escapeHandled();
 
@@ -99,28 +81,9 @@ describe("OpenSessionRail", () => {
     expect(screen.router.state.location.pathname).toBe("/session");
   });
 
-  it("closes the leaving modal on Escape without leaving the screen", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="cash" />,
-    );
-    await screen.router.navigate({ to: "/cash" });
-    await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
-
-    await userEvent.keyboard("{Escape}");
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.router.state.location.pathname).toBe("/cash");
-  });
-
   it("offers the sales history, between Venta and Caja, to a person who may view it", async () => {
     const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="sale"
-        abilities={["view_sales_history"]}
-      />,
+      <OpenSessionRail lock={() => {}} current="sale" abilities={["view_sales_history"]} />,
     );
 
     const history = screen.getByRole("link", { name: "Historial" });
@@ -139,9 +102,7 @@ describe("OpenSessionRail", () => {
   });
 
   it("offers the return to everyone, since someone with permission can authorize it", async () => {
-    const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="sale" />,
-    );
+    const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="sale" />);
 
     expect(screen.getByRole("link", { name: "Devolver" }).element().getAttribute("href")).toBe(
       "/return",
@@ -150,7 +111,7 @@ describe("OpenSessionRail", () => {
 
   it("marks Devolver as current on the return screen", async () => {
     const screen = await render(
-      <OpenSessionRail abilities={[]} registerName="Caja 1" lock={() => {}} current="return" />,
+      <OpenSessionRail abilities={[]} lock={() => {}} current="return" />,
     );
 
     await expect
@@ -163,12 +124,7 @@ describe("OpenSessionRail", () => {
 
   it("marks Historial as current on the sales history", async () => {
     const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="history"
-        abilities={["view_sales_history"]}
-      />,
+      <OpenSessionRail lock={() => {}} current="history" abilities={["view_sales_history"]} />,
     );
 
     await expect
@@ -182,7 +138,6 @@ describe("OpenSessionRail", () => {
   it("offers the deferred sale lookup, after the sales history, to a person who may invoice deferred sales", async () => {
     const screen = await render(
       <OpenSessionRail
-        registerName="Caja 1"
         lock={() => {}}
         current="deferred_sale"
         abilities={["view_sales_history", "invoice_deferred_sale"]}
@@ -201,12 +156,7 @@ describe("OpenSessionRail", () => {
 
   it("offers no sales history to a person who may not view it", async () => {
     const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="sale"
-        abilities={["reprint_receipt"]}
-      />,
+      <OpenSessionRail lock={() => {}} current="sale" abilities={["reprint_receipt"]} />,
     );
 
     await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
@@ -216,7 +166,6 @@ describe("OpenSessionRail", () => {
   it("offers the printer and the scale and reader, after Caja, to a person who may configure them", async () => {
     const screen = await render(
       <OpenSessionRail
-        registerName="Caja 1"
         lock={() => {}}
         current="sale"
         abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
@@ -238,12 +187,7 @@ describe("OpenSessionRail", () => {
 
   it("offers each device screen only to a person who may configure it", async () => {
     const screen = await render(
-      <OpenSessionRail
-        registerName="Caja 1"
-        lock={() => {}}
-        current="sale"
-        abilities={["configure_serial_devices"]}
-      />,
+      <OpenSessionRail lock={() => {}} current="sale" abilities={["configure_serial_devices"]} />,
     );
 
     await expect.element(screen.getByRole("link", { name: "Balanza y lector" })).toBeVisible();
@@ -253,7 +197,6 @@ describe("OpenSessionRail", () => {
   it("marks Impresora as current on the printer screen", async () => {
     const screen = await render(
       <OpenSessionRail
-        registerName="Caja 1"
         lock={() => {}}
         current="receipt_printer"
         abilities={["configure_receipt_printer", "configure_serial_devices"]}
@@ -274,7 +217,6 @@ describe("OpenSessionRail", () => {
   it("marks Balanza y lector as current on the serial devices screen", async () => {
     const screen = await render(
       <OpenSessionRail
-        registerName="Caja 1"
         lock={() => {}}
         current="serial_devices"
         abilities={["configure_receipt_printer", "configure_serial_devices"]}
@@ -292,7 +234,6 @@ describe("OpenSessionRail", () => {
   it("ends with the scale and reader, with no help entry", async () => {
     const screen = await render(
       <OpenSessionRail
-        registerName="Caja 1"
         lock={() => {}}
         current="sale"
         abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
@@ -312,56 +253,26 @@ describe("OpenSessionRail", () => {
       onTestFinished(() => page.viewport(414, 896));
       const locked: string[] = [];
       const screen = await render(
-        <OpenSessionRail
-          abilities={[]}
-          registerName="Caja 1"
-          lock={() => locked.push("locked")}
-          current="sale"
-        />,
+        <OpenSessionRail abilities={[]} lock={() => locked.push("locked")} current="sale" />,
       );
       return Object.assign(screen, { locked });
     }
 
-    it("asks to close the register first instead of leaving", async () => {
+    it("locks the register straight away, with no dialog to answer", async () => {
       const screen = await renderRail();
 
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-
-      await expect
-        .element(screen.getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" }))
-        .toBeVisible();
-      expect(screen.router.state.location.pathname).toBe("/");
-    });
-
-    it("keeps the session untouched when the modal is dismissed", async () => {
-      const screen = await renderRail();
-      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-
-      await userEvent.keyboard("{Escape}");
-
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-      expect(screen.router.state.location.pathname).toBe("/");
-      expect(screen.locked).toEqual([]);
-    });
-
-    it("leaves the register locked on Dejar bloqueada", async () => {
-      const screen = await renderRail();
-      await userEvent.click(screen.getByRole("button", { name: "Salir" }));
-
-      await userEvent.click(screen.getByRole("button", { name: "Dejar bloqueada" }));
 
       expect(screen.locked).toEqual(["locked"]);
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     });
 
-    it("goes to the cash count in leaving mode on Cerrar caja", async () => {
+    it("stays on the screen it was on when it locks the register", async () => {
       const screen = await renderRail();
+
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
 
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-      await expect.poll(() => screen.router.state.location.pathname).toBe("/cash-count");
-      expect(screen.router.state.location.search).toEqual({ leaving: true });
+      expect(screen.router.state.location.pathname).toBe("/");
     });
   });
 });

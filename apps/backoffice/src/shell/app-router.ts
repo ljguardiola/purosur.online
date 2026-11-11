@@ -1,6 +1,6 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { alertsRedirectRoute, homeRoute } from "../alerts/routes";
-import { branchSettingsRoute } from "../branch/routes";
+import { branchSettingsRoute, legacyBranchSettingsRoute } from "../branch/routes";
 import {
   brandsListRoute,
   categoriesListRoute,
@@ -51,6 +51,7 @@ import {
 import {
   aiCostReportRoute,
   freightsListRoute,
+  legacyAiCostReportRoute,
   legacyFreightReportRoute,
   legacyFreightsRoute,
   legacyOrderSuggestionRoute,
@@ -112,7 +113,7 @@ import {
   stockMovementsRoute,
   stockRoute,
 } from "../stock/routes";
-import { quarantinedEventsRoute } from "../sync/routes";
+import { legacyQuarantinedEventsRoute, quarantinedEventsRoute } from "../sync/routes";
 import { legacyUserRoute, legacyUsersRoute, usersListRoute } from "../users/routes";
 import { fiscalAreaRoute } from "./fiscal-area";
 import { helpAreaRoute } from "./help-area";
@@ -246,6 +247,9 @@ const routeTree = rootRoute.addChildren([
     legacyLossesByReasonReportRoute,
     legacyPurchasesReportRoute,
     legacyFreightReportRoute,
+    legacyAiCostReportRoute,
+    legacyBranchSettingsRoute,
+    legacyQuarantinedEventsRoute,
     legacyPendingPurchaseOrdersReportRoute,
     legacyReceiptDifferencesReportRoute,
     legacyUsersRoute,

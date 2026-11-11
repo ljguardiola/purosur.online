@@ -228,7 +228,7 @@ export function RespondToCompromiseModal({
       tone="warning"
       icon={<ShieldAlert />}
       context="Personas"
-      title="Respuesta ante un compromiso"
+      title="Ante una sospecha de compromiso"
       closable
       footer={
         canStart ? (
@@ -248,7 +248,7 @@ export function RespondToCompromiseModal({
       <div className="flex flex-col gap-4">
         {data.status === "loading" && <LoadingPlaceholder variant="list" items={6} />}
         {data.status === "failed" && (
-          <LoadFailure {...cloudLoadFailure(data, "la respuesta ante un compromiso")} />
+          <LoadFailure {...cloudLoadFailure(data, "los pasos ante una sospecha de compromiso")} />
         )}
         {notice?.kind === "startFailed" && <ActionFailureNotice title="No se pudo comenzar" />}
         <StepAttemptNotices

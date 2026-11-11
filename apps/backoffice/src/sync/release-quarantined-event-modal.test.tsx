@@ -63,7 +63,7 @@ test("asks about the event, naming it and its register, and what happens next", 
   await expect
     .element(
       dialog.getByText(
-        "La nube va a volver a intentar aplicar este evento de venta de la caja Caja 1. El evento no se modifica. Si vuelve a fallar en todos los intentos, queda otra vez en cuarentena y se abre una alerta nueva.",
+        "La nube va a volver a intentar aplicar este evento de venta de la caja Caja 1. El evento no se modifica. Si vuelve a fallar en todos los intentos, queda otra vez retenido y se abre una alerta nueva.",
       ),
     )
     .toBeVisible();
@@ -134,7 +134,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the release comes back forbidden", async () => {
-  window.history.pushState(null, "", "/quarantined-events");
+  window.history.pushState(null, "", "/held-register-changes");
   const releaseQuarantinedEvent = vi.fn<Release>().mockResolvedValue({ kind: "forbidden" });
   const screen = await renderModal({ releaseQuarantinedEvent });
 

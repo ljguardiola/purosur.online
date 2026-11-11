@@ -11,10 +11,14 @@ import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 export const ALL_REGISTERS = "all";
 export const ALL_METHODS = "all";
 
-export const PENDING_REFUNDS_CHANNELS = ["all", "mercado-pago", "without-api"] as const;
+export const PENDING_REFUNDS_CHANNELS = ["all", "mercado-pago", "outside-mercado-pago"] as const;
+
+const channelAddress = z
+  .enum([...PENDING_REFUNDS_CHANNELS, "without-api"])
+  .transform((channel) => (channel === "without-api" ? "outside-mercado-pago" : channel));
 
 export const pendingRefundsFilters = z.object({
-  channel: z.enum(PENDING_REFUNDS_CHANNELS).default("all").catch("all"),
+  channel: channelAddress.default("all").catch("all"),
   register: z.string().default(ALL_REGISTERS).catch(ALL_REGISTERS),
   method: z.string().default(ALL_METHODS).catch(ALL_METHODS),
 });
@@ -52,7 +56,7 @@ export const legacyOutsideRefundsRoute = createRoute({
   beforeLoad: ({ search }) => {
     throw redirect({
       to: "/refunds",
-      search: { channel: "without-api", register: search.register, method: search.method },
+      search: { channel: "outside-mercado-pago", register: search.register, method: search.method },
     });
   },
 });

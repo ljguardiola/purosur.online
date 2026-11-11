@@ -20,7 +20,7 @@ export function PriceCostBreakdown({ product }: PriceCostBreakdownProps) {
       <EmptyState
         icon={<Receipt />}
         title="Sin costo registrado"
-        description="El margen aparece cuando el producto tenga una compra, una tanda o un costo de inventario inicial."
+        description="El margen aparece cuando el producto tenga una compra, una producción o un costo de inventario inicial."
         variant="blank"
       />
     );

@@ -23,11 +23,11 @@ type BaseProps = Omit<ChipListFieldProps<Diet>, keyof FieldErrorProps>;
 
 function baseProps(overrides: Partial<BaseProps> = {}): BaseProps {
   return {
-    label: "Distintivos",
+    label: "Etiquetas",
     options,
     value: [],
     onChange: () => {},
-    addLabel: "Agregar distintivo",
+    addLabel: "Agregar etiqueta",
     ...overrides,
   };
 }
@@ -40,14 +40,14 @@ function ControlledField({ initial }: { initial: Diet[] }) {
 test("names the group after its label", async () => {
   const screen = await render(<ChipListField {...baseProps()} />);
 
-  await expect.element(screen.getByRole("group", { name: "Distintivos" })).toBeVisible();
+  await expect.element(screen.getByRole("group", { name: "Etiquetas" })).toBeVisible();
 });
 
 test("with nothing chosen, shows only the add pill", async () => {
   const screen = await render(<ChipListField {...baseProps()} />);
 
   const buttons = screen.getByRole("button").elements();
-  expect(buttons.map((el) => el.textContent)).toEqual(["Agregar distintivo"]);
+  expect(buttons.map((el) => el.textContent)).toEqual(["Agregar etiqueta"]);
   expect(screen.container.querySelectorAll("li")).toHaveLength(1);
 });
 
@@ -55,7 +55,7 @@ test("shows the chosen items in the order they were chosen, each with a remove b
   const screen = await render(<ChipListField {...baseProps({ value: ["local", "organic"] })} />);
 
   const chips = [...screen.container.querySelectorAll("li")].map((el) => el.textContent);
-  expect(chips).toEqual(["Local", "Orgánico", "Agregar distintivo"]);
+  expect(chips).toEqual(["Local", "Orgánico", "Agregar etiqueta"]);
   await expect.element(screen.getByRole("button", { name: "Quitar Local" })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Quitar Orgánico" })).toBeVisible();
 });
@@ -99,7 +99,7 @@ test("draws no dot on an active chip", async () => {
 
 test("draws the add pill round and outlined in the action color with no fill, with a plus icon", async () => {
   const screen = await render(<ChipListField {...baseProps()} />);
-  const pill = screen.getByRole("button", { name: "Agregar distintivo" }).element() as HTMLElement;
+  const pill = screen.getByRole("button", { name: "Agregar etiqueta" }).element() as HTMLElement;
   const style = getComputedStyle(pill);
 
   expectFullyRound(pill);
@@ -159,7 +159,7 @@ test("moves focus to the add pill after removing the last chip", async () => {
 
   await expect
     .poll(() => document.activeElement)
-    .toBe(screen.getByRole("button", { name: "Agregar distintivo" }).element());
+    .toBe(screen.getByRole("button", { name: "Agregar etiqueta" }).element());
 });
 
 const singleOption: NarrowedOption<Diet>[] = [{ value: "organic", label: "Orgánico" }];
@@ -175,7 +175,7 @@ test("moves focus to the add pill after removing the only chip, even when it was
 
   await expect
     .poll(() => document.activeElement)
-    .toBe(screen.getByRole("button", { name: "Agregar distintivo" }).element());
+    .toBe(screen.getByRole("button", { name: "Agregar etiqueta" }).element());
 });
 
 const keptOptions: NarrowedOption<Diet, never, "status">[] = [
@@ -192,7 +192,7 @@ test("moves focus to the previous chip's remove button after removing the last c
   const screen = await render(<KeptInactiveChipField />);
   await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
 
-  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Agregar etiqueta" })).toBeDisabled();
   await expect
     .poll(() => document.activeElement)
     .toBe(screen.getByRole("button", { name: "Quitar Orgánico" }).element());
@@ -210,15 +210,15 @@ test("keeps focus on the field after removing the only chip, when nothing is lef
   const screen = await render(<OnlyInactiveField />);
   await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
 
-  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Agregar etiqueta" })).toBeDisabled();
   await expect
     .poll(() => document.activeElement)
-    .toBe(screen.getByRole("group", { name: "Distintivos" }).element());
+    .toBe(screen.getByRole("group", { name: "Etiquetas" }).element());
 });
 
 test("draws a focus ring on the field when a keyboard removal leaves focus on it", async () => {
   const screen = await render(<OnlyInactiveField />);
-  const group = screen.getByRole("group", { name: "Distintivos" }).element() as HTMLElement;
+  const group = screen.getByRole("group", { name: "Etiquetas" }).element() as HTMLElement;
 
   await userEvent.tab();
   await userEvent.keyboard("{Enter}");
@@ -229,7 +229,7 @@ test("draws a focus ring on the field when a keyboard removal leaves focus on it
 
 test("draws no focus ring on the field when a pointer removal leaves focus on it", async () => {
   const screen = await render(<OnlyInactiveField />);
-  const group = screen.getByRole("group", { name: "Distintivos" }).element() as HTMLElement;
+  const group = screen.getByRole("group", { name: "Etiquetas" }).element() as HTMLElement;
 
   await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
 
@@ -240,7 +240,7 @@ test("draws no focus ring on the field when a pointer removal leaves focus on it
 test("offers, in the order given, only the options not yet chosen and without a status", async () => {
   const screen = await render(<ChipListField {...baseProps({ value: ["vegan"] })} />);
 
-  await screen.getByRole("button", { name: "Agregar distintivo" }).click();
+  await screen.getByRole("button", { name: "Agregar etiqueta" }).click();
 
   const items = screen.getByRole("menuitem").elements();
   expect(items.map((el) => el.textContent)).toEqual(["Orgánico", "Local"]);
@@ -250,14 +250,14 @@ test("appends the chosen option to the value and closes the menu", async () => {
   const onChange = vi.fn();
   const screen = await render(<ChipListField {...baseProps({ value: ["local"], onChange })} />);
 
-  await screen.getByRole("button", { name: "Agregar distintivo" }).click();
+  await screen.getByRole("button", { name: "Agregar etiqueta" }).click();
   await screen.getByRole("menuitem", { name: "Orgánico" }).click();
 
   expect(onChange).toHaveBeenCalledWith(["local", "organic"]);
   await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
   await expect
     .poll(() => document.activeElement)
-    .toBe(screen.getByRole("button", { name: "Agregar distintivo" }).element());
+    .toBe(screen.getByRole("button", { name: "Agregar etiqueta" }).element());
 });
 
 test("adds an option from the keyboard", async () => {
@@ -275,20 +275,18 @@ test("ends the menu with the create entry, which reports to the caller without c
   const onChange = vi.fn();
   const onAction = vi.fn();
   const screen = await render(
-    <ChipListField
-      {...baseProps({ onChange, create: { label: "Crear distintivo…", onAction } })}
-    />,
+    <ChipListField {...baseProps({ onChange, create: { label: "Crear etiqueta…", onAction } })} />,
   );
 
-  await screen.getByRole("button", { name: "Agregar distintivo" }).click();
+  await screen.getByRole("button", { name: "Agregar etiqueta" }).click();
   const items = screen.getByRole("menuitem").elements();
   expect(items.map((el) => el.textContent)).toEqual([
     "Orgánico",
     "Vegano",
     "Local",
-    "Crear distintivo…",
+    "Crear etiqueta…",
   ]);
-  await screen.getByRole("menuitem", { name: "Crear distintivo…" }).click();
+  await screen.getByRole("menuitem", { name: "Crear etiqueta…" }).click();
 
   expect(onAction).toHaveBeenCalledOnce();
   expect(onChange).not.toHaveBeenCalled();
@@ -299,19 +297,19 @@ test("with every offered option chosen, the menu holds only the create entry", a
     <ChipListField
       {...baseProps({
         value: ["organic", "vegan", "local"],
-        create: { label: "Crear distintivo…", onAction: () => {} },
+        create: { label: "Crear etiqueta…", onAction: () => {} },
       })}
     />,
   );
 
-  await screen.getByRole("button", { name: "Agregar distintivo" }).click();
+  await screen.getByRole("button", { name: "Agregar etiqueta" }).click();
 
   expect(
     screen
       .getByRole("menuitem")
       .elements()
       .map((el) => el.textContent),
-  ).toEqual(["Crear distintivo…"]);
+  ).toEqual(["Crear etiqueta…"]);
 });
 
 test("disables the add pill when there is nothing to add and nothing to create", async () => {
@@ -319,7 +317,7 @@ test("disables the add pill when there is nothing to add and nothing to create",
     <ChipListField {...baseProps({ value: ["organic", "vegan", "local"] })} />,
   );
 
-  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Agregar etiqueta" })).toBeDisabled();
 });
 
 test("disables the add pill and every remove button when the field is disabled", async () => {
@@ -327,7 +325,7 @@ test("disables the add pill and every remove button when the field is disabled",
     <ChipListField {...baseProps({ value: ["organic"], disabled: true })} />,
   );
 
-  await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Agregar etiqueta" })).toBeDisabled();
   await expect.element(screen.getByRole("button", { name: "Quitar Orgánico" })).toBeDisabled();
 });
 
@@ -336,7 +334,7 @@ test("shows the description under the chips and describes the group with it", as
     <ChipListField {...baseProps({ value: ["dye-free"], description: "Está dado de baja." })} />,
   );
 
-  const group = screen.getByRole("group", { name: "Distintivos" });
+  const group = screen.getByRole("group", { name: "Etiquetas" });
   await expect.element(group).toHaveAccessibleDescription("Está dado de baja.");
 });
 
@@ -345,14 +343,14 @@ test("shows the error message in place of the description and describes the grou
     <ChipListField {...baseProps({ description: "Ayuda." })} errorMessage="Elegí al menos uno." />,
   );
 
-  const group = screen.getByRole("group", { name: "Distintivos" });
+  const group = screen.getByRole("group", { name: "Etiquetas" });
   await expect.element(group).toHaveAccessibleDescription("Elegí al menos uno.");
   expect(screen.container.textContent).not.toContain("Ayuda.");
 });
 
 test("marks the label as required", async () => {
   const screen = await render(<ChipListField {...baseProps({ required: true })} />);
-  const label = screen.getByText("Distintivos").element() as HTMLElement;
+  const label = screen.getByText("Etiquetas").element() as HTMLElement;
 
   expect(getComputedStyle(label, "::after").content).not.toBe("none");
 });
@@ -366,7 +364,7 @@ test("draws a focus ring on a focused remove button and on the focused add pill"
   expect(getComputedStyle(remove).outlineStyle).not.toBe("none");
 
   await userEvent.tab();
-  const pill = screen.getByRole("button", { name: "Agregar distintivo" }).element() as HTMLElement;
+  const pill = screen.getByRole("button", { name: "Agregar etiqueta" }).element() as HTMLElement;
   expect(document.activeElement).toBe(pill);
   expect(getComputedStyle(pill).outlineStyle).not.toBe("none");
 });
@@ -378,14 +376,14 @@ test("passes the accessibility checks with chips, an inactive chip, a descriptio
         {...baseProps({
           value: ["organic", "dye-free"],
           description: "Está dado de baja.",
-          create: { label: "Crear distintivo…", onAction: () => {} },
+          create: { label: "Crear etiqueta…", onAction: () => {} },
         })}
       />
     </main>,
   );
   await expectNoAccessibilityViolations(screen.container);
 
-  await screen.getByRole("button", { name: "Agregar distintivo" }).click();
+  await screen.getByRole("button", { name: "Agregar etiqueta" }).click();
   await expect.element(screen.getByRole("menu")).toBeVisible();
   await expectNoAccessibilityViolations(document.body, {
     rules: { region: { enabled: false } },

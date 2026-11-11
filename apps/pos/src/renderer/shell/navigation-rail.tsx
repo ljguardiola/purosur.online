@@ -19,6 +19,7 @@ export type NavigationRailProps = {
   home?: { label: string; icon: LucideIcon; to?: ActionEntry["to"] };
   links?: readonly RailLinkProps[];
   onSignOut?: () => void;
+  signOutActive?: boolean;
 };
 
 const INICIO = { label: "Inicio", icon: House };
@@ -29,6 +30,7 @@ export function NavigationRail({
   home = INICIO,
   links = [],
   onSignOut,
+  signOutActive = false,
 }: NavigationRailProps) {
   const HomeGlyph = home.icon;
   return (
@@ -67,7 +69,7 @@ export function NavigationRail({
           rail="dark"
           label="Salir"
           icon={<LogOut />}
-          active={false}
+          active={signOutActive}
           onPress={onSignOut}
         />
       )}

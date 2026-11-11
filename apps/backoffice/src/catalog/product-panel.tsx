@@ -35,7 +35,7 @@ const TAB_LABELS: Record<ProductPanelTab, string> = {
   data: "Datos",
   price: "Precio y costo",
   stock: "Stock y lotes",
-  recipe: "Receta y tandas",
+  recipe: "Receta y producciones",
 };
 
 const SALE_UNIT_LABELS = { UNIT: "Por unidad", KG: "Por peso" } as const;
@@ -119,7 +119,7 @@ function ProductPanelBody({
                   value: product.netContent === null ? "—" : formatNetContent(product.netContent),
                 },
                 { label: "Código de barras", value: barcodesSummary(product.barcodes) },
-                { label: "Distintivos", value: tagNames.length === 0 ? "—" : tagNames.join(", ") },
+                { label: "Etiquetas", value: tagNames.length === 0 ? "—" : tagNames.join(", ") },
                 { label: "Estado", value: product.active ? "Activo" : "Inactivo" },
               ]}
             />

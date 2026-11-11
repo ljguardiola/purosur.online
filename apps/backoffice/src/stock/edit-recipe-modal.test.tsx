@@ -46,6 +46,20 @@ test("shows the product's name as the title, with its components and quantities 
   await expect.element(dialog.getByRole("button", { name: "Guardar la receta" })).toBeVisible();
 });
 
+test("says the recipe is a template that proposes its quantities when a production is registered", async () => {
+  const screen = await renderEditRecipeModal();
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog")
+        .getByText(
+          "Es una plantilla: al registrar una producción se proponen estas cantidades y se registra lo que realmente se usó.",
+        ),
+    )
+    .toBeVisible();
+});
+
 test("shows the components of a unit product in units", async () => {
   const screen = await renderEditRecipeModal({ target: cajaDeInfusiones });
   const dialog = screen.getByRole("dialog");

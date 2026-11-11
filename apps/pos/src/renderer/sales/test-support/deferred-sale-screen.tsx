@@ -34,7 +34,7 @@ const CASHIER: DeferredSaleScreenProps["person"] = {
   abilities: ["invoice_deferred_sale", "reprint_receipt"],
 };
 
-type Overrides = Partial<Omit<DeferredSaleScreenProps, "registerName">>;
+type Overrides = Partial<DeferredSaleScreenProps>;
 
 export async function renderScreen(overrides: Overrides = {}) {
   await page.viewport(1280, 900);
@@ -72,7 +72,6 @@ export async function renderScreen(overrides: Overrides = {}) {
     >
       <DeferredSaleScreen
         person={overrides.person ?? CASHIER}
-        registerName="Caja 1"
         sessionOpen={overrides.sessionOpen ?? true}
         lock={overrides.lock ?? (() => {})}
         findDeferredSale={findDeferredSale}

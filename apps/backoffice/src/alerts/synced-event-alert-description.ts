@@ -29,7 +29,7 @@ function eventName({ eventType, eventId }: { eventType: string; eventId: string 
 
 export function quarantinedEventsDescription(registerName: string | null): string {
   const register = registerName === null ? "Una caja" : `La caja «${registerName}»`;
-  return `${register} tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.`;
+  return `${register} tiene cambios que no se pudieron aplicar y quedaron retenidos. Los cambios siguientes de cada uno de esos registros esperan hasta que se resuelvan.`;
 }
 
 export function invariantViolationDescription(detail: InvariantViolation): string {

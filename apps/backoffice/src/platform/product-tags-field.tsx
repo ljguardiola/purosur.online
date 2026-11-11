@@ -11,7 +11,7 @@ import {
 import { useState } from "react";
 import type { CatalogRefresh } from "./stacked-creation";
 
-const INACTIVE_TAG_STATUS = "Inactivo";
+const INACTIVE_TAG_STATUS = "Inactiva";
 
 const tagNameOrder = textOrder((tag: TagSummary) => tag.name);
 
@@ -39,8 +39,8 @@ export function tagFieldHelp(
   const list = namesList.format(names);
   return {
     description: plural(names.length, {
-      one: `${list} está dado de baja. No se ofrece para productos nuevos.`,
-      other: `${list} están dados de baja. No se ofrecen para productos nuevos.`,
+      one: `${list} está dada de baja. No se ofrece para productos nuevos.`,
+      other: `${list} están dadas de baja. No se ofrecen para productos nuevos.`,
     }),
   };
 }
@@ -104,12 +104,12 @@ export function TagsField({
   const field = useFieldContext<string[]>();
   return (
     <ChipListField
-      label="Distintivos"
+      label="Etiquetas"
       options={tagOptions(tags)}
       value={field.state.value}
       onChange={field.handleChange}
-      addLabel="Agregar distintivo"
-      {...(onCreateTag && { create: { label: "Crear distintivo…", onAction: onCreateTag } })}
+      addLabel="Agregar etiqueta"
+      {...(onCreateTag && { create: { label: "Crear etiqueta…", onAction: onCreateTag } })}
       disabled={disabled}
       errorMessage={fieldErrorMessage(field.state.meta.errors)}
       {...tagFieldHelp(tags, field.state.value)}

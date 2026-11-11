@@ -40,7 +40,7 @@ test("lists counts, adjustments and losses together, the latest first", async ()
     "FechaProductoTipoDetalleCantidad",
     "16/09/202612:50Miel pura de abeja 1 kgAlmacénPérdidaRotura o derrame− 1 u",
     "15/09/202618:32Almendras peladasFrutos secosRecuentoPor lote · 2 lotesEsperado 12,400 kg · contado 12,150 kg− 0,250 kg",
-    "14/09/202610:00Almendras peladasFrutos secosAjusteCorrección de una tanda+ 1,200 kg",
+    "14/09/202610:00Almendras peladasFrutos secosAjusteCorrección de una producción+ 1,200 kg",
   ]);
   await expect.element(screen.getByText("3 movimientos")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);

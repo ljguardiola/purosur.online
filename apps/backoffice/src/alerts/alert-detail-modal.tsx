@@ -556,7 +556,7 @@ function alertTitle(alert: AlertDetail): string {
         ? "Se revocó la instalación de una caja"
         : "Se dio de alta una caja";
     case "events_quarantined":
-      return "Eventos de una caja en cuarentena";
+      return "Cambios de una caja retenidos";
     case "event_invariant_violated":
       return "Evento aplicado con una inconsistencia";
     case "arca_certificate_expiring":
@@ -748,7 +748,7 @@ const CLOSING_NOTES: Record<AlertDetail["closing"], string | null> = {
     "Se cierra cuando su reembolso se marca como hecho, se descarta o Mercado Pago lo acredita.",
   when_its_document_is_resolved: "Se cierra sola cuando se resuelve el comprobante.",
   when_its_events_are_released:
-    "Se resuelve sola cuando no queda ningún evento de esta caja en cuarentena.",
+    "Se resuelve sola cuando no queda ningún cambio retenido de esta caja.",
   by_hand: "No se cierra sola: se cierra a mano después de revisarla.",
 };
 
@@ -1121,8 +1121,8 @@ function OpenAlertDetailModal({
               <AlertDescription alert={alert} />
             )}
             {alert.kind === "events_quarantined" && canSeeQuarantinedEvents(access) ? (
-              <ScreenLink to="/quarantined-events" variant="text">
-                Ver eventos en cuarentena
+              <ScreenLink to="/held-register-changes" variant="text">
+                Ver cambios de cajas retenidos
               </ScreenLink>
             ) : null}
             {alert.kind === "lots_expiring" &&

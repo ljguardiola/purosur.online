@@ -60,7 +60,6 @@ async function renderScreen(
   const screen = await render(
     <CashCountScreen
       sessionId="s1"
-      registerName="Caja 1"
       abilities={props.abilities ?? []}
       lock={() => {}}
       loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
@@ -405,7 +404,6 @@ describe("CashCountScreen", () => {
     const screen = await render(
       <CashCountScreen
         sessionId="s1"
-        registerName={null}
         abilities={[]}
         lock={() => {}}
         loadCashBalance={() => new Promise(() => {})}

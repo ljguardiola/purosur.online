@@ -7,13 +7,13 @@ import {
 describe("the description of a register with quarantined events", () => {
   test("names the register and says its later events wait", () => {
     expect(quarantinedEventsDescription("Caja 1")).toBe(
-      "La caja «Caja 1» tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
+      "La caja «Caja 1» tiene cambios que no se pudieron aplicar y quedaron retenidos. Los cambios siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
     );
   });
 
   test("speaks of a register in general words when it has no name", () => {
     expect(quarantinedEventsDescription(null)).toBe(
-      "Una caja tiene eventos que no se pudieron aplicar y quedaron en cuarentena. Los eventos siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
+      "Una caja tiene cambios que no se pudieron aplicar y quedaron retenidos. Los cambios siguientes de cada uno de esos registros esperan hasta que se resuelvan.",
     );
   });
 });

@@ -386,7 +386,7 @@ test("ends the session when the load finds it closed", async () => {
 });
 
 test("navigates to Mi cuenta when the load comes back forbidden", async () => {
-  window.history.pushState(null, "", "/location-settings");
+  window.history.pushState(null, "", "/branch");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "forbidden" });
 
@@ -398,7 +398,7 @@ test("navigates to Mi cuenta when the load comes back forbidden", async () => {
 });
 
 test("navigates to Mi cuenta when the save comes back forbidden", async () => {
-  window.history.pushState(null, "", "/location-settings");
+  window.history.pushState(null, "", "/branch");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "forbidden" });
@@ -415,7 +415,7 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
 });
 
 test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
-  window.history.pushState(null, "", "/location-settings");
+  window.history.pushState(null, "", "/branch");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "ok", value: loaded });
   vi.mocked(services.saveBranchSettings).mockResolvedValue({ kind: "stale_version" });

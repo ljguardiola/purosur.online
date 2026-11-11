@@ -26,12 +26,10 @@ const SAVED: SetReceiptPrinterOutcome = {
 async function renderScreen({
   read = async (): Promise<ReadReceiptPrinterOutcome> => NOT_CONFIGURED,
   set = async (): Promise<SetReceiptPrinterOutcome> => SAVED,
-  registerName = "Caja 1",
   sessionOpen = false,
 }: {
   read?: () => Promise<ReadReceiptPrinterOutcome>;
   set?: (address: string) => Promise<SetReceiptPrinterOutcome>;
-  registerName?: string | null;
   sessionOpen?: boolean;
 } = {}) {
   await page.viewport(1280, 900);
@@ -42,7 +40,6 @@ async function renderScreen({
   const screen = await render(
     <ReceiptPrinterScreen
       person={PERSON}
-      registerName={registerName}
       sessionOpen={sessionOpen}
       signOut={vi.fn()}
       readReceiptPrinter={readReceiptPrinter}

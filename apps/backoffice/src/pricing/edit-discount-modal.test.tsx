@@ -97,10 +97,8 @@ test("shows the header with the promotion's name, and its values filled in", asy
   await expect
     .element(dialog.getByRole("radio", { name: "Porcentaje de descuento" }))
     .toBeChecked();
-  await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeChecked();
-  await expect
-    .element(dialog.getByRole("combobox", { name: /^Distintivo/ }))
-    .toHaveValue("Sin TACC");
+  await expect.element(dialog.getByRole("radio", { name: "Etiqueta" })).toBeChecked();
+  await expect.element(dialog.getByRole("combobox", { name: /^Etiqueta/ })).toHaveValue("Sin TACC");
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("20");
   expect(validitySegments(dialog).slice(0, 3)).toEqual(["1", "12", "2026"]);
   expect(validitySegments(dialog).slice(3)).toEqual(["28", "2", "2027"]);
@@ -422,7 +420,7 @@ test("offers only the target kinds the cloud allows for the promotion", async ()
   });
 
   await expect.element(dialog.getByRole("radio", { name: "Producto" })).toBeVisible();
-  await expect.element(dialog.getByRole("radio", { name: "Distintivo" })).toBeVisible();
+  await expect.element(dialog.getByRole("radio", { name: "Etiqueta" })).toBeVisible();
   expect(dialog.getByRole("radio", { name: "Categoría" }).query()).toBeNull();
 });
 
@@ -489,10 +487,10 @@ test("an inactive current tag still shows as the chosen value, marked inactive",
   };
   const { dialog } = await renderModal(createServices(), { target: onRetired });
 
-  await userEvent.click(dialog.getByRole("combobox", { name: /^Distintivo/ }));
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Etiqueta/ }));
 
   await expect
-    .element(page.getByRole("option", { name: /Sin colorantes/ }).getByText("Inactivo"))
+    .element(page.getByRole("option", { name: /Sin colorantes/ }).getByText("Inactiva"))
     .toBeVisible();
 });
 
@@ -572,7 +570,7 @@ test("puts the message the cloud names on that field", async () => {
 test.each([
   [yerbaOff, "Ya no está disponible. Elegí otro producto."],
   [almacenTuesdays, "Ya no está disponible. Elegí otra categoría."],
-  [sinTaccWinter, "Ya no está disponible. Elegí otro distintivo."],
+  [sinTaccWinter, "Ya no está disponible. Elegí otra etiqueta."],
 ])(
   "says the target of %#'s kind is unavailable when the cloud can't find it",
   async (target, message) => {

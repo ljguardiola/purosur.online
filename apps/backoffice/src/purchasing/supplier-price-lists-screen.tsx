@@ -20,6 +20,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
+import { ReadBranchTermChange } from "../shell/branch-term-change";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
 import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import { type ReadNotice, useReadNoticeContent } from "./supplier-price-list-read-notice";
@@ -277,7 +278,13 @@ export function SupplierPriceListsScreen({
               onSessionEnded={onSessionEnded}
             />
           )}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-3">
+            <ReadBranchTermChange
+              term="supplierPriceListDailyExtractionCap"
+              access={access}
+              onSessionEnded={onSessionEnded}
+              services={services.branchTerm}
+            />
             <Button
               variant="primary"
               icon={<Upload />}

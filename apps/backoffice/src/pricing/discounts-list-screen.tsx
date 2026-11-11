@@ -305,7 +305,7 @@ export function DiscountsListScreen({
                   icon: <BadgePercent />,
                   title: "Todavía no hay promociones",
                   description:
-                    "Se cargan para ofrecer un descuento sobre un producto, una categoría o un distintivo.",
+                    "Se cargan para ofrecer un descuento sobre un producto, una categoría o una etiqueta.",
                   variant: "blank",
                 }
               : search.trim() === ""
