@@ -33,6 +33,10 @@ export const TextLarge: Story = {
   args: { size: "large", icon: <ArrowLeft /> },
 };
 
+export const TextWithKeycap: Story = {
+  args: { children: "Primer ingreso", icon: <ArrowLeft />, keycap: "F2" },
+};
+
 export const TextHovered: Story = {
   args: { icon: <ArrowLeft /> },
   parameters: { pseudo: { hover: true } },
