@@ -901,6 +901,7 @@ export type {
   ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
+  FindProductByCodeOutcome,
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
