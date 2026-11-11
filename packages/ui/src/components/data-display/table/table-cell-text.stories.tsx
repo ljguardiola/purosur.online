@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Package } from "lucide-react";
 import { TableCellText } from "./table-cell-text";
 
 const meta: Meta<typeof TableCellText> = {
@@ -31,6 +32,15 @@ export const LongContent: Story = {
       </div>
     ),
   ],
+};
+
+export const WithIcon: Story = {
+  args: {
+    icon: <Package />,
+    children: "Inventario inicial",
+    description: "Cargar el stock con el que arranca el local",
+    strong: true,
+  },
 };
 
 export const StrongText: Story = {

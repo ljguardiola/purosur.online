@@ -119,7 +119,7 @@ describe("CashOpeningPanel", () => {
     expect(open).toHaveBeenCalledExactlyOnceWith(2_000_050);
   });
 
-  it("shows the form only once the suggestion is read", async () => {
+  it("offers the float and the button while the previous close is read, then fills in its counted cash", async () => {
     let answer: (suggestion: Suggested) => void = () => {};
     const { screen } = await renderPanel({
       readOpeningFloatSuggestion: () =>
@@ -128,24 +128,66 @@ describe("CashOpeningPanel", () => {
         }),
     });
 
-    await expect.element(screen.getByRole("heading", { name: "Abrir caja" })).toBeVisible();
-    await expect.element(screen.getByRole("textbox")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(floatField(screen)).toBeEnabled();
+    await expect.element(floatField(screen)).toHaveValue("");
+    await expect.element(screen.getByRole("button", { name: "Abrir caja" })).toBeEnabled();
+    await expectNoAccessibilityViolations(screen.container);
     answer(PREVIOUS_CLOSE);
+
+    await expect.element(screen.getByText("04/11 · 20:14")).toBeVisible();
     await expect.element(floatField(screen)).toHaveValue("144.000,00");
   });
 
-  it("offers to read the suggestion again when it cannot be read", async () => {
+  it("keeps the float the cashier typed while the previous close was read", async () => {
+    let answer: (suggestion: Suggested) => void = () => {};
+    const { screen } = await renderPanel({
+      readOpeningFloatSuggestion: () =>
+        new Promise<Suggested>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    await userEvent.fill(floatField(screen), "100");
+
+    answer(PREVIOUS_CLOSE);
+
+    await expect.element(screen.getByText("04/11 · 20:14")).toBeVisible();
+    await expect.element(floatField(screen)).toHaveValue("100");
+  });
+
+  it("opens with the float typed when the previous close cannot be read", async () => {
+    const { screen, open } = await renderPanel({
+      readOpeningFloatSuggestion: async () => "unavailable",
+    });
+
+    await expect.element(screen.getByText("No se pudo leer el cierre anterior")).toBeVisible();
+    await expect.element(floatField(screen)).toHaveValue("");
+    await expectNoAccessibilityViolations(screen.container);
+    await submitFloat(screen, "100");
+
+    expect(open).toHaveBeenCalledExactlyOnceWith(10_000);
+  });
+
+  it("reads the previous close again from its loading state and fills in its counted cash", async () => {
+    let answer: (suggestion: Suggested) => void = () => {};
     const readOpeningFloatSuggestion = vi
       .fn<() => Promise<Suggested>>()
       .mockResolvedValueOnce("unavailable")
-      .mockResolvedValue(PREVIOUS_CLOSE);
+      .mockImplementationOnce(
+        () =>
+          new Promise<Suggested>((resolve) => {
+            answer = resolve;
+          }),
+      );
     const { screen } = await renderPanel({ readOpeningFloatSuggestion });
-
     await expect.element(screen.getByText("No se pudo leer el cierre anterior")).toBeVisible();
-    await expect.element(screen.getByRole("textbox")).not.toBeInTheDocument();
-    await expectNoAccessibilityViolations(screen.container);
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect
+      .element(screen.getByText("No se pudo leer el cierre anterior"))
+      .not.toBeInTheDocument();
+    answer(PREVIOUS_CLOSE);
 
     await expect.element(floatField(screen)).toHaveValue("144.000,00");
   });

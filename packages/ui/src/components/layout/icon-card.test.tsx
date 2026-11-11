@@ -13,7 +13,7 @@ test("names its icon for assistive technology and fills the height it is given",
 
   const icon = screen.getByRole("img", { name: "Caja sin sesión abierta" });
   await expect.element(icon).toBeVisible();
-  const card = icon.element().parentElement?.parentElement;
+  const card = icon.element().parentElement;
   expect(card?.getBoundingClientRect().height).toBe(400);
   await expectNoAccessibilityViolations(screen.container);
 });

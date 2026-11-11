@@ -50,7 +50,34 @@ function PollingProbe({ read }: { read: () => Promise<string | "unavailable"> })
   return <p>{describeData(data)}</p>;
 }
 
+function ForgetfulProbe({ read }: { read: () => Promise<string | "unavailable"> }) {
+  const data = useCoreQuery({ queryKey: ["forgetful-probe"], read, gcTime: 0 });
+  return <p>{describeData(data)}</p>;
+}
+
 describe("useCoreQuery", () => {
+  it("forgets what it read once nothing shows it when told to keep nothing, and reads again from loading", async () => {
+    const queryClient = createQueryClient();
+    const shown = await render(
+      <QueryClientProvider client={queryClient}>
+        <ForgetfulProbe read={async () => "first"} />
+      </QueryClientProvider>,
+    );
+    await expect.element(shown.getByText("loaded first")).toBeVisible();
+    await shown.unmount();
+    await expect
+      .poll(() => queryClient.getQueryCache().find({ queryKey: ["forgetful-probe"] }))
+      .toBeUndefined();
+
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <ForgetfulProbe read={() => new Promise(() => {})} />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
   it("reads again every interval it is given while the interval says so, and stops once it says not to", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     const read = vi

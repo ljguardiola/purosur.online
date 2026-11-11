@@ -50,15 +50,15 @@ describe("the latest close of each register", () => {
     expect(closes.latestCloseOfEachRegister()).toEqual([]);
   });
 
-  it("is the newest close of each register, with when it closed and the cash counted", () => {
-    closedSession("older", { closedAt: "2026-11-03T23:00:00.000Z", countedCash: 1_000_000 });
-    closedSession("newest", { closedAt: "2026-11-04T23:14:00.000Z", countedCash: 14_400_000 });
+  it("is the last close recorded of each register, with when it closed and the cash counted", () => {
     closedSession("oldest", { closedAt: "2026-11-02T23:00:00.000Z", countedCash: 2_000_000 });
+    closedSession("older", { closedAt: "2026-11-03T23:00:00.000Z", countedCash: 1_000_000 });
     closedSession("other", {
       registerId: "register-2",
       closedAt: "2026-11-01T23:00:00.000Z",
       countedCash: 5_000_000,
     });
+    closedSession("newest", { closedAt: "2026-11-04T23:14:00.000Z", countedCash: 14_400_000 });
     openSession("open");
 
     expect(closes.latestCloseOfEachRegister()).toEqual(
@@ -76,6 +76,25 @@ describe("the latest close of each register", () => {
       ]),
     );
     expect(closes.latestCloseOfEachRegister()).toHaveLength(2);
+  });
+
+  it("is the last close recorded even when the register's clock was set back before it", () => {
+    closedSession("before the clock was set back", {
+      closedAt: "2026-11-04T23:14:00.000Z",
+      countedCash: 14_400_000,
+    });
+    closedSession("after the clock was set back", {
+      closedAt: "2026-11-03T20:00:00.000Z",
+      countedCash: 9_000_000,
+    });
+
+    expect(closes.latestCloseOfEachRegister()).toEqual([
+      {
+        registerId: "register-1",
+        closedAt: new Date("2026-11-03T20:00:00.000Z"),
+        countedCash: 9_000_000,
+      },
+    ]);
   });
 });
 
