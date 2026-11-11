@@ -30,9 +30,13 @@ async function renderScreen(outcome: SignInOutcome) {
   );
 }
 
-async function enter(screen: Screen, firstName: string, pin: string) {
+async function choose(screen: Screen, firstName: string) {
   await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
   await userEvent.click(page.getByRole("option", { name: firstName }));
+}
+
+async function enter(screen: Screen, firstName: string, pin: string) {
+  await choose(screen, firstName);
   await userEvent.type(screen.getByLabelText("PIN"), pin);
   await userEvent.click(screen.getByRole("button", { name: /^Entrar/ }));
 }

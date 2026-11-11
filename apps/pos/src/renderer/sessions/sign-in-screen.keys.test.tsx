@@ -2,14 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { SignInUsers } from "../platform/core-client";
-import {
-  renderSignIn,
-  roster,
-  SIGNED_IN,
-  type Screen,
-  USERS,
-  userSelect,
-} from "./test-support/sign-in-screen";
+import type { Screen } from "./test-support/sign-in-screen";
+import { renderSignIn, roster, SIGNED_IN, USERS, userSelect } from "./test-support/sign-in-screen";
 
 function failingOnce() {
   let attempts = 0;
@@ -143,7 +137,9 @@ describe("SignInScreen loading users", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(screen.getByRole("link", { name: "Primer ingreso" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Cambiar PIN con código" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Cambiar PIN con código" }))
+      .toBeVisible();
     await expect.element(screen.getByText("F2", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("F3", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
@@ -163,7 +159,9 @@ describe("SignInScreen when the users could not be read", () => {
     await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
     await expect.element(screen.getByText("R", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("link", { name: "Primer ingreso" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Cambiar PIN con código" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Cambiar PIN con código" }))
+      .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -188,7 +186,9 @@ describe("SignInScreen when nobody has signed in yet", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Todavía nadie ingresó en esta caja.")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Primer ingreso" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Cambiar PIN con código" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Cambiar PIN con código" }))
+      .toBeVisible();
     await expect.element(screen.getByText("F2", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("F3", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);

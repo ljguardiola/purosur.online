@@ -74,11 +74,7 @@ function pending() {
 
 async function renderScreen(signIn = answering(SIGNED_IN).signIn, users = USERS) {
   return render(
-    <SignInScreen
-      loadUsers={async () => roster(users)}
-      signIn={signIn}
-      version={null}
-    />,
+    <SignInScreen loadUsers={async () => roster(users)} signIn={signIn} version={null} />,
   );
 }
 
@@ -100,11 +96,7 @@ describe("SignInScreen", () => {
       .mockResolvedValueOnce(roster(USERS))
       .mockRejectedValue(new Error("the core connection was replaced"));
     const screen = await render(
-      <SignInScreen
-        loadUsers={loadUsers}
-        signIn={answering(SIGNED_IN).signIn}
-        version={null}
-      />,
+      <SignInScreen loadUsers={loadUsers} signIn={answering(SIGNED_IN).signIn} version={null} />,
     );
     await choose(screen, "Bruno");
     await userEvent.type(screen.getByLabelText("PIN"), "12");
@@ -143,7 +135,10 @@ describe("SignInScreen", () => {
 
     await userEvent.click(userSelect(screen));
 
-    const names = page.getByRole("option").elements().map((option) => option.textContent);
+    const names = page
+      .getByRole("option")
+      .elements()
+      .map((option) => option.textContent);
     expect(names).toEqual(["Ada", "Bruno"]);
   });
 
@@ -385,11 +380,7 @@ describe("SignInScreen", () => {
       return roster(USERS);
     };
     const screen = await render(
-      <SignInScreen
-        loadUsers={loadUsers}
-        signIn={answering(SIGNED_IN).signIn}
-        version={null}
-      />,
+      <SignInScreen loadUsers={loadUsers} signIn={answering(SIGNED_IN).signIn} version={null} />,
     );
     await expect.element(screen.getByText("No se pudieron cargar los usuarios")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
@@ -412,11 +403,7 @@ describe("SignInScreen", () => {
     { state: "loaded", loadUsers: async () => roster(USERS) },
   ])("offers changing the PIN with a code while the users are $state", async ({ loadUsers }) => {
     const screen = await render(
-      <SignInScreen
-        loadUsers={loadUsers}
-        signIn={answering(SIGNED_IN).signIn}
-        version={null}
-      />,
+      <SignInScreen loadUsers={loadUsers} signIn={answering(SIGNED_IN).signIn} version={null} />,
     );
 
     const link = screen.getByRole("link", { name: "Cambiar PIN con código" });
@@ -430,9 +417,7 @@ describe("SignInScreen", () => {
 
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeVisible();
     const button = screen.getByRole("button", { name: "Entrar" }).element();
-    const link = screen
-      .getByRole("link", { name: "Cambiar PIN con código" })
-      .element();
+    const link = screen.getByRole("link", { name: "Cambiar PIN con código" }).element();
     expect(button.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -448,11 +433,7 @@ describe("SignInScreen", () => {
     { state: "loaded", loadUsers: async () => roster(USERS) },
   ])("offers signing in for the first time while the users are $state", async ({ loadUsers }) => {
     const screen = await render(
-      <SignInScreen
-        loadUsers={loadUsers}
-        signIn={answering(SIGNED_IN).signIn}
-        version={null}
-      />,
+      <SignInScreen loadUsers={loadUsers} signIn={answering(SIGNED_IN).signIn} version={null} />,
     );
 
     const link = screen.getByRole("link", { name: "Primer ingreso" });

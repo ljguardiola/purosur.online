@@ -1115,9 +1115,7 @@ describe("App", () => {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
 
-      await userEvent.click(
-        screen.getByRole("link", { name: "Cambiar PIN con código" }),
-      );
+      await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
@@ -1815,9 +1813,7 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(
-        screen.getByRole("link", { name: "Cambiar PIN con código" }),
-      );
+      await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
@@ -3521,7 +3517,9 @@ describe("App", () => {
         });
 
         await expect.poll(() => asks).toBe(2);
-        await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
+        await expect
+          .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+          .toBeVisible();
       },
     );
 
@@ -3618,7 +3616,9 @@ describe("App", () => {
           });
 
           await expect.poll(() => asks).toBe(2);
-          await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
+          await expect
+            .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+            .toBeVisible();
         },
       );
     });

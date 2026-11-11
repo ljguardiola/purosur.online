@@ -59,7 +59,8 @@ function AuthorizersProbe({ permission, read, enabled = true }: AuthorizersProbe
 
 describe("sessions queries", () => {
   it("hold the people who can sign in", async () => {
-    const screen = await renderWithClient(<UsersProbe read={async () => ({ users: [ADA, GRACE], last_active_user_id: "u2" })} />,
+    const screen = await renderWithClient(
+      <UsersProbe read={async () => ({ users: [ADA, GRACE], last_active_user_id: "u2" })} />,
     );
 
     await expect.element(screen.getByText("Ada,Grace last:u2")).toBeVisible();

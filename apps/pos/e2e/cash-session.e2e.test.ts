@@ -71,9 +71,7 @@ describe("the register's cash session", () => {
     const restarted = register.page;
     await restarted.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
     await restarted.getByRole("radio", { name: "Ana" }).waitFor();
-    await restarted
-      .getByRole("link", { name: "Primer ingreso" })
-      .waitFor({ state: "detached" });
+    await restarted.getByRole("link", { name: "Primer ingreso" }).waitFor({ state: "detached" });
     await restarted.getByLabel("PIN").fill("4821");
     await restarted.getByRole("button", { name: "Retomar" }).click();
     await restarted.getByRole("heading", { name: "Venta en curso" }).waitFor();

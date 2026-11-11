@@ -1439,7 +1439,9 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .toBeInTheDocument();
     expect(windowOverflow().horizontal).toBe(0);
   });
 
@@ -2609,9 +2611,7 @@ describe("the register's router", () => {
     const router = routerAt("/sign-in", "up", "enrolled", null);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(
-      screen.getByRole("link", { name: "Cambiar PIN con código" }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
     await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 

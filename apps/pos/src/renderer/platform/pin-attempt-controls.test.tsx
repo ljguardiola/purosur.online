@@ -1,7 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { render } from "vitest-browser-react";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { PinAttemptControls } from "./pin-attempt-controls";
 import { usePinAttempt } from "./use-pin-attempt";
 

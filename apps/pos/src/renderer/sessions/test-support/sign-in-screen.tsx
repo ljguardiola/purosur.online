@@ -34,9 +34,7 @@ export async function renderSignIn({
   signIn?: (userId: string, pin: string) => Promise<SignInOutcome>;
   version?: string | null;
 } = {}) {
-  return render(
-    <SignInScreen loadUsers={loadUsers} signIn={signIn} version={version} />,
-  );
+  return render(<SignInScreen loadUsers={loadUsers} signIn={signIn} version={version} />);
 }
 
 export function userSelect(screen: Screen) {
