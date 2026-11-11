@@ -3,7 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { SignInUsers } from "../platform/core-client";
 import type { Screen } from "./test-support/sign-in-screen";
-import { renderSignIn, roster, SIGNED_IN, USERS, userSelect } from "./test-support/sign-in-screen";
+import {
+  expectChosen,
+  renderSignIn,
+  roster,
+  SIGNED_IN,
+  USERS,
+  userSelect,
+} from "./test-support/sign-in-screen";
 
 function failingOnce() {
   let attempts = 0;
@@ -27,19 +34,19 @@ describe("SignInScreen last active user", () => {
   it("opens with the last active user selected", async () => {
     const screen = await renderSignIn({ loadUsers: async () => roster(USERS, "u2") });
 
-    await expect.element(userSelect(screen)).toHaveTextContent("Bruno");
+    await expectChosen(screen, "Bruno");
   });
 
   it("opens with the first person in alphabetical order when nobody is marked", async () => {
     const screen = await renderSignIn({ loadUsers: async () => roster(USERS, null) });
 
-    await expect.element(userSelect(screen)).toHaveTextContent("Ada");
+    await expectChosen(screen, "Ada");
   });
 
   it("opens with the first person in alphabetical order when the marked one is not listed", async () => {
     const screen = await renderSignIn({ loadUsers: async () => roster(USERS, "gone") });
 
-    await expect.element(userSelect(screen)).toHaveTextContent("Ada");
+    await expectChosen(screen, "Ada");
   });
 
   it("signs in the last active user", async () => {
@@ -70,16 +77,16 @@ describe("SignInScreen keys", () => {
 
   it("selects the next person with the down arrow and the previous one with the up arrow", async () => {
     const screen = await renderSignIn();
-    await expect.element(userSelect(screen)).toHaveTextContent("Ada");
+    await expectChosen(screen, "Ada");
 
     await userEvent.keyboard("{ArrowDown}");
-    await expect.element(userSelect(screen)).toHaveTextContent("Bruno");
+    await expectChosen(screen, "Bruno");
     await userEvent.keyboard("{ArrowDown}");
-    await expect.element(userSelect(screen)).toHaveTextContent("Carla");
+    await expectChosen(screen, "Carla");
     await userEvent.keyboard("{ArrowDown}");
-    await expect.element(userSelect(screen)).toHaveTextContent("Carla");
+    await expectChosen(screen, "Carla");
     await userEvent.keyboard("{ArrowUp}");
-    await expect.element(userSelect(screen)).toHaveTextContent("Bruno");
+    await expectChosen(screen, "Bruno");
   });
 
   it("clears the typed PIN when an arrow changes the person", async () => {
@@ -104,7 +111,7 @@ describe("SignInScreen keys", () => {
 
     await userEvent.keyboard("{ArrowDown}");
 
-    await expect.element(userSelect(screen)).toHaveTextContent("Ada");
+    await expectChosen(screen, "Ada");
     finish();
   });
 

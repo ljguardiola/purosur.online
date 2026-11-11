@@ -1429,7 +1429,7 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
+    await expect.element(screen.getByLabelText("PIN")).toBeVisible();
   });
 
   it("keeps its frame within the window's width beside a vertical scrollbar", async () => {

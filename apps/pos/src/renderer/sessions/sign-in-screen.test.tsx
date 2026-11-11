@@ -6,7 +6,7 @@ import type { SignInUsers } from "../platform/core-client";
 import { render } from "../shell/test-support/render-with-router";
 import { sessionsKey } from "./sessions-queries";
 import { SignInScreen } from "./sign-in-screen";
-import { userSelect } from "./test-support/sign-in-screen";
+import { expectChosen, userSelect } from "./test-support/sign-in-screen";
 
 const roster = (users: SignInUser[]): SignInUsers => ({ users, last_active_user_id: null });
 
@@ -109,7 +109,7 @@ describe("SignInScreen", () => {
       )
       .toBe("error");
 
-    await expect.element(userSelect(screen)).toHaveTextContent("Bruno");
+    await expectChosen(screen, "Bruno");
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
     await expect
       .element(screen.getByText("No se pudieron cargar los usuarios"))
@@ -135,11 +135,9 @@ describe("SignInScreen", () => {
 
     await userEvent.click(userSelect(screen));
 
-    const names = page
-      .getByRole("option")
-      .elements()
-      .map((option) => option.textContent);
-    expect(names).toEqual(["Ada", "Bruno"]);
+    const ada = page.getByRole("option", { name: "Ada" }).element();
+    const bruno = page.getByRole("option", { name: "Bruno" }).element();
+    expect(ada.compareDocumentPosition(bruno) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows no status about the register, which has no name to show", async () => {
@@ -229,7 +227,7 @@ describe("SignInScreen", () => {
     request.finish({ kind: "unavailable" });
     await expect.element(screen.getByText("No se pudo verificar el PIN")).toBeVisible();
     await expect.element(userSelect(screen)).toBeEnabled();
-    await expect.element(userSelect(screen)).toHaveTextContent("Ada");
+    await expectChosen(screen, "Ada");
     await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("1234");
   });

@@ -943,7 +943,6 @@ describe("App", () => {
       .element(screen.getByRole("region", { name: "Estado de la caja" }))
       .not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -957,7 +956,6 @@ describe("App", () => {
     const { core, statusAsks, finishPull } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -980,7 +978,6 @@ describe("App", () => {
       .mockResolvedValue({ kind: "read", offered: false, lines: [] });
     const screen = await render(<App core={{ ...answering.core, readInitialCount }} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect
@@ -998,7 +995,6 @@ describe("App", () => {
     const { core, statusAsks, changeSerialDevices } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1013,7 +1009,6 @@ describe("App", () => {
     const { core, statusAsks, changeStorageStanding } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1028,7 +1023,6 @@ describe("App", () => {
     const { core, statusAsks, changeBatteryStanding } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1043,7 +1037,6 @@ describe("App", () => {
     const { core, statusAsks, changeFiscalMode } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1069,7 +1062,6 @@ describe("App", () => {
     async function signInAsConfigurer(core: CoreClient) {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
       return screen;
@@ -1211,7 +1203,6 @@ describe("App", () => {
       );
       await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1230,8 +1221,10 @@ describe("App", () => {
 
     await expect.poll(usersLoads).toBe(2);
     await expect
-      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
-      .toHaveTextContent("Ada");
+      .element(
+        screen.getByRole("button", { name: SIGN_IN_USER_SELECT }).getByText("Ada", { exact: true }),
+      )
+      .toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
   });
 
@@ -1318,7 +1311,6 @@ describe("App", () => {
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1335,7 +1327,6 @@ describe("App", () => {
     const { core, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
 
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
@@ -1464,7 +1455,6 @@ describe("App", () => {
     onTestFinished(() => page.viewport(414, 896));
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1500,7 +1490,6 @@ describe("App", () => {
     );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1521,7 +1510,6 @@ describe("App", () => {
     const { core, asked } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1541,7 +1529,6 @@ describe("App", () => {
     async (status) => {
       const screen = await render(<App core={enrolledCore} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
@@ -1564,7 +1551,6 @@ describe("App", () => {
     onTestFinished(() => page.viewport(414, 896));
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1589,7 +1575,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1604,7 +1589,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1630,7 +1614,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1658,7 +1641,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1813,7 +1795,7 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
+      await userEvent.click(screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
@@ -2299,7 +2281,6 @@ describe("App", () => {
     };
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3050,7 +3031,6 @@ describe("App", () => {
     const { core, opened } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3075,7 +3055,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3097,7 +3076,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3120,7 +3098,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
@@ -3145,7 +3122,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3164,7 +3140,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3186,7 +3161,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3696,7 +3670,6 @@ describe("App", () => {
       );
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3730,7 +3703,6 @@ describe("App", () => {
       const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS);
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
