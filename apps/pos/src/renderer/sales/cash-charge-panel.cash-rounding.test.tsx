@@ -69,19 +69,19 @@ it("shows no rounding row when the core answers no rounding", async () => {
   expect(valueBeside(screen, "A COBRAR")).toBe("$ 3.200,00");
 });
 
-it("shows the rounding with the amount to charge for a partial cash amount", async () => {
+it("shows no rounding, and the whole amount due to charge, for a partial cash amount", async () => {
   const { screen, field } = await renderCashChargePanel({
     sale: SALE_OF_3270,
     readAmounts: async () => ROUNDED_AMOUNTS,
-    readCharge: async () => ({ kind: "partial", applied: 200_000, pending: 120_000 }),
+    readCharge: async () => ({ kind: "partial", applied: 200_000, pending: 127_000 }),
   });
 
   await userEvent.fill(field, "2000");
 
   await expect.element(screen.getByText("QUEDA PENDIENTE")).toBeVisible();
-  await expect.element(screen.getByText("$ 1.200,00", { exact: true })).toBeVisible();
-  expect(valueBeside(screen, "Redondeo")).toBe("– $ 70,00");
-  expect(valueBeside(screen, "A COBRAR")).toBe("$ 3.200,00");
+  await expect.element(screen.getByText("$ 1.270,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("Redondeo").query()).toBeNull();
+  expect(valueBeside(screen, "A COBRAR")).toBe("$ 3.270,00");
 });
 
 it("shows the rounding after the discount typed for lack of change", async () => {

@@ -646,6 +646,7 @@ describe("createCoreClient", () => {
     [
       {
         kind: "amounts",
+        amount_due: 2_519_250,
         amount_to_charge: 2_510_000,
         cash_rounding: 9_250,
         quick_amounts: [2_510_000, 2_600_000],
@@ -665,6 +666,17 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([
       { type: "cash-charge-amounts", request_id: "request-1", sale_id: "s1" },
     ]);
+  });
+
+  it("rejects when the core cannot read the amounts of a cash charge", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashChargeAmounts("s1");
+    port.answer({ type: "cash-charge-amounts-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
   });
 
   it("asks for the amounts of a cash charge once the discount being typed is taken off", async () => {

@@ -138,6 +138,7 @@ const COVERED: CashChargeAnswer = {
 
 const AMOUNTS_OF_SALE = (discount?: number): CashChargeAmountsAnswer => ({
   kind: "amounts",
+  amount_due: 476_000 - (discount ?? 0),
   amount_to_charge: 476_000 - (discount ?? 0),
   cash_rounding: 0,
   quick_amounts: [476_000, 500_000, 1_000_000, 2_000_000],

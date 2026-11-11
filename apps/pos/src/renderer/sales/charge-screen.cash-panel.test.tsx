@@ -1,3 +1,4 @@
+import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
 import { expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
@@ -39,6 +40,7 @@ it("asks the core for the amounts of the sale being charged and shows them", asy
   const { screen, cashChargeAmounts } = await renderScreen({
     cashChargeAmounts: async () => ({
       kind: "amounts",
+      amount_due: 476_000,
       amount_to_charge: 470_000,
       cash_rounding: 6_000,
       quick_amounts: [470_000, 500_000],
@@ -102,4 +104,32 @@ it("shows the sale screen's search field above the locked lines, disabled and em
   await expect.element(search).toHaveAttribute("placeholder", "Escaneá o escribí el nombre");
   await expect.element(search).toBeDisabled();
   await expect.element(search).toHaveValue("");
+});
+
+it("stays on the cash charge, and shows the completed sale, when Esc is pressed while the charge is pending", async () => {
+  let complete: ((outcome: ChargeSaleInCashOutcome) => void) | undefined;
+  const { screen } = await renderScreen({
+    chargeSaleInCash: () =>
+      new Promise<ChargeSaleInCashOutcome>((resolve) => {
+        complete = resolve;
+      }),
+  });
+  await chooseCash(screen);
+  await expect.element(screen.getByRole("button", { name: "$ 5.000,00" })).toBeVisible();
+  await userEvent.keyboard("{F7}");
+  await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+  await expect.poll(() => complete).toBeDefined();
+
+  await userEvent.keyboard("{Escape}");
+  complete?.({
+    kind: "completed",
+    sale_id: "sale-1",
+    total: 476_000,
+    tendered: 500_000,
+    change: 24_000,
+    cash_rounding: 0,
+  });
+
+  await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+  expect(screen.router.state.location.pathname).toBe("/");
 });

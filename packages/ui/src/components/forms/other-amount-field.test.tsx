@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -17,6 +18,17 @@ function field(props: Partial<OtherAmountFieldProps> = {}) {
       {...props}
     />
   );
+}
+
+function TypedField({ onChange }: { onChange: (value: string) => void }) {
+  const [value, setValue] = useState("");
+  return field({
+    value,
+    onChange: (typed) => {
+      setValue(typed);
+      onChange(typed);
+    },
+  });
 }
 
 test("is a text field named by its label, with its placeholder and key shown", async () => {
@@ -41,11 +53,11 @@ test("shows its prefix before the input and its key after it", async () => {
 
 test("reports what is typed, keeping two decimals", async () => {
   const onChange = vi.fn();
-  const screen = await render(field({ onChange }));
+  const screen = await render(<TypedField onChange={onChange} />);
 
-  await userEvent.type(screen.getByRole("textbox"), "1");
+  await userEvent.type(screen.getByRole("textbox"), "1,234");
 
-  expect(onChange).toHaveBeenLastCalledWith("1");
+  expect(onChange).toHaveBeenLastCalledWith("1,23");
 });
 
 test("shows the typed value", async () => {
@@ -78,5 +90,6 @@ test("requires a label, a prefix, a placeholder, a value and a change handler", 
   expectTypeOf<Omit<OtherAmountFieldProps, "label">>().not.toExtend<OtherAmountFieldProps>();
   expectTypeOf<Omit<OtherAmountFieldProps, "prefix">>().not.toExtend<OtherAmountFieldProps>();
   expectTypeOf<Omit<OtherAmountFieldProps, "placeholder">>().not.toExtend<OtherAmountFieldProps>();
+  expectTypeOf<Omit<OtherAmountFieldProps, "value">>().not.toExtend<OtherAmountFieldProps>();
   expectTypeOf<Omit<OtherAmountFieldProps, "onChange">>().not.toExtend<OtherAmountFieldProps>();
 });

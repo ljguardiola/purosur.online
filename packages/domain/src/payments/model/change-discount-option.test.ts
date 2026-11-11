@@ -25,7 +25,7 @@ describe("changeDiscountOption", () => {
     },
   );
 
-  it("offers just above $1.000 its single cent", () => {
+  it("offers nothing for an amount just above $1.000 that rounds down to it, and the hundreds of one that does not", () => {
     expect(changeDiscountOption(100_001)).toBeNull();
     expect(changeDiscountOption(110_000)).toBe(10_000);
   });

@@ -141,6 +141,15 @@ describe("CashChargePanel", () => {
     await expect.poll(() => valueBeside(screen, "A COBRAR")).toBe("$ 4.760,00");
   });
 
+  it("shows no amount to charge loading once reading it failed", async () => {
+    const { screen } = await renderPanel(undefined, undefined, undefined, async () => {
+      throw new Error("the core could not read the amounts of a cash charge");
+    });
+
+    await expect.element(screen.getByText("No se pudo calcular el importe a cobrar")).toBeVisible();
+    expect(screen.container.querySelector("[aria-busy=true]")).toBeNull();
+  });
+
   it("leaves the charge for the sale screen when the core has no sale to charge", async () => {
     const { callbacks } = await renderPanel(undefined, undefined, undefined, async () => null);
 
@@ -407,6 +416,20 @@ describe("CashChargePanel", () => {
     await expect.element(complete).toBeDisabled();
     complete.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(chargeSale).toHaveBeenCalledOnce();
+    pending.resolve(COMPLETED);
+  });
+
+  it("offers no Esc button while the charge is pending", async () => {
+    const pending = deferred<ChargeSaleInCashOutcome>();
+    const { screen, field, complete } = await renderPanel(() => pending.promise);
+    await userEvent.fill(field, "5000,00");
+
+    await userEvent.click(complete);
+
+    await expect.element(complete).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
+      .not.toBeInTheDocument();
     pending.resolve(COMPLETED);
   });
 

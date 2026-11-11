@@ -2162,6 +2162,7 @@ describe("App", () => {
         }),
         cashChargeAmounts: async () => ({
           kind: "amounts",
+          amount_due: 238_000,
           amount_to_charge: 238_000,
           cash_rounding: 0,
           quick_amounts: [238_000],
@@ -2243,6 +2244,7 @@ describe("App", () => {
         }),
         cashChargeAmounts: async () => ({
           kind: "amounts",
+          amount_due: 238_000,
           amount_to_charge: 238_000,
           cash_rounding: 0,
           quick_amounts: [238_000],
@@ -2396,6 +2398,7 @@ describe("App", () => {
         }),
         cashChargeAmounts: async () => ({
           kind: "amounts",
+          amount_due: 238_000,
           amount_to_charge: 238_000,
           cash_rounding: 0,
           quick_amounts: [238_000],
@@ -3815,6 +3818,7 @@ describe("App", () => {
           }),
           cashChargeAmounts: async () => ({
             kind: "amounts",
+            amount_due: 238_000,
             amount_to_charge: 238_000,
             cash_rounding: 0,
             quick_amounts: [238_000],

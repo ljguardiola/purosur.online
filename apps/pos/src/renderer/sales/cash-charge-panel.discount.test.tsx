@@ -76,6 +76,23 @@ it("warns that the discount typed replaces the one already applied on the total"
     .toHaveTextContent("Reemplaza el descuento sobre el total ya aplicado ($ 200,00)");
 });
 
+it("shows the amount before the discount on the total as the base of the discount typed when it replaces one already applied", async () => {
+  const panel = await renderCashChargePanel({
+    sale: { total: 864_000, paid: 0, pending: 864_000, subtotal: 960_000 },
+    appliedDiscountAmount: 96_000,
+    readAmounts: async (discount) =>
+      discount === undefined ? amountsOf(864_000) : amountsOf(960_000 - discount),
+  });
+  await expect.poll(() => valueBeside(panel.screen, "Total")).toBe("$ 8.640,00");
+
+  await typeDiscount(panel, "100");
+
+  await expect.poll(() => valueBeside(panel.screen, "A COBRAR")).toBe("$ 9.500,00");
+  expect(valueBeside(panel.screen, "Después de promociones")).toBe("$ 9.600,00");
+  expect(valueBeside(panel.screen, "Falta de cambio")).toBe("– $ 100,00");
+  await expect.element(panel.screen.getByText("Total", { exact: true })).not.toBeInTheDocument();
+});
+
 it("shows no replacement warning when the sale has no discount on its total", async () => {
   const panel = await renderCashChargePanel();
 
@@ -99,6 +116,20 @@ it("shows the discount refusal on the field when the core says the discount exce
     .element(panel.screen.getByText("El descuento no puede ser mayor al total de la venta."))
     .toBeVisible();
   expect(panel.callbacks.onSaleUnavailable).not.toHaveBeenCalled();
+});
+
+it("shows no amount to charge loading once the core says the discount exceeds the sale", async () => {
+  const panel = await renderCashChargePanel({
+    readAmounts: async (discount) =>
+      discount === undefined ? amountsOf(960_000) : { kind: "discount_exceeds_sale" },
+  });
+
+  await typeDiscount(panel, "99999");
+
+  await expect
+    .element(panel.screen.getByText("El descuento no puede ser mayor al total de la venta."))
+    .toBeVisible();
+  expect(panel.screen.container.querySelector("[aria-busy=true]")).toBeNull();
 });
 
 it("says the amounts could not be worked out, not that the discount exceeds the sale, when the core has none for the discount typed", async () => {

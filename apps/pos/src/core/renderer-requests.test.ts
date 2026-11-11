@@ -1630,6 +1630,7 @@ describe("answerRendererRequest", () => {
   it("answers the amounts of a cash charge of the sale with its discount", async () => {
     const amounts = {
       kind: "amounts" as const,
+      amount_due: 2_519_250,
       amount_to_charge: 2_510_000,
       cash_rounding: 9250,
       quick_amounts: [2_510_000, 2_600_000],
@@ -1654,7 +1655,19 @@ describe("answerRendererRequest", () => {
     expect(requests).toEqual([{ saleId: "s1", saleDiscount: 10_000 }]);
   });
 
-  it("answers no cash charge amounts when the register has no database or reading them fails, and reports why", async () => {
+  it("answers no cash charge amounts when there is no sale to charge", async () => {
+    const { deps: withoutSale } = deps(true, { cashChargeAmounts: async () => null });
+
+    expect(
+      await answerRendererRequest(withoutSale, {
+        type: "cash-charge-amounts",
+        request_id: "r69",
+        sale_id: "s1",
+      }),
+    ).toEqual({ type: "cash-charge-amounts-result", request_id: "r69", amounts: null });
+  });
+
+  it("answers that the cash charge amounts are unavailable when the register has no database or reading them fails, and reports why", async () => {
     const error = new Error("database is locked");
     const failing = deps(true, {
       cashChargeAmounts: async () => {
@@ -1662,11 +1675,11 @@ describe("answerRendererRequest", () => {
       },
     });
     const message = { type: "cash-charge-amounts", request_id: "r69", sale_id: "s1" } as const;
-    const none = { type: "cash-charge-amounts-result", request_id: "r69", amounts: null };
+    const unavailable = { type: "cash-charge-amounts-unavailable", request_id: "r69" };
 
-    expect(await answerRendererRequest(failing.deps, message)).toEqual(none);
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(unavailable);
     expect(failing.failures).toEqual([{ context: "reading the amounts of a cash charge", error }]);
-    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(none);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
   });
 
   it("follows a Mercado Pago QR charge and answers the outcome", async () => {

@@ -373,6 +373,7 @@ describe("product search", () => {
 
 const AMOUNTS: CashChargeAmounts = {
   kind: "amounts",
+  amount_due: 2_519_250,
   amount_to_charge: 2_510_000,
   cash_rounding: 9_250,
   quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],

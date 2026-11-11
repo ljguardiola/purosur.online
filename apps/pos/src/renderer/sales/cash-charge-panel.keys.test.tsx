@@ -11,6 +11,7 @@ function amountsFor(discount: number | undefined, quickAmounts: number[]): CashC
   return discount === undefined
     ? {
         kind: "amounts",
+        amount_due: 2_519_250,
         amount_to_charge: 2_510_000,
         cash_rounding: 9_250,
         quick_amounts: quickAmounts,
@@ -205,6 +206,47 @@ it("charges with Enter and goes back with Esc", async () => {
   await expect.poll(() => chargeSale.mock.calls).toEqual([[3_000_000]]);
   await userEvent.keyboard("{Escape}");
   expect(callbacks.onBack).toHaveBeenCalledOnce();
+});
+
+it("charges with the discount on Enter once the shortage-of-change block is open", async () => {
+  const { complete, chargeSaleWithDiscount } = await renderBoardPanel();
+  await userEvent.keyboard("{F8}");
+  await userEvent.keyboard("{F3}");
+  await expect.element(complete).toBeEnabled();
+
+  await userEvent.keyboard("{Enter}");
+
+  await expect
+    .poll(() => chargeSaleWithDiscount.mock.calls)
+    .toEqual([[3_000_000, 10_000, undefined]]);
+});
+
+it("presses the focused Esc button with Enter instead of charging", async () => {
+  const { screen, complete, chargeSale, callbacks } = await renderBoardPanel();
+  await userEvent.keyboard("{F8}");
+  await expect.element(complete).toBeEnabled();
+  screen.getByRole("button", { name: "Cerrar con Esc" }).element().focus();
+
+  await userEvent.keyboard("{Enter}");
+
+  await expect.poll(() => callbacks.onBack.mock.calls.length).toBe(1);
+  expect(chargeSale).not.toHaveBeenCalled();
+});
+
+it("presses the focused Quitar with Enter instead of charging", async () => {
+  const { screen, complete, chargeSale, chargeSaleWithDiscount } = await renderBoardPanel();
+  await userEvent.keyboard("{F8}");
+  await userEvent.keyboard("{F3}");
+  await expect.element(complete).toBeEnabled();
+  screen.getByRole("button", { name: "Quitar" }).element().focus();
+
+  await userEvent.keyboard("{Enter}");
+
+  await expect
+    .element(screen.getByRole("group", { name: "FALTA DE CAMBIO" }))
+    .not.toBeInTheDocument();
+  expect(chargeSale).not.toHaveBeenCalled();
+  expect(chargeSaleWithDiscount).not.toHaveBeenCalled();
 });
 
 it("leaves its keys to the authorization modal while it is open", async () => {

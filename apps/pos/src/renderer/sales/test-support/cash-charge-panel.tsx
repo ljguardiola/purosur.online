@@ -27,9 +27,9 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   cash_rounding: 0,
 };
 
-const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000 };
+const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000, subtotal: 960_000 };
 
-type PanelSale = { total: number; paid: number; pending: number };
+type PanelSale = { total: number; paid: number; pending: number; subtotal?: number };
 
 export function amountsOf(
   amountToCharge: number,
@@ -37,6 +37,7 @@ export function amountsOf(
 ): CashChargeAmounts {
   return {
     kind: "amounts",
+    amount_due: amountToCharge + (rest.cash_rounding ?? 0),
     amount_to_charge: amountToCharge,
     cash_rounding: 0,
     quick_amounts: [amountToCharge],
@@ -94,9 +95,10 @@ export async function renderCashChargePanel({
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
-  const propsFor = (shown: PanelSale): CashChargePanelProps => ({
+  const propsFor = ({ subtotal, ...shown }: PanelSale): CashChargePanelProps => ({
     saleId: "sale-1",
     ...shown,
+    subtotal: subtotal ?? shown.total,
     discountOffered,
     appliedDiscountAmount,
     authorizationRequired,

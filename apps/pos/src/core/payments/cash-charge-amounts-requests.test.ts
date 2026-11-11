@@ -34,11 +34,12 @@ afterEach(() => {
 });
 
 describe("the amounts of a cash charge", () => {
-  it("are the rounded amount to charge, its quick amounts and the shortage-of-change option", async () => {
+  it("are the amount due, the rounded amount to charge, its quick amounts and the shortage-of-change option", async () => {
     const saleId = await sellFor(2_519_250);
 
     expect(await cashChargeAmountsFor(deps(), { saleId })).toEqual({
       kind: "amounts",
+      amount_due: 2_519_250,
       amount_to_charge: 2_510_000,
       cash_rounding: 9250,
       quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
@@ -52,6 +53,7 @@ describe("the amounts of a cash charge", () => {
 
     expect(await cashChargeAmountsFor(deps(), { saleId })).toEqual({
       kind: "amounts",
+      amount_due: 1_519_250,
       amount_to_charge: 1_510_000,
       cash_rounding: 9250,
       quick_amounts: [1_510_000, 1_600_000, 2_000_000],
@@ -64,6 +66,7 @@ describe("the amounts of a cash charge", () => {
 
     expect(await cashChargeAmountsFor(deps(), { saleId, saleDiscount: 10_000 })).toEqual({
       kind: "amounts",
+      amount_due: 2_509_250,
       amount_to_charge: 2_500_000,
       cash_rounding: 9250,
       quick_amounts: [2_500_000, 3_000_000, 4_000_000],

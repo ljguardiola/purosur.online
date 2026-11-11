@@ -676,6 +676,7 @@ describe("reading the amounts of a cash charge", () => {
 
   const amounts = {
     kind: "amounts",
+    amount_due: 2_519_250,
     amount_to_charge: 2_510_000,
     cash_rounding: 9250,
     quick_amounts: [2_510_000, 2_600_000, 3_000_000, 4_000_000],
@@ -700,6 +701,8 @@ describe("reading the amounts of a cash charge", () => {
   it.each([
     { ...amounts, kind: undefined },
     { ...amounts, kind: "another" },
+    { ...amounts, amount_due: -1 },
+    { ...amounts, amount_due: undefined },
     { ...amounts, amount_to_charge: -1 },
     { ...amounts, cash_rounding: -1 },
     { ...amounts, quick_amounts: [-1] },
@@ -714,5 +717,11 @@ describe("reading the amounts of a cash charge", () => {
         amounts: answered,
       }).success,
     ).toBe(false);
+  });
+
+  it("accepts that the core could not read the amounts", () => {
+    const unavailable = { type: "cash-charge-amounts-unavailable", request_id: REQUEST_ID };
+
+    expect(paymentsCoreToRendererMessageSchema.parse(unavailable)).toEqual(unavailable);
   });
 });
