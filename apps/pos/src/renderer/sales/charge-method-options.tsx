@@ -12,6 +12,9 @@ export type ChargeMethod =
   | "TRANSFER"
   | "STANDALONE_TERMINAL";
 
+export const KEYED_CHARGE_METHODS = ["CASH", "POINT_DEBIT", "POINT_CREDIT", "QR"] as const;
+export type KeyedChargeMethod = (typeof KEYED_CHARGE_METHODS)[number];
+
 type MethodOption = {
   value: ChargeMethod;
   label: string;
@@ -28,8 +31,8 @@ const CASH_OPTION: MethodOption = {
 };
 
 const POINT_OPTIONS = [
-  { value: "POINT_DEBIT", label: "Point · Débito" },
-  { value: "POINT_CREDIT", label: "Point · Crédito" },
+  { value: "POINT_DEBIT", label: "Point débito" },
+  { value: "POINT_CREDIT", label: "Point crédito" },
 ] as const;
 
 function pointOptions(point: PaymentMethodAvailability["point"]): MethodOption[] {
@@ -62,7 +65,7 @@ function pointOptions(point: PaymentMethodAvailability["point"]): MethodOption[]
 
 const QR_OPTION: MethodOption = {
   value: "QR",
-  label: "QR de Mercado Pago",
+  label: "QR",
   description: "El cliente escanea el QR · requiere internet",
   icon: <QrCode />,
 };

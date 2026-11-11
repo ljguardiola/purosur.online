@@ -33,7 +33,6 @@ const OUT_OF_SERVICE_TITLE = "La caja necesita restaurarse";
 const RESTORING_TITLE = "La caja no puede vender todavía";
 const RESTORE_REQUIRED_TITLE = "La caja tiene que volver a darse de alta";
 
-const SESSION_TITLE = "Venta en curso";
 const OPENED: OpenCashSessionOutcome = {
   kind: "opened",
   cash_session: {
@@ -1376,7 +1375,7 @@ describe("App", () => {
 
     await resumeLockedRegister(screen);
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
   });
 
   it("stops showing a locked cash session that a finished pull closed", async () => {
@@ -1429,7 +1428,7 @@ describe("App", () => {
 
     await resumeLockedRegister(screen);
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
       .toBeVisible();
@@ -1811,7 +1810,7 @@ describe("App", () => {
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
       .toBeVisible();
@@ -1845,7 +1844,7 @@ describe("App", () => {
         cash_session: GRACE_SESSION,
       });
 
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
       await expect
         .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
         .toBeVisible();
@@ -1868,7 +1867,7 @@ describe("App", () => {
         },
       );
 
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("stays locked and says only the opener can use a code when someone else redeemed it", async () => {
@@ -1876,7 +1875,7 @@ describe("App", () => {
 
       await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
       await expect
-        .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+        .element(screen.getByRole("combobox", { name: "Producto" }))
         .not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("link", { name: "Volver" }));
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
@@ -1945,7 +1944,7 @@ describe("App", () => {
         .toBeVisible();
       await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("passes a paid order without a sale to refund through the core and then goes on to the sale by itself", async () => {
@@ -1981,7 +1980,7 @@ describe("App", () => {
       );
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("rebuilds the sale of a paid order through the core and goes on to the sale", async () => {
@@ -2016,7 +2015,7 @@ describe("App", () => {
       );
 
       expect(rebuildSaleAgainstPaidOrder).toHaveBeenCalledExactlyOnceWith("tx-1");
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("goes straight to the sale when the core lists nothing", async () => {
@@ -2029,7 +2028,7 @@ describe("App", () => {
 
       await resumeLockedRegister(screen);
 
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("does not show it again after Ir a vender when the register is locked and resumed", async () => {
@@ -2042,13 +2041,13 @@ describe("App", () => {
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await resumeLockedRegister(screen);
       await userEvent.click(screen.getByRole("button", { name: "Ir a vender" }));
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
 
       await userEvent.click(screen.getByRole("button", { name: "Salir" }));
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await resumeLockedRegister(screen);
 
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
   });
 
@@ -2175,8 +2174,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
       "2500,00",
@@ -2272,8 +2270,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
       "2500,00",
@@ -2399,8 +2396,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
       "2500,00",
@@ -2410,7 +2406,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect.poll(() => reads).toBe(3);
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
@@ -2468,7 +2464,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
@@ -2531,7 +2527,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago aprobado" }));
 
@@ -2598,7 +2594,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
     await expect
@@ -2607,7 +2603,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect.poll(() => reads).toBe(3);
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
@@ -2663,7 +2659,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await expect.poll(() => availabilityReads).toBeGreaterThan(0);
     const readsBefore = availabilityReads;
 
@@ -2736,8 +2732,8 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
+    await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
@@ -2748,7 +2744,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect.poll(() => reads).toBe(3);
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
@@ -2817,8 +2813,8 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
+    await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -2830,7 +2826,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect.poll(() => reads).toBe(3);
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
@@ -3074,7 +3070,7 @@ describe("App", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
       .toBeVisible();
@@ -3098,7 +3094,7 @@ describe("App", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
-    await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
   });
 
   it("shows the register locked in the opener's name when the core says a session of another person is already open", async () => {
@@ -3187,7 +3183,7 @@ describe("App", () => {
       .element(screen.getByText("No tenés permiso para abrir la caja.").first())
       .toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+      .element(screen.getByRole("combobox", { name: "Producto" }))
       .not.toBeInTheDocument();
   });
 
@@ -3235,7 +3231,7 @@ describe("App", () => {
       postCoreStatus("up");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
       return { screen, ...fake };
     }
 
@@ -3257,7 +3253,7 @@ describe("App", () => {
       await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
       await expect
-        .element(screen.getByRole("heading", { name: SESSION_TITLE }))
+        .element(screen.getByRole("combobox", { name: "Producto" }))
         .not.toBeInTheDocument();
     });
 
@@ -3352,7 +3348,7 @@ describe("App", () => {
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
       await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
       await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
 
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
 
@@ -3402,7 +3398,7 @@ describe("App", () => {
       expect(asked).toContain("sign-out");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("stays on the cash count and offers the sale when it is still open", async () => {
@@ -3415,7 +3411,7 @@ describe("App", () => {
       await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Ir a la venta" }));
 
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("stays on the cash count when the core says another session is now open", async () => {
@@ -3728,7 +3724,7 @@ describe("App", () => {
         .toBeVisible();
       await userEvent.click(screen.getByRole("link", { name: "Venta" }));
 
-      await expect.element(screen.getByRole("heading", { name: SESSION_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
     it("offers no Historial to a person who may not view it", async () => {
@@ -3817,8 +3813,7 @@ describe("App", () => {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
       await resumeLockedRegister(screen);
-      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-      await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
       await userEvent.fill(
         screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
         "2500,00",

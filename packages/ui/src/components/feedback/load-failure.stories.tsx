@@ -55,3 +55,19 @@ export const PillVariant: Story = {
     description: "Probá de nuevo en 30 segundos.",
   },
 };
+
+export const Centered: Story = {
+  args: {
+    variant: "centered",
+    icon: <TriangleAlert />,
+    title: "No se pudo cargar la venta",
+    description: "Volvé a intentarlo en unos segundos.",
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-104">
+        <Story />
+      </div>
+    ),
+  ],
+};

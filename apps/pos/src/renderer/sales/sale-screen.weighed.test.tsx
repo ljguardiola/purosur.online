@@ -94,16 +94,16 @@ describe("SaleScreen adding a product sold by weight", () => {
       }),
     );
     const { screen, field } = await scanning({ currentSale, addWeighedProduct });
-    const lines = screen.getByRole("listitem");
-    await expect.element(lines).toHaveLength(1);
+    const lines = screen.getByRole("row");
+    await expect.element(lines).toHaveLength(2);
 
     await scan(field, "7790001");
     await typeWeight(screen, "1,25");
 
     expect(addWeighedProduct).toHaveBeenCalledExactlyOnceWith("p-queso", 1250);
     await expect.element(screen.getByText("1,250 kg")).toBeVisible();
-    await expect.element(lines).toHaveLength(2);
-    await expect.element(lines.first()).not.toHaveAttribute("aria-current");
+    await expect.element(lines).toHaveLength(3);
+    await expect.element(lines.nth(1)).not.toHaveAttribute("aria-current");
     await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
     await expect
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
@@ -287,8 +287,8 @@ describe("SaleScreen weighing a product on the scale", () => {
           : { kind: "stable", weight_thousandths: 1250, amount: 1_562_500 },
     );
     const { screen, field } = await scanning({ currentSale, weighProduct });
-    const lines = screen.getByRole("listitem");
-    await expect.element(lines).toHaveLength(1);
+    const lines = screen.getByRole("row");
+    await expect.element(lines).toHaveLength(2);
 
     await scan(field, "7790001");
 
@@ -296,11 +296,11 @@ describe("SaleScreen weighing a product on the scale", () => {
     await expect.element(dialog.getByText("Lectura estable")).toBeVisible();
     await expect.element(dialog.getByText("1,250 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 15.625,00")).toBeVisible();
-    await expect.element(lines).toHaveLength(1);
+    await expect.element(lines).toHaveLength(2);
 
     await screen.getByRole("button", { name: "Confirmar peso" }).click();
 
-    await expect.element(lines).toHaveLength(2);
+    await expect.element(lines).toHaveLength(3);
     await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
     await expect
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
@@ -465,7 +465,7 @@ describe("SaleScreen weighing a product on the scale", () => {
   it("highlights the line of a cancelled weighing whose stable reading arrives late", async () => {
     const answer = deferred<WeighProductOutcome>();
     const { screen, field } = await scanning({ weighProduct: vi.fn(() => answer.promise) });
-    const lines = screen.getByRole("listitem");
+    const lines = screen.getByRole("row");
 
     await scan(field, "7790001");
     await screen.getByRole("button", { name: "Cancelar" }).click();
@@ -476,8 +476,8 @@ describe("SaleScreen weighing a product on the scale", () => {
       sale: SALE_OF_QUESO,
     });
 
-    await expect.element(lines).toHaveLength(1);
-    await expect.element(lines.first()).toHaveAttribute("aria-current", "true");
+    await expect.element(lines).toHaveLength(2);
+    await expect.element(lines.nth(1)).toHaveAttribute("aria-current", "true");
     await expect.element(field).toHaveValue("");
   });
 

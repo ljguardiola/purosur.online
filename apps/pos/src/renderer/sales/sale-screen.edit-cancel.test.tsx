@@ -10,6 +10,7 @@ import type { SaleScreenProps } from "./sale-screen";
 import {
   ALFAJOR,
   deferred,
+  pressKeypad,
   renderScreen,
   SALE_OF_YERBA,
   SALE_OF_YERBA_AND_ALFAJOR,
@@ -101,8 +102,6 @@ const EMPTY_SALE: OpenSale = {
   promotion_savings: 0,
 };
 
-const RAISE_YERBA = "Subir la cantidad de Yerba mate 1 kg";
-const LOWER_YERBA = "Bajar la cantidad de Yerba mate 1 kg";
 const REMOVE_YERBA = "Quitar Yerba mate 1 kg";
 
 describe("SaleScreen editing the lines", () => {
@@ -120,9 +119,10 @@ describe("SaleScreen editing the lines", () => {
       changeLineQuantity,
     });
 
-    await screen.getByRole("button", { name: RAISE_YERBA }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("+");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 3, 2);
   });
 
@@ -140,23 +140,24 @@ describe("SaleScreen editing the lines", () => {
       changeLineQuantity,
     });
 
-    await screen.getByRole("button", { name: LOWER_YERBA }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("-");
 
-    await expect.element(screen.getByText("1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("1 u", { exact: true })).toBeVisible();
     expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 1, 2);
   });
 
-  it("does not offer to lower a quantity of one", async () => {
+  it("does not lower a quantity of one", async () => {
+    const changeLineQuantity = vi.fn();
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_ALFAJOR,
+      changeLineQuantity,
     });
+    await expect.element(screen.getByText("Alfajor triple")).toBeVisible();
 
-    await expect
-      .element(screen.getByRole("button", { name: "Bajar la cantidad de Alfajor triple" }))
-      .toBeDisabled();
-    await expect
-      .element(screen.getByRole("button", { name: "Subir la cantidad de Alfajor triple" }))
-      .toBeEnabled();
+    pressKeypad("-");
+
+    expect(changeLineQuantity).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -198,7 +199,7 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .element(screen.getByRole("button", { name: "Vaciar", exact: true }))
       .not.toBeInTheDocument();
     await expect.element(field).toHaveFocus();
   });
@@ -214,9 +215,10 @@ describe("SaleScreen editing the lines", () => {
       }),
     });
 
-    await screen.getByRole("button", { name: RAISE_YERBA }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("+");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     await expect.element(field).toHaveFocus();
   });
 
@@ -227,20 +229,21 @@ describe("SaleScreen editing the lines", () => {
       currentSale: async () => SALE_OF_YERBA,
       changeLineQuantity,
     });
-    const raise = screen.getByRole("button", { name: RAISE_YERBA });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
-    await raise.click();
+    pressKeypad("+");
+    pressKeypad("+");
 
-    await expect.element(raise).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: REMOVE_YERBA })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar", exact: true }))
+      .toBeDisabled();
     answer.resolve({
       kind: "changed",
       removed_manual_discount: false,
       removed_sale_discount: false,
       sale: SALE_OF_THREE_YERBAS,
     });
-    await expect.element(raise).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar", exact: true })).toBeEnabled();
     expect(changeLineQuantity).toHaveBeenCalledOnce();
   });
 
@@ -257,7 +260,8 @@ describe("SaleScreen editing the lines", () => {
         onSessionInvalid,
       });
 
-      await screen.getByRole("button", { name: RAISE_YERBA }).click();
+      await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+      pressKeypad("+");
 
       await expect.poll(() => onSessionInvalid).toHaveBeenCalledOnce();
     },
@@ -284,9 +288,10 @@ describe("SaleScreen editing the lines", () => {
       changeLineQuantity: async () => ({ kind: "stale_quantity" }),
     });
 
-    await screen.getByRole("button", { name: LOWER_YERBA }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("-");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     expect(currentSale).toHaveBeenCalledTimes(2);
     await expect
       .element(screen.getByText("No se pudo cambiar la cantidad"))
@@ -329,7 +334,8 @@ describe("SaleScreen editing the lines", () => {
       changeLineQuantity: change,
     });
 
-    await screen.getByRole("button", { name: RAISE_YERBA }).click();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    pressKeypad("+");
 
     await expect.element(screen.getByText("No se pudo cambiar la cantidad")).toBeVisible();
     await expect.element(screen.getByText("Probá de nuevo.")).toBeVisible();
@@ -353,38 +359,38 @@ describe("SaleScreen cancelling the sale", () => {
     const { screen } = await renderScreen();
 
     await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .element(screen.getByRole("button", { name: "Vaciar", exact: true }))
       .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
   });
 
-  it("offers no Vaciar carrito while the sale loads", async () => {
+  it("offers no Vaciar while the sale loads", async () => {
     const { screen } = await renderScreen({ currentSale: () => new Promise(() => {}) });
 
-    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .element(screen.getByRole("button", { name: "Vaciar", exact: true }))
       .not.toBeInTheDocument();
   });
 
-  it("offers no Vaciar carrito when the sale cannot be read", async () => {
+  it("offers no Vaciar when the sale cannot be read", async () => {
     const { screen } = await renderScreen({
       currentSale: () => Promise.reject(new Error("unavailable")),
     });
 
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .element(screen.getByRole("button", { name: "Vaciar", exact: true }))
       .not.toBeInTheDocument();
   });
 
-  it("offers no Vaciar carrito for an empty cart", async () => {
+  it("offers no Vaciar for an empty cart", async () => {
     const { screen } = await renderScreen({ currentSale: async () => EMPTY_SALE });
 
     await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .element(screen.getByRole("button", { name: "Vaciar", exact: true }))
       .not.toBeInTheDocument();
   });
 
@@ -395,7 +401,7 @@ describe("SaleScreen cancelling the sale", () => {
       cancelSale,
     });
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     const dialog = screen.getByRole("dialog", { name: "¿Vaciar el carrito?" });
     await expect.element(dialog).toBeVisible();
@@ -420,7 +426,7 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale,
     });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await screen.getByRole("button", { name: "Seguir con la venta" }).click();
 
@@ -435,7 +441,7 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale,
     });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
@@ -450,7 +456,7 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "unavailable" }),
     });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
@@ -464,7 +470,7 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "has_approved_payment" }),
     });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
@@ -479,7 +485,7 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "mercado_pago_charge_in_progress" }),
     });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
@@ -492,7 +498,7 @@ describe("SaleScreen cancelling the sale", () => {
 
   it("does not take the focus from the dialog while it is open", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     const keep = screen.getByRole("button", { name: "Seguir con la venta" });
     await keep.element().focus();
