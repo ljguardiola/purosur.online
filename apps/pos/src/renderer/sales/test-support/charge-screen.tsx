@@ -2,7 +2,7 @@ import type {
   AbandonMercadoPagoChargeOutcome,
   AnswerReceiptQuestionOutcome,
   Authorization,
-  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -136,7 +136,7 @@ const COVERED: CashChargeAnswer = {
   cash_rounding: 0,
 };
 
-const AMOUNTS_OF_SALE = (discount?: number): CashChargeAmounts => ({
+const AMOUNTS_OF_SALE = (discount?: number): CashChargeAmountsAnswer => ({
   kind: "amounts",
   amount_to_charge: 476_000 - (discount ?? 0),
   cash_rounding: 0,
@@ -191,7 +191,10 @@ export type Overrides = {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
-  cashChargeAmounts?: (saleId: string, saleDiscount?: number) => Promise<CashChargeAmounts | null>;
+  cashChargeAmounts?: (
+    saleId: string,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount?: (
     saleId: string,
