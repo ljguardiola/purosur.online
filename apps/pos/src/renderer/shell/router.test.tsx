@@ -1621,7 +1621,7 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect
-      .element(screen.getByText("Cargar el stock con el que arranca el local."))
+      .element(screen.getByText("Cargar el stock con el que arranca el local"))
       .toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Cargar el inventario" }));
     await expect.poll(() => router.state.location.pathname).toBe("/initial-count");
