@@ -71,7 +71,7 @@ export class HeldRunReporter {
     const project = sessionId && this.#vitest._browserSessions.getSession(sessionId)?.project.name;
     if (!moduleId || project == null) return;
     const key = fileKey(project, moduleId);
-    this.#testFrames.set(key, { sessionId, connected: false });
+    this.#testFrames.set(key, { sessionId });
     this.#testFrameOfPage.set(sessionId, key);
   }
 
@@ -79,7 +79,7 @@ export class HeldRunReporter {
     const { pathname, searchParams } = new URL(request.url ?? "", "http://localhost");
     if (pathname !== "/__vitest_browser_api__" || searchParams.get("type") !== "tester") return;
     const frame = this.#testFrames.get(this.#testFrameOfPage.get(searchParams.get("sessionId")));
-    if (frame) frame.connected = true;
+    if (frame) frame.testerId = searchParams.get("rpcId");
   }
 
   onTestRunStart() {
@@ -226,10 +226,15 @@ export class HeldRunReporter {
       const frame = this.#testFrames.get(fileKey(projectName, moduleId));
       if (!frame) return [];
       const file = relative(this.#vitest.config.root, moduleId);
-      return frame.connected
+      if (frame.testerId == null) {
+        return [
+          `the test frame of ${file} was requested on page ${frame.sessionId} and never connected`,
+        ];
+      }
+      return state.testers.has(frame.testerId)
         ? [`the test frame of ${file} connected on page ${frame.sessionId}`]
         : [
-            `the test frame of ${file} was requested on page ${frame.sessionId} and never connected`,
+            `the test frame of ${file} was requested on page ${frame.sessionId} and has no open connection`,
           ];
     });
     return (
