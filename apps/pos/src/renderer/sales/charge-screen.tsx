@@ -263,6 +263,7 @@ export function ChargeScreen({
             total={sale.total}
             paid={sale.paid}
             pending={sale.pending}
+            subtotal={sale.subtotal}
             discountOffered={sale.sale_discount_refusal === null && sale.lines_lock === null}
             appliedDiscountAmount={sale.sale_discount?.amount ?? null}
             authorizationRequired={sale.sale_discount_authorization_required}

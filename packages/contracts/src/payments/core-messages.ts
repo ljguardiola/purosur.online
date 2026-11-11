@@ -219,6 +219,7 @@ export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     request_id: requestIdSchema,
     amounts: cashChargeAmountsAnswerSchema.nullable(),
   }),
+  z.object({ type: z.literal("cash-charge-amounts-unavailable"), request_id: requestIdSchema }),
   z.object({
     type: z.literal("payment-method-availability-result"),
     request_id: requestIdSchema,

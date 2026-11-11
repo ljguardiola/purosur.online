@@ -1165,7 +1165,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           sale_id: saleId,
           ...(saleDiscount === undefined ? {} : { sale_discount: saleDiscount }),
         },
-        (answer) => (answer.type === "cash-charge-amounts-result" ? answer.amounts : undefined),
+        (answer) => {
+          if (answer.type === "cash-charge-amounts-unavailable") {
+            throw new Error("the core could not read the amounts of a cash charge");
+          }
+          return answer.type === "cash-charge-amounts-result" ? answer.amounts : undefined;
+        },
       );
     },
     chargeSaleInCash(saleId, tendered) {

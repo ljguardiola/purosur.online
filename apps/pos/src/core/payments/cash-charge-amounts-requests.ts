@@ -1,5 +1,5 @@
 import type { CashChargeAmountsAnswer } from "@purosur/contracts";
-import { amountToChargeInCash, changeDiscountOption, quickCashAmounts } from "@purosur/domain";
+import { cashAmountToCharge, changeDiscountOption, quickCashAmounts } from "@purosur/domain";
 import {
   currentSaleFor,
   previewSaleDiscountFor,
@@ -47,11 +47,12 @@ export async function cashChargeAmountsFor(
   if (amountDue === "discount_exceeds_sale") {
     return { kind: "discount_exceeds_sale" };
   }
-  const amountToCharge = amountToChargeInCash(amountDue);
+  const { amountToCharge, cashRounding } = cashAmountToCharge(amountDue);
   return {
     kind: "amounts",
+    amount_due: amountDue,
     amount_to_charge: amountToCharge,
-    cash_rounding: amountDue - amountToCharge,
+    cash_rounding: cashRounding,
     quick_amounts: quickCashAmounts(amountDue),
     change_discount_option: changeDiscountOption(amountDue),
   };

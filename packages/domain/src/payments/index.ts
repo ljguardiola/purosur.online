@@ -1,4 +1,4 @@
-export { amountToChargeInCash, cashCharge, SMALLEST_CASH_BILL } from "./model/cash-charge.js";
+export { cashAmountToCharge, cashCharge, SMALLEST_CASH_BILL } from "./model/cash-charge.js";
 export { changeDiscountOption } from "./model/change-discount-option.js";
 export type { HandConfirmedPayment } from "./model/hand-confirmed-payments-reconciliation.js";
 export type { ChargeCostMethod } from "./model/mercado-pago-charge-costs.js";

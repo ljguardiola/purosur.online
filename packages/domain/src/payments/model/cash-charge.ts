@@ -12,18 +12,26 @@ export function amountToChargeInCash(amountDue: number): number {
   return rounded === 0 ? amountDue : rounded;
 }
 
+export function cashAmountToCharge(amountDue: number): {
+  amountToCharge: number;
+  cashRounding: number;
+} {
+  const amountToCharge = amountToChargeInCash(amountDue);
+  return { amountToCharge, cashRounding: amountDue - amountToCharge };
+}
+
 export function cashCharge(amountDue: number, tendered: number): CashCharge {
   if (tendered <= 0 || !isValidCashAmount(tendered)) {
     return { kind: "invalid_amount" };
   }
-  const roundedDue = amountToChargeInCash(amountDue);
-  if (tendered < roundedDue) {
+  const { amountToCharge, cashRounding } = cashAmountToCharge(amountDue);
+  if (tendered < amountToCharge) {
     return { kind: "partial", applied: tendered, pending: amountDue - tendered };
   }
   return {
     kind: "covered",
-    applied: roundedDue,
-    change: tendered - roundedDue,
-    cashRounding: amountDue - roundedDue,
+    applied: amountToCharge,
+    change: tendered - amountToCharge,
+    cashRounding,
   };
 }

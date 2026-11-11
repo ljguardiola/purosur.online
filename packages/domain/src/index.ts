@@ -507,10 +507,10 @@ export type {
 } from "./payments/index.js";
 export {
   APPROVED_PAYMENT_STATE,
-  amountToChargeInCash,
   CHARGE_COST_METHODS,
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
+  cashAmountToCharge,
   cashCharge,
   changeDiscountOption,
   isConfirmedByHand,

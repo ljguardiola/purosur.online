@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const cashChargeAmountsSchema = z.object({
   kind: z.literal("amounts"),
+  amount_due: z.int().nonnegative(),
   amount_to_charge: z.int().nonnegative(),
   cash_rounding: z.int().nonnegative(),
   quick_amounts: z.array(z.int().nonnegative()),

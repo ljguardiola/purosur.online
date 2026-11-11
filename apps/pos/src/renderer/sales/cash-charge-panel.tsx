@@ -64,6 +64,7 @@ export type CashChargePanelProps = {
   total: number;
   paid: number;
   pending: number;
+  subtotal: number;
   discountOffered: boolean;
   appliedDiscountAmount: number | null;
   authorizationRequired: boolean;
@@ -92,6 +93,7 @@ export function CashChargePanel({
   total,
   paid,
   pending,
+  subtotal,
   discountOffered,
   appliedDiscountAmount,
   authorizationRequired,
@@ -339,8 +341,14 @@ export function CashChargePanel({
   }
 
   useKeys([
-    { key: "Escape", run: onBack, enabled: !submitting },
-    { key: "Enter", run: handleSubmit },
+    {
+      key: "Escape",
+      run: () => {
+        if (!submitting) {
+          onBack();
+        }
+      },
+    },
     ...QUICK_AMOUNT_KEYS.map((key, index) => ({
       key,
       run: () => pickQuickAmount(index),
@@ -349,16 +357,22 @@ export function CashChargePanel({
     { key: "F3", run: toggleShortage, enabled: discountOffered && !submitting },
     { key: "0", run: pickOther, enabled: shortageOpen && !submitting },
   ]);
+  useKeys([{ key: "Enter", run: handleSubmit }], { fallback: true });
+
+  const replacesAppliedDiscount = appliedDiscountAmount !== null && typedDiscount !== undefined;
+  const rounding = partial === undefined ? settled?.cash_rounding : undefined;
 
   const summaryRows: [SummaryRowProps, ...SummaryRowProps[]] = [
-    { label: "Total", value: formatCents(total) },
+    replacesAppliedDiscount
+      ? { label: "Después de promociones", value: formatCents(subtotal) }
+      : { label: "Total", value: formatCents(total) },
     ...(paid > 0 ? [{ label: "Pagado", value: formatCents(paid) }] : []),
     ...(typedDiscount === undefined
       ? []
       : [{ label: "Falta de cambio", value: `– ${formatCents(typedDiscount)}` }]),
-    ...(settled === undefined || settled.cash_rounding === 0
+    ...(rounding === undefined || rounding === 0
       ? []
-      : [{ label: "Redondeo", value: `– ${formatCents(settled.cash_rounding)}` }]),
+      : [{ label: "Redondeo", value: `– ${formatCents(rounding)}` }]),
   ];
 
   return (
@@ -374,9 +388,11 @@ export function CashChargePanel({
             <Banknote className="size-icon-md" />
           </span>
           <h2 className="text-heading font-bold text-text">Efectivo</h2>
-          <span className="ml-auto">
-            <CloseButton escapeKeycap onPress={onBack} />
-          </span>
+          {submitting ? null : (
+            <span className="ml-auto">
+              <CloseButton escapeKeycap onPress={onBack} />
+            </span>
+          )}
         </div>
       }
       footer={
@@ -402,10 +418,14 @@ export function CashChargePanel({
         </>
       }
     >
-      {settled === undefined ? (
+      {amountsFailure !== undefined || discountExceedsSale ? null : settled === undefined ? (
         <FigureStat size="hero" label="A COBRAR" loading />
       ) : (
-        <FigureStat size="hero" label="A COBRAR" value={formatCents(settled.amount_to_charge)} />
+        <FigureStat
+          size="hero"
+          label="A COBRAR"
+          value={formatCents(partial === undefined ? settled.amount_to_charge : settled.amount_due)}
+        />
       )}
       <SummaryRowGroup rows={summaryRows} />
       <div ref={tenderedBox}>
@@ -488,7 +508,7 @@ export function CashChargePanel({
           ))}
         </div>
       )}
-      {discountOffered && appliedDiscountAmount !== null && typedDiscount !== undefined ? (
+      {discountOffered && replacesAppliedDiscount ? (
         <InlineNotice
           tone="warning"
           icon={<TriangleAlert />}
