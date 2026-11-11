@@ -131,13 +131,7 @@ async function hoverGoSelling(screen: Awaited<ReturnType<typeof renderScreen>>["
 }
 
 async function expectGoSellingLocked(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
-  await vi.waitFor(() => {
-    const button = goSelling(screen).element();
-    expect(
-      button instanceof HTMLButtonElement &&
-        (button.disabled || button.getAttribute("aria-disabled") === "true"),
-    ).toBe(true);
-  });
+  await expect.element(goSelling(screen)).toHaveAttribute("aria-disabled", "true");
 }
 
 async function expectGoSellingOpen(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
@@ -294,7 +288,7 @@ describe("StartupPendingScreen", () => {
       .element(screen.getByRole("region", { name: "Estado de la caja" }))
       .toMatchTextContent(/^CAJA 1•Ada•Antes de empezar/);
     await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
-    expect(screen.getByRole("heading").elements()).toEqual([]);
+    expect(screen.getByRole("main").getByRole("heading").elements()).toEqual([]);
     await expect
       .element(
         screen.getByText(
@@ -416,6 +410,34 @@ describe("StartupPendingScreen", () => {
     await userEvent.keyboard("{Enter}");
 
     expect(onGoSelling).toHaveBeenCalledOnce();
+  });
+
+  it("leaves Enter to a focused Reintentar instead of going selling", async () => {
+    const load = vi
+      .fn<() => Promise<StartupPending>>()
+      .mockRejectedValueOnce(new Error("core down"))
+      .mockResolvedValue({ ...NOTHING, sales_to_print: [NEVER_PRINTED] });
+    const { screen, onGoSelling } = await renderScreen({ loadStartupPending: load });
+    const retry = screen.getByRole("button", { name: "Reintentar" });
+    await expect.element(retry).toBeVisible();
+
+    (retry.element() as HTMLElement).focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+    expect(onGoSelling).not.toHaveBeenCalled();
+  });
+
+  it("leaves Enter to a focused link of the rail instead of going selling", async () => {
+    const { screen, onGoSelling } = await renderScreen();
+    const cash = screen.getByRole("link", { name: "Caja" });
+    await expect.element(cash).toBeVisible();
+
+    (cash.element() as HTMLElement).focus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/cash");
+    expect(onGoSelling).not.toHaveBeenCalled();
   });
 
   it("keeps Ir a vender enabled while the pending items load", async () => {
@@ -1106,6 +1128,43 @@ describe("StartupPendingScreen", () => {
         expect(onGoToSale).not.toHaveBeenCalled();
       },
     );
+
+    it("drops the refusal once that paid order is passed to refund", async () => {
+      const load = vi
+        .fn<() => Promise<StartupPending>>()
+        .mockResolvedValueOnce({ ...BLOCKED_BY_QR, sales_to_print: [NEVER_PRINTED] })
+        .mockResolvedValue({ ...NOTHING, sales_to_print: [NEVER_PRINTED] });
+      const { screen } = await renderScreen({
+        loadStartupPending: load,
+        rebuildSaleAgainstPaidOrder: async () => ({ kind: "card_type_unknown" }),
+      });
+      await press(screen, "a", "Cobro con QR pagado sin venta");
+      await expect
+        .element(screen.getByText("Todavía falta el tipo de tarjeta de este cobro"))
+        .toBeVisible();
+
+      await userEvent.keyboard("r");
+      await userEvent.keyboard("{Enter}");
+
+      await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
+      await expect
+        .element(screen.getByText("Todavía falta el tipo de tarjeta de este cobro"))
+        .not.toBeInTheDocument();
+    });
+
+    it("closes the refusal from its Cerrar", async () => {
+      const { screen } = await renderScreen({
+        loadStartupPending: async () => BLOCKED_BY_QR,
+        rebuildSaleAgainstPaidOrder: async () => ({ kind: "card_type_unknown" }),
+      });
+      await press(screen, "a", "Cobro con QR pagado sin venta");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar", exact: true }));
+
+      await expect
+        .element(screen.getByText("Todavía falta el tipo de tarjeta de este cobro"))
+        .not.toBeInTheDocument();
+    });
 
     it("says the sale could not be rebuilt when the request itself fails", async () => {
       const { screen } = await renderScreen({

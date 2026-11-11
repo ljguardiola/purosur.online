@@ -1,6 +1,7 @@
 import { TriangleAlert, Undo2 } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import type { NoticeTone } from "../shared/tone";
@@ -51,10 +52,22 @@ test("shows its title and its description", async () => {
   await expect.element(screen.getByText("It is confirmed later in the back office.")).toBeVisible();
 });
 
-test("offers no button of its own, so it never takes a key from the screen", async () => {
-  const screen = await render(toast({ onDismiss: () => {} }));
+test.each(["success", "info", "warning"] as const satisfies readonly NoticeTone[])(
+  "offers no button on a %s toast, which leaves by itself",
+  async (tone) => {
+    const screen = await render(toast({ tone, onDismiss: () => {} }));
 
-  expect(screen.getByRole("button").elements()).toEqual([]);
+    expect(screen.getByRole("button").elements()).toEqual([]);
+  },
+);
+
+test("lets the person close an error toast, which never leaves by itself", async () => {
+  const onDismiss = vi.fn();
+  const screen = await render(toast({ tone: "error", icon: <TriangleAlert />, onDismiss }));
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  expect(onDismiss).toHaveBeenCalledOnce();
 });
 
 test("renders where its screen places it, not in a portal of its own", async () => {
@@ -133,8 +146,11 @@ test("is gone once its screen stops showing it", async () => {
   });
 });
 
-test("has no accessibility violations", async () => {
-  const screen = await render(toast({ onDismiss: () => {} }));
+test.each(["success", "error"] as const satisfies readonly NoticeTone[])(
+  "has no accessibility violations as a %s toast",
+  async (tone) => {
+    const screen = await render(toast({ tone, onDismiss: () => {} }));
 
-  await expectNoAccessibilityViolations(screen.container);
-});
+    await expectNoAccessibilityViolations(screen.container);
+  },
+);

@@ -1,6 +1,6 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { KeyBinding, KeyOptions } from "./key-layer";
@@ -591,6 +591,47 @@ describe("useKeys", () => {
       await userEvent.click(document.querySelector("button") as HTMLElement);
       await userEvent.keyboard("{Escape}");
 
+      expect(frameRun).not.toHaveBeenCalled();
+    });
+
+    it("leaves Enter to a focused link, which it follows", async () => {
+      onTestFinished(() =>
+        history.replaceState(null, "", `${location.pathname}${location.search}`),
+      );
+      const frameRun = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Enter", run: frameRun }]} options={{ fallback: true }} />
+          <a href="#caja">Caja</a>
+        </>,
+      );
+
+      (screen.getByRole("link", { name: "Caja" }).element() as HTMLElement).focus();
+      await userEvent.keyboard("{Enter}");
+
+      await expect.poll(() => location.hash).toBe("#caja");
+      expect(frameRun).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["Enter", "{Enter}"],
+      ["Space", " "],
+    ] as const)("leaves %s to a focused button, which it presses", async (key, typed) => {
+      const frameRun = vi.fn();
+      const pressed = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <Keys bindings={[{ key, run: frameRun }]} options={{ fallback: true }} />
+          <button type="button" onClick={pressed}>
+            Salir
+          </button>
+        </>,
+      );
+
+      (screen.getByRole("button", { name: "Salir" }).element() as HTMLElement).focus();
+      await userEvent.keyboard(typed);
+
+      expect(pressed).toHaveBeenCalledOnce();
       expect(frameRun).not.toHaveBeenCalled();
     });
 
