@@ -133,7 +133,12 @@ describe("sign-in answers", () => {
   });
 
   it("accepts an empty list of users", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [] };
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [],
+      last_active_user_id: null,
+    };
 
     expect(sessionsCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
@@ -143,6 +148,7 @@ describe("sign-in answers", () => {
       type: "sign-in-users",
       request_id: REQUEST_ID,
       users: [{ id: "u1", first_name: "Ada", salt: "s" }],
+      last_active_user_id: "u1",
     };
 
     expect(sessionsCoreToRendererMessageSchema.parse(message)).toEqual({
@@ -152,7 +158,12 @@ describe("sign-in answers", () => {
   });
 
   it("rejects a listed user without its first name", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [{ id: "u1" }] };
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [{ id: "u1" }],
+      last_active_user_id: null,
+    };
 
     expect(sessionsCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

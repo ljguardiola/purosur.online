@@ -1017,6 +1017,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1140,6 +1141,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1258,6 +1260,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1375,6 +1378,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1521,6 +1525,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1657,6 +1662,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1797,6 +1803,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1945,6 +1952,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2060,6 +2068,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
