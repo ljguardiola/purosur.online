@@ -111,7 +111,7 @@ describe("SaleScreen adding a product sold by weight", () => {
     await expect.element(field).toHaveValue("");
   });
 
-  it("adds nothing and leaves the screen as it was when the weight is cancelled", async () => {
+  it("adds nothing when the weight is cancelled, leaving the search field empty", async () => {
     const addWeighedProduct = vi.fn(
       async (): Promise<AddWeighedProductOutcome> => ({ kind: "unavailable" }),
     );
@@ -124,7 +124,7 @@ describe("SaleScreen adding a product sold by weight", () => {
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
       .not.toBeInTheDocument();
     expect(addWeighedProduct).not.toHaveBeenCalled();
-    await expect.element(field).toHaveValue("7790001");
+    await expect.element(field).toHaveValue("");
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
   });
 
@@ -413,7 +413,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     answer.resolve({ kind: "not_sold_by_weight" });
     await field.click();
 
-    await expect.element(field).toHaveValue("7790001");
+    await expect.element(field).toHaveValue("");
     await expect
       .element(screen.getByText("Queso cremoso ya no se vende por kilo"))
       .not.toBeInTheDocument();

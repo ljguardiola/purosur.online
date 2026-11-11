@@ -10,6 +10,6 @@ export default meta;
 
 type Story = StoryObj<typeof ScaleStatusBadge>;
 
-export const Stable: Story = { args: { status: "stable", children: "Estable" } };
+export const Stable: Story = { args: { status: "stable" } };
 
-export const Moving: Story = { args: { status: "moving", children: "Moviéndose" } };
+export const Moving: Story = { args: { status: "moving" } };

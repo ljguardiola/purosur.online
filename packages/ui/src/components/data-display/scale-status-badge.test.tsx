@@ -5,8 +5,8 @@ import { expectFullyRound } from "../../test/fully-round";
 import { tokenRgb } from "../../test/token-colors";
 import { ScaleStatusBadge, type ScaleStatusBadgeProps } from "./scale-status-badge";
 
-test("shows the caller's text in a fully round badge", async () => {
-  const screen = await render(<ScaleStatusBadge status="stable">Estable</ScaleStatusBadge>);
+test("says Estable in a fully round badge when the reading is stable", async () => {
+  const screen = await render(<ScaleStatusBadge status="stable" />);
 
   await expect.element(screen.getByText("Estable")).toBeVisible();
   expectFullyRound(screen.container.firstElementChild as HTMLElement);
@@ -14,7 +14,7 @@ test("shows the caller's text in a fully round badge", async () => {
 });
 
 test("fills a stable badge with the success color and marks it with a check", async () => {
-  const screen = await render(<ScaleStatusBadge status="stable">Estable</ScaleStatusBadge>);
+  const screen = await render(<ScaleStatusBadge status="stable" />);
   const badge = screen.container.firstElementChild as HTMLElement;
 
   expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("success-strong"));
@@ -22,9 +22,11 @@ test("fills a stable badge with the success color and marks it with a check", as
   expect(badge.querySelector("svg")).not.toBeNull();
 });
 
-test("outlines a moving badge and marks it with an amber dot", async () => {
-  const screen = await render(<ScaleStatusBadge status="moving">Moviéndose</ScaleStatusBadge>);
+test("says Moviéndose in an outlined badge marked with an amber dot when the reading moves", async () => {
+  const screen = await render(<ScaleStatusBadge status="moving" />);
   const badge = screen.container.firstElementChild as HTMLElement;
+
+  await expect.element(screen.getByText("Moviéndose")).toBeVisible();
   const dot = badge.querySelector("[aria-hidden='true']") as HTMLElement;
 
   expect(getComputedStyle(badge).borderTopColor).toBe(tokenRgb("warning-soft"));
@@ -35,5 +37,5 @@ test("outlines a moving badge and marks it with an amber dot", async () => {
 });
 
 test("does not accept a status it does not draw", () => {
-  expectTypeOf<{ status: "unknown"; children: string }>().not.toExtend<ScaleStatusBadgeProps>();
+  expectTypeOf<{ status: "unknown" }>().not.toExtend<ScaleStatusBadgeProps>();
 });
