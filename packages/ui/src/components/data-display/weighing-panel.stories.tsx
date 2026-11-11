@@ -10,8 +10,6 @@ const meta: Meta<typeof WeighingPanel> = {
     title: "Nueces mariposa",
     detail: "$ 16.400,00 / kg",
     status: "stable",
-    statusLabel: "Estable",
-    cancelLabel: "Cancelar",
     onCancel: () => {},
     children: (
       <WeightReadout
@@ -34,7 +32,6 @@ export const Stable: Story = {};
 export const Moving: Story = {
   args: {
     status: "moving",
-    statusLabel: "Moviéndose",
     children: (
       <WeightReadout
         weightLabel="Peso"

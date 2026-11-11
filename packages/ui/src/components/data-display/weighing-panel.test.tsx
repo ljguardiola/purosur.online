@@ -8,8 +8,6 @@ const weighing = {
   title: "Nueces mariposa",
   detail: "$ 16.400,00 / kg",
   status: "stable" as const,
-  statusLabel: "Estable",
-  cancelLabel: "Cancelar",
   onCancel: () => {},
   children: <p>0,172 kg</p>,
 };
@@ -38,9 +36,7 @@ test("reports a press on the cancel button", async () => {
 });
 
 test("shows the moving status", async () => {
-  const screen = await render(
-    <WeighingPanel {...weighing} status="moving" statusLabel="Moviéndose" />,
-  );
+  const screen = await render(<WeighingPanel {...weighing} status="moving" />);
 
   await expect.element(screen.getByText("Moviéndose")).toBeVisible();
   await expect.element(screen.getByText("Estable")).not.toBeInTheDocument();

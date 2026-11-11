@@ -484,6 +484,46 @@ describe("SaleScreen keys while weighing", () => {
     expect(weighProduct.mock.calls.every(([, confirmed]) => confirmed === null)).toBe(true);
   });
 
+  async function weighingChosenByName() {
+    const weighProduct = stableScale();
+    const rendered = await renderScreen({
+      ...weighingScale(weighProduct),
+      addProduct: vi.fn(async (): Promise<AddProductOutcome> => WEIGHT_NEEDED),
+      currentSale: async () => SALE_OF_YERBA,
+      searchProducts: vi.fn(async () => ({
+        kind: "results" as const,
+        products: [{ ...productOf("7790001"), matches: [] }],
+        more: false,
+      })),
+    });
+    await rendered.field.fill("queso");
+    await expect
+      .element(rendered.screen.getByRole("option", { name: /Queso cremoso/ }))
+      .toBeVisible();
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(rendered.screen.getByRole("region", CARD_OF_QUESO).getByText("Estable"))
+      .toBeVisible();
+    return { ...rendered, weighProduct };
+  }
+
+  it("confirms the weighing of a product chosen by name on Enter instead of queueing it again", async () => {
+    const { screen, weighProduct } = await weighingChosenByName();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => weighProduct.mock.calls.at(-1)).toEqual(["p-queso", 1250]);
+    await expect.element(screen.getByText("En espera")).not.toBeInTheDocument();
+  });
+
+  it("cancels the weighing of a product chosen by name on Esc", async () => {
+    const { screen } = await weighingChosenByName();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("region", CARD_OF_QUESO)).not.toBeInTheDocument();
+  });
+
   it("confirms the weighing on Enter in the emptied field instead of charging the paid order", async () => {
     const { screen, field, weighProduct } = await weighingOnAStableScale({
       currentSale: async () => ({
@@ -786,6 +826,29 @@ describe("SaleScreen products waiting during a weighing", () => {
     await expect.poll(() => addProduct.mock.calls).toEqual([["p-aceite"]]);
     await expect.element(screen.getByText("En espera")).not.toBeInTheDocument();
     await expect.element(field).toHaveValue("777");
+  });
+
+  it("queues on Enter the code typed before the next waiting product's weighing opened", async () => {
+    const addProduct = vi.fn(
+      async (): Promise<AddProductOutcome> => ({
+        kind: "weight_needed",
+        product_id: "p-pasas",
+        product_name: "Pasas de uva",
+      }),
+    );
+    const { screen, field, readAndWait, weighProduct } = await weighingWith({ addProduct });
+    await readAndWait("7790003");
+    await expect.element(screen.getByText("En espera")).toBeVisible();
+    await field.fill("7790004");
+    await userEvent.keyboard("{Escape}");
+    const pasas = screen.getByRole("region", { name: "Pasas de uva" });
+    await expect.element(pasas.getByText("Estable")).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("Azúcar 1 kg")).toBeVisible();
+    await expect.element(pasas).toBeVisible();
+    expect(weighProduct).not.toHaveBeenCalledWith("p-pasas", 1250);
   });
 
   it("processes the waiting products once a line weighed again takes the scale's weight", async () => {
