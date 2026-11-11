@@ -135,6 +135,7 @@ export function AuthorizationModal({
         <Button
           fullWidth
           icon={<ShieldCheck />}
+          iconPosition="start"
           keycap="Enter"
           disabled={!canConfirm}
           onPress={onConfirm}

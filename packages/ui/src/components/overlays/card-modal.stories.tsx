@@ -36,7 +36,7 @@ export const Authorization: Story = {
       </>
     ),
     action: (
-      <Button fullWidth icon={<ShieldCheck />} keycap="Enter">
+      <Button fullWidth icon={<ShieldCheck />} iconPosition="start" keycap="Enter">
         Autorizar
       </Button>
     ),
