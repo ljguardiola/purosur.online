@@ -17,7 +17,7 @@ export type SidePanelTitleProps = {
 
 const labelledCloseClassName =
   "flex h-control-lg shrink-0 items-center gap-2 rounded-lg px-1 text-body font-semibold " +
-  "text-text-accent outline-none data-focus-visible:focus-ring data-disabled:opacity-disabled";
+  "text-text-accent outline-none data-focus-visible:focus-ring";
 
 export function SidePanelTitle({
   icon,
