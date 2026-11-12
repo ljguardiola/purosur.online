@@ -81,6 +81,7 @@ describe("SaleScreen adjusting a line's price or discount", () => {
         kind: "preview",
         discount_amount: 47_600,
         line_total: 428_400,
+        line_total_reduction: 47_600,
       }),
     );
     const { screen } = await renderScreen({

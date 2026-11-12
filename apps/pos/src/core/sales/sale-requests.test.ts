@@ -1856,18 +1856,19 @@ describe("previewing an adjustment of a line", () => {
   }
 
   it.each([
-    ["a percentage off", { kind: "PERCENT", value: 10 }, 300, 2700],
-    ["an amount off", { kind: "AMOUNT", value: 500 }, 500, 2500],
-    ["an overridden price", { kind: "PRICE", value: 1200 }, 0, 2400],
+    ["a percentage off", { kind: "PERCENT", value: 10 }, 300, 2700, 300],
+    ["an amount off", { kind: "AMOUNT", value: 500 }, 500, 2500, 500],
+    ["an overridden price", { kind: "PRICE", value: 1200 }, 0, 2400, 600],
   ] as const)(
     "answers what %s would leave the line at, to a cashier without the permission to adjust",
-    async (_case, adjustment, discountAmount, lineTotal) => {
+    async (_case, adjustment, discountAmount, lineTotal, lineTotalReduction) => {
       const lineId = await sellTwoYerbas();
 
       expect(await preview(lineId, adjustment)).toEqual({
         kind: "preview",
         discount_amount: discountAmount,
         line_total: lineTotal,
+        line_total_reduction: lineTotalReduction,
       });
     },
   );

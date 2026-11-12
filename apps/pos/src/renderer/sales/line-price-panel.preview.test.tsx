@@ -40,6 +40,7 @@ describe("LinePricePanel previewing the adjustment", () => {
         kind: "preview",
         discount_amount: 50_000,
         line_total: 426_000,
+        line_total_reduction: 50_000,
       }),
     });
     await chooseOption(screen, "Descuento $");
@@ -57,6 +58,7 @@ describe("LinePricePanel previewing the adjustment", () => {
         kind: "preview",
         discount_amount: 0,
         line_total: 600_000,
+        line_total_reduction: -124_000,
       }),
     });
 
@@ -64,6 +66,43 @@ describe("LinePricePanel previewing the adjustment", () => {
 
     await expect.element(screen.getByText("$ 6.000,00")).toBeVisible();
     expect(preview).toHaveBeenLastCalledWith("line-1", { kind: "PRICE", value: 300_000 });
+  });
+
+  it("shows the change of the line's total as the difference, not the discount against the list price", async () => {
+    const { screen } = await renderLinePricePanel({
+      saleUnit: "KG",
+      quantity: 250,
+      lineTotal: 175_500,
+      previewAdjustment: async () => ({
+        kind: "preview",
+        discount_amount: 20_000,
+        line_total: 175_000,
+        line_total_reduction: 500,
+      }),
+    });
+
+    await chooseOption(screen, "Descuento $");
+    await typeValue(screen, "DESCUENTO", "200");
+
+    await expect.element(screen.getByText("$ 1.750,00")).toBeVisible();
+    await expect.element(screen.getByText("– $ 5,00")).toBeVisible();
+    await expect.element(screen.getByText("– $ 200,00")).not.toBeInTheDocument();
+  });
+
+  it("shows a line whose total grows as a positive difference", async () => {
+    const { screen } = await renderLinePricePanel({
+      lineTotal: 476_000,
+      previewAdjustment: async () => ({
+        kind: "preview",
+        discount_amount: 0,
+        line_total: 600_000,
+        line_total_reduction: -124_000,
+      }),
+    });
+
+    await typePrice(screen, "3000");
+
+    await expect.element(screen.getByText("+ $ 1.240,00")).toBeVisible();
   });
 
   it("does not ask the core while the value is not valid", async () => {

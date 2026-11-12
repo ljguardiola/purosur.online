@@ -1375,10 +1375,20 @@ describe("createCoreClient", () => {
     port.answer({
       type: "preview-sale-line-adjustment-result",
       request_id: "request-1",
-      outcome: { kind: "preview", discount_amount: 840, line_total: 7560 },
+      outcome: {
+        kind: "preview",
+        discount_amount: 840,
+        line_total: 7560,
+        line_total_reduction: 840,
+      },
     });
 
-    expect(await previewed).toEqual({ kind: "preview", discount_amount: 840, line_total: 7560 });
+    expect(await previewed).toEqual({
+      kind: "preview",
+      discount_amount: 840,
+      line_total: 7560,
+      line_total_reduction: 840,
+    });
     expect(port.posted).toEqual([
       {
         type: "preview-sale-line-adjustment",

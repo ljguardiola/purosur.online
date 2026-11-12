@@ -771,6 +771,7 @@ describe("adjustment preview query", () => {
     kind: "preview",
     discount_amount: 47_600,
     line_total: 428_400,
+    line_total_reduction: 47_600,
   };
 
   it.each<[string, string, number, ManualAdjustmentRequest]>([
