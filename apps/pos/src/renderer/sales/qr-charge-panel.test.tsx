@@ -4,7 +4,6 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { QrChargePanel } from "./qr-charge-panel";
-import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
 
 const TOTAL = 5_070_000;
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
@@ -16,15 +15,16 @@ const ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   wait_seconds: 180,
 };
 
-const AMOUNT_FIELD = "Importe a cobrar con este medio";
+const AMOUNT_FIELD = "IMPORTE";
 const MINIMUM = 1500;
-const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
+const WHOLE_SALE = { pending: TOTAL };
 
 type Start = (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
 
 async function renderModal(
   start: Start = async () => ORDER_SHOWN,
-  sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
+  sale: { pending: number } = WHOLE_SALE,
+  regenerate?: number,
 ) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
@@ -36,7 +36,13 @@ async function renderModal(
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <QrChargePanel {...sale} minimum={MINIMUM} start={startCharge} {...callbacks} />,
+    <QrChargePanel
+      {...sale}
+      {...(regenerate === undefined ? {} : { regenerate })}
+      minimum={MINIMUM}
+      start={startCharge}
+      {...callbacks}
+    />,
   );
   return {
     screen,
@@ -48,47 +54,104 @@ async function renderModal(
 }
 
 describe("QrChargePanel", () => {
-  it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
-    const { screen } = await renderModal();
+  it("shows what is to be charged as a panel titled QR, with the amount to create the order for and the notice that it cannot be changed later", async () => {
+    const { screen, field } = await renderModal(undefined, { pending: 4_070_000 });
 
-    await expectChargeSummaryInColumns(screen, ["Total de la venta", "Pagado", "Saldo pendiente"]);
-  });
-
-  it("asks how much is charged by QR and shows what is owed", async () => {
-    const { screen, field } = await renderModal(undefined, {
-      total: TOTAL,
-      paid: 1_000_000,
-      pending: 4_070_000,
-    });
-
-    await expect.element(screen.getByText("QR DE MERCADO PAGO")).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con QR?" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-    await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
-    await expect.element(screen.getByText("Pagado")).toBeVisible();
-    await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
-    await expect.element(screen.getByText("Saldo pendiente")).toBeVisible();
+    await expect.element(screen.getByRole("complementary", { name: "Cobro con QR" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { level: 2, name: "QR" })).toBeVisible();
+    await expect.element(screen.getByText("A COBRAR")).toBeVisible();
+    await expect.element(screen.getByText("$ 40.700,00", { exact: true })).toBeVisible();
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent("La orden se crea por este importe. Después ya no se puede cambiar.");
-    await expectNoAccessibilityViolations(screen.container);
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
+    await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("fills the amount with the pending balance and says it may be less, showing the balance once", async () => {
-    const { screen, field } = await renderModal(undefined, {
-      total: TOTAL,
-      paid: 1_000_000,
-      pending: 4_070_000,
-    });
+  it("fills the amount with the pending balance, focused, with no summary of the sale and no hint under the field", async () => {
+    const { screen, field } = await renderModal(undefined, { pending: 4_070_000 });
 
     await expect.element(field).toHaveValue("40.700,00");
+    await expect.element(field).toHaveFocus();
+    for (const text of [
+      "Total de la venta",
+      "Pagado",
+      "Saldo pendiente",
+      "Si cobrás menos, el resto queda pendiente para otro medio.",
+      "¿Cuánto se cobra con QR?",
+      "QR DE MERCADO PAGO",
+    ]) {
+      await expect.element(screen.getByText(text)).not.toBeInTheDocument();
+    }
+  });
+
+  it("shows the keys of the panel and none of Tab or F1", async () => {
+    const { screen } = await renderModal();
+
+    await expect.element(screen.getByRole("button", { name: "Crear orden" })).toBeVisible();
+    const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
+    expect(keys).toEqual(expect.arrayContaining(["Esc", "Enter"]));
+    expect(keys).not.toContain("F1");
+    expect(keys).not.toContain("Tab");
     await expect
-      .element(screen.getByText("Si cobrás menos, el resto queda pendiente para otro medio."))
-      .toBeVisible();
-    expect(screen.getByText("$ 40.700,00", { exact: false }).elements()).toHaveLength(1);
+      .element(screen.getByRole("button", { name: "Cambiar de medio" }))
+      .toHaveTextContent("Esc");
+  });
+
+  it("creates the order with Enter", async () => {
+    const { callbacks, startCharge } = await renderModal();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[ORDER_SHOWN]]);
+    expect(startCharge).toHaveBeenCalledExactlyOnceWith(TOTAL);
+  });
+
+  it("goes back to the methods with Esc", async () => {
+    const { callbacks, startCharge } = await renderModal();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    expect(startCharge).not.toHaveBeenCalled();
+  });
+
+  it("neither goes back with Esc nor from its button while the order is being created", async () => {
+    const { screen, callbacks } = await renderModal(() => new Promise(() => {}));
+
+    await userEvent.keyboard("{Enter}");
+    await expect.element(screen.getByRole("button", { name: "Cambiar de medio" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+
+    expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+  });
+
+  describe("regenerating", () => {
+    it("fills the amount with the one to regenerate and creates the order once on its own", async () => {
+      const { field, startCharge, callbacks } = await renderModal(
+        undefined,
+        { pending: TOTAL },
+        3_000_000,
+      );
+
+      await expect.element(field).toHaveValue("30.000,00");
+      await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[ORDER_SHOWN]]);
+      expect(startCharge).toHaveBeenCalledExactlyOnceWith(3_000_000);
+    });
+
+    it("shows a refusal of the regenerated order with the way to another method", async () => {
+      const { screen, callbacks } = await renderModal(
+        async () => ({ kind: "order_refused" }),
+        { pending: TOTAL },
+        3_000_000,
+      );
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("Mercado Pago no pudo crear la orden. Cobrá con otro medio.");
+      await userEvent.keyboard("{Enter}");
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    });
   });
 
   it("creates the order for the amount the cashier typed, once, and reports it shown", async () => {
@@ -156,8 +219,8 @@ describe("QrChargePanel", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("Mercado Pago no pudo crear la orden. Cobrá con otro medio.");
-    await expect.element(create).toBeEnabled();
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+    await expect.element(create).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     expect(callbacks.onOrderShown).not.toHaveBeenCalled();
   });
@@ -172,8 +235,8 @@ describe("QrChargePanel", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
-    await expect.element(create).toBeEnabled();
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+    await expect.element(create).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     expect(callbacks.onOrderShown).not.toHaveBeenCalled();
   });
@@ -188,7 +251,9 @@ describe("QrChargePanel", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("Aplicá primero el pago de Mercado Pago de esta venta.");
-    await expect.element(create).toBeEnabled();
+    await expect.element(create).not.toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     expect(callbacks.onOrderShown).not.toHaveBeenCalled();
   });
 
@@ -202,7 +267,21 @@ describe("QrChargePanel", () => {
       .toHaveTextContent(
         "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.",
       );
-    await expect.element(create).toBeEnabled();
+    await expect.element(create).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Cambiar de medio" }).last())
+      .toHaveTextContent("Enter");
+  });
+
+  it("clears a refusal and offers Crear orden again when the amount is edited", async () => {
+    const { screen, field, create } = await renderModal(async () => ({ kind: "order_refused" }));
+    await userEvent.click(create);
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+
+    await userEvent.type(field, "0");
+
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+    await expect.element(create).toBeVisible();
   });
 
   it("says the order could not be created when the core cannot answer", async () => {
@@ -215,6 +294,7 @@ describe("QrChargePanel", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("No se pudo crear la orden. Probá de nuevo.");
+    await expect.element(create).toBeEnabled();
   });
 
   it.each([
