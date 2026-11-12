@@ -586,6 +586,10 @@ describe("SqliteRegisterSalesHistory", () => {
         point_of_sale: 3,
         number: 41,
         issued_on: "2026-10-08",
+        issued_at: "2026-10-08T12:30:58.000Z",
+        authorization_code: "75123456789012",
+        authorization_code_due_on: "2026-10-18",
+        answered_at: "2026-10-08T12:31:00.000Z",
       });
 
       expect(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 41 })).toEqual([]);
@@ -600,7 +604,7 @@ describe("SqliteRegisterSalesHistory", () => {
       addSale({
         id: "yesterday",
         session: "old-session",
-        fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 187 },
+        fiscal: { state: "AUTHORIZED", pointOfSale: 4, number: 187 },
       });
 
       expect(
@@ -612,11 +616,25 @@ describe("SqliteRegisterSalesHistory", () => {
     });
 
     it("lists only completed and voided sales of this register", () => {
-      const fiscal = { state: "AUTHORIZED", pointOfSale: 3, number: 187 } as const;
-      addSale({ id: "done", fiscal });
-      addSale({ id: "gone", state: "VOIDED", fiscal: { ...fiscal } });
-      addSale({ id: "open", state: "OPEN", fiscal: { ...fiscal } });
-      addSale({ id: "other-register", register: "r2", fiscal: { ...fiscal } });
+      const fiscalAt = (pointOfSale: number) =>
+        ({ state: "AUTHORIZED", pointOfSale, number: 187 }) as const;
+      openSession("other-session", "r2");
+      addSale({ id: "done", fiscal: fiscalAt(3) });
+      addSale({ id: "gone", state: "VOIDED", fiscal: fiscalAt(4) });
+      addSale({
+        id: "open",
+        state: "OPEN",
+        occurredAt: null,
+        lines: [],
+        payments: [],
+        fiscal: fiscalAt(5),
+      });
+      addSale({
+        id: "other-register",
+        session: "other-session",
+        register: "r2",
+        fiscal: fiscalAt(6),
+      });
 
       expect(
         ids(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 187 })).sort(),

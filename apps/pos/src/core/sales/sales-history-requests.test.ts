@@ -58,6 +58,8 @@ interface SaleSeed {
   operationNumber: number;
   deferred?: boolean;
   authorizedDocumentNumber?: number;
+  pointOfSale?: number;
+  pointOfSale?: number;
   state?: "COMPLETED" | "VOIDED";
   session?: string;
   pointCardType?: "DEBIT" | "CREDIT";
@@ -69,6 +71,7 @@ function addSale({
   operationNumber,
   deferred = false,
   authorizedDocumentNumber,
+  pointOfSale = 3,
   state = "COMPLETED",
   session = "s1",
   pointCardType,
@@ -114,9 +117,9 @@ function addSale({
         `INSERT INTO fiscal_documents (
            id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
            authorization_code, authorization_code_due_on, reserved_at, resolved_at
-         ) VALUES (?, ?, 3, 'factura_c', ?, '2026-10-08', '{}', 'AUTHORIZED', '75123456789012', '2026-10-18', ?, ?)`,
+         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{}', 'AUTHORIZED', '75123456789012', '2026-10-18', ?, ?)`,
       )
-      .run(`doc-${id}`, id, authorizedDocumentNumber, occurredAt, occurredAt);
+      .run(`doc-${id}`, id, pointOfSale, authorizedDocumentNumber, occurredAt, occurredAt);
   }
 }
 
@@ -349,6 +352,8 @@ describe("searching the sales history by document number", () => {
       occurredAt: "2026-10-07T09:00:00.000Z",
       operationNumber: 1,
       authorizedDocumentNumber: 187,
+      pointOfSale: 4,
+      pointOfSale: 4,
     });
     database.exec("UPDATE sales SET session_id = 's0' WHERE id = 'yesterday'");
 
