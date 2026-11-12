@@ -310,6 +310,7 @@ describe("scanning a product on the register", () => {
         total: 3000,
         paid: 0,
         pending: 3000,
+        payments: [],
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
@@ -594,6 +595,7 @@ describe("adding a searched product on the register", () => {
         total: 1500,
         paid: 0,
         pending: 1500,
+        payments: [],
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
@@ -699,6 +701,7 @@ describe("adding a product sold by weight on the register", () => {
         total: 11250,
         paid: 0,
         pending: 11250,
+        payments: [],
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
@@ -1208,6 +1211,7 @@ describe("the sale in progress", () => {
       total: 3000,
       paid: 0,
       pending: 3000,
+      payments: [],
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
@@ -1233,9 +1237,30 @@ describe("the sale in progress", () => {
       total: 3000,
       paid: 1000,
       pending: 2000,
+      payments: [{ method: "CASH", card_type: null, amount: 1000 }],
       lines_lock: "approved_payment",
       cancel_refusal: null,
     });
+  });
+
+  it("lists the approved payments with their method and amount, in the order they were approved", async () => {
+    const saleId = await sellTwoForPayments();
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 1000 });
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 500 });
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      paid: 1500,
+      payments: [
+        { method: "TRANSFER", card_type: null, amount: 1000 },
+        { method: "CASH", card_type: null, amount: 500 },
+      ],
+    });
+  });
+
+  it("lists no payment for a sale nothing was paid on", async () => {
+    await sellTwoForPayments();
+
+    expect(await currentSaleFor(deps())).toMatchObject({ paid: 0, payments: [] });
   });
 
   it("refuses to charge in cash once the restoration of the register is in progress", async () => {
