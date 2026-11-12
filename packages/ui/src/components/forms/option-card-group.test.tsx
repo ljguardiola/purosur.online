@@ -736,3 +736,86 @@ test("has no accessibility violations with a disabled option", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("lays a two-column grid out two to a row, equally wide, 12px apart both ways", async () => {
+  const screen = await render(
+    <div style={{ width: "400px" }}>
+      <OptionCardGroup
+        layout="grid"
+        columns={2}
+        label="Reason"
+        options={reasonOptions}
+        value="broken"
+        onChange={() => {}}
+      />
+    </div>,
+  );
+  const [first, second, third] = reasonOptions.map((option) =>
+    radioCard(screen, option.label).getBoundingClientRect(),
+  );
+  if (!first || !second || !third) {
+    throw new Error("test setup: expected cards");
+  }
+
+  expect(second.top).toBeCloseTo(first.top, 0);
+  expect(third.left).toBeCloseTo(first.left, 0);
+  expect(second.width).toBeCloseTo(first.width, 0);
+  expect(second.left - first.right).toBeCloseTo(12, 0);
+  expect(third.top - first.bottom).toBeCloseTo(12, 0);
+});
+
+test("moves focus and choice between grid cards with the arrow keys", async () => {
+  const screen = await render(<ChoosableGrid />);
+
+  await userEvent.tab();
+  expect(document.activeElement).toBe(radioInput(screen, "Broken or spilled"));
+
+  await userEvent.keyboard("{ArrowRight}");
+  expect(document.activeElement).toBe(radioInput(screen, "Spoiled"));
+  expect(radioInput(screen, "Spoiled").checked).toBe(true);
+
+  await userEvent.keyboard("{ArrowLeft}");
+  expect(document.activeElement).toBe(radioInput(screen, "Broken or spilled"));
+  expect(radioInput(screen, "Broken or spilled").checked).toBe(true);
+});
+
+function ChoosableGrid() {
+  const [value, setValue] = useState<ReasonValue>("broken");
+  return (
+    <OptionCardGroup
+      layout="grid"
+      columns={2}
+      label="Reason"
+      options={reasonOptions}
+      value={value}
+      onChange={setValue}
+    />
+  );
+}
+
+test("accepts two or three columns only in a grid", () => {
+  expectTypeOf<{
+    layout: "grid";
+    columns: 2;
+    label: string;
+    options: [NarrowedOption<ReasonValue>];
+    value: ReasonValue;
+    onChange: (value: ReasonValue) => void;
+  }>().toExtend<OptionCardGroupProps<ReasonValue>>();
+  expectTypeOf<{
+    layout: "grid";
+    columns: 4;
+    label: string;
+    options: [NarrowedOption<ReasonValue>];
+    value: ReasonValue;
+    onChange: (value: ReasonValue) => void;
+  }>().not.toExtend<OptionCardGroupProps<ReasonValue>>();
+  expectTypeOf<{
+    layout: "row";
+    columns: 2;
+    label: string;
+    options: typeof options;
+    value: MovementValue;
+    onChange: (value: MovementValue) => void;
+  }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
+});
