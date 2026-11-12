@@ -126,6 +126,13 @@ export type {
 } from "./find-deferred-sale.js";
 export { findDeferredSale } from "./find-deferred-sale.js";
 export type {
+  FindProductByCodeInput,
+  FindProductByCodeOutcome,
+  FindProductByCodePorts,
+  ProductFoundByCode,
+} from "./find-product-by-code.js";
+export { findProductByCode } from "./find-product-by-code.js";
+export type {
   HandTypedWeightsQuery,
   HandTypedWeightsReportReader,
 } from "./hand-typed-weights-report-reader.js";

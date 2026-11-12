@@ -90,6 +90,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       abandonMercadoPagoCharge: async () => ({ kind: "unavailable" }),
       scanProduct: async () => ({ kind: "unavailable" }),
       searchProducts: async () => ({ kind: "unavailable" }),
+      findProductByCode: async () => ({ kind: "unavailable" }),
       addProduct: async () => ({ kind: "unavailable" }),
       changeLineQuantity: async () => ({ kind: "unavailable" }),
       addWeighedProduct: async () => ({ kind: "unavailable" }),

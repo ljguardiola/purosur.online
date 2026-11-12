@@ -28,6 +28,7 @@ import type {
   EnrollmentOutcome,
   EnrollmentStandingAnswer,
   FindDeferredSaleOutcome,
+  FindProductByCodeOutcome,
   FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
@@ -172,6 +173,7 @@ export interface RendererRequestDeps {
     | ((request: { saleId: string }) => Promise<ChargeSaleWithPaidOrderOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
+  findProductByCode: ((code: string) => Promise<FindProductByCodeOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   addWeighedProduct:
     | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
@@ -739,6 +741,18 @@ async function attemptSearchProducts(
     return (await deps.searchProducts?.(query)) ?? { kind: "unavailable" };
   } catch (error) {
     deps.reportFailure("searching products by name", error);
+    return { kind: "unavailable" };
+  }
+}
+
+async function attemptFindProductByCode(
+  deps: RendererRequestDeps,
+  code: string,
+): Promise<FindProductByCodeOutcome> {
+  try {
+    return (await deps.findProductByCode?.(code)) ?? { kind: "unavailable" };
+  } catch (error) {
+    deps.reportFailure("finding a product by its code", error);
     return { kind: "unavailable" };
   }
 }
@@ -1448,6 +1462,12 @@ export async function answerRendererRequest(
         type: "search-products-result",
         request_id: message.request_id,
         outcome: await attemptSearchProducts(deps, message.query),
+      };
+    case "find-product-by-code":
+      return {
+        type: "find-product-by-code-result",
+        request_id: message.request_id,
+        outcome: await attemptFindProductByCode(deps, message.code),
       };
     case "add-product":
       return {
