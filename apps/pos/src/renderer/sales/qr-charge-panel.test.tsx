@@ -278,7 +278,7 @@ describe("QrChargePanel", () => {
     await userEvent.click(create);
     await expect.element(screen.getByRole("alert")).toBeVisible();
 
-    await userEvent.type(field, "0");
+    await userEvent.fill(field, "100,00");
 
     await expect.element(create).toBeVisible();
     expect(screen.getByRole("button", { name: "Cambiar de medio" }).elements()).toHaveLength(1);
