@@ -12,6 +12,7 @@ import type {
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
+  PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   RegisterStatus,
@@ -34,7 +35,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, BatteryLow, ScanBarcode, Search } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useKeys } from "../platform/key-layer";
 import type { SearchResults } from "../platform/product-search-results";
@@ -57,7 +58,9 @@ import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
+  usePaymentMethodAvailabilityQuery,
   useReadCurrentSale,
+  useRefreshPaymentMethodAvailability,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -122,6 +125,7 @@ export type SaleScreenProps = {
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
   registerStatus: CoreData<RegisterStatus>;
+  paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
 };
 
 type SaleEditOutcome =
@@ -215,6 +219,7 @@ export function SaleScreen({
   loadAuthorizers,
   onSessionInvalid,
   registerStatus,
+  paymentMethodAvailability,
 }: SaleScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
@@ -689,6 +694,23 @@ export function SaleScreen({
     !isZeroTotal &&
     sale.charge_refusal === null &&
     paidOrderToApply === null;
+  const availability = usePaymentMethodAvailabilityQuery({
+    sessionId,
+    userId: person.user_id,
+    read: paymentMethodAvailability,
+  });
+  const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
+  const readAvailabilityAgain = useEffectEvent(() => void refreshAvailability());
+  const saleTotal = sale?.total;
+  useEffect(() => {
+    if (saleTotal !== undefined) {
+      readAvailabilityAgain();
+    }
+  }, [saleTotal]);
+  const pointBelowMinimum =
+    availability.status === "loaded" && availability.value.point === "below_minimum";
+  const qrBelowMinimum =
+    availability.status === "loaded" && availability.value.qr === "below_minimum";
   const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
   const searchEmpty = code === "";
 
@@ -794,9 +816,9 @@ export function SaleScreen({
       enabled: current.status === "failed" && searchEmpty,
     },
     { key: "F12", run: () => charge("CASH"), enabled: canCharge },
-    { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canCharge },
-    { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canCharge },
-    { key: "F11", run: () => charge("QR"), enabled: canCharge },
+    { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canCharge && !pointBelowMinimum },
+    { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canCharge && !pointBelowMinimum },
+    { key: "F11", run: () => charge("QR"), enabled: canCharge && !qrBelowMinimum },
     { key: "F1", run: () => charge(undefined), enabled: canCharge },
   ]);
   const notPermitted = messageFor({ kind: "not_permitted" });
@@ -839,6 +861,7 @@ export function SaleScreen({
           hasApprovedPayment={sale?.lines_lock === "approved_payment"}
           chargeRefusal={sale?.charge_refusal ?? null}
           paidOrderToApply={paidOrderToApply ?? undefined}
+          availability={availability.status === "loaded" ? availability.value : undefined}
           canCharge={canCharge}
           canCancel={sale !== null && !editing}
           canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
