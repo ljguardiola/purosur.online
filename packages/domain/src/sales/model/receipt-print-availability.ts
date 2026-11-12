@@ -1,5 +1,5 @@
 import type { PrintedDocument } from "./printed-document.js";
-import type { ReceiptDelivery } from "./receipt-copy.js";
+import { nextReceiptCopy, type ReceiptDelivery } from "./receipt-copy.js";
 
 export type SaleReceiptAvailability = { kind: "available" } | { kind: "sale_voided" };
 
@@ -7,25 +7,32 @@ export type ReceiptPrintAvailability =
   | SaleReceiptAvailability
   | { kind: "credit_note_not_authorized" };
 
+type DeliveryFacts = Pick<ReceiptDelivery, "voided" | "printAttemptedAt" | "reprintCount">;
+
 export function receiptPrintAvailability(
   document: "sale_receipt",
-  delivery: Pick<ReceiptDelivery, "voided">,
+  delivery: DeliveryFacts,
 ): SaleReceiptAvailability;
 export function receiptPrintAvailability(
   document: PrintedDocument,
-  delivery: Pick<ReceiptDelivery, "voided" | "creditNoteAuthorized">,
+  delivery: DeliveryFacts & Pick<ReceiptDelivery, "creditNoteAuthorized">,
 ): ReceiptPrintAvailability;
 export function receiptPrintAvailability(
   document: PrintedDocument,
   {
-    voided,
     creditNoteAuthorized,
-  }: Pick<ReceiptDelivery, "voided"> & Partial<Pick<ReceiptDelivery, "creditNoteAuthorized">>,
+    ...delivery
+  }: DeliveryFacts & Partial<Pick<ReceiptDelivery, "creditNoteAuthorized">>,
 ): ReceiptPrintAvailability {
   if (document === "credit_note") {
     return creditNoteAuthorized === true
       ? { kind: "available" }
       : { kind: "credit_note_not_authorized" };
   }
-  return voided ? { kind: "sale_voided" } : { kind: "available" };
+  if (!delivery.voided) {
+    return { kind: "available" };
+  }
+  return document === "sale_receipt" && nextReceiptCopy(delivery).kind === "duplicate"
+    ? { kind: "available" }
+    : { kind: "sale_voided" };
 }

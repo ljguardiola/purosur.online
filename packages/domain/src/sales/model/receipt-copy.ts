@@ -9,7 +9,10 @@ export interface ReceiptDelivery {
 
 export type ReceiptCopy = { kind: "original" } | { kind: "duplicate"; orderNumber: number };
 
-export function nextReceiptCopy({ printAttemptedAt, reprintCount }: ReceiptDelivery): ReceiptCopy {
+export function nextReceiptCopy({
+  printAttemptedAt,
+  reprintCount,
+}: Pick<ReceiptDelivery, "printAttemptedAt" | "reprintCount">): ReceiptCopy {
   return printAttemptedAt === null
     ? { kind: "original" }
     : { kind: "duplicate", orderNumber: reprintCount + 1 };
