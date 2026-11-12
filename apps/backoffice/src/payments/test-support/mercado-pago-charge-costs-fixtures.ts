@@ -19,22 +19,6 @@ const QR_FIGURES = {
   net_amount: 94_172,
 };
 
-const OTHER_FIGURES = {
-  gross_amount: 20_000,
-  fee_amount: -800,
-  financing_fee_amount: -200,
-  taxes_amount: -168,
-  net_amount: 18_832,
-};
-
-const ALL_FIGURES = {
-  gross_amount: 120_000,
-  fee_amount: -4_790,
-  financing_fee_amount: -1_200,
-  taxes_amount: -1_006,
-  net_amount: 113_004,
-};
-
 export const weekChargeCosts: MercadoPagoChargeCostsBody = {
   range: { from: "2026-10-01", to: "2026-10-07" },
   charges: [
@@ -60,14 +44,13 @@ export const weekChargeCosts: MercadoPagoChargeCostsBody = {
     },
   ],
   days: [
-    { day: "2026-10-03", charges_count: 2, pending_count: 0, ...ALL_FIGURES },
+    { day: "2026-10-03", charges_count: 1, pending_count: 0, ...QR_FIGURES },
     { day: "2026-10-04", charges_count: 1, pending_count: 1, ...NO_FIGURES },
   ],
-  months: [{ month: "2026-10", charges_count: 3, pending_count: 1, ...ALL_FIGURES }],
+  months: [{ month: "2026-10", charges_count: 2, pending_count: 1, ...QR_FIGURES }],
   methods: [
     { method: "QR", charges_count: 1, pending_count: 0, ...QR_FIGURES },
     { method: "POINT", charges_count: 1, pending_count: 1, ...NO_FIGURES },
-    { method: "OTHER", charges_count: 1, pending_count: 0, ...OTHER_FIGURES },
   ],
   registers: [
     {
@@ -84,15 +67,8 @@ export const weekChargeCosts: MercadoPagoChargeCostsBody = {
       pending_count: 1,
       ...NO_FIGURES,
     },
-    {
-      register_id: null,
-      register_name: null,
-      charges_count: 1,
-      pending_count: 0,
-      ...OTHER_FIGURES,
-    },
   ],
-  totals: { charges_count: 3, pending_count: 1, ...ALL_FIGURES },
+  totals: { charges_count: 2, pending_count: 1, ...QR_FIGURES },
 };
 
 export const emptyChargeCosts: MercadoPagoChargeCostsBody = {
@@ -103,22 +79,4 @@ export const emptyChargeCosts: MercadoPagoChargeCostsBody = {
   methods: [],
   registers: [],
   totals: { charges_count: 0, pending_count: 0, ...NO_FIGURES },
-};
-
-export const onlyOtherChargeCosts: MercadoPagoChargeCostsBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
-  charges: [],
-  days: [{ day: "2026-10-03", charges_count: 1, pending_count: 0, ...OTHER_FIGURES }],
-  months: [{ month: "2026-10", charges_count: 1, pending_count: 0, ...OTHER_FIGURES }],
-  methods: [{ method: "OTHER", charges_count: 1, pending_count: 0, ...OTHER_FIGURES }],
-  registers: [
-    {
-      register_id: null,
-      register_name: null,
-      charges_count: 1,
-      pending_count: 0,
-      ...OTHER_FIGURES,
-    },
-  ],
-  totals: { charges_count: 1, pending_count: 0, ...OTHER_FIGURES },
 };

@@ -41,12 +41,8 @@ const report = {
   methods: [
     { method: "QR", ...entry },
     { method: "POINT", ...entry },
-    { method: "OTHER", ...entry },
   ],
-  registers: [
-    { register_id: reported.register_id, register_name: "Caja 1", ...entry },
-    { register_id: null, register_name: null, ...entry },
-  ],
+  registers: [{ register_id: reported.register_id, register_name: "Caja 1", ...entry }],
   totals: entry,
 };
 
@@ -92,6 +88,11 @@ describe("mercadoPagoChargeCostsSchema", () => {
       { charges: [{ ...reported, method: "CASH" }] },
     ],
     ["a method group that does not exist", { methods: [{ method: "CASH", ...entry }] }],
+    ["a group of charges that are not the system's", { methods: [{ method: "OTHER", ...entry }] }],
+    [
+      "a register group with no register",
+      { registers: [{ register_id: null, register_name: null, ...entry }] },
+    ],
     ["a negative count", { totals: { ...entry, charges_count: -1 } }],
     ["an amount with decimals", { totals: { ...entry, fee_amount: -3.4 } }],
     ["a month that is not a calendar month", { months: [{ month: "2026-13", ...entry }] }],
