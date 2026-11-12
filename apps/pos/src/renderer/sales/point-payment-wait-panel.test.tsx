@@ -6,8 +6,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { ShownPointOrder } from "./point-charge-modal";
-import { PointPaymentWaitModal } from "./point-payment-wait-modal";
+import type { ShownPointOrder } from "./point-charge-panel";
+import { PointPaymentWaitPanel } from "./point-payment-wait-panel";
 
 const TOTAL = 5_070_000;
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000b1";
@@ -41,7 +41,7 @@ function answering(...outcomes: FollowMercadoPagoChargeOutcome[]): Follow {
 
 type Abandon = (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
 
-async function renderModal(
+async function renderPanel(
   follow: Follow = answering(WAITING),
   abandon: Abandon = async () => ({ kind: "cancelled" }),
   order: ShownPointOrder = ORDER,
@@ -59,9 +59,7 @@ async function renderModal(
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <PointPaymentWaitModal
-      total={TOTAL}
-      paid={1_000_000}
+    <PointPaymentWaitPanel
       order={order}
       cardType={cardType}
       follow={followCharge}
@@ -72,40 +70,34 @@ async function renderModal(
   return { screen, followCharge, abandonCharge, callbacks };
 }
 
-function buttonLabels(screen: Awaited<ReturnType<typeof renderModal>>["screen"]) {
+function buttonLabels(screen: Awaited<ReturnType<typeof renderPanel>>["screen"]) {
   return screen
     .getByRole("button")
     .elements()
     .map((button) => button.textContent);
 }
 
-describe("PointPaymentWaitModal", () => {
+describe("PointPaymentWaitPanel", () => {
   it.each([
-    ["CREDIT", "POINT · CRÉDITO"],
-    [null, "POINT"],
+    ["CREDIT", "Point crédito"],
+    [null, "Point"],
   ] as const)("names a %s card charge as %s", async (cardType, name) => {
-    const { screen } = await renderModal(answering(WAITING), undefined, ORDER, cardType);
+    const { screen } = await renderPanel(answering(WAITING), undefined, ORDER, cardType);
 
     await expect.element(screen.getByText(name, { exact: true })).toBeVisible();
   });
 
   describe("while the customer pays on the terminal", () => {
-    it("shows what is owed, the steps and the time left, without asking to cancel on the terminal first", async () => {
-      const { screen } = await renderModal();
+    it("shows the amount to charge, the steps and the time left, without asking to cancel on the terminal first", async () => {
+      const { screen } = await renderPanel();
 
-      await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-        .toBeVisible();
-      await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-      await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
-      await expect.element(screen.getByText("Pagado")).toBeVisible();
-      await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
-      await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
+      await expect.element(screen.getByText("A COBRAR")).toBeVisible();
       await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
+      await expect.element(screen.getByText("Total de la venta")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
       await expect.element(screen.getByText("Esperando el pago")).toBeVisible();
-      await expect.element(screen.getByText("Tarjeta, en la terminal")).toBeVisible();
+      await expect.element(screen.getByText("Tarjeta, en la terminal")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Pago aprobado")).toBeVisible();
       await expect.element(screen.getByRole("timer", { name: "Tiempo para pagar" })).toBeVisible();
       await expect.element(screen.getByText("2:41")).toBeVisible();
@@ -115,13 +107,13 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("shows the whole wait the order was shown with until the core answers", async () => {
-      const { screen } = await renderModal(() => new Promise(() => {}));
+      const { screen } = await renderPanel(() => new Promise(() => {}));
 
       await expect.element(screen.getByText("3:00").first()).toBeVisible();
     });
 
     it("shows the whole wait as the total of a charge reopened part way through it", async () => {
-      const { screen } = await renderModal(
+      const { screen } = await renderPanel(
         answering({ kind: "waiting", remaining_seconds: 40 }),
         undefined,
         { ...ORDER, remaining_seconds: 40 },
@@ -131,15 +123,26 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("de 3:00")).toBeVisible();
     });
 
-    it("offers only Cambiar de medio, with no way to close it", async () => {
-      const { screen } = await renderModal();
+    it("offers only Cambiar de medio, in the title beside its Esc key", async () => {
+      const { screen } = await renderPanel();
 
       await expect.element(screen.getByText("2:41")).toBeVisible();
       expect(buttonLabels(screen)).toEqual(["Cambiar de medio"]);
+      expect(screen.container.querySelector("kbd")?.textContent).toBe("Esc");
+    });
+
+    it("abandons the order with Esc and goes back to the methods", async () => {
+      const { screen, abandonCharge, callbacks } = await renderPanel();
+      await expect.element(screen.getByText("2:41")).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+      expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
     });
 
     it("keeps asking the core about the payment every second", async () => {
-      const { followCharge } = await renderModal();
+      const { followCharge } = await renderPanel();
 
       await expect
         .poll(() => followCharge.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
@@ -150,7 +153,7 @@ describe("PointPaymentWaitModal", () => {
     it.each([{ kind: "cancelled" }, { kind: "closed" }, { kind: "replaced" }] as const)(
       "abandons the order from Cambiar de medio and goes back to the methods at once when it is $kind",
       async (answer) => {
-        const { screen, abandonCharge, callbacks } = await renderModal(
+        const { screen, abandonCharge, callbacks } = await renderPanel(
           undefined,
           async () => answer,
         );
@@ -168,7 +171,7 @@ describe("PointPaymentWaitModal", () => {
     );
 
     it("keeps waiting and says to cancel on the terminal when the register cannot reach the cloud", async () => {
-      const { screen, callbacks } = await renderModal(undefined, async () => ({
+      const { screen, callbacks } = await renderPanel(undefined, async () => ({
         kind: "unreachable",
       }));
 
@@ -176,16 +179,10 @@ describe("PointPaymentWaitModal", () => {
 
       await expect
         .element(
-          screen
-            .getByText(
-              "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
-            )
-            .first(),
+          screen.getByText("No hay conexión con la nube. Cancelá el cobro en la terminal.").first(),
         )
         .toBeVisible();
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
       await expectNoAccessibilityViolations(screen.container);
     });
@@ -195,7 +192,7 @@ describe("PointPaymentWaitModal", () => {
         async () => ({ kind: "unavailable" }),
         async () => ({ kind: "cancelled" }),
       ];
-      const { screen, callbacks } = await renderModal(undefined, (id) => {
+      const { screen, callbacks } = await renderPanel(undefined, (id) => {
         const next = answers.shift();
         return next === undefined ? Promise.resolve({ kind: "cancelled" as const }) : next(id);
       });
@@ -203,20 +200,45 @@ describe("PointPaymentWaitModal", () => {
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
       await expect
         .element(
-          screen
-            .getByText(
-              "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
-            )
-            .first(),
+          screen.getByText(
+            "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
+          ),
         )
         .toBeVisible();
+      await expect.element(screen.getByRole("timer")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Esperando el pago")).not.toBeInTheDocument();
+      const footer = screen.getByRole("button", { name: "Cambiar de medio" }).last();
+      await expect.element(footer).toHaveTextContent("Enter");
+      await userEvent.keyboard("{Enter}");
+
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+    });
+
+    it("asks to cancel again with Esc after the cancellation could not be asked", async () => {
+      const answers: Abandon[] = [
+        async () => ({ kind: "unavailable" }),
+        async () => ({ kind: "cancelled" }),
+      ];
+      const { screen, callbacks } = await renderPanel(undefined, (id) => {
+        const next = answers.shift();
+        return next === undefined ? Promise.resolve({ kind: "cancelled" as const }) : next(id);
+      });
+
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+      await expect
+        .element(
+          screen.getByText(
+            "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
+          ),
+        )
+        .toBeVisible();
+      await userEvent.keyboard("{Escape}");
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
     });
 
     it("goes back to the methods when the terminal closes the order by itself", async () => {
-      const { callbacks } = await renderModal(answering(WAITING, CLOSED));
+      const { callbacks } = await renderPanel(answering(WAITING, CLOSED));
 
       await expect
         .poll(() => callbacks.onChooseAnotherMethod.mock.calls.length, {
@@ -225,14 +247,18 @@ describe("PointPaymentWaitModal", () => {
         .toBe(1);
     });
 
-    it("says the core could not tell how the payment goes and asks again from Reintentar", async () => {
-      const { screen, followCharge } = await renderModal(
+    it("says the core could not tell how the payment goes and asks again from Reintentar with R", async () => {
+      const { screen, followCharge } = await renderPanel(
         answering({ kind: "unavailable" }, WAITING),
       );
 
       await expect
         .element(screen.getByText("No se pudo consultar el cobro en la terminal"))
         .toBeVisible();
+      await expect.element(screen.getByText("Volvé a intentarlo en unos segundos.")).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: "Reintentar" }))
+        .toHaveTextContent("R");
       await expectNoAccessibilityViolations(screen.container);
 
       await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -240,13 +266,39 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("2:41")).toBeVisible();
       expect(followCharge).toHaveBeenCalledTimes(2);
     });
+
+    it("asks again with the R key, and abandons the order with Esc while it cannot be followed", async () => {
+      const { screen, followCharge, abandonCharge } = await renderPanel(
+        answering({ kind: "unavailable" }, WAITING),
+      );
+      await expect
+        .element(screen.getByText("No se pudo consultar el cobro en la terminal"))
+        .toBeVisible();
+
+      await userEvent.keyboard("r");
+
+      await expect.element(screen.getByText("2:41")).toBeVisible();
+      expect(followCharge).toHaveBeenCalledTimes(2);
+      expect(abandonCharge).not.toHaveBeenCalled();
+    });
+
+    it("abandons the order with Esc when the payment cannot be followed", async () => {
+      const { screen, abandonCharge } = await renderPanel(answering({ kind: "unavailable" }));
+      await expect
+        .element(screen.getByText("No se pudo consultar el cobro en la terminal"))
+        .toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.poll(() => abandonCharge.mock.calls.length).toBe(1);
+    });
   });
 
   describe("when the order may have reached the terminal while the cloud could not be reached", () => {
     const UNCONFIRMED = { ...ORDER, kind: "order_unconfirmed" } as const;
 
     it("says to cancel on the terminal and wait for the connection, while it keeps following the payment", async () => {
-      const { screen, followCharge, callbacks } = await renderModal(
+      const { screen, followCharge, callbacks } = await renderPanel(
         undefined,
         undefined,
         UNCONFIRMED,
@@ -254,16 +306,10 @@ describe("PointPaymentWaitModal", () => {
 
       await expect
         .element(
-          screen
-            .getByText(
-              "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
-            )
-            .first(),
+          screen.getByText("No hay conexión con la nube. Cancelá el cobro en la terminal.").first(),
         )
         .toBeVisible();
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
       await expect
         .poll(() => followCharge.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
@@ -274,101 +320,112 @@ describe("PointPaymentWaitModal", () => {
 
   describe("when the wait is over and the order is still on the terminal", () => {
     it("shows the whole wait as the total of a charge reopened after its wait", async () => {
-      const { screen } = await renderModal(answering(WAIT_OVER), undefined, {
+      const { screen } = await renderPanel(answering(WAIT_OVER), undefined, {
         ...ORDER,
         remaining_seconds: 0,
       });
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
       await expect.element(screen.getByText("de 3:00")).toBeVisible();
     });
 
     it("tells the order expired and nothing was charged when Mercado Pago then expires it", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAIT_OVER, EXPIRED));
+      const { screen, callbacks } = await renderPanel(answering(WAIT_OVER, EXPIRED));
 
       await expect
-        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }), {
+        .element(screen.getByText("El cobro venció en la terminal"), {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
         .toBeVisible();
       await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
       expect(
-        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
+        screen.getByText("Cancelá el cobro en la terminal.", { exact: true }).elements(),
       ).toHaveLength(0);
-      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
+      await expect
+        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
+        .toHaveTextContent("Enter");
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
 
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
 
     it("tells to cancel on the terminal and lets the cashier choose another method at once, waiting for no cancellation", async () => {
-      const { screen } = await renderModal(answering(WAIT_OVER));
+      const { screen } = await renderPanel(answering(WAIT_OVER));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
-        .toBeVisible();
-      await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-      await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
-      await expect.element(screen.getByText("Pagado")).toBeVisible();
-      await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
-      await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
+      await expect.element(screen.getByText("A COBRAR")).toBeVisible();
       await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
       await expect.element(screen.getByText("0:00")).toBeVisible();
       await expect.element(screen.getByText("de 3:00")).toBeVisible();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
-      await expect.element(screen.getByText("Tiempo agotado")).toBeVisible();
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
       await expect.element(screen.getByText("Con error")).toBeInTheDocument();
       expect(screen.getByText("Esperando la cancelación", { exact: true }).elements()).toHaveLength(
         0,
       );
       await expect
-        .element(screen.getByText("Cancelá el cobro en la terminal", { exact: true }).first())
+        .element(screen.getByText("Cancelá el cobro en la terminal.", { exact: true }).first())
         .toBeVisible();
       await expect
         .element(screen.getByRole("status"))
-        .toHaveTextContent("Cancelá el cobro en la terminal");
-      await expect.element(screen.getByRole("button", { name: "Elegir otro medio" })).toBeEnabled();
-      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
+        .toHaveTextContent("Cancelá el cobro en la terminal.");
+      await expect.element(screen.getByRole("button", { name: "Cambiar de medio" })).toBeEnabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
+        .toHaveTextContent("Enter");
+      await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
 
+    it("abandons the order with Esc as with Cambiar de medio", async () => {
+      const { screen, abandonCharge, callbacks } = await renderPanel(answering(WAIT_OVER));
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+      expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
+    });
+
+    it("abandons the order with Enter", async () => {
+      const { screen, abandonCharge, callbacks } = await renderPanel(answering(WAIT_OVER));
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+      expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
+    });
+
     it.each([{ kind: "cancelled" }, { kind: "closed" }, { kind: "replaced" }] as const)(
-      "abandons the order from Elegir otro medio and goes back to the methods when it is $kind",
+      "abandons the order from Cambiar de medio and goes back to the methods when it is $kind",
       async (answer) => {
-        const { screen, abandonCharge, callbacks } = await renderModal(
+        const { screen, abandonCharge, callbacks } = await renderPanel(
           answering(WAIT_OVER),
           async () => answer,
         );
-        await expect
-          .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
-          .toBeVisible();
+        await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
 
-        await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+        await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
         await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
         expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
       },
     );
 
-    it("holds Elegir otro medio while the cancellation is being asked", async () => {
+    it("holds Cambiar de medio while the cancellation is being asked", async () => {
       let answer: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
-      const { screen, callbacks } = await renderModal(
+      const { screen, callbacks } = await renderPanel(
         answering(WAIT_OVER),
         () => new Promise((resolve) => (answer = resolve)),
       );
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
 
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-      await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }))
-        .toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "Cambiar de medio" })).toBeDisabled();
       answer({ kind: "cancelled" });
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
     });
@@ -378,15 +435,13 @@ describe("PointPaymentWaitModal", () => {
         async () => ({ kind: "unavailable" }),
         async () => ({ kind: "replaced" }),
       ];
-      const { screen, callbacks } = await renderModal(answering(WAIT_OVER), (id) => {
+      const { screen, callbacks } = await renderPanel(answering(WAIT_OVER), (id) => {
         const next = answers.shift();
         return next === undefined ? Promise.resolve({ kind: "cancelled" as const }) : next(id);
       });
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
 
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
       await expect
         .element(
           screen
@@ -396,38 +451,32 @@ describe("PointPaymentWaitModal", () => {
             .first(),
         )
         .toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
     });
 
     it("says to cancel on the terminal and wait for the connection when the register cannot reach the cloud, staying on the wait", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAIT_OVER), async () => ({
+      const { screen, callbacks } = await renderPanel(answering(WAIT_OVER), async () => ({
         kind: "unreachable",
       }));
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
 
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect
         .element(
-          screen
-            .getByText(
-              "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
-            )
-            .first(),
+          screen.getByText("No hay conexión con la nube. Cancelá el cobro en la terminal.").first(),
         )
         .toBeVisible();
       expect(
-        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
+        screen.getByText("Cancelá el cobro en la terminal.", { exact: true }).elements(),
       ).toHaveLength(0);
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
     });
 
     it("goes back to the methods once the core says the order closed", async () => {
-      const { callbacks } = await renderModal(answering(WAIT_OVER, CLOSED));
+      const { callbacks } = await renderPanel(answering(WAIT_OVER, CLOSED));
 
       await expect
         .poll(() => callbacks.onChooseAnotherMethod.mock.calls.length, {
@@ -437,7 +486,7 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("says the core could not tell how the cancellation goes and keeps following from Reintentar", async () => {
-      const { screen, callbacks } = await renderModal(
+      const { screen, callbacks } = await renderPanel(
         answering(WAIT_OVER, { kind: "unavailable" }, CLOSED),
       );
 
@@ -445,9 +494,6 @@ describe("PointPaymentWaitModal", () => {
         .element(screen.getByText("No se pudo consultar el cobro en la terminal"), {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
-        .toBeVisible();
-      await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
         .toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
 
@@ -461,7 +507,7 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("keeps asking the core while the order is still on the terminal", async () => {
-      const { followCharge } = await renderModal(answering(WAIT_OVER));
+      const { followCharge } = await renderPanel(answering(WAIT_OVER));
 
       await expect
         .poll(() => followCharge.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
@@ -469,7 +515,7 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("shows the customer paid when the payment is approved at the last moment", async () => {
-      const { screen } = await renderModal(answering(WAIT_OVER, COMPLETED));
+      const { screen } = await renderPanel(answering(WAIT_OVER, COMPLETED));
 
       await expect
         .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }), {
@@ -481,7 +527,7 @@ describe("PointPaymentWaitModal", () => {
 
   describe("when the customer paid", () => {
     it("shows the amount paid and advances only from Continuar once the payment is approved", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAITING, COMPLETED));
+      const { screen, callbacks } = await renderPanel(answering(WAITING, COMPLETED));
 
       await expect
         .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }), {
@@ -501,7 +547,7 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("shows what is still to be charged and goes back to the methods from Continuar after a partial payment", async () => {
-      const { screen, callbacks } = await renderModal(answering(PARTIALLY_PAID));
+      const { screen, callbacks } = await renderPanel(answering(PARTIALLY_PAID));
 
       await expect.element(screen.getByText("Falta cobrar")).toBeVisible();
       await expect.element(screen.getByText("$ 10.700,00")).toBeVisible();
@@ -513,7 +559,7 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("shows the customer paid when abandoning finds the order was already paid", async () => {
-      const { screen, callbacks } = await renderModal(undefined, async () => ({
+      const { screen, callbacks } = await renderPanel(undefined, async () => ({
         kind: "already_paid",
         settlement: COMPLETED,
       }));
@@ -529,45 +575,52 @@ describe("PointPaymentWaitModal", () => {
   });
 
   describe("when Mercado Pago expired the order", () => {
-    it("tells nothing was charged and goes back to the methods only from Elegir otro medio", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAITING, EXPIRED));
+    it("tells nothing was charged and goes back to the methods only from Cambiar de medio", async () => {
+      const { screen, callbacks } = await renderPanel(answering(WAITING, EXPIRED));
 
       await expect
-        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }), {
+        .element(screen.getByText("El cobro venció en la terminal"), {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
         .toBeVisible();
-      await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
       await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
-      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
+      await expect.element(screen.getByText("Se puede volver a intentar")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
+        .toHaveTextContent("Enter");
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
       await expectNoAccessibilityViolations(screen.container);
 
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
   });
 
   describe("when the terminal declined the payment", () => {
-    it("says nothing was charged and goes back to the methods from Elegir otro medio", async () => {
-      const { screen, callbacks } = await renderModal(answering({ kind: "declined" }));
+    it("says nothing was charged and goes back to the methods from Cambiar de medio", async () => {
+      const { screen, callbacks } = await renderPanel(answering({ kind: "declined" }));
 
-      await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
+      await expect.element(screen.getByText("A COBRAR")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
+      await expect.element(screen.getByText("No se aprobó")).not.toBeInTheDocument();
       await expect
-        .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
-        .toBeVisible();
-      await expect
-        .element(screen.getByText("El pago no se aprobó en la terminal, así que no se cobró nada."))
-        .toBeVisible();
-      await expect
-        .element(
-          screen.getByText("Se puede volver a intentar con la Point o cobrar con otro medio."),
-        )
-        .toBeVisible();
+        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
+        .toHaveTextContent("Enter");
       await expectNoAccessibilityViolations(screen.container);
 
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    });
+
+    it.each(["{Escape}", "{Enter}"])("goes back to the methods with %s", async (key) => {
+      const { screen, callbacks } = await renderPanel(answering({ kind: "declined" }));
+      await expect.element(screen.getByText("Pago rechazado.")).toBeVisible();
+
+      await userEvent.keyboard(key);
 
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
@@ -583,7 +636,7 @@ describe("PointPaymentWaitModal", () => {
       { kind: "no_buyer_identification_threshold" },
       { kind: "reaches_buyer_identification_threshold", threshold: 1_000_000 },
     ] as const)("leaves the charge when following answers $kind", async (outcome) => {
-      const { callbacks } = await renderModal(answering(outcome));
+      const { callbacks } = await renderPanel(answering(outcome));
 
       await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBe(1);
     });
@@ -591,14 +644,14 @@ describe("PointPaymentWaitModal", () => {
     it.each([{ kind: "not_signed_in" }, { kind: "no_open_session" }] as const)(
       "asks to check the session when following answers $kind",
       async (outcome) => {
-        const { callbacks } = await renderModal(answering(outcome));
+        const { callbacks } = await renderPanel(answering(outcome));
 
         await expect.poll(() => callbacks.onSessionInvalid.mock.calls.length).toBe(1);
       },
     );
 
     it("goes back to the methods when abandoning finds the order is not pending", async () => {
-      const { screen, callbacks } = await renderModal(undefined, async () => ({
+      const { screen, callbacks } = await renderPanel(undefined, async () => ({
         kind: "not_pending",
       }));
 
@@ -608,7 +661,7 @@ describe("PointPaymentWaitModal", () => {
     });
 
     it("asks to check the session when abandoning finds it is no longer valid", async () => {
-      const { screen, callbacks } = await renderModal(undefined, async () => ({
+      const { screen, callbacks } = await renderPanel(undefined, async () => ({
         kind: "not_signed_in",
       }));
 

@@ -3,8 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { PointChargeModal } from "./point-charge-modal";
-import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
+import { PointChargePanel } from "./point-charge-panel";
 
 const TOTAL = 5_070_000;
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000b1";
@@ -16,13 +15,13 @@ const ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   wait_seconds: 180,
 };
 
-const AMOUNT_FIELD = "Importe a cobrar con este medio";
+const AMOUNT_FIELD = "IMPORTE";
 const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
 const MINIMUM = 1_500;
 
 type Start = (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
 
-async function renderModal(
+async function renderPanel(
   start: Start = async () => ORDER_SHOWN,
   sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
   cardType: "DEBIT" | "CREDIT" = "DEBIT",
@@ -37,8 +36,8 @@ async function renderModal(
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <PointChargeModal
-      {...sale}
+    <PointChargePanel
+      pending={sale.pending}
       cardType={cardType}
       minimum={MINIMUM}
       start={startCharge}
@@ -54,63 +53,74 @@ async function renderModal(
   };
 }
 
-describe("PointChargeModal", () => {
-  it("names the credit card the charge is made with", async () => {
-    const { screen } = await renderModal(undefined, WHOLE_SALE, "CREDIT");
-
-    await expect.element(screen.getByText("POINT · CRÉDITO")).toBeVisible();
-  });
-
-  it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
-    const { screen } = await renderModal();
-
-    await expectChargeSummaryInColumns(screen, ["Total de la venta", "Pagado", "Saldo pendiente"]);
-  });
-
-  it("asks how much is charged on the terminal and shows what is owed", async () => {
-    const { screen, field } = await renderModal(undefined, {
+describe("PointChargePanel", () => {
+  it("is the Point débito charge: its title, Esc with Cambiar de medio, the amount to charge and the amount field, focused", async () => {
+    const { screen, field } = await renderPanel(undefined, {
       total: TOTAL,
       paid: 1_000_000,
       pending: 4_070_000,
     });
 
-    await expect.element(screen.getByText("POINT · DÉBITO")).toBeVisible();
+    await expect.element(screen.getByText("Point débito", { exact: true })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .element(screen.getByRole("button", { name: "Cambiar de medio" }).first())
       .toBeVisible();
-    await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-    await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
-    await expect.element(screen.getByText("Pagado")).toBeVisible();
-    await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
-    await expect.element(screen.getByText("Saldo pendiente")).toBeVisible();
-    await expect
-      .element(screen.getByRole("status"))
-      .toHaveTextContent(
-        "El cobro se envía a la terminal por este importe. Después ya no se puede cambiar.",
-      );
-    await expectNoAccessibilityViolations(screen.container);
-    await expect.element(field).toHaveAttribute("inputmode", "decimal");
-  });
-
-  it("fills the amount with the pending balance and says it may be less", async () => {
-    const { screen, field } = await renderModal(undefined, {
-      total: TOTAL,
-      paid: 1_000_000,
-      pending: 4_070_000,
-    });
-
+    await expect.element(screen.getByText("A COBRAR")).toBeVisible();
+    await expect.element(screen.getByText("$ 40.700,00")).toBeVisible();
+    await expect.element(screen.getByText("IMPORTE")).toBeVisible();
     await expect.element(field).toHaveValue("40.700,00");
-    await expect
-      .element(
-        screen.getByText(
-          "Hasta el saldo pendiente, $ 40.700,00. Si cobrás menos, el resto queda pendiente para otro medio.",
-        ),
-      )
-      .toBeVisible();
+    await expect.element(field).toHaveFocus();
+    await expect.element(field).toHaveAttribute("inputmode", "decimal");
+    await expect.element(screen.getByText("Total de la venta")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("sends the prefilled amount to the terminal with Enter", async () => {
+    const { startCharge, callbacks } = await renderPanel();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[ORDER_SHOWN]]);
+    expect(startCharge).toHaveBeenCalledExactlyOnceWith(TOTAL);
+  });
+
+  it("shows the Enter key on Enviar a la terminal", async () => {
+    const { send } = await renderPanel();
+
+    await expect.element(send).toHaveTextContent("Enter");
+  });
+
+  it("goes back to the methods with Esc", async () => {
+    const { callbacks, startCharge } = await renderPanel();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    expect(startCharge).not.toHaveBeenCalled();
+  });
+
+  it("does not go back with Esc while the charge is being sent", async () => {
+    let finish: (outcome: StartMercadoPagoChargeOutcome) => void = () => undefined;
+    const { send, callbacks } = await renderPanel(
+      () => new Promise<StartMercadoPagoChargeOutcome>((settle) => (finish = settle)),
+    );
+
+    await userEvent.click(send);
+    await userEvent.keyboard("{Escape}");
+
+    expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+    finish(ORDER_SHOWN);
+  });
+
+  it("names the credit card the charge is made with", async () => {
+    const { screen } = await renderPanel(undefined, WHOLE_SALE, "CREDIT");
+
+    await expect.element(screen.getByText("Point crédito", { exact: true })).toBeVisible();
   });
 
   it("sends the amount the cashier typed to the terminal, once, and reports the order shown", async () => {
-    const { field, send, startCharge, callbacks } = await renderModal();
+    const { field, send, startCharge, callbacks } = await renderPanel();
 
     await userEvent.fill(field, "30000,00");
     await userEvent.click(send);
@@ -120,13 +130,13 @@ describe("PointChargeModal", () => {
   });
 
   it("sends nothing until Enviar a la terminal is pressed", async () => {
-    const { startCharge } = await renderModal();
+    const { startCharge } = await renderPanel();
 
     expect(startCharge).not.toHaveBeenCalled();
   });
 
   it("does not send what is not an amount, and says so", async () => {
-    const { screen, field, send, startCharge } = await renderModal();
+    const { screen, field, send, startCharge } = await renderPanel();
 
     await userEvent.clear(field);
     await userEvent.keyboard("5,");
@@ -139,7 +149,7 @@ describe("PointChargeModal", () => {
   });
 
   it("says the amount cannot exceed the pending balance the core answers", async () => {
-    const { screen, field, send } = await renderModal(async () => ({
+    const { screen, field, send } = await renderPanel(async () => ({
       kind: "exceeds_pending",
       pending: 4_070_000,
     }));
@@ -153,7 +163,7 @@ describe("PointChargeModal", () => {
   });
 
   it("says the terminal does not accept charges under its minimum", async () => {
-    const { screen, field, send } = await renderModal(async () => ({ kind: "below_minimum" }));
+    const { screen, field, send } = await renderPanel(async () => ({ kind: "below_minimum" }));
 
     await userEvent.fill(field, "10,00");
     await userEvent.click(send);
@@ -164,57 +174,45 @@ describe("PointChargeModal", () => {
     await expect.element(send).toBeEnabled();
   });
 
-  it("says the terminal is not configured in this register, keeping the way to another method", async () => {
-    const { screen, send, callbacks } = await renderModal(async () => ({
-      kind: "not_configured",
-    }));
+  it.each([
+    {
+      outcome: { kind: "not_configured" },
+      message: "La Point integrada no está configurada en esta caja.",
+    },
+    {
+      outcome: { kind: "order_refused" },
+      message: "Mercado Pago rechazó la orden. Cobrá con otro medio.",
+    },
+    {
+      outcome: { kind: "mercado_pago_charge_in_progress" },
+      message: "Ya hay un cobro con Mercado Pago en curso para esta venta.",
+    },
+    {
+      outcome: { kind: "paid_order_not_applied" },
+      message: "Aplicá primero el pago de Mercado Pago de esta venta.",
+    },
+  ] as const)(
+    "says $outcome.kind in the panel and leaves only Cambiar de medio with Enter",
+    async ({ outcome, message }) => {
+      const { screen, send, callbacks } = await renderPanel(async () => outcome);
 
-    await userEvent.click(send);
+      await userEvent.click(send);
 
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("La Point integrada no está configurada en esta caja.");
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
-    expect(callbacks.onOrderShown).not.toHaveBeenCalled();
-  });
-
-  it("says Mercado Pago refused the order, keeping the way to another method", async () => {
-    const { screen, send } = await renderModal(async () => ({ kind: "order_refused" }));
-
-    await userEvent.click(send);
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("Mercado Pago rechazó la orden. Cobrá con otro medio.");
-    await expect.element(send).toBeEnabled();
-  });
-
-  it("says another Mercado Pago charge of the sale is still waiting", async () => {
-    const { screen, send } = await renderModal(async () => ({
-      kind: "mercado_pago_charge_in_progress",
-    }));
-
-    await userEvent.click(send);
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("Ya hay un cobro con Mercado Pago en curso para esta venta.");
-  });
-
-  it("says the paid order of the sale must be applied first", async () => {
-    const { screen, send } = await renderModal(async () => ({ kind: "paid_order_not_applied" }));
-
-    await userEvent.click(send);
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("Aplicá primero el pago de Mercado Pago de esta venta.");
-  });
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(message);
+      await expect
+        .element(screen.getByRole("button", { name: "Enviar a la terminal" }))
+        .not.toBeInTheDocument();
+      const change = screen.getByRole("button", { name: "Cambiar de medio" }).last();
+      await expect.element(change).toHaveTextContent("Enter");
+      await userEvent.keyboard("{Enter}");
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+      expect(callbacks.onOrderShown).not.toHaveBeenCalled();
+    },
+  );
 
   it("follows the charge, offering no other method, when the cloud could not confirm the order reached the terminal", async () => {
     const unconfirmed = { ...ORDER_SHOWN, kind: "order_unconfirmed" } as const;
-    const { screen, send, callbacks } = await renderModal(async () => unconfirmed);
+    const { screen, send, callbacks } = await renderPanel(async () => unconfirmed);
 
     await userEvent.click(send);
 
@@ -223,7 +221,7 @@ describe("PointChargeModal", () => {
   });
 
   it("says the charge could not be sent when the core cannot answer", async () => {
-    const { screen, send } = await renderModal(async () => {
+    const { screen, send } = await renderPanel(async () => {
       throw new Error("core down");
     });
 
@@ -235,7 +233,7 @@ describe("PointChargeModal", () => {
   });
 
   it("says the charge could not be sent, letting it be sent again, when the core answers it could not reach the cloud", async () => {
-    const { screen, send } = await renderModal(async () => ({ kind: "unreachable" }));
+    const { screen, send } = await renderPanel(async () => ({ kind: "unreachable" }));
 
     await userEvent.click(send);
 
@@ -255,7 +253,7 @@ describe("PointChargeModal", () => {
   ] as const)(
     "leaves the charge when the sale can no longer be charged ($kind)",
     async (outcome) => {
-      const { send, callbacks } = await renderModal(async () => outcome);
+      const { send, callbacks } = await renderPanel(async () => outcome);
 
       await userEvent.click(send);
 
@@ -266,7 +264,7 @@ describe("PointChargeModal", () => {
   it.each([{ kind: "not_signed_in" }, { kind: "no_open_session" }] as const)(
     "leaves the charge when the session is no longer valid ($kind)",
     async (outcome) => {
-      const { send, callbacks } = await renderModal(async () => outcome);
+      const { send, callbacks } = await renderPanel(async () => outcome);
 
       await userEvent.click(send);
 
@@ -275,7 +273,7 @@ describe("PointChargeModal", () => {
   );
 
   it("goes back to the methods from Cambiar de medio", async () => {
-    const { screen, callbacks, startCharge } = await renderModal();
+    const { screen, callbacks, startCharge } = await renderPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
@@ -284,7 +282,7 @@ describe("PointChargeModal", () => {
   });
 
   it("groups thousands and takes a typed dot as the decimal comma", async () => {
-    const { field } = await renderModal();
+    const { field } = await renderPanel();
     await userEvent.clear(field);
     await userEvent.type(field, "1234.5");
 
