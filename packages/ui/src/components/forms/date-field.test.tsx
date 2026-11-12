@@ -1707,3 +1707,24 @@ test("shows the date it holds instead of its placeholder", async () => {
 
   await expect.element(screen.getByText("Sin vencimiento")).not.toBeInTheDocument();
 });
+
+for (const variant of ["register", "backoffice"] as const) {
+  test(`keeps a partly typed date in place of its placeholder once the focus leaves the field in the ${variant} variant`, async () => {
+    const screen = await render(
+      <DateFieldHarness variant={variant} label="Vencimiento" placeholder="Sin vencimiento" />,
+    );
+    const placeholder = screen.getByText("Sin vencimiento");
+    const day = fieldGroup(screen, "Vencimiento").querySelector(
+      '[role="spinbutton"]',
+    ) as HTMLElement;
+    const segments = day.parentElement as HTMLElement;
+
+    await userEvent.click(placeholder, { force: true });
+    await userEvent.keyboard("28");
+    (document.activeElement as HTMLElement).blur();
+
+    await expect.poll(() => day.textContent).toBe("28");
+    await expect.element(placeholder).not.toBeVisible();
+    expect(getComputedStyle(segments).opacity).toBe("1");
+  });
+}
