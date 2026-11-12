@@ -29,6 +29,7 @@ import {
   OptionCardGroup,
   plural,
   ScreenHeader,
+  ScaleCard,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
@@ -316,14 +317,19 @@ export function ChargeScreen({
         ) : null}
         {sale !== undefined && step.name === "cash" ? (
           <>
-            <SearchField
-              label="Producto"
-              disabled
-              placeholder="Escaneá o escribí el nombre"
-              icon={<ScanBarcode />}
-              value=""
-              onChange={() => {}}
-            />
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <SearchField
+                  label="Producto"
+                  disabled
+                  placeholder="Escaneá o escribí el nombre"
+                  icon={<ScanBarcode />}
+                  value=""
+                  onChange={() => {}}
+                />
+              </div>
+              <ScaleCard />
+            </div>
             <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
           </>
         ) : null}
