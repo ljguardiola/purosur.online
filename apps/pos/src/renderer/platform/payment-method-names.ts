@@ -21,6 +21,15 @@ export function pointCardName(cardType: PointCardType | null): string {
   return cardType === null ? PAYMENT_METHOD_NAMES.POINT : POINT_CARD_NAMES[cardType];
 }
 
+const POINT_CARD_TITLES = {
+  DEBIT: "Point débito",
+  CREDIT: "Point crédito",
+} as const satisfies Record<PointCardType, string>;
+
+export function pointCardTitle(cardType: PointCardType | null): string {
+  return cardType === null ? PAYMENT_METHOD_NAMES.POINT : POINT_CARD_TITLES[cardType];
+}
+
 export function paidPaymentName(method: PaymentMethod, cardType: PointCardType | null): string {
   return method === "POINT" ? pointCardName(cardType) : paymentMethodName(method);
 }
