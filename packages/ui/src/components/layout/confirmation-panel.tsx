@@ -2,7 +2,6 @@ import { TriangleAlert } from "lucide-react";
 import { SummaryRowGroup } from "../data-display/summary-row-group";
 import { InlineNotice } from "../feedback/inline-notice";
 import { Button } from "../forms/button";
-import { CloseButton } from "../shared/close-button";
 import type { Icon } from "../shared/icon";
 import { Eyebrow } from "./eyebrow";
 import { SidePanel } from "./side-panel";
@@ -43,9 +42,13 @@ export function ConfirmationPanel({
     <SidePanel
       label={title}
       header={
-        <SidePanelTitle title={title} icon={icon} tone={tone}>
-          <CloseButton onPress={onClose} escapeKeycap disabled={busy} />
-        </SidePanelTitle>
+        <SidePanelTitle
+          title={title}
+          icon={icon}
+          tone={tone}
+          onClose={onClose}
+          closeDisabled={busy}
+        />
       }
       footer={
         <Button

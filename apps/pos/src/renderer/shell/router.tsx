@@ -10,6 +10,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -217,6 +218,10 @@ export interface RouterContext {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
+  cashChargeAmounts: (
+    saleId: string,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount: (
     saleId: string,
@@ -887,9 +892,9 @@ const chargeRoute = createRoute({
       signOut,
       currentSale,
       cashCharge,
+      cashChargeAmounts,
       chargeSaleInCash,
       chargeSaleInCashWithChangeDiscount,
-      previewSaleDiscount,
       authorizers,
       chargeSaleByTransfer,
       chargeSaleOnStandaloneTerminal,
@@ -913,9 +918,9 @@ const chargeRoute = createRoute({
         lock={signOut}
         currentSale={currentSale}
         cashCharge={cashCharge}
+        cashChargeAmounts={cashChargeAmounts}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
-        previewSaleDiscount={previewSaleDiscount}
         loadAuthorizers={authorizers}
         chargeSaleByTransfer={chargeSaleByTransfer}
         chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
@@ -1433,6 +1438,7 @@ export function createAppRouter(
     | "currentSale"
     | "scanProduct"
     | "cashCharge"
+    | "cashChargeAmounts"
     | "chargeSaleInCash"
     | "chargeSaleInCashWithChangeDiscount"
     | "chargeSaleByTransfer"

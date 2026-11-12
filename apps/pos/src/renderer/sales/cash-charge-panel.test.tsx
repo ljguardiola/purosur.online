@@ -1,9 +1,12 @@
-import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
+import type {
+  CashChargeAmounts,
+  CashChargeAnswer,
+  ChargeSaleInCashOutcome,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
-import { renderCashChargeModal } from "./test-support/cash-charge-modal";
-import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
+import { amountsOf, renderCashChargePanel, valueBeside } from "./test-support/cash-charge-panel";
 
 const TOTAL = 476_000;
 const COMPLETED: ChargeSaleInCashOutcome = {
@@ -27,6 +30,7 @@ const CORE_ANSWERS = new Map<number, CashChargeAnswer>([
 
 type Charge = (tendered: number) => Promise<ChargeSaleInCashOutcome>;
 type ReadCharge = (tendered: number) => Promise<CashChargeAnswer>;
+type ReadAmounts = (discount?: number) => Promise<CashChargeAmounts | null>;
 
 async function answerLikeTheCore(tendered: number): Promise<CashChargeAnswer> {
   const answer = CORE_ANSWERS.get(tendered);
@@ -38,13 +42,15 @@ async function answerLikeTheCore(tendered: number): Promise<CashChargeAnswer> {
 
 const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
 
-async function renderModal(
+async function renderPanel(
   charge: Charge = async () => COMPLETED,
   readCharge: ReadCharge = answerLikeTheCore,
   sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
+  readAmounts?: ReadAmounts,
 ) {
-  return renderCashChargeModal({
-    sale: { ...sale, subtotal: sale.total },
+  return renderCashChargePanel({
+    sale,
+    readAmounts: readAmounts ?? (async () => amountsOf(sale.pending)),
     discountOffered: false,
     charge,
     readCharge,
@@ -59,75 +65,128 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe("CashChargeModal", () => {
-  it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
-    const { screen } = await renderModal();
+describe("CashChargePanel", () => {
+  it("shows the amount to charge the core answers, big, and the total of the sale", async () => {
+    const { screen } = await renderPanel();
 
-    await expectChargeSummaryInColumns(screen, ["Total de la venta", "Pagado", "A cobrar ahora"]);
+    await expect.element(screen.getByText("A COBRAR")).toBeVisible();
+    await expect.poll(() => valueBeside(screen, "A COBRAR")).toBe("$ 4.760,00");
+    expect(valueBeside(screen, "Total")).toBe("$ 4.760,00");
+    expect(screen.getByText("Redondeo").query()).toBeNull();
+    expect(screen.getByText("Pagado").query()).toBeNull();
   });
 
-  it("asks for the amount handed over and shows what is owed", async () => {
-    const { screen, field } = await renderModal();
+  it("is the cash charge: Efectivo, its Esc key and the received amount, focused, with no hint under it", async () => {
+    const { screen, field } = await renderPanel();
 
-    await expect.element(screen.getByText("COBRO EN EFECTIVO")).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "Ingresá el importe entregado" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-    await expect.element(screen.getByText("Pagado")).toBeVisible();
-    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
-    await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
-    await expect
-      .element(screen.getByText("Si no alcanza para saldar la venta, el resto queda pendiente."))
-      .toBeVisible();
-    await expectNoAccessibilityViolations(screen.container);
+    await expect.element(screen.getByText("Efectivo", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
+    await expect.element(screen.getByText("RECIBIDO")).toBeVisible();
+    await expect.element(field).toHaveFocus();
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
+    await expect.element(screen.getByText(/el resto queda pendiente/)).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it("takes the typed amount as soon as it opens", async () => {
-    const { field } = await renderModal();
+    const { field } = await renderPanel();
 
     await userEvent.keyboard("5000");
 
     await expect.element(field).toHaveValue("5.000");
   });
 
-  it("shows what has been paid and what is to be charged now when part of the sale is already paid", async () => {
-    const { screen } = await renderModal(undefined, undefined, {
+  it("shows what has been paid when part of the sale is already paid, and the amount to charge the core answers", async () => {
+    const { screen } = await renderPanel(undefined, undefined, {
       total: TOTAL,
       paid: 100_000,
       pending: 376_000,
     });
 
-    await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-    await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
-    await expect.element(screen.getByText("Pagado")).toBeVisible();
-    await expect.element(screen.getByText("$ 1.000,00")).toBeVisible();
-    await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
-    await expect.element(screen.getByText("$ 3.760,00")).toBeVisible();
+    await expect.poll(() => valueBeside(screen, "A COBRAR")).toBe("$ 3.760,00");
+    expect(valueBeside(screen, "Total")).toBe("$ 4.760,00");
+    expect(valueBeside(screen, "Pagado")).toBe("$ 1.000,00");
   });
 
-  it("keeps Completar venta disabled until the core has answered for the amount", async () => {
-    const { complete } = await renderModal();
+  it("shows the amount to charge loading until the core answers for the sale", async () => {
+    const { screen } = await renderPanel(
+      undefined,
+      undefined,
+      undefined,
+      () => new Promise(() => {}),
+    );
+
+    await expect.element(screen.getByText("A COBRAR")).toBeVisible();
+    expect(screen.container.querySelector("[aria-busy=true]")).not.toBeNull();
+  });
+
+  it("says the amounts could not be worked out when the core cannot answer, and asks again on Reintentar", async () => {
+    const answers: (CashChargeAmounts | Error)[] = [
+      new Error("the core connection was replaced"),
+      amountsOf(TOTAL),
+    ];
+    const { screen } = await renderPanel(undefined, undefined, undefined, async () => {
+      const answer = answers.shift();
+      if (answer === undefined || answer instanceof Error) {
+        throw answer ?? new Error("no answer left");
+      }
+      return answer;
+    });
+
+    await expect.element(screen.getByText("No se pudo calcular el importe a cobrar")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.poll(() => valueBeside(screen, "A COBRAR")).toBe("$ 4.760,00");
+  });
+
+  it("shows no amount to charge loading once reading it failed", async () => {
+    const { screen } = await renderPanel(undefined, undefined, undefined, async () => {
+      throw new Error("the core could not read the amounts of a cash charge");
+    });
+
+    await expect.element(screen.getByText("No se pudo calcular el importe a cobrar")).toBeVisible();
+    expect(screen.container.querySelector("[aria-busy=true]")).toBeNull();
+  });
+
+  it("leaves the charge for the sale screen when the core has no sale to charge", async () => {
+    const { callbacks } = await renderPanel(undefined, undefined, undefined, async () => null);
+
+    await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it("keeps Cobrar disabled until the core has answered for the amount", async () => {
+    const { complete } = await renderPanel();
 
     await expect.element(complete).toBeDisabled();
   });
 
+  it("draws Cobrar's check icon before its text", async () => {
+    const { complete } = await renderPanel();
+
+    await expect.element(complete).toBeInTheDocument();
+    const button = complete.element();
+    const icon = button.querySelector("svg");
+    const text = Array.from(button.querySelectorAll("span")).find(
+      (span) => span.textContent === "Cobrar",
+    );
+
+    expect(
+      icon && text && icon.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("offers to register a partial payment, and shows what stays pending and no change, while the amount does not cover the pending balance", async () => {
-    const { screen, field } = await renderModal();
+    const { screen, field } = await renderPanel();
 
     await userEvent.fill(field, "4000,00");
 
     await expect
       .element(screen.getByRole("button", { name: "Registrar pago parcial" }))
       .toBeEnabled();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar venta" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Cobrar" })).not.toBeInTheDocument();
     await expect.element(screen.getByText("QUEDA PENDIENTE")).toBeVisible();
-    await expect.element(screen.getByText("$ 4.760,00 − $ 4.000,00")).toBeVisible();
     await expect.element(screen.getByText("$ 760,00")).toBeVisible();
-    await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("VUELTO")).not.toBeInTheDocument();
   });
 
   it("goes back to the methods when the partial payment is registered", async () => {
@@ -138,7 +197,7 @@ describe("CashChargeModal", () => {
       paid: 400_000,
       pending: 76_000,
     };
-    const { screen, field, chargeSale, callbacks } = await renderModal(async () => outcome);
+    const { screen, field, chargeSale, callbacks } = await renderPanel(async () => outcome);
 
     await userEvent.fill(field, "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
@@ -150,7 +209,7 @@ describe("CashChargeModal", () => {
 
   it("stays charging until the screen has gone back to the methods with the new balance", async () => {
     const backToMethods = deferred<void>();
-    const { screen, field, chargeSale, callbacks } = await renderModal(async () => ({
+    const { screen, field, chargeSale, callbacks } = await renderPanel(async () => ({
       kind: "partially_paid",
       sale_id: "sale-1",
       total: TOTAL,
@@ -174,28 +233,26 @@ describe("CashChargeModal", () => {
   });
 
   it("shows the change to hand over once the amount covers the total", async () => {
-    const { screen, field, complete } = await renderModal();
+    const { screen, field, complete } = await renderPanel();
 
     await userEvent.fill(field, "5000,00");
 
     await expect.element(complete).toBeEnabled();
-    await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
-    await expect.element(screen.getByText("$ 5.000,00 − $ 4.760,00")).toBeVisible();
+    await expect.element(screen.getByText("VUELTO")).toBeVisible();
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
   });
 
   it("shows a change of zero when the amount is exactly the total", async () => {
-    const { screen, field, complete } = await renderModal();
+    const { screen, field, complete } = await renderPanel();
 
     await userEvent.fill(field, "4760,00");
 
     await expect.element(complete).toBeEnabled();
-    await expect.element(screen.getByText("$ 4.760,00 − $ 4.760,00")).toBeVisible();
     await expect.element(screen.getByText("$ 0,00").last()).toBeVisible();
   });
 
   it("says when what was typed is not an amount", async () => {
-    const { screen, field, complete } = await renderModal();
+    const { screen, field, complete } = await renderPanel();
 
     await userEvent.clear(field);
     await userEvent.keyboard("5,");
@@ -209,7 +266,7 @@ describe("CashChargeModal", () => {
   it.each([["0"], ["30000000,00"]])(
     "says %s is not an amount it can charge, and shows no change",
     async (typed) => {
-      const { screen, field, complete } = await renderModal();
+      const { screen, field, complete } = await renderPanel();
 
       await userEvent.fill(field, typed);
 
@@ -217,21 +274,21 @@ describe("CashChargeModal", () => {
         .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
         .toBeVisible();
       await expect.element(complete).toBeDisabled();
-      await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("VUELTO")).not.toBeInTheDocument();
     },
   );
 
   it("asks the core about the exact cents typed", async () => {
-    const { field, readCashCharge, screen } = await renderModal();
+    const { field, readCashCharge, screen } = await renderPanel();
 
     await userEvent.fill(field, "5000,05");
 
-    await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
+    await expect.element(screen.getByText("VUELTO")).toBeVisible();
     expect(readCashCharge).toHaveBeenCalledExactlyOnceWith(500_005);
   });
 
   it("does not ask the core while nothing, or something that is not an amount, is typed", async () => {
-    const { field, readCashCharge, screen } = await renderModal();
+    const { field, readCashCharge, screen } = await renderPanel();
 
     await userEvent.clear(field);
     await userEvent.keyboard(",");
@@ -242,24 +299,16 @@ describe("CashChargeModal", () => {
     expect(readCashCharge).not.toHaveBeenCalled();
   });
 
-  it("keeps Completar venta disabled and shows the change loading until the core answers", async () => {
+  it("keeps Cobrar disabled and shows no change until the core answers", async () => {
     const answer = deferred<CashChargeAnswer>();
-    const { screen, field, complete } = await renderModal(undefined, () => answer.promise);
+    const { screen, field, complete } = await renderPanel(undefined, () => answer.promise);
 
     await userEvent.fill(field, "5000,00");
 
-    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(complete).toBeDisabled();
-    await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("VUELTO")).not.toBeInTheDocument();
     answer.resolve({ kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 });
     await expect.element(complete).toBeEnabled();
-    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
-  });
-
-  it("shows nothing loading while nothing is typed", async () => {
-    const { screen } = await renderModal();
-
-    await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
   });
 
   it("shows the change loading again after Reintentar, until the core answers", async () => {
@@ -268,7 +317,7 @@ describe("CashChargeModal", () => {
       () => Promise.reject(new Error("the core connection was replaced")),
       () => retried.promise,
     ];
-    const { screen, field } = await renderModal(undefined, () => {
+    const { screen, field } = await renderPanel(undefined, () => {
       const next = answers.shift();
       if (next === undefined) {
         throw new Error("no answer left");
@@ -280,7 +329,6 @@ describe("CashChargeModal", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).not.toBeInTheDocument();
     retried.resolve({ kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 });
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
@@ -298,11 +346,11 @@ describe("CashChargeModal", () => {
       }
       return answer;
     };
-    const { screen, field, complete, showSale } = await renderModal(undefined, readCharge);
+    const { screen, field, complete, showSale } = await renderPanel(undefined, readCharge);
     await userEvent.fill(field, "5000,00");
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
 
-    await showSale({ total: 490_000, paid: 0, pending: 490_000, subtotal: 490_000 });
+    await showSale({ total: 490_000, paid: 0, pending: 490_000 });
 
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
     await expect.element(screen.getByText("$ 240,00")).not.toBeInTheDocument();
@@ -314,7 +362,7 @@ describe("CashChargeModal", () => {
       new Error("the core connection was replaced"),
       { kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 },
     ];
-    const { screen, field, complete } = await renderModal(undefined, async () => {
+    const { screen, field, complete } = await renderPanel(undefined, async () => {
       const answer = answers.shift();
       if (answer === undefined || answer instanceof Error) {
         throw answer ?? new Error("no answer left");
@@ -333,7 +381,7 @@ describe("CashChargeModal", () => {
   it.each([[null], ["not_permitted"]] as const)(
     "leaves the charge for the sale screen when the core answers %s for the amount",
     async (answer) => {
-      const { field, callbacks } = await renderModal(undefined, async () => answer);
+      const { field, callbacks } = await renderPanel(undefined, async () => answer);
 
       await userEvent.fill(field, "5000,00");
 
@@ -342,7 +390,7 @@ describe("CashChargeModal", () => {
   );
 
   it("charges the exact cents typed and reports the completed sale", async () => {
-    const { field, complete, chargeSale, callbacks } = await renderModal();
+    const { field, complete, chargeSale, callbacks } = await renderPanel();
 
     await userEvent.fill(field, "5000,05");
     await userEvent.click(complete);
@@ -351,19 +399,29 @@ describe("CashChargeModal", () => {
     expect(chargeSale).toHaveBeenCalledExactlyOnceWith(500_005);
   });
 
-  it("does not charge when Enter is pressed in the field, as a scanned barcode ends with one", async () => {
-    const { field, complete, chargeSale } = await renderModal();
+  it("charges when Enter is pressed once the amount covers what is to be charged", async () => {
+    const { field, complete, chargeSale, callbacks } = await renderPanel();
 
     await userEvent.fill(field, "5000,00");
+    await expect.element(complete).toBeEnabled();
     await userEvent.keyboard("{Enter}");
-    await userEvent.click(complete);
 
-    await expect.poll(() => chargeSale.mock.calls).toEqual([[500_000]]);
+    await expect.poll(() => callbacks.onCompleted.mock.calls.length).toBe(1);
+    expect(chargeSale).toHaveBeenCalledExactlyOnceWith(500_000);
+  });
+
+  it("does not charge on Enter while the amount does not cover and is not a partial payment yet", async () => {
+    const { field, chargeSale } = await renderPanel();
+
+    await userEvent.fill(field, "5,");
+    await userEvent.keyboard("{Enter}");
+
+    expect(chargeSale).not.toHaveBeenCalled();
   });
 
   it("cannot be charged twice while the charge is pending", async () => {
     const pending = deferred<ChargeSaleInCashOutcome>();
-    const { field, complete, chargeSale } = await renderModal(() => pending.promise);
+    const { field, complete, chargeSale } = await renderPanel(() => pending.promise);
 
     await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
@@ -374,16 +432,31 @@ describe("CashChargeModal", () => {
     pending.resolve(COMPLETED);
   });
 
-  it("goes back to the payment methods from Cambiar de medio", async () => {
-    const { screen, callbacks } = await renderModal();
+  it("offers no Esc button while the charge is pending", async () => {
+    const pending = deferred<ChargeSaleInCashOutcome>();
+    const { screen, field, complete } = await renderPanel(() => pending.promise);
+    await userEvent.fill(field, "5000,00");
 
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+    await userEvent.click(complete);
 
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+    await expect.element(complete).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
+      .not.toBeInTheDocument();
+    pending.resolve(COMPLETED);
+  });
+
+  it("goes back from the Esc button and from the Esc key, and from nothing else", async () => {
+    const { screen, callbacks } = await renderPanel();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+    await userEvent.keyboard("{Escape}");
+
+    expect(callbacks.onBack).toHaveBeenCalledTimes(2);
   });
 
   it("shows the amount as invalid when the core refuses it", async () => {
-    const { screen, field, complete } = await renderModal(async () => ({
+    const { screen, field, complete } = await renderPanel(async () => ({
       kind: "invalid_amount",
     }));
 
@@ -399,7 +472,7 @@ describe("CashChargeModal", () => {
     { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
     { kind: "no_buyer_identification_threshold" },
   ] as const)("leaves the charge for the sale screen when the core answers %j", async (outcome) => {
-    const { field, complete, callbacks } = await renderModal(async () => outcome);
+    const { field, complete, callbacks } = await renderPanel(async () => outcome);
 
     await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
@@ -411,7 +484,7 @@ describe("CashChargeModal", () => {
   it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
     "leaves the charge for the sale screen when the core answers %s",
     async (kind) => {
-      const { field, complete, callbacks } = await renderModal(async () => ({ kind }));
+      const { field, complete, callbacks } = await renderPanel(async () => ({ kind }));
 
       await userEvent.fill(field, "5000,00");
       await userEvent.click(complete);
@@ -424,7 +497,7 @@ describe("CashChargeModal", () => {
   it.each([["not_signed_in"], ["no_open_session"]] as const)(
     "reports an invalid session when the core answers %s",
     async (kind) => {
-      const { field, complete, callbacks } = await renderModal(async () => ({ kind }));
+      const { field, complete, callbacks } = await renderPanel(async () => ({ kind }));
 
       await userEvent.fill(field, "5000,00");
       await userEvent.click(complete);
@@ -435,7 +508,7 @@ describe("CashChargeModal", () => {
 
   it("says the sale could not be charged when the core is unavailable, and lets the cashier try again", async () => {
     const answers: ChargeSaleInCashOutcome[] = [{ kind: "unavailable" }, COMPLETED];
-    const { screen, field, complete, callbacks } = await renderModal(async () => {
+    const { screen, field, complete, callbacks } = await renderPanel(async () => {
       const answer = answers.shift();
       if (answer === undefined) {
         throw new Error("no answer left");
@@ -455,7 +528,7 @@ describe("CashChargeModal", () => {
   });
 
   it("says a Mercado Pago charge of the sale is still in progress", async () => {
-    const { screen, field, complete, callbacks } = await renderModal(async () => ({
+    const { screen, field, complete, callbacks } = await renderPanel(async () => ({
       kind: "mercado_pago_charge_in_progress",
     }));
 
@@ -469,7 +542,7 @@ describe("CashChargeModal", () => {
   });
 
   it("says the paid order of the sale must be applied first", async () => {
-    const { screen, field, complete, callbacks } = await renderModal(async () => ({
+    const { screen, field, complete, callbacks } = await renderPanel(async () => ({
       kind: "paid_order_not_applied",
     }));
 
@@ -483,7 +556,7 @@ describe("CashChargeModal", () => {
   });
 
   it("says the sale could not be charged when the request fails", async () => {
-    const { screen, field, complete } = await renderModal(async () => {
+    const { screen, field, complete } = await renderPanel(async () => {
       throw new Error("the core connection was replaced");
     });
 
@@ -497,7 +570,7 @@ describe("CashChargeModal", () => {
   });
 
   it("groups thousands and takes a typed dot as the decimal comma", async () => {
-    const { field } = await renderModal();
+    const { field } = await renderPanel();
     await userEvent.clear(field);
     await userEvent.type(field, "1234.5");
 

@@ -7,6 +7,7 @@
   "ignoreFiles": [
     ".github/scripts/glob-aware-module-cache.d.mts",
     ".github/scripts/held-run-reporter.d.mts",
+    ".github/scripts/run-scoped-warmup-reporter.d.mts",
     ".github/scripts/slow-tests-reporter.d.mts",
     ".github/scripts/unrun-files-reporter.d.mts",
     ".github/scripts/without-package-output.d.mts",

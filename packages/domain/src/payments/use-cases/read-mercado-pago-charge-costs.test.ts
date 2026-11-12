@@ -36,11 +36,8 @@ const CHARGE: RecordedMercadoPagoCharge = {
 };
 
 describe("readMercadoPagoChargeCosts", () => {
-  it("reads the charges of the branch and the other charges for the asked range and summarizes them", async () => {
-    const reader = new FakeMercadoPagoChargeCostsReader(
-      [CHARGE],
-      [{ sourceId: "2000000001", movements: [{ ...MOVEMENT, sourceId: "2000000001" }] }],
-    );
+  it("reads the charges of the branch for the asked range and summarizes them", async () => {
+    const reader = new FakeMercadoPagoChargeCostsReader([CHARGE]);
 
     const report = await readMercadoPagoChargeCosts(
       { zoneRules: new FakeZoneRulesSource(), reader, clock },
@@ -49,11 +46,10 @@ describe("readMercadoPagoChargeCosts", () => {
 
     expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
     expect(report.charges.map((charge) => charge.paymentTransactionId)).toEqual(["tx-1"]);
-    expect(report.totals).toMatchObject({ chargesCount: 2, grossAmount: 20_000 });
+    expect(report.totals).toMatchObject({ chargesCount: 1, grossAmount: 10_000 });
     expect(reader.chargeReads).toEqual([
       { locationId: "branch-1", period: { from: "2026-10-01", to: "2026-10-06" } },
     ]);
-    expect(reader.otherChargeReads).toEqual([{ period: { from: "2026-10-01", to: "2026-10-06" } }]);
   });
 
   it("reads the current day of the clock when no range is asked", async () => {
@@ -94,33 +90,6 @@ describe("readMercadoPagoChargeCosts", () => {
     );
 
     expect(report.days.map((day) => day.day)).toEqual(["2026-10-02"]);
-  });
-
-  it("leaves out a charge outside the system the reader handed from outside the range", async () => {
-    const report = await readMercadoPagoChargeCosts(
-      {
-        zoneRules: new FakeZoneRulesSource(),
-        reader: new FakeMercadoPagoChargeCostsReader(
-          [],
-          [
-            {
-              sourceId: "2000000001",
-              movements: [
-                {
-                  ...MOVEMENT,
-                  sourceId: "2000000001",
-                  transactionDate: new Date("2026-09-20T13:00:00Z"),
-                },
-              ],
-            },
-          ],
-        ),
-        clock,
-      },
-      { locationId: "branch-1", asked: { from: "2026-10-01", to: "2026-10-06" } },
-    );
-
-    expect(report.totals.chargesCount).toBe(0);
   });
 
   it("reports no charges and zero totals for a range without charges", async () => {

@@ -12,6 +12,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -359,6 +360,7 @@ export interface CoreClient {
   readSerialDevices(): Promise<ReadSerialDevicesOutcome>;
   registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
   cashCharge(saleId: string, tendered: number, saleDiscount?: number): Promise<CashChargeAnswer>;
+  cashChargeAmounts(saleId: string, saleDiscount?: number): Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount(
     saleId: string,
@@ -1178,6 +1180,22 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "not_permitted";
           }
           return answer.type === "cash-charge" ? answer.charge : undefined;
+        },
+      );
+    },
+    cashChargeAmounts(saleId, saleDiscount) {
+      return ask(
+        {
+          type: "cash-charge-amounts",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          ...(saleDiscount === undefined ? {} : { sale_discount: saleDiscount }),
+        },
+        (answer) => {
+          if (answer.type === "cash-charge-amounts-unavailable") {
+            throw new Error("the core could not read the amounts of a cash charge");
+          }
+          return answer.type === "cash-charge-amounts-result" ? answer.amounts : undefined;
         },
       );
     },

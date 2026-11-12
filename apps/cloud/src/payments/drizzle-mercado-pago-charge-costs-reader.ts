@@ -6,11 +6,10 @@ import {
 } from "@purosur/domain";
 import type {
   MercadoPagoChargeCostsReader,
-  OtherMercadoPagoCharge,
   RecordedMercadoPagoCharge,
 } from "@purosur/domain/payments/use-cases";
-import { and, eq, exists, getTableColumns, notExists, sql } from "drizzle-orm";
-import { alias, type PgColumn, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { and, eq, getTableColumns, sql } from "drizzle-orm";
+import type { PgColumn, PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   mercadoPagoSettlementMovements as movements,
   paymentTransactions,
@@ -115,54 +114,5 @@ export class DrizzleMercadoPagoChargeCostsReader<TQueryResult extends PgQueryRes
       method: methodOf(charge.method),
       movements: (movementsOf.get(charge.paymentTransactionId) ?? []).map(settlementMovementOf),
     }));
-  }
-
-  async otherChargesOfPeriod({
-    period,
-  }: Parameters<MercadoPagoChargeCostsReader["otherChargesOfPeriod"]>[0]): Promise<
-    OtherMercadoPagoCharge[]
-  > {
-    const explaining = alias(movements, "explaining_movements");
-    const inThePeriod = alias(movements, "period_movements");
-    const movementDay = argentineDay(inThePeriod.transactionDate);
-    const rows = await this.db
-      .select()
-      .from(movements)
-      .where(
-        and(
-          notExists(
-            this.db
-              .select({ one: sql`1` })
-              .from(explaining)
-              .innerJoin(paymentTransactions, referencesTransaction(explaining.externalReference))
-              .where(
-                and(
-                  eq(explaining.sourceId, movements.sourceId),
-                  eq(paymentTransactions.state, APPROVED_PAYMENT_STATE),
-                ),
-              ),
-          ),
-          exists(
-            this.db
-              .select({ one: sql`1` })
-              .from(inThePeriod)
-              .where(
-                and(
-                  eq(inThePeriod.sourceId, movements.sourceId),
-                  sql`${movementDay} >= ${period.from}`,
-                  sql`${movementDay} <= ${period.to}`,
-                ),
-              ),
-          ),
-        ),
-      );
-
-    const bySource = new Map<string, OtherMercadoPagoCharge>();
-    for (const row of rows) {
-      const charge = bySource.get(row.sourceId) ?? { sourceId: row.sourceId, movements: [] };
-      charge.movements.push(settlementMovementOf(row));
-      bySource.set(row.sourceId, charge);
-    }
-    return [...bySource.values()];
   }
 }

@@ -1,7 +1,6 @@
-export { cashCharge, SMALLEST_CASH_BILL } from "./model/cash-charge.js";
+export { cashAmountToCharge, cashCharge, SMALLEST_CASH_BILL } from "./model/cash-charge.js";
+export { changeDiscountOption } from "./model/change-discount-option.js";
 export type { HandConfirmedPayment } from "./model/hand-confirmed-payments-reconciliation.js";
-export type { ChargeCostMethod } from "./model/mercado-pago-charge-costs.js";
-export { CHARGE_COST_METHODS } from "./model/mercado-pago-charge-costs.js";
 export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,
   PAYMENT_NOTIFICATION_LIMIT,
@@ -133,6 +132,7 @@ export {
 } from "./model/payment-transaction.js";
 export { isPointTerminalId } from "./model/point-terminal-id.js";
 export { isQrExternalPosId } from "./model/qr-external-pos-id.js";
+export { quickCashAmounts } from "./model/quick-cash-amounts.js";
 export type {
   RebuildablePaidOrder,
   RebuiltPaidOrderStanding,

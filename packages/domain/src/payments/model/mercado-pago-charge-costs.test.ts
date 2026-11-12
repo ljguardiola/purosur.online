@@ -3,14 +3,12 @@ import { describe, expect, it } from "vitest";
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   type ChargeCostEntry,
-  type OtherChargeInput,
   type OwnChargeInput,
   summarizeChargeCosts,
 } from "./mercado-pago-charge-costs.js";
 import type { SettlementMovement } from "./mercado-pago-settlement.js";
 
 const RULES = FIXED_ARGENTINA_ZONE_RULES;
-const PERIOD = { from: "2026-09-01", to: "2026-10-31" };
 
 function movement(overrides: Partial<SettlementMovement> = {}): SettlementMovement {
   return {
@@ -41,16 +39,8 @@ function charge(overrides: Partial<OwnChargeInput> = {}): OwnChargeInput {
   };
 }
 
-function other(overrides: Partial<OtherChargeInput> = {}): OtherChargeInput {
-  return {
-    sourceId: "2000000001",
-    movements: [movement({ sourceId: "2000000001" })],
-    ...overrides,
-  };
-}
-
-function summarize(charges: OwnChargeInput[], others: OtherChargeInput[] = []) {
-  return summarizeChargeCosts({ charges, otherCharges: others, period: PERIOD, rules: RULES });
+function summarize(charges: OwnChargeInput[]) {
+  return summarizeChargeCosts({ charges, rules: RULES });
 }
 
 const NO_FIGURES = {
@@ -122,10 +112,6 @@ describe("summarizeChargeCosts", () => {
     expect(charges.map((entry) => entry.paymentTransactionId)).toEqual(["new", "middle", "old"]);
   });
 
-  it("lists no charge for the charges outside the system", () => {
-    expect(summarize([], [other()]).charges).toEqual([]);
-  });
-
   it("counts a charge made late in the Argentine evening on that day, not on the UTC day", () => {
     const { days } = summarize([charge({ chargedAt: new Date("2026-10-02T01:30:00Z") })]);
 
@@ -158,41 +144,33 @@ describe("summarizeChargeCosts", () => {
     ]);
   });
 
-  it("groups by payment method in the order QR, Point, other, leaving out the methods without charges", () => {
-    const { methods } = summarize(
-      [
-        charge({ paymentTransactionId: "p", method: "POINT" }),
-        charge({ paymentTransactionId: "q", method: "QR" }),
-      ],
-      [other()],
-    );
+  it("groups by payment method in the order QR, Point, leaving out the methods without charges", () => {
+    const { methods } = summarize([
+      charge({ paymentTransactionId: "p", method: "POINT" }),
+      charge({ paymentTransactionId: "q", method: "QR" }),
+    ]);
 
     expect(methods.map((entry) => [entry.method, entry.chargesCount])).toEqual([
       ["QR", 1],
       ["POINT", 1],
-      ["OTHER", 1],
     ]);
     expect(summarize([charge({ method: "POINT" })]).methods.map((entry) => entry.method)).toEqual([
       "POINT",
     ]);
   });
 
-  it("groups by register by name with the charges outside the system last", () => {
-    const { registers } = summarize(
-      [
-        charge({ paymentTransactionId: "b", registerId: "r-b", registerName: "Terminal B" }),
-        charge({ paymentTransactionId: "a", registerId: "r-a", registerName: "Caja A" }),
-        charge({ paymentTransactionId: "a2", registerId: "r-a", registerName: "Caja A" }),
-      ],
-      [other()],
-    );
+  it("groups by register by name", () => {
+    const { registers } = summarize([
+      charge({ paymentTransactionId: "b", registerId: "r-b", registerName: "Terminal B" }),
+      charge({ paymentTransactionId: "a", registerId: "r-a", registerName: "Caja A" }),
+      charge({ paymentTransactionId: "a2", registerId: "r-a", registerName: "Caja A" }),
+    ]);
 
     expect(
       registers.map((entry) => [entry.registerId, entry.registerName, entry.chargesCount]),
     ).toEqual([
       ["r-a", "Caja A", 2],
       ["r-b", "Terminal B", 1],
-      [null, null, 1],
     ]);
   });
 
@@ -213,108 +191,6 @@ describe("summarizeChargeCosts", () => {
 
     expect(registers).toHaveLength(1);
     expect(registers[0]?.chargesCount).toBe(2);
-  });
-
-  it("counts a charge outside the system under other charges with its figures and no sale", () => {
-    const { totals, methods, registers, days } = summarize([], [other()]);
-
-    expect(totals).toEqual({
-      ...NO_FIGURES,
-      chargesCount: 1,
-      grossAmount: 10_000,
-      feeAmount: -340,
-      financingFeeAmount: -100,
-      taxesAmount: -120,
-      netAmount: 9440,
-    });
-    expect(methods).toEqual([{ method: "OTHER", ...totals }]);
-    expect(registers).toEqual([{ registerId: null, registerName: null, ...totals }]);
-    expect(days).toEqual([{ day: "2026-10-01", ...totals }]);
-  });
-
-  it("adds every movement of a charge outside the system to the same charge", () => {
-    const { totals } = summarize(
-      [],
-      [
-        other({
-          movements: [
-            movement({ sourceId: "2000000001" }),
-            movement({ sourceId: "2000000001", transactionType: "REFUND", grossAmount: -1000 }),
-          ],
-        }),
-      ],
-    );
-
-    expect(totals.chargesCount).toBe(1);
-    expect(totals.grossAmount).toBe(9000);
-  });
-
-  it("dates a charge outside the system by its earliest movement", () => {
-    const { days } = summarize(
-      [],
-      [
-        other({
-          movements: [
-            movement({ transactionDate: new Date("2026-10-09T15:00:00Z") }),
-            movement({ transactionDate: new Date("2026-10-04T15:00:00Z") }),
-          ],
-        }),
-      ],
-    );
-
-    expect(days.map((day) => day.day)).toEqual(["2026-10-04"]);
-  });
-
-  it("dates a charge outside the system by its earliest movement when that one comes first", () => {
-    const { days } = summarize(
-      [],
-      [
-        other({
-          movements: [
-            movement({ transactionDate: new Date("2026-10-04T15:00:00Z") }),
-            movement({ transactionDate: new Date("2026-10-09T15:00:00Z") }),
-          ],
-        }),
-      ],
-    );
-
-    expect(days.map((day) => day.day)).toEqual(["2026-10-04"]);
-  });
-
-  it("leaves out a charge outside the system that has no movement", () => {
-    const { totals } = summarize([], [other({ movements: [] })]);
-
-    expect(totals).toEqual(NO_FIGURES);
-  });
-
-  it("leaves out a charge outside the system whose day falls outside the period", () => {
-    const { totals } = summarize(
-      [],
-      [
-        other({ movements: [movement({ transactionDate: new Date("2026-11-02T15:00:00Z") })] }),
-        other({
-          sourceId: "before",
-          movements: [movement({ transactionDate: new Date("2026-08-31T15:00:00Z") })],
-        }),
-      ],
-    );
-
-    expect(totals).toEqual(NO_FIGURES);
-  });
-
-  it("keeps a charge outside the system on the first and last day of the period", () => {
-    const { totals } = summarize(
-      [],
-      [
-        other({ movements: [movement({ transactionDate: new Date("2026-09-01T03:00:00Z") })] }),
-        other({
-          sourceId: "last",
-          movements: [movement({ transactionDate: new Date("2026-10-31T23:00:00Z") })],
-        }),
-      ],
-    );
-
-    expect(totals.chargesCount).toBe(2);
   });
 
   it("reports empty groups and zero totals without charges", () => {

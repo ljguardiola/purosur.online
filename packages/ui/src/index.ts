@@ -51,6 +51,7 @@ export type {
   TableColumn,
   TableColumnAlign,
   TableLoadingState,
+  TableLock,
   TableModel,
   TableProps,
   TableRowState,
@@ -159,10 +160,14 @@ export { MenuButton } from "./components/forms/menu-button";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";
 export type { OptionCardGroupProps } from "./components/forms/option-card-group";
 export { OptionCardGroup } from "./components/forms/option-card-group";
+export type { OtherAmountFieldProps } from "./components/forms/other-amount-field";
+export { OtherAmountField } from "./components/forms/other-amount-field";
 export type { PinDotsFieldProps } from "./components/forms/pin-dots-field";
 export { PinDotsField } from "./components/forms/pin-dots-field";
 export type { QuantityUnitFieldProps } from "./components/forms/quantity-unit-field";
 export { QuantityUnitField } from "./components/forms/quantity-unit-field";
+export type { QuickAmountButtonProps } from "./components/forms/quick-amount-button";
+export { QuickAmountButton } from "./components/forms/quick-amount-button";
 export type { RadioGroupProps } from "./components/forms/radio-group";
 export { RadioGroup } from "./components/forms/radio-group";
 export type { RequestSubmission } from "./components/forms/request-form/request-form";
@@ -222,6 +227,8 @@ export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
 export type { SidePanelTitleProps } from "./components/layout/side-panel-title";
 export { SidePanelTitle } from "./components/layout/side-panel-title";
+export type { WarningBlockProps } from "./components/layout/warning-block";
+export { WarningBlock } from "./components/layout/warning-block";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";

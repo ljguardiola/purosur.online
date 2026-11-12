@@ -1,9 +1,10 @@
 import { Undo2, Wallet } from "lucide-react";
-import { expect, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { SidePanel } from "./side-panel";
-import { SidePanelTitle } from "./side-panel-title";
+import { SidePanelTitle, type SidePanelTitleProps } from "./side-panel-title";
 
 test("names the panel with a level-two heading beside its icon", async () => {
   const screen = await render(
@@ -36,15 +37,18 @@ test("shows its icon before the title", async () => {
   expect(icon?.right).toBeLessThanOrEqual(title.left);
 });
 
-test("shows what it is given after the title, at the far end", async () => {
+test("draws its Esc button after the title, at the far end", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "480px", justifyContent: "flex-end" }}>
       <SidePanel
         label="Panel"
         header={
-          <SidePanelTitle icon={<Undo2 />} title="¿Pasar el cobro a reembolso?" tone="warning">
-            <button type="button">Cerrar</button>
-          </SidePanelTitle>
+          <SidePanelTitle
+            icon={<Undo2 />}
+            title="¿Pasar el cobro a reembolso?"
+            tone="warning"
+            onClose={() => undefined}
+          />
         }
       >
         <p>Contenido</p>
@@ -52,10 +56,27 @@ test("shows what it is given after the title, at the far end", async () => {
     </div>,
   );
   const title = screen.getByRole("heading").element().getBoundingClientRect();
-  const close = screen.getByRole("button", { name: "Cerrar" }).element().getBoundingClientRect();
+  const close = screen
+    .getByRole("button", { name: "Cerrar con Esc" })
+    .element()
+    .getBoundingClientRect();
 
   expect(close.left).toBeGreaterThanOrEqual(title.right);
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps its Esc button disabled while closing is not allowed", async () => {
+  const onClose = vi.fn();
+  const screen = await render(
+    <SidePanelTitle icon={<Undo2 />} title="Reembolso" onClose={onClose} closeDisabled />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeDisabled();
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+test("takes nothing else to draw beside its title", () => {
+  expectTypeOf<SidePanelTitleProps>().not.toHaveProperty("children");
 });
 
 test("colors the icon badge by its tone", async () => {
@@ -105,4 +126,23 @@ test.each([
   const borderWidth = width === "fill" ? 0 : 1;
 
   expect((badge?.left ?? 0) - panel.left - borderWidth).toBe(inset);
+});
+
+test("offers no close button when the panel takes no closing", async () => {
+  const screen = await render(<SidePanelTitle icon={<Wallet />} title="Abrir caja" />);
+
+  await expect.element(screen.getByRole("heading", { name: "Abrir caja" })).toBeVisible();
+  await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
+});
+
+test("closes the panel from its Esc button beside the title", async () => {
+  const onClose = vi.fn();
+  const screen = await render(
+    <SidePanelTitle icon={<Wallet />} title="Efectivo" onClose={onClose} />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+  expect(onClose).toHaveBeenCalledOnce();
+  await expectNoAccessibilityViolations(screen.container);
 });

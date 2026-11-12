@@ -81,6 +81,35 @@ function AmountCell({ line }: { line: SaleLine }) {
   );
 }
 
+const dataColumns = [
+  dataColumn({
+    id: "product",
+    header: "Producto",
+    render: (line: SaleLine) => <ProductCell line={line} />,
+  }),
+  dataColumn({
+    id: "price",
+    header: "Precio",
+    width: 170,
+    render: (line: SaleLine) =>
+      `${formatCents(line.list_unit_price)} / ${line.sale_unit === "KG" ? "kg" : "u"}`,
+  }),
+  dataColumn({
+    id: "quantity",
+    header: "Cantidad",
+    width: 110,
+    render: (line: SaleLine) =>
+      line.sale_unit === "KG" ? formatWeight(line.quantity) : `${formatNumber(line.quantity)} u`,
+  }),
+  dataColumn({
+    id: "amount",
+    header: "Importe",
+    align: "end",
+    width: 150,
+    render: (line: SaleLine) => <AmountCell line={line} />,
+  }),
+] as const;
+
 export function SaleLines({
   lines,
   selectedLineId,
@@ -102,32 +131,7 @@ export function SaleLines({
   });
   const { busy, weighing, editable } = actions;
   const columns = [
-    dataColumn({
-      id: "product",
-      header: "Producto",
-      render: (line: SaleLine) => <ProductCell line={line} />,
-    }),
-    dataColumn({
-      id: "price",
-      header: "Precio",
-      width: 170,
-      render: (line: SaleLine) =>
-        `${formatCents(line.list_unit_price)} / ${line.sale_unit === "KG" ? "kg" : "u"}`,
-    }),
-    dataColumn({
-      id: "quantity",
-      header: "Cantidad",
-      width: 110,
-      render: (line: SaleLine) =>
-        line.sale_unit === "KG" ? formatWeight(line.quantity) : `${formatNumber(line.quantity)} u`,
-    }),
-    dataColumn({
-      id: "amount",
-      header: "Importe",
-      align: "end",
-      width: 150,
-      render: (line: SaleLine) => <AmountCell line={line} />,
-    }),
+    ...dataColumns,
     actionsColumn({
       id: "actions",
       header: "Acciones",
@@ -184,4 +188,9 @@ export function SaleLines({
         : {})}
     />
   );
+}
+
+export function LockedSaleLines({ lines, label }: { lines: OpenSale["lines"]; label: string }) {
+  const table = useTableModel({ items: lines, id: (line) => line.id, columns: dataColumns });
+  return <Table table={table} aria-label="Líneas de la venta" fill locked={{ label }} />;
 }
