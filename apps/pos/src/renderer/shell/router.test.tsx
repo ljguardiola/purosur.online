@@ -2259,11 +2259,10 @@ describe("the register's router", () => {
           };
         },
       },
-      "/charge",
+      "/charge?method=CASH",
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
@@ -2329,11 +2328,10 @@ describe("the register's router", () => {
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
         refreshCashSession: refreshed,
       },
-      "/charge",
+      "/charge?method=CASH",
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
@@ -3350,11 +3348,10 @@ describe("the charge route's Mercado Pago QR", () => {
           return { kind: "unavailable" };
         },
       },
-      "/charge",
+      "/charge?method=QR",
     );
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
 
     await expect.poll(() => started).toEqual([["sale-1", { method: "QR" }, 238_000]]);

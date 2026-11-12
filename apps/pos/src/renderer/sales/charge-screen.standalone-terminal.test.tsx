@@ -112,7 +112,7 @@ describe("ChargeScreen · terminal independiente", () => {
       .element(screen.getByRole("heading", { name: "Terminal independiente" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel).toHaveTextContent(/Pagado\s*–\s*\$\s*2\.000,00/);
+    await expect.element(panel).toHaveTextContent("Pagado– $ 2.000,00");
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
     expect(chargeSaleOnStandaloneTerminal).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });

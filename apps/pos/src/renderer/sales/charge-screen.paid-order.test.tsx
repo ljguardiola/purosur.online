@@ -110,7 +110,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel).toHaveTextContent(/Pagado\s*–\s*\$\s*5\.000,00/);
+    await expect.element(panel).toHaveTextContent("Pagado– $ 5.000,00");
     await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
     await expect.element(screen.getByText(/por cobrar con otro medio/)).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(1);
