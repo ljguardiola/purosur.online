@@ -98,7 +98,7 @@ describe("saleHistoryDetailOutcomeSchema", () => {
   });
 
   describe("the lines and the cash rounding of the sale", () => {
-    const line = {
+    const line: Record<string, unknown> = {
       product_name: "Yerba mate orgánica",
       sale_unit: "UNIT",
       quantity: 2,
