@@ -22,7 +22,7 @@ export function ScaleCard({ reading }: ScaleCardProps) {
         <Scale />
       </span>
       <div className="flex min-w-0 flex-col">
-        <Eyebrow text="Balanza" />
+        <Eyebrow text="Balanza" tone="warning" />
         {reading === undefined ? null : (
           <p
             className={`text-heading ${reading.settled ? "text-text" : "opacity-disabled-strong text-text"}`}

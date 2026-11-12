@@ -35,7 +35,7 @@ export function WaitingProduct({
           {more === undefined ? null : <span className="text-text-subtle">{` ${more}`}</span>}
         </p>
       </div>
-      <Button variant="secondary" keycap="Delete" onPress={onDiscard}>
+      <Button variant="secondary" size="large" keycap="Delete" onPress={onDiscard}>
         {discardLabel}
       </Button>
     </div>

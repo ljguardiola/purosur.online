@@ -9,7 +9,7 @@ const badgeClassName =
 
 export function ScaleStatusBadge({ status }: ScaleStatusBadgeProps) {
   return status === "stable" ? (
-    <span className={`${badgeClassName} border-transparent bg-success-strong text-text-inverse`}>
+    <span className={`${badgeClassName} border-transparent bg-success text-text-inverse`}>
       <Check aria-hidden="true" className="size-icon-xs shrink-0" />
       Estable
     </span>
