@@ -139,6 +139,7 @@ export function DateField(props: DateFieldProps) {
             {(segment) => (
               <AriaDateSegment
                 segment={segment}
+                data-typed={segment.type !== "literal" && !segment.isPlaceholder ? true : undefined}
                 className={
                   value === null
                     ? `${segmentClassName} ${emptySeparatorClassName}`
