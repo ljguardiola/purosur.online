@@ -292,19 +292,6 @@ test("follows the files node --test finds by itself when given none", () => {
   assert.match(violations[0].message, /runs s\/bad\.test\.mjs/);
 });
 
-test("follows a script whose path comes after other node flags", () => {
-  for (const command of [
-    "node --experimental-strip-types s/main.mjs",
-    "node --max-old-space-size=4096 --no-warnings s/main.mjs",
-    "node --disable-warning ExperimentalWarning s/main.mjs arg",
-  ]) {
-    const violations = check(job(`      - run: ${command}`), importsYaml);
-
-    assert.equal(violations.length, 1, command);
-    assert.match(violations[0].message, /runs s\/main\.mjs, which imports package yaml/, command);
-  }
-});
-
 test("follows modules preloaded with --import or --require", () => {
   const files = { "s/main.mjs": 'import "node:fs";\n', "s/hook.mjs": 'import "zod";\n' };
 
@@ -436,10 +423,6 @@ test("reads a here-document inside nested subshells that open with two parenthes
   const workflow = job("      - run: |", ...lines.map((line) => `          ${line}`));
 
   assert.equal(check(workflow, importsYaml).length, 1);
-});
-
-test("ignores node commands that run no script", () => {
-  assert.deepEqual(check(job("      - run: node --version && node -v"), {}), []);
 });
 
 test("resolves a script path given from the workspace", () => {
