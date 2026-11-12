@@ -52,7 +52,11 @@ test("shows the name regular, the quantity subtle in monospace and the amount bo
   const name = getComputedStyle(screen.getByText("Almendras peladas").element());
   const quantity = getComputedStyle(screen.getByText("0,325 kg").element());
   const amount = getComputedStyle(screen.getByText("$ 6.142,50").element());
-  const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim();
+  const probe = document.createElement("span");
+  probe.style.fontFamily = "var(--font-mono)";
+  document.body.append(probe);
+  const mono = getComputedStyle(probe).fontFamily;
+  probe.remove();
 
   expect(name.fontWeight).toBe("400");
   expect(name.color).toBe(tokenRgb("text"));
