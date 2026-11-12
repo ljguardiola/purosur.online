@@ -16,7 +16,7 @@ export function CountdownBar({ remainingSeconds, totalSeconds, label }: Countdow
       >
         <div
           data-fill=""
-          className="h-full rounded-full bg-info transition-[width] duration-1000 ease-linear"
+          className="h-full rounded-full bg-info transition-all duration-1000 ease-linear"
           style={{ width: `${share * 100}%` }}
         />
       </div>
