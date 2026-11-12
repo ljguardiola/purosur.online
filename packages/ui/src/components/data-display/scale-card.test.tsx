@@ -30,7 +30,7 @@ test("dims the reading like a disabled control while it has not settled", async 
 
   const style = getComputedStyle(screen.getByText("0,238 kg").element());
   expect(style.color).toBe(tokenRgb("text"));
-  expect(style.opacity).toBe("0.45");
+  expect(style.opacity).toBe("0.65");
   await expectNoAccessibilityViolations(screen.container);
 });
 

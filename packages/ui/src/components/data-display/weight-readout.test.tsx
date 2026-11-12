@@ -43,7 +43,7 @@ test("dims the figures like a disabled control while the reading has not settled
   for (const figure of ["0,172 kg", "$ 2.820,80"]) {
     const style = getComputedStyle(screen.getByText(figure).element());
     expect(style.color).toBe(tokenRgb("text"));
-    expect(style.opacity).toBe("0.45");
+    expect(style.opacity).toBe("0.65");
   }
   await expectNoAccessibilityViolations(screen.container);
 });
