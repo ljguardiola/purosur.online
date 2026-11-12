@@ -192,6 +192,42 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await expect.poll(() => saleHistoryDetail.mock.calls.at(-1)).toEqual(["sale-2"]);
   });
 
+  it("does not open the panel again by itself when a later read of the sale answers it can be voided again", async () => {
+    let stage: "voidable" | "refused" | "printed" = "voidable";
+    const { screen } = await openVoidPanel({
+      voidSale: async () => {
+        stage = "refused";
+        return { kind: "invoice_in_flight" };
+      },
+      printOriginalReceipt: async () => {
+        stage = "printed";
+        return { kind: "started", copy: { kind: "original" } };
+      },
+      saleHistoryDetail: async () => ({
+        kind: "found",
+        detail:
+          stage === "refused"
+            ? {
+                ...DETAIL,
+                next_copy: { kind: "original" },
+                voidability: { kind: "not_voidable", refusal: "invoice_in_flight" },
+              }
+            : { ...DETAIL, next_copy: { kind: "original" } },
+      }),
+    });
+
+    await userEvent.keyboard("{Enter}");
+    await expect.element(voidPanel(screen)).not.toBeInTheDocument();
+    await expect.poll(() => legendOf(screen)).toContain("F5Imprimir");
+    await userEvent.keyboard("{F5}");
+    await expect.poll(() => legendOf(screen)).toContain("SuprAnular");
+
+    await expect.element(voidPanel(screen)).not.toBeInTheDocument();
+    await expect
+      .element(table(screen).getByRole("row", { name: /10:20/ }))
+      .not.toHaveAttribute("aria-disabled");
+  });
+
   it("closes the panel when the core cannot find the sale", async () => {
     const { screen } = await openVoidPanel({ voidSale: async () => ({ kind: "not_found" }) });
 
