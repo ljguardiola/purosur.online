@@ -3,11 +3,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
-  chooseCash,
   readsInTurn,
   renderScreen,
   SALE_OF_ONE_LINE,
   saleRebuiltAgainstPaidOrder,
+  valueBeside,
 } from "./test-support/charge-screen";
 
 const APPLY = "Cobrar con el pago de Mercado Pago";
@@ -34,9 +34,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
   ])("offers nothing for %s", async (_case, sale) => {
     const { screen } = await renderScreen({ currentSale: async () => sale });
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
   });
 
@@ -117,7 +115,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
       .element(screen.getByRole("heading", { name: "Venta completada" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel.getByText("$ 5.000,00")).toBeVisible();
+    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 5.000,00");
     await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
     await expect.element(screen.getByText(/por cobrar con otro medio/)).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(1);
@@ -172,11 +170,12 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
   it("leaves the other methods to the core, which refuses them until the order is applied", async () => {
     const { screen, chargeSaleInCash } = await renderScreen({
+      method: "CASH",
       currentSale: async () => saleRebuiltAgainstPaidOrder(QR_ORDER),
       chargeSaleInCash: async () => ({ kind: "paid_order_not_applied" }),
     });
 
-    await chooseCash(screen);
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "5000,00");
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 

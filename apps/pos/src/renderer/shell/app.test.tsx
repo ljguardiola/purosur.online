@@ -115,6 +115,7 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     cashChargeAmounts?: CoreClient["cashChargeAmounts"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
+    nonCashCharge?: CoreClient["nonCashCharge"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     chargeSaleOnStandaloneTerminal?: CoreClient["chargeSaleOnStandaloneTerminal"];
     paymentMethodAvailability?: CoreClient["paymentMethodAvailability"];
@@ -444,6 +445,9 @@ function coreAnswering(
     },
     async chargeSaleInCashWithChangeDiscount() {
       return { kind: "unavailable" };
+    },
+    async nonCashCharge(saleId, amount) {
+      return sales.nonCashCharge === undefined ? null : sales.nonCashCharge(saleId, amount);
     },
     async chargeSaleByTransfer(saleId, amount) {
       return sales.chargeSaleByTransfer === undefined
@@ -2445,6 +2449,10 @@ describe("App", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
+        nonCashCharge: async (saleId, amount) =>
+          saleId === "sale-1" && amount === 100_000
+            ? { kind: "partial", applied: 100_000, pending: 123_400 }
+            : { kind: "covered", applied: amount },
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
           return { kind: "completed", sale_id: saleId, total: 238_000 };
@@ -2457,7 +2465,12 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    const amount = screen.getByRole("textbox", { name: "IMPORTE" });
+    await userEvent.fill(amount, "1000,00");
+    await expect.element(screen.getByText("QUEDA")).toBeVisible();
+    await expect.element(screen.getByText("$ 1.234,00")).toBeVisible();
+    await userEvent.fill(amount, "2380,00");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
@@ -2518,7 +2531,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
-    await userEvent.click(screen.getByRole("button", { name: "Registrar pago aprobado" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago" }));
 
     await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
@@ -2583,7 +2596,7 @@ describe("App", () => {
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
     await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
@@ -2717,8 +2730,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
-    await userEvent.click(screen.getByText("QR", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "QR" }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
@@ -2798,8 +2810,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
-    await userEvent.click(screen.getByText("QR", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "QR" }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));

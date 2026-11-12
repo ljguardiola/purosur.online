@@ -11,6 +11,7 @@ import {
   QR_ORDER_SHOWN,
   QR_PAYMENT_ID,
   readsInTurn,
+  renderCombinedPayment,
   renderScreen,
   SALE_OF_ONE_LINE,
   SALE_OF_TWO_LINES,
@@ -20,49 +21,40 @@ import {
 const NEXT_ASK_TIMEOUT_MS = 5_000;
 
 describe("ChargeScreen · QR", () => {
-  it("offers the QR after the terminal and before the transfer when the core answers it is available", async () => {
-    const { screen } = await renderScreen({ paymentMethodAvailability: async () => AVAILABLE });
+  it("offers the QR in the combined payment when the core answers it is available", async () => {
+    const { screen } = await renderCombinedPayment({
+      paymentMethodAvailability: async () => AVAILABLE,
+    });
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
-    await expect
-      .element(screen.getByText("El cliente escanea el QR · requiere internet"))
-      .toBeVisible();
-    const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
-    expect(methods.textContent).toMatch(
-      /Efectivo.*Point débito.*Point crédito.*QR.*Transferencia/s,
-    );
+    await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("shows the QR as not configured on the register and cannot be chosen, keeping the terminal available", async () => {
-    const { screen, startMercadoPagoCharge } = await renderScreen({
+  it("shows the QR as unavailable when it is not configured on the register, keeping the terminal available", async () => {
+    const { screen, startMercadoPagoCharge } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "not_configured" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
-    await expect.element(screen.getByText("No configurado en esta caja")).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeEnabled();
-    await userEvent.click(screen.getByText("QR", { exact: true }), {
-      force: true,
-    });
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
+    await userEvent.keyboard("{F11}");
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).not.toBeInTheDocument();
     expect(startMercadoPagoCharge).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("shows the QR as unavailable below its minimum and cannot be chosen, keeping the terminal available", async () => {
-    const { screen, startMercadoPagoCharge } = await renderScreen({
+  it("shows the QR as unavailable below its minimum, keeping the terminal available", async () => {
+    const { screen, startMercadoPagoCharge } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "below_minimum" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
     await expect
-      .element(screen.getByText("No se ofrece para cobrar menos de $ 15,00"))
-      .toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeEnabled();
-    await userEvent.click(screen.getByText("QR", { exact: true }), {
-      force: true,
-    });
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
+    await userEvent.keyboard("{F11}");
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).not.toBeInTheDocument();
     expect(startMercadoPagoCharge).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
@@ -151,30 +143,33 @@ describe("ChargeScreen · QR", () => {
     ["is still loading", () => new Promise(() => {})],
     ["could not be read", async () => null],
   ])(
-    "offers no QR while the availability %s, without blaming the connection",
+    "leaves the QR and the terminal out while the availability %s",
     async (_state, paymentMethodAvailability) => {
-      const { screen } = await renderScreen({ paymentMethodAvailability });
+      const { screen } = await renderCombinedPayment({ paymentMethodAvailability });
 
-      await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
-      await expect.element(screen.getByRole("radio", { name: "QR" })).not.toBeInTheDocument();
-      await expect.element(screen.getByText("No disponible sin conexión")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeEnabled();
+      await expect.element(screen.getByRole("button", { name: "QR" })).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Point débito" }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Point crédito" }))
+        .not.toBeInTheDocument();
     },
   );
 
   it("shows the QR as unavailable without a connection, and does not open it", async () => {
-    const { screen, startMercadoPagoCharge } = await renderScreen({
+    const { screen, startMercadoPagoCharge } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
-    await expect.element(screen.getByText("No disponible sin conexión").first()).toBeVisible();
     await expect
-      .element(screen.getByText("El cliente escanea el QR · requiere internet"))
-      .not.toBeInTheDocument();
-    await userEvent.click(screen.getByText("QR", { exact: true }), { force: true });
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await userEvent.keyboard("{F11}");
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).not.toBeInTheDocument();
     expect(startMercadoPagoCharge).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
@@ -208,9 +203,7 @@ describe("ChargeScreen · QR", () => {
     await chooseQr(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).not.toBeInTheDocument();
   });
 
@@ -292,16 +285,14 @@ describe("ChargeScreen · QR", () => {
     const { screen, currentSale } = await renderScreen({
       followMercadoPagoCharge: async () => ({ kind: "declined" }),
     });
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await chooseQr(screen);
+    await expect.element(screen.getByRole("heading", { name: "QR", exact: true })).toBeVisible();
     const readsBefore = currentSale.mock.calls.length;
 
-    await chooseQr(screen);
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect.element(screen.getByText("Mercado Pago rechazó el pago")).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
   });
@@ -325,7 +316,7 @@ describe("ChargeScreen · QR", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }), {
+      .element(screen.getByText("FALTA"), {
         timeout: NEXT_ASK_TIMEOUT_MS,
       })
       .toBeVisible();
@@ -342,9 +333,7 @@ describe("ChargeScreen · QR", () => {
     const lines = screen.getByRole("table", { name: "Líneas de la venta" });
     await expect.element(lines.getByText("Yerba mate 1 kg")).toBeVisible();
     await expect.element(lines.getByRole("img", { name: "Líneas bloqueadas" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("FALTA")).not.toBeInTheDocument();
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).toHaveFocus();
   });
 
@@ -407,10 +396,8 @@ describe("ChargeScreen · QR", () => {
 
     await userEvent.keyboard("{F2}");
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeEnabled();
   });
 
   describe("abandoning the order to charge another way", () => {
@@ -439,9 +426,7 @@ describe("ChargeScreen · QR", () => {
 
       await abandon();
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       await expect
         .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
         .toBeVisible();
@@ -459,9 +444,7 @@ describe("ChargeScreen · QR", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       expect(abandonMercadoPagoCharge).not.toHaveBeenCalled();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
@@ -520,9 +503,7 @@ describe("ChargeScreen · QR", () => {
       await expect.element(screen.getByText("Pagado con QR")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       await expect.element(screen.getByText("El cliente ya pagó")).not.toBeInTheDocument();
       await expect.element(screen.getByText("$ 1.760,00").first()).toBeVisible();
     });
@@ -536,9 +517,7 @@ describe("ChargeScreen · QR", () => {
       await expect.element(screen.getByText("La orden QR ya estaba cerrada")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       await expect
         .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
         .not.toBeInTheDocument();
@@ -555,9 +534,7 @@ describe("ChargeScreen · QR", () => {
         .toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       await expect
         .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
         .not.toBeInTheDocument();
@@ -607,9 +584,7 @@ describe("ChargeScreen · QR", () => {
 
       await abandon();
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 

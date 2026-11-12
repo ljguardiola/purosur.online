@@ -11,6 +11,7 @@ import type {
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
+  NonCashChargeAnswer,
   OpenSale,
   PaymentMethodAvailability,
   ReadContingencyBackupTicketOfSaleOutcome,
@@ -19,11 +20,13 @@ import type {
   SignInUser,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
+import type { ReactNode } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { MercadoPagoChargeKind } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
-import type { ChargeMethod } from "../charge-method-options";
+import type { ChargeMethod } from "../charge-method-availability";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
 
@@ -203,6 +206,7 @@ export type Overrides = {
     discountAmount: number,
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
+  nonCashCharge?: (saleId: string, amount: number) => Promise<NonCashChargeAnswer>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal?: (
     saleId: string,
@@ -216,6 +220,26 @@ export type Overrides = {
   ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
   contingencyBackupTickets?: () => Promise<ReadContingencyBackupTicketsOutcome>;
 };
+
+type Remount = { setMethod?: (method: ChargeMethod) => void };
+
+function RemountableScreen({
+  onMounted,
+  initialMethod,
+  screen,
+}: {
+  onMounted: (setMethod: (method: ChargeMethod) => void) => void;
+  initialMethod: ChargeMethod | undefined;
+  screen: (method: ChargeMethod | undefined) => ReactNode;
+}) {
+  const [method, setMethod] = useState(initialMethod);
+  useEffect(() => {
+    onMounted(setMethod);
+  }, [onMounted]);
+  return <Fragment key={method ?? "none"}>{screen(method)}</Fragment>;
+}
+
+const remounts = new WeakMap<object, Remount>();
 
 const PRINTED: ReceiptPrintStatusOutcome = {
   kind: "found",
@@ -240,6 +264,10 @@ export async function renderScreen(overrides: Overrides = {}) {
   );
   const loadAuthorizers = vi.fn(
     async (): Promise<SignInUser[]> => [{ id: "u3", first_name: "Sofía" }],
+  );
+  const nonCashCharge = vi.fn(
+    overrides.nonCashCharge ??
+      (async (): Promise<NonCashChargeAnswer> => ({ kind: "covered", applied: 476_000 })),
   );
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
@@ -288,32 +316,43 @@ export async function renderScreen(overrides: Overrides = {}) {
       (async (): Promise<ReadContingencyBackupTicketsOutcome> => ({ kind: "unavailable" })),
   );
   const onSessionInvalid = vi.fn();
+  const remount: Remount = {};
   const screen = await render(
-    <ChargeScreen
-      sessionId="s1"
-      {...(overrides.method === undefined ? {} : { method: overrides.method })}
-      person={overrides.person ?? PERSON}
-      lock={() => {}}
-      currentSale={currentSale}
-      cashCharge={cashCharge}
-      cashChargeAmounts={cashChargeAmounts}
-      chargeSaleInCash={chargeSaleInCash}
-      chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
-      loadAuthorizers={loadAuthorizers}
-      chargeSaleByTransfer={chargeSaleByTransfer}
-      chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
-      chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
-      paymentMethodAvailability={paymentMethodAvailability}
-      startMercadoPagoCharge={startMercadoPagoCharge}
-      followMercadoPagoCharge={followMercadoPagoCharge}
-      abandonMercadoPagoCharge={abandonMercadoPagoCharge}
-      receiptPrintStatus={receiptPrintStatus}
-      answerReceiptQuestion={answerReceiptQuestion}
-      contingencyBackupTicketOfSale={contingencyBackupTicketOfSale}
-      contingencyBackupTickets={contingencyBackupTickets}
-      onSessionInvalid={onSessionInvalid}
+    <RemountableScreen
+      onMounted={(setMethod) => {
+        remount.setMethod = setMethod;
+      }}
+      initialMethod={overrides.method}
+      screen={(method) => (
+        <ChargeScreen
+          sessionId="s1"
+          {...(method === undefined ? {} : { method })}
+          person={overrides.person ?? PERSON}
+          lock={() => {}}
+          currentSale={currentSale}
+          cashCharge={cashCharge}
+          cashChargeAmounts={cashChargeAmounts}
+          chargeSaleInCash={chargeSaleInCash}
+          chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
+          loadAuthorizers={loadAuthorizers}
+          nonCashCharge={nonCashCharge}
+          chargeSaleByTransfer={chargeSaleByTransfer}
+          chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
+          chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
+          paymentMethodAvailability={paymentMethodAvailability}
+          startMercadoPagoCharge={startMercadoPagoCharge}
+          followMercadoPagoCharge={followMercadoPagoCharge}
+          abandonMercadoPagoCharge={abandonMercadoPagoCharge}
+          receiptPrintStatus={receiptPrintStatus}
+          answerReceiptQuestion={answerReceiptQuestion}
+          contingencyBackupTicketOfSale={contingencyBackupTicketOfSale}
+          contingencyBackupTickets={contingencyBackupTickets}
+          onSessionInvalid={onSessionInvalid}
+        />
+      )}
     />,
   );
+  remounts.set(screen, remount);
   return {
     screen,
     currentSale,
@@ -321,6 +360,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashChargeAmounts,
     chargeSaleInCash,
     chargeSaleInCashWithChangeDiscount,
+    nonCashCharge,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
     chargeSaleWithPaidOrder,
@@ -338,26 +378,32 @@ export async function renderScreen(overrides: Overrides = {}) {
 
 export type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];
 
-export async function chooseCash(screen: Screen) {
-  await userEvent.click(screen.getByText("Efectivo", { exact: true }));
+function openMethodFromTheSale(screen: Screen, method: ChargeMethod) {
+  const remount = remounts.get(screen);
+  if (remount?.setMethod === undefined) {
+    throw new Error("the screen was not rendered by renderScreen");
+  }
+  remount.setMethod(method);
+}
+
+export function chooseCash(screen: Screen) {
+  openMethodFromTheSale(screen, "CASH");
 }
 
 export async function chooseTransfer(screen: Screen) {
-  await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Transferencia" }));
 }
 
 export async function chooseStandaloneTerminal(screen: Screen) {
-  await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
+  await userEvent.click(screen.getByRole("button", { name: "Terminal independiente" }));
 }
 
-export async function chooseQr(screen: Screen) {
-  await userEvent.click(screen.getByText("QR", { exact: true }));
+export function chooseQr(screen: Screen) {
+  openMethodFromTheSale(screen, "QR");
 }
 
-export async function choosePoint(screen: Screen, cardType: "DEBIT" | "CREDIT" = "DEBIT") {
-  await userEvent.click(
-    screen.getByText(cardType === "DEBIT" ? "Point débito" : "Point crédito", { exact: true }),
-  );
+export function choosePoint(screen: Screen, cardType: "DEBIT" | "CREDIT" = "DEBIT") {
+  openMethodFromTheSale(screen, cardType === "DEBIT" ? "POINT_DEBIT" : "POINT_CREDIT");
 }
 
 export async function chargeInCash(screen: Screen, tendered: string) {
@@ -407,4 +453,17 @@ export function readsInTurn(
 ): () => Promise<CurrentSaleAnswer> {
   const reads = [first, ...rest];
   return async () => (reads.length > 1 ? reads.shift() : reads[0]) ?? null;
+}
+
+export function renderCombinedPayment(overrides: Overrides = {}) {
+  return renderScreen({
+    method: "CASH",
+    currentSale: async () =>
+      saleRebuiltAgainstPaidOrder({ method: "QR", amount: 100_000 }, SALE_WITH_PART_PAID),
+    ...overrides,
+  });
+}
+
+export function valueBeside(screen: Screen, label: string): string | null {
+  return screen.getByText(label, { exact: true }).element().nextElementSibling?.textContent ?? null;
 }

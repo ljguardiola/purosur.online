@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { renderScreen, saleRebuiltAgainstPaidOrder } from "./test-support/charge-screen";
 
 describe("ChargeScreen · chosen method", () => {
-  it("shows the methods to choose from when no method was chosen", async () => {
+  it("shows the other methods to choose from when no method was chosen", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -34,7 +34,7 @@ describe("ChargeScreen · chosen method", () => {
     await expect.element(screen.getByRole("dialog").getByText(title)).toBeVisible();
   });
 
-  it("keeps the methods to choose from when the chosen method is not available", async () => {
+  it("shows the combined payment, with the method's tile disabled, when the chosen method is not available", async () => {
     const { screen } = await renderScreen({
       method: "QR",
       paymentMethodAvailability: async () => ({
@@ -45,7 +45,10 @@ describe("ChargeScreen · chosen method", () => {
       }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 

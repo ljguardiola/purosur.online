@@ -42,6 +42,7 @@ import {
   chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
   findProductByCodeFor,
+  nonCashChargeFor,
   type OutboxSaleRequestDeps,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
@@ -3538,6 +3539,72 @@ describe("what a sale in progress needs when an amount is tendered", () => {
     signedInPerson.set("u2");
 
     expect(await cashChargeFor(deps(), { saleId, tendered: 5000 })).toBe("not_permitted");
+  });
+});
+
+describe("what a sale in progress needs when an amount is charged by another method", () => {
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  it.each([
+    [3000, { kind: "covered", applied: 3000 }],
+    [1000, { kind: "partial", applied: 1000, pending: 2000 }],
+    [3001, { kind: "exceeds_pending", pending: 3000 }],
+    [0, { kind: "invalid_amount" }],
+  ] as const)(
+    "answers the domain's charge of %i against the total of the sale",
+    async (amount, charge) => {
+      const saleId = await sellTwo();
+
+      expect(await nonCashChargeFor(deps(), { saleId, amount })).toEqual(charge);
+    },
+  );
+
+  it("answers the charge against what is still pending once a payment was approved", async () => {
+    const saleId = await sellTwo();
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 1200 });
+
+    expect(await nonCashChargeFor(deps(), { saleId, amount: 500 })).toEqual({
+      kind: "partial",
+      applied: 500,
+      pending: 1300,
+    });
+  });
+
+  it("charges nothing and changes nothing", async () => {
+    const saleId = await sellTwo();
+
+    await nonCashChargeFor(deps(), { saleId, amount: 1000 });
+
+    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it("is none for a sale that is not the one in progress", async () => {
+    await sellTwo();
+
+    expect(await nonCashChargeFor(deps(), { saleId: "other-sale", amount: 1000 })).toBeNull();
+  });
+
+  it("is none when nobody is signed in", async () => {
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(await nonCashChargeFor(deps(), { saleId, amount: 1000 })).toBeNull();
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await nonCashChargeFor(deps(), { saleId, amount: 1000 })).toBe("not_permitted");
   });
 });
 

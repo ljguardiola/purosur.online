@@ -10,8 +10,8 @@ import type { CompletedCharge } from "./cash-charge-panel";
 import type { CompletedPointPayment } from "./point-payment-wait-modal";
 import type { CompletedQrPayment } from "./qr-payment-wait-panel";
 import { SaleCompletedPanel } from "./sale-completed-panel";
-import type { CompletedStandaloneTerminal } from "./standalone-terminal-charge-modal";
-import type { CompletedTransfer } from "./transfer-charge-modal";
+import type { CompletedStandaloneTerminal } from "./standalone-terminal-charge-panel";
+import type { CompletedTransfer } from "./transfer-charge-panel";
 
 export type CompletedPaidOrder = Extract<ChargeSaleWithPaidOrderOutcome, { kind: "completed" }>;
 

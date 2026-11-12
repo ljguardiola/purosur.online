@@ -30,6 +30,7 @@ import {
   findProductByCodeOutcomeSchema,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
+  nonCashChargeSchema,
   previewSaleDiscountOutcomeSchema,
   previewSaleLineAdjustmentOutcomeSchema,
   qrChargeInProgressOutcome,
@@ -283,6 +284,13 @@ const cashChargeRequestMessageSchema = z.object({
   sale_discount: z.int().refine(mayBeManualDiscountAmount).optional(),
 });
 
+const nonCashChargeRequestMessageSchema = z.object({
+  type: z.literal("non-cash-charge-request"),
+  request_id: requestId,
+  sale_id: z.string(),
+  amount: z.int(),
+});
+
 const cancelLockedSaleMessageSchema = z.object({
   type: z.literal("cancel-locked-sale"),
   request_id: requestId,
@@ -314,6 +322,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   chargeSaleByTransferMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
   cashChargeRequestMessageSchema,
+  nonCashChargeRequestMessageSchema,
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
   answerReceiptQuestionMessageSchema,
@@ -583,5 +592,12 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("cash-charge-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("cash-charge-not-permitted"), request_id: requestId }),
+  z.object({
+    type: z.literal("non-cash-charge"),
+    request_id: requestId,
+    charge: nonCashChargeSchema.nullable(),
+  }),
+  z.object({ type: z.literal("non-cash-charge-unavailable"), request_id: requestId }),
+  z.object({ type: z.literal("non-cash-charge-not-permitted"), request_id: requestId }),
 ]);
 export type SalesCoreToRendererMessage = z.infer<typeof salesCoreToRendererMessageSchema>;

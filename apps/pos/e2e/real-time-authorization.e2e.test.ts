@@ -149,8 +149,8 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await scanYerba();
 
     await page.getByRole("button", { name: "Otros medios" }).click();
-    await page.getByText("Transferencia", { exact: true }).click();
-    await page.getByRole("button", { name: "Vi el ingreso" }).click();
+    await page.getByRole("button", { name: "Transferencia" }).click();
+    await page.getByRole("button", { name: "Registrar transferencia" }).click();
     await until(() => cloud.authorizationRequests.length === 2, {
       withinMs: WAIT_BOUND_MS,
       waitingFor: "the second real-time authorization request",
