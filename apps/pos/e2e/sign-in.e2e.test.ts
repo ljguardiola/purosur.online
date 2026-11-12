@@ -83,8 +83,12 @@ describe("signing in to the register", () => {
       .getByRole("complementary", { name: "¿Salir de la caja?" })
       .getByRole("button", { name: "Salir" })
       .click();
-    await page.getByText("Ana", { exact: true }).waitFor();
-    await page.getByText("Bruno", { exact: true }).waitFor({ state: "detached" });
+    const userSelect = page.getByRole("button", { name: /USUARIO/ });
+    await userSelect.getByText("Ana", { exact: true }).waitFor();
+    await userSelect.click();
+    await page.getByRole("option", { name: "Ana", exact: true }).waitFor();
+    await page.getByRole("option", { name: "Bruno", exact: true }).waitFor({ state: "detached" });
+    await page.keyboard.press("Escape");
   });
 
   it("gives a person with no PIN a code by email to choose one, signs them in and remembers them after Salir", async () => {
@@ -106,6 +110,9 @@ describe("signing in to the register", () => {
       .getByRole("complementary", { name: "¿Salir de la caja?" })
       .getByRole("button", { name: "Salir" })
       .click();
-    await page.getByText("Carla", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: /USUARIO/ })
+      .getByText("Carla", { exact: true })
+      .waitFor();
   });
 });
