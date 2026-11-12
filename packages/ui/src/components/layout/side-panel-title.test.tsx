@@ -171,9 +171,9 @@ test("shows no lock and no extra text unless it is locked", async () => {
   expect(screen.container.textContent).not.toContain("Pide autorización");
 });
 
-test("paints the icon badge of the danger tone in the error colors", async () => {
+test("paints the icon badge of the error tone in the error colors", async () => {
   const screen = await render(
-    <SidePanelTitle icon={<Undo2 />} title="Anular venta" tone="danger" />,
+    <SidePanelTitle icon={<Undo2 />} title="Anular venta" tone="error" />,
   );
   const badge = screen.container.querySelector("span[aria-hidden='true']") as Element;
   const style = getComputedStyle(badge);

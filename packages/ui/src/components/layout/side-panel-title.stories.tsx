@@ -37,8 +37,8 @@ export const WithEscape: Story = {
   args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
 };
 
-export const Danger: Story = {
-  args: { icon: <Ban />, title: "Anular venta", tone: "danger", onClose: () => {} },
+export const ErrorTone: Story = {
+  args: { icon: <Ban />, title: "Anular venta", tone: "error", onClose: () => {} },
 };
 
 export const WithLock: Story = {

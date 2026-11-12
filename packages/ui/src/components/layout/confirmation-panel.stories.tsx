@@ -52,11 +52,11 @@ export const WithNotice: Story = {
 
 export const Busy: Story = { args: { ...refundArgs, busy: true } };
 
-export const Danger: Story = {
+export const ErrorTone: Story = {
   args: {
     title: "Anular venta",
     icon: <Ban />,
-    tone: "danger",
+    tone: "error",
     locked: true,
     fieldLabel: "A devolver ahora",
     value: "$ 25.100,00",

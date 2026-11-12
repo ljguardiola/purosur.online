@@ -153,16 +153,16 @@ test("does not accept a panel without its screen's text", () => {
   expectTypeOf<Omit<ConfirmationPanelProps, "value">>().not.toExtend<ConfirmationPanelProps>();
 });
 
-test("paints the icon circle in the danger tone and the action as a destructive button", async () => {
+test("paints the icon circle in the error tone and the action as a destructive button", async () => {
   const neutral = await render(panel({ icon: <Ban /> }));
   const neutralAction = getComputedStyle(
     neutral.getByRole("button", { name: "Salir" }).element(),
   ).backgroundColor;
   await neutral.unmount();
 
-  const danger = await render(panel({ icon: <Ban />, tone: "danger" }));
-  const circle = danger.getByRole("heading").element().previousElementSibling as Element;
-  const action = danger.getByRole("button", { name: "Salir" }).element();
+  const failing = await render(panel({ icon: <Ban />, tone: "error" }));
+  const circle = failing.getByRole("heading").element().previousElementSibling as Element;
+  const action = failing.getByRole("button", { name: "Salir" }).element();
 
   expect(getComputedStyle(circle).backgroundColor).toBe(tokenRgb("error-subtle"));
   expect(getComputedStyle(action).backgroundColor).toBe(tokenRgb("error"));
