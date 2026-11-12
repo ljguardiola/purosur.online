@@ -51,6 +51,7 @@ const sale = {
   charge_refusal: null,
   rebuilt_paid_order: null,
   refunds_on_cancel: [],
+  refund_now_on_cancel: 0,
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
@@ -262,6 +263,7 @@ describe("saleSchema", () => {
     ["answer on what locks its lines", { ...sale, lines_lock: undefined }],
     ["answer on why cancelling it is refused", { ...sale, cancel_refusal: undefined }],
     ["refunds on cancelling it", { ...sale, refunds_on_cancel: undefined }],
+    ["amount handed back now on cancelling it", { ...sale, refund_now_on_cancel: undefined }],
     [
       "answer on cancelling it needing authorization",
       { ...sale, cancel_authorization_required: undefined },
@@ -664,6 +666,21 @@ describe("what cancelling a sale with approved payments refunds", () => {
 
   it("accepts a refund of each method", () => {
     const refunding = { ...sale, refunds_on_cancel: [cashRefund, transferRefund] };
+
+    expect(saleSchema.parse(refunding)).toEqual(refunding);
+  });
+
+  it.each([
+    ["a fractional amount handed back now", 0.5],
+    ["a negative amount handed back now", -1],
+  ])("rejects %s", (_case, refundNow) => {
+    expect(
+      saleSchema.safeParse({ ...sale, refund_now_on_cancel: refundNow }).success,
+    ).toBe(false);
+  });
+
+  it("accepts an amount handed back now", () => {
+    const refunding = { ...sale, refund_now_on_cancel: 1000 };
 
     expect(saleSchema.parse(refunding)).toEqual(refunding);
   });
