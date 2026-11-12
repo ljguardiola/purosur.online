@@ -40,9 +40,9 @@ import { OtherChargeMethodsPanel } from "./other-charge-methods-panel";
 import type { ShownPointOrder } from "./point-charge-modal";
 import { PointChargeModal } from "./point-charge-modal";
 import { PointPaymentWaitModal } from "./point-payment-wait-modal";
-import type { ShownQrOrder } from "./qr-charge-modal";
-import { QrChargeModal } from "./qr-charge-modal";
-import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
+import type { ShownQrOrder } from "./qr-charge-panel";
+import { QrChargePanel } from "./qr-charge-panel";
+import { QrPaymentWaitPanel } from "./qr-payment-wait-panel";
 import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
 import { LockedSaleLines } from "./sale-lines";
 import {
@@ -62,7 +62,7 @@ type Step =
   | { name: "cash" }
   | { name: "transfer"; origin: OtherMethodsOrigin }
   | { name: "standalone-terminal"; origin: OtherMethodsOrigin }
-  | { name: "qr" }
+  | { name: "qr"; regenerate?: number }
   | { name: "qr-wait"; order: ShownQrOrder; sale: OpenSale }
   | { name: "point"; cardType: PointCardType }
   | { name: "point-wait"; cardType: PointCardType | null; order: ShownPointOrder; sale: OpenSale }
@@ -309,7 +309,7 @@ export function ChargeScreen({
             onSaleUnavailable={backToSale}
             onSessionInvalid={onSessionInvalid}
           />
-        ) : step.name === "methods" ? (
+        ) : step.name === "methods" || (step.name === "qr" && qrMinimum === undefined) ? (
           <CombinedPaymentPanel
             total={sale.total}
             paid={sale.paid}
@@ -363,6 +363,35 @@ export function ChargeScreen({
             onSaleUnavailable={backToSale}
             onSessionInvalid={onSessionInvalid}
           />
+        ) : step.name === "qr" && qrMinimum !== undefined ? (
+          <QrChargePanel
+            pending={sale.pending}
+            {...(step.regenerate === undefined ? {} : { regenerate: step.regenerate })}
+            minimum={qrMinimum}
+            start={(amount) => startMercadoPagoCharge(sale.id, { method: "QR" }, amount)}
+            onChooseAnotherMethod={() => void backToMethodsWithBalance()}
+            onOrderShown={(order) => setStep({ name: "qr-wait", order, sale })}
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
+        ) : step.name === "qr-wait" ? (
+          <QrPaymentWaitPanel
+            order={step.order}
+            follow={followMercadoPagoCharge}
+            abandon={abandonMercadoPagoCharge}
+            onCancelled={() => {
+              setNotice({ kind: "cancelled" });
+              void backToMethodsWithBalance();
+            }}
+            onChooseAnotherMethod={() => void backToMethodsWithBalance()}
+            onCompleted={(charge) =>
+              setStep({ name: "completed", payment: { method: "QR", charge }, sale: step.sale })
+            }
+            onRegenerate={(amount) => setStep({ name: "qr", regenerate: amount })}
+            onPartiallyPaid={backToMethodsWithBalance}
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
         ) : (
           <ChargePaymentPanel
             total={sale.total}
@@ -402,39 +431,6 @@ export function ChargeScreen({
           </>
         )}
       </main>
-      {sale !== undefined && step.name === "qr" && qrMinimum !== undefined ? (
-        <QrChargeModal
-          total={sale.total}
-          paid={sale.paid}
-          pending={sale.pending}
-          minimum={qrMinimum}
-          start={(amount) => startMercadoPagoCharge(sale.id, { method: "QR" }, amount)}
-          onChooseAnotherMethod={() => void backToMethodsWithBalance()}
-          onOrderShown={(order) => setStep({ name: "qr-wait", order, sale })}
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
-      {step.name === "qr-wait" ? (
-        <QrPaymentWaitModal
-          total={step.sale.total}
-          paid={step.sale.paid}
-          order={step.order}
-          follow={followMercadoPagoCharge}
-          abandon={abandonMercadoPagoCharge}
-          onCancelled={() => {
-            setNotice({ kind: "cancelled" });
-            void backToMethodsWithBalance();
-          }}
-          onChooseAnotherMethod={() => void backToMethodsWithBalance()}
-          onCompleted={(charge) =>
-            setStep({ name: "completed", payment: { method: "QR", charge }, sale: step.sale })
-          }
-          onPartiallyPaid={backToMethodsWithBalance}
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
       {sale !== undefined && step.name === "point" && pointMinimum !== undefined ? (
         <PointChargeModal
           total={sale.total}

@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { Button as AriaButton } from "react-aria-components";
 import { Keycap } from "../data-display/keycap";
 import { iconSlotClassName } from "./icon";
 import { IconOnlyButton } from "./icon-only-button";
@@ -12,15 +13,31 @@ export const escapeKeycapButtonClassName =
   "flex h-control-lg shrink-0 items-center justify-center rounded-lg px-1 outline-none " +
   "data-focus-visible:focus-ring";
 
+const labelledCloseButtonClassName =
+  "flex h-control-lg shrink-0 items-center gap-2 rounded-lg px-1 text-body font-medium text-text-accent " +
+  "outline-none data-disabled:opacity-disabled data-focus-visible:focus-ring";
+
 export function CloseButton({
   onPress,
   escapeKeycap = false,
+  label,
   disabled = false,
 }: {
   onPress: () => void;
   escapeKeycap?: boolean;
+  label?: string | undefined;
   disabled?: boolean;
 }) {
+  if (escapeKeycap && label !== undefined) {
+    return (
+      <AriaButton onPress={onPress} isDisabled={disabled} className={labelledCloseButtonClassName}>
+        <span aria-hidden="true">
+          <Keycap keyName="Escape" />
+        </span>
+        {label}
+      </AriaButton>
+    );
+  }
   return (
     <IconOnlyButton
       name={escapeKeycap ? "Cerrar con Esc" : "Cerrar"}

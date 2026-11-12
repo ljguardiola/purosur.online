@@ -21,7 +21,7 @@ describe("ChargeScreen · chosen method", () => {
   it("opens the QR charge when the QR was chosen", async () => {
     const { screen } = await renderScreen({ method: "QR" });
 
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect.element(screen.getByRole("complementary", { name: "Cobro con QR" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Crear orden" })).toBeVisible();
   });
 

@@ -153,8 +153,6 @@ describe("ChargeScreen · combined payment by keys", () => {
 
     await userEvent.keyboard("{F11}");
 
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con QR?" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "QR", exact: true })).toBeVisible();
   });
 });
