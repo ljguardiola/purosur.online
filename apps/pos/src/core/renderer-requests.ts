@@ -10,6 +10,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -71,11 +72,13 @@ import type {
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService, ReturnDraftLine } from "@purosur/domain";
+import type { SignInUsers } from "@purosur/domain/sessions/use-cases";
 import {
   answerContingencyBackupTicketRequest,
   type ContingencyBackupTicketRequests,
 } from "./backups/contingency-backup-ticket-requests";
 import { answerClockGuardRequest, type ClockGuardRequests } from "./fiscal/clock-guard-answers";
+import type { CashChargeAmountsRequest } from "./payments/cash-charge-amounts-requests";
 import type { StartMercadoPagoChargeRequest } from "./payments/mercado-pago-charge-requests";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
@@ -119,7 +122,7 @@ export interface RendererRequestDeps {
   pinPolicy: () => PinPolicy;
   checkEnrollmentCode: (typedCode: string) => "code"[];
   checkPinCodeRedemption: (typedCode: string, newPin: string) => ("reset_code" | "new_pin")[];
-  signInUsers: (() => SignInUser[]) | undefined;
+  signInUsers: (() => SignInUsers) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
@@ -153,6 +156,9 @@ export interface RendererRequestDeps {
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
     | undefined;
   paymentMethodAvailability: (() => Promise<PaymentMethodAvailability | null>) | undefined;
+  cashChargeAmounts:
+    | ((request: CashChargeAmountsRequest) => Promise<CashChargeAmountsAnswer | null>)
+    | undefined;
   abandonMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
@@ -285,7 +291,7 @@ export interface RendererRequestDeps {
   reportFailure: (context: string, error: unknown) => void;
 }
 
-function readSignInUsers(deps: RendererRequestDeps): SignInUser[] | undefined {
+function readSignInUsers(deps: RendererRequestDeps): SignInUsers | undefined {
   try {
     return deps.signInUsers?.();
   } catch (error) {
@@ -629,6 +635,18 @@ async function readPaymentMethodAvailability(
   }
 }
 
+async function readCashChargeAmounts(
+  deps: RendererRequestDeps,
+  request: CashChargeAmountsRequest,
+): Promise<CashChargeAmountsAnswer | null | undefined> {
+  try {
+    return await deps.cashChargeAmounts?.(request);
+  } catch (error) {
+    deps.reportFailure("reading the amounts of a cash charge", error);
+    return undefined;
+  }
+}
+
 async function attemptFollowMercadoPagoCharge(
   deps: RendererRequestDeps,
   request: { paymentTransactionId: string },
@@ -814,10 +832,15 @@ export async function answerRendererRequest(
         outcome: await deps.redeemPinCode(message.reset_code, message.new_pin),
       };
     case "sign-in-users": {
-      const users = readSignInUsers(deps);
-      return users === undefined
+      const signInUsers = readSignInUsers(deps);
+      return signInUsers === undefined
         ? { type: "sign-in-users-unavailable", request_id: message.request_id }
-        : { type: "sign-in-users", request_id: message.request_id, users };
+        : {
+            type: "sign-in-users",
+            request_id: message.request_id,
+            users: signInUsers.users.map(({ id, firstName }) => ({ id, first_name: firstName })),
+            last_active_user_id: signInUsers.lastActiveUserId,
+          };
     }
     case "sign-in":
       return {
@@ -1418,6 +1441,15 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         availability: await readPaymentMethodAvailability(deps),
       };
+    case "cash-charge-amounts": {
+      const amounts = await readCashChargeAmounts(deps, {
+        saleId: message.sale_id,
+        ...(message.sale_discount === undefined ? {} : { saleDiscount: message.sale_discount }),
+      });
+      return amounts === undefined
+        ? { type: "cash-charge-amounts-unavailable", request_id: message.request_id }
+        : { type: "cash-charge-amounts-result", request_id: message.request_id, amounts };
+    }
     case "search-products":
       return {
         type: "search-products-result",

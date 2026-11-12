@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CircleAlert, ShieldX, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleX, ShieldX, TriangleAlert } from "lucide-react";
 import { LoadFailure } from "./load-failure";
 
 const meta: Meta<typeof LoadFailure> = {
@@ -70,4 +70,21 @@ export const Centered: Story = {
       </div>
     ),
   ],
+};
+
+export const Keyboard: Story = {
+  decorators: [
+    (Story) => (
+      <div className="w-98">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    variant: "keyboard",
+    keycap: "R",
+    icon: <CircleX />,
+    title: "No se pudieron cargar los usuarios",
+    description: "Volvé a intentarlo en unos segundos.",
+  },
 };

@@ -73,52 +73,108 @@ afterEach(() => {
   database.close();
 });
 
-describe("signable users", () => {
-  it("lists users who are active, not removed and have a PIN, by id and first name", () => {
+describe("sign-in candidates", () => {
+  it("lists the remembered users who can sign in, none of them marked as the last active", () => {
+    addUser({ id: "u1", firstName: "Ada" });
+    addUser({ id: "u2", firstName: "Bruno" });
+    addUser({ id: "u3", firstName: "Cora", remembered: false });
+    addUser({ id: "u4", firstName: "Dana", active: false });
+
+    expect(store.signInCandidates()).toEqual(
+      expect.arrayContaining([
+        { id: "u1", firstName: "Ada", lastActive: false },
+        { id: "u2", firstName: "Bruno", lastActive: false },
+      ]),
+    );
+    expect(store.signInCandidates()).toHaveLength(2);
+  });
+
+  it("marks the user marked as the last active", () => {
     addUser({ id: "u1", firstName: "Ada" });
     addUser({ id: "u2", firstName: "Bruno" });
 
-    expect(store.signableUsers()).toEqual(
+    store.markLastActive("u2");
+
+    expect(store.signInCandidates()).toEqual(
       expect.arrayContaining([
-        { id: "u1", first_name: "Ada" },
-        { id: "u2", first_name: "Bruno" },
+        { id: "u1", firstName: "Ada", lastActive: false },
+        { id: "u2", firstName: "Bruno", lastActive: true },
       ]),
     );
-    expect(store.signableUsers()).toHaveLength(2);
+  });
+
+  it("marks only the latest user marked", () => {
+    addUser({ id: "u1", firstName: "Ada" });
+    addUser({ id: "u2", firstName: "Bruno" });
+
+    store.markLastActive("u1");
+    store.markLastActive("u2");
+
+    expect(store.signInCandidates().filter(({ lastActive }) => lastActive)).toEqual([
+      { id: "u2", firstName: "Bruno", lastActive: true },
+    ]);
+  });
+
+  it("keeps a user marked when they are marked again", () => {
+    addUser({ id: "u1", firstName: "Ada" });
+
+    store.markLastActive("u1");
+    store.markLastActive("u1");
+
+    expect(store.signInCandidates()).toEqual([{ id: "u1", firstName: "Ada", lastActive: true }]);
+  });
+
+  it("leaves the mark where it is when a user the register does not remember is marked", () => {
+    addUser({ id: "u1", firstName: "Ada" });
+    addUser({ id: "u2", firstName: "Bruno", remembered: false });
+    store.markLastActive("u1");
+
+    store.markLastActive("u2");
+
+    expect(store.signInCandidates()).toEqual([{ id: "u1", firstName: "Ada", lastActive: true }]);
+  });
+
+  it("keeps the mark on a user while they cannot sign in, and marks nobody among those who can", () => {
+    addUser({ id: "u1", firstName: "Ada" });
+    addUser({ id: "u2", firstName: "Bruno" });
+    store.markLastActive("u1");
+    database.prepare("UPDATE users SET active = 0 WHERE id = 'u1'").run();
+
+    expect(store.signInCandidates()).toEqual([{ id: "u2", firstName: "Bruno", lastActive: false }]);
   });
 
   it("leaves out a user with no PIN", () => {
     addUser({ id: "u1", verifier: null });
 
-    expect(store.signableUsers()).toEqual([]);
+    expect(store.signInCandidates()).toEqual([]);
   });
 
   it("leaves out a user with a PIN but no salt", () => {
     addUser({ id: "u1", salt: null });
 
-    expect(store.signableUsers()).toEqual([]);
+    expect(store.signInCandidates()).toEqual([]);
   });
 
   it("leaves out a deactivated user", () => {
     addUser({ id: "u1", active: false });
 
-    expect(store.signableUsers()).toEqual([]);
+    expect(store.signInCandidates()).toEqual([]);
   });
 
   it("leaves out a removed user", () => {
     addUser({ id: "u1", removed: true });
 
-    expect(store.signableUsers()).toEqual([]);
+    expect(store.signInCandidates()).toEqual([]);
   });
 
   it("lists nothing on a register that pulled no users", () => {
-    expect(store.signableUsers()).toEqual([]);
+    expect(store.signInCandidates()).toEqual([]);
   });
 
   it("leaves out a user nobody has signed in as on this register", () => {
     addUser({ id: "u1", remembered: false });
 
-    expect(store.signableUsers()).toEqual([]);
+    expect(store.signInCandidates()).toEqual([]);
   });
 
   it("lists a user once the register remembers them", () => {
@@ -126,7 +182,7 @@ describe("signable users", () => {
 
     store.remember("u1");
 
-    expect(store.signableUsers()).toEqual([{ id: "u1", first_name: "Ada" }]);
+    expect(store.signInCandidates()).toEqual([{ id: "u1", firstName: "Ada", lastActive: false }]);
   });
 
   it("remembers a user once however many times they are remembered", () => {
@@ -135,7 +191,7 @@ describe("signable users", () => {
     store.remember("u1");
     store.remember("u1");
 
-    expect(store.signableUsers()).toEqual([{ id: "u1", first_name: "Ada" }]);
+    expect(store.signInCandidates()).toEqual([{ id: "u1", firstName: "Ada", lastActive: false }]);
   });
 });
 

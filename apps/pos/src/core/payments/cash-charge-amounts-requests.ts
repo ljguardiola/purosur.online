@@ -1,0 +1,59 @@
+import type { CashChargeAmountsAnswer } from "@purosur/contracts";
+import { cashAmountToCharge, changeDiscountOption, quickCashAmounts } from "@purosur/domain";
+import {
+  currentSaleFor,
+  previewSaleDiscountFor,
+  type SaleRequestDeps,
+} from "../sales/sale-requests";
+
+export interface CashChargeAmountsRequest {
+  saleId: string;
+  saleDiscount?: number | undefined;
+}
+
+type CashChargeAmountsDeps = Pick<
+  SaleRequestDeps,
+  "database" | "gate" | "now" | "zoneRules" | "restoration"
+>;
+
+async function amountDueOf(
+  deps: CashChargeAmountsDeps,
+  { saleId, saleDiscount }: CashChargeAmountsRequest,
+): Promise<number | "discount_exceeds_sale" | null> {
+  const sale = await currentSaleFor(deps);
+  if (sale === null || sale === "not_permitted" || sale.id !== saleId) {
+    return null;
+  }
+  if (saleDiscount === undefined) {
+    return sale.pending;
+  }
+  const preview = await previewSaleDiscountFor(deps, {
+    discount: { kind: "AMOUNT", value: saleDiscount },
+  });
+  if (preview.kind === "discount_exceeds_sale") {
+    return "discount_exceeds_sale";
+  }
+  return preview.kind === "preview" ? preview.total : null;
+}
+
+export async function cashChargeAmountsFor(
+  deps: CashChargeAmountsDeps,
+  request: CashChargeAmountsRequest,
+): Promise<CashChargeAmountsAnswer | null> {
+  const amountDue = await amountDueOf(deps, request);
+  if (amountDue === null) {
+    return null;
+  }
+  if (amountDue === "discount_exceeds_sale") {
+    return { kind: "discount_exceeds_sale" };
+  }
+  const { amountToCharge, cashRounding } = cashAmountToCharge(amountDue);
+  return {
+    kind: "amounts",
+    amount_due: amountDue,
+    amount_to_charge: amountToCharge,
+    cash_rounding: cashRounding,
+    quick_amounts: quickCashAmounts(amountDue),
+    change_discount_option: changeDiscountOption(amountDue),
+  };
+}

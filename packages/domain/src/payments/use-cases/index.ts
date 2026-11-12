@@ -101,7 +101,6 @@ export type {
 export { markRefundDone } from "./mark-refund-done.js";
 export type {
   MercadoPagoChargeCostsReader,
-  OtherMercadoPagoCharge,
   RecordedMercadoPagoCharge,
 } from "./mercado-pago-charge-costs-reader.js";
 export type {

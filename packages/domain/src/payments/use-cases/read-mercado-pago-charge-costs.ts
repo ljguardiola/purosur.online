@@ -29,9 +29,6 @@ export async function readMercadoPagoChargeCosts(
 ): Promise<MercadoPagoChargeCostsReport> {
   const rules = zoneRules.zoneRules();
   const range = reportPeriodOf(asked, clock.now(), rules);
-  const [charges, otherCharges] = await Promise.all([
-    reader.chargesOfPeriod({ locationId, period: range }),
-    reader.otherChargesOfPeriod({ period: range }),
-  ]);
-  return { range, ...summarizeChargeCosts({ charges, otherCharges, period: range, rules }) };
+  const charges = await reader.chargesOfPeriod({ locationId, period: range });
+  return { range, ...summarizeChargeCosts({ charges, rules }) };
 }

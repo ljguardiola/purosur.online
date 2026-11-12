@@ -179,7 +179,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       pinPolicy: () => ({ min_digits: 6 }),
       checkEnrollmentCode: () => [],
       checkPinCodeRedemption: () => [],
-      signInUsers: () => [{ id: "u1", first_name: "Ada" }],
+      signInUsers: () => ({ users: [{ id: "u1", firstName: "Ada" }], lastActiveUserId: "u1" }),
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
         return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 };
@@ -492,6 +492,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       startMercadoPagoCharge: undefined,
       followMercadoPagoCharge: undefined,
       paymentMethodAvailability: undefined,
+      cashChargeAmounts: undefined,
       abandonMercadoPagoCharge: undefined,
       convertPaidOrderIntoRefund: undefined,
       rebuildSaleAgainstPaidOrder: undefined,
@@ -729,6 +730,22 @@ describe("answerRendererRequest", () => {
       type: "sign-in-users",
       request_id: "r3",
       users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: "u1",
+    });
+  });
+
+  it("answers that no user is the last active one when none is marked", async () => {
+    const unmarked = deps(true, {
+      signInUsers: () => ({ users: [{ id: "u1", firstName: "Ada" }], lastActiveUserId: null }),
+    });
+
+    expect(
+      await answerRendererRequest(unmarked.deps, { type: "sign-in-users", request_id: "r6" }),
+    ).toEqual({
+      type: "sign-in-users",
+      request_id: "r6",
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: null,
     });
   });
 
@@ -1636,6 +1653,61 @@ describe("answerRendererRequest", () => {
       { context: "reading which payment methods are available", error },
     ]);
     expect(await answerRendererRequest(deps(true).deps, message)).toEqual(none);
+  });
+
+  it("answers the amounts of a cash charge of the sale with its discount", async () => {
+    const amounts = {
+      kind: "amounts" as const,
+      amount_due: 2_519_250,
+      amount_to_charge: 2_510_000,
+      cash_rounding: 9250,
+      quick_amounts: [2_510_000, 2_600_000],
+      change_discount_option: 10_000,
+    };
+    const requests: unknown[] = [];
+    const { deps: withAmounts } = deps(true, {
+      cashChargeAmounts: async (request) => {
+        requests.push(request);
+        return amounts;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(withAmounts, {
+        type: "cash-charge-amounts",
+        request_id: "r68",
+        sale_id: "s1",
+        sale_discount: 10_000,
+      }),
+    ).toEqual({ type: "cash-charge-amounts-result", request_id: "r68", amounts });
+    expect(requests).toEqual([{ saleId: "s1", saleDiscount: 10_000 }]);
+  });
+
+  it("answers no cash charge amounts when there is no sale to charge", async () => {
+    const { deps: withoutSale } = deps(true, { cashChargeAmounts: async () => null });
+
+    expect(
+      await answerRendererRequest(withoutSale, {
+        type: "cash-charge-amounts",
+        request_id: "r69",
+        sale_id: "s1",
+      }),
+    ).toEqual({ type: "cash-charge-amounts-result", request_id: "r69", amounts: null });
+  });
+
+  it("answers that the cash charge amounts are unavailable when the register has no database or reading them fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashChargeAmounts: async () => {
+        throw error;
+      },
+    });
+    const message = { type: "cash-charge-amounts", request_id: "r69", sale_id: "s1" } as const;
+    const unavailable = { type: "cash-charge-amounts-unavailable", request_id: "r69" };
+
+    expect(await answerRendererRequest(failing.deps, message)).toEqual(unavailable);
+    expect(failing.failures).toEqual([{ context: "reading the amounts of a cash charge", error }]);
+    expect(await answerRendererRequest(deps(true).deps, message)).toEqual(unavailable);
   });
 
   it("follows a Mercado Pago QR charge and answers the outcome", async () => {
