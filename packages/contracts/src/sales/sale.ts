@@ -498,6 +498,24 @@ export const searchProductsOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type SearchProductsOutcome = z.infer<typeof searchProductsOutcomeSchema>;
 
+const productFoundByCodeSchema = z.object({
+  product_id: z.string(),
+  name: z.string(),
+  sale_unit: z.enum(SALE_UNITS),
+  unit_price: cents.nullable(),
+});
+
+export const findProductByCodeOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("found"), product: productFoundByCodeSchema }),
+  z.object({ kind: z.literal("unknown_code") }),
+  notPermittedOutcome,
+  notSignedInOutcome,
+  noOpenSessionOutcome,
+  restorationInProgressOutcomeSchema,
+  unavailableOutcome,
+]);
+export type FindProductByCodeOutcome = z.infer<typeof findProductByCodeOutcomeSchema>;
+
 export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("completed"),

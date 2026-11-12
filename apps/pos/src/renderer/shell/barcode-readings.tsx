@@ -5,24 +5,28 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type Taker = (code: string) => void;
 
+type Registered = { taker: Taker; whileDialogOpen: boolean };
+
 interface Takers {
-  register(taker: Taker): () => void;
+  register(registered: Registered): () => void;
   last(): Taker | undefined;
+  lastWhileDialogOpen(): Taker | undefined;
   refuse(): () => void;
   refused(): boolean;
 }
 
 function createTakers(): Takers {
-  let registered: Taker[] = [];
+  let registered: Registered[] = [];
   const refusals = new Set<object>();
   return {
-    register(taker) {
-      registered.push(taker);
+    register(entry) {
+      registered.push(entry);
       return () => {
-        registered = registered.filter((other) => other !== taker);
+        registered = registered.filter((other) => other !== entry);
       };
     },
-    last: () => registered.at(-1),
+    last: () => registered.at(-1)?.taker,
+    lastWhileDialogOpen: () => registered.filter((entry) => entry.whileDialogOpen).at(-1)?.taker,
     refuse() {
       const refusal = {};
       refusals.add(refusal);
@@ -56,8 +60,8 @@ export function BarcodeReadings({
   useEffect(
     () =>
       onBarcodeRead((code) => {
-        const taker = takers.last();
-        if (taker === undefined || takers.refused() || aWindowIsOpen()) {
+        const taker = aWindowIsOpen() ? takers.lastWhileDialogOpen() : takers.last();
+        if (taker === undefined || takers.refused()) {
           setUntaken((count) => (count ?? 0) + 1);
         } else {
           taker(code);
@@ -83,7 +87,10 @@ export function BarcodeReadings({
   );
 }
 
-export function useBarcodeReadings(take: ((code: string) => void) | undefined) {
+export function useBarcodeReadings(
+  take: ((code: string) => void) | undefined,
+  { whileDialogOpen = false }: { whileDialogOpen?: boolean } = {},
+) {
   const { register } = useContext(BarcodeReadingsContext);
   const latest = useRef(take);
   const taking = take !== undefined;
@@ -95,11 +102,14 @@ export function useBarcodeReadings(take: ((code: string) => void) | undefined) {
   useEffect(
     () =>
       taking
-        ? register((code) => {
-            latest.current?.(code);
+        ? register({
+            taker: (code) => {
+              latest.current?.(code);
+            },
+            whileDialogOpen,
           })
         : undefined,
-    [taking, register],
+    [taking, whileDialogOpen, register],
   );
 }
 
