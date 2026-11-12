@@ -61,6 +61,8 @@ export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
 export type { TextPreviewProps } from "./components/data-display/text-preview";
 export { TextPreview } from "./components/data-display/text-preview";
+export type { CountdownBarProps } from "./components/feedback/countdown-bar";
+export { CountdownBar } from "./components/feedback/countdown-bar";
 export type { CountdownRingProps } from "./components/feedback/countdown-ring";
 export { CountdownRing } from "./components/feedback/countdown-ring";
 export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
@@ -101,6 +103,8 @@ export type { StatusPillProps, StatusPillTone } from "./components/feedback/stat
 export { StatusPill } from "./components/feedback/status-pill";
 export type { StatusPillButtonProps } from "./components/feedback/status-pill-button";
 export { StatusPillButton } from "./components/feedback/status-pill-button";
+export type { TimedOfferCardProps } from "./components/feedback/timed-offer-card";
+export { TimedOfferCard } from "./components/feedback/timed-offer-card";
 export type { ToastProps } from "./components/feedback/toast";
 export { Toast } from "./components/feedback/toast";
 export type { ToastStackProps } from "./components/feedback/toast-stack";
