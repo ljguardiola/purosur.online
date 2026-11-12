@@ -1,23 +1,28 @@
-import type { ChargeSaleByTransferOutcome } from "@purosur/contracts";
+import type { ChargeSaleByTransferOutcome, NonCashChargeAnswer } from "@purosur/contracts";
 import {
   Button,
+  Card,
+  FigureStat,
   fieldErrorMessage,
   formatAmountInput,
   formatCents,
   InlineNotice,
-  Modal,
-  SummaryRowGroup,
+  parseAmountCents,
+  SidePanel,
+  SidePanelTitle,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ArrowLeft, Check, Landmark, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { Check, Landmark, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
 import { chargeSaleByTransferRequestSchema, handChargeRequestFrom } from "./hand-charge-form";
 import {
   CHARGE_IN_PROGRESS_MESSAGE,
   PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
+import { useNonCashChargeQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
@@ -29,31 +34,32 @@ export type CompletedTransfer = Extract<ChargeSaleByTransferOutcome, { kind: "co
   amount: number;
 };
 
-export type TransferChargeModalProps = {
-  total: number;
-  paid: number;
+export type TransferChargePanelProps = {
+  saleId: string;
   pending: number;
+  readCharge: (amount: number) => Promise<NonCashChargeAnswer>;
   charge: (amount: number) => Promise<ChargeSaleByTransferOutcome>;
-  onChooseAnotherMethod: () => void;
+  onBack: () => void;
   onCompleted: (charge: CompletedTransfer) => void;
   onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
 
-export function TransferChargeModal({
-  total,
-  paid,
+export function TransferChargePanel({
+  saleId,
   pending,
+  readCharge,
   charge,
-  onChooseAnotherMethod,
+  onBack,
   onCompleted,
   onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
-}: TransferChargeModalProps) {
+}: TransferChargePanelProps) {
   const [notice, setNotice] = useState<string>();
-  const { form, submit, submitting } = useRequestForm({
+  const amountBox = useRef<HTMLDivElement>(null);
+  const { form, submit, submitting, values } = useRequestForm({
     defaultValues: { amount: formatAmountInput(pending) },
     request: { schema: chargeSaleByTransferRequestSchema, from: handChargeRequestFrom },
     fields: { amount: "amount" },
@@ -100,65 +106,70 @@ export function TransferChargeModal({
     },
   });
 
-  function confirmCredit() {
+  const preview = useNonCashChargeQuery({
+    saleId,
+    pending,
+    amount: parseAmountCents(values.amount),
+    read: readCharge,
+  });
+  const answered = preview.status === "loaded" ? preview.value : undefined;
+  const remaining =
+    typeof answered === "object" && answered?.kind === "partial" ? answered.pending : undefined;
+
+  useEffect(() => {
+    amountBox.current?.querySelector("input")?.focus();
+  }, []);
+
+  function register() {
     setNotice(undefined);
     void submit();
   }
 
-  return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next) {
-          onChooseAnotherMethod();
+  useKeys([
+    {
+      key: "Escape",
+      run: () => {
+        if (!submitting) {
+          onBack();
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={<Landmark />}
-      context="TRANSFERENCIA"
-      contextTone="info"
-      title="Esperando el ingreso en la cuenta"
-      closable={!submitting}
+      },
+    },
+  ]);
+  useKeys([{ key: "Enter", run: register }], { fallback: true });
+
+  return (
+    <SidePanel
+      label="Cobro por transferencia"
+      width="wide"
+      header={
+        <SidePanelTitle
+          icon={<Landmark />}
+          title="Transferencia"
+          onClose={submitting ? undefined : onBack}
+        />
+      }
       footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={onChooseAnotherMethod}
-          >
-            No llegó: cambiar de medio
-          </Button>
-          <Button
-            size="large"
-            fullWidth
-            icon={<Check />}
-            dataStatus={submitting ? "loading" : "loaded"}
-            onPress={confirmCredit}
-          >
-            Vi el ingreso
-          </Button>
-        </>
+        <Button
+          size="large"
+          fullWidth
+          icon={<Check />}
+          iconPosition="start"
+          keycap="Enter"
+          dataStatus={submitting ? "loading" : "loaded"}
+          onPress={register}
+        >
+          Registrar transferencia
+        </Button>
       }
     >
-      <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          variant="filled"
-          orientation="horizontal"
-          rows={[
-            { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(paid) },
-            { label: "A cobrar ahora", value: formatCents(pending), emphasized: true },
-          ]}
-        />
+      <FigureStat size="hero" label="A COBRAR" value={formatCents(pending)} />
+      <div ref={amountBox}>
         <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => (
             <TextField
               kind="amount"
               prefix="$"
-              label="Importe a cobrar con este medio"
+              label="IMPORTE"
               decimals={2}
               value={field.state.value}
               onChange={field.handleChange}
@@ -167,16 +178,15 @@ export function TransferChargeModal({
             />
           )}
         </form.AppField>
-        <InlineNotice
-          tone="warning"
-          icon={<TriangleAlert />}
-          title="No confirmes con la pantalla del cliente"
-          description="Una captura falsa o una transferencia programada se ven igual que una real. Confirmá solo al ver el ingreso en el dispositivo del mostrador."
-        />
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
       </div>
-    </Modal>
+      {remaining === undefined ? null : (
+        <Card variant="subtle">
+          <FigureStat label="QUEDA" value={formatCents(remaining)} />
+        </Card>
+      )}
+      {notice === undefined ? null : (
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
+      )}
+    </SidePanel>
   );
 }

@@ -161,6 +161,15 @@ export const cashChargeReadSchema = z.discriminatedUnion("kind", [
 type CashChargeRead = z.infer<typeof cashChargeReadSchema>;
 export type CashChargeAnswer = CashChargeRead | null | "not_permitted";
 
+export const nonCashChargeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("invalid_amount") }),
+  z.object({ kind: z.literal("exceeds_pending"), pending: z.number() }),
+  z.object({ kind: z.literal("partial"), applied: z.number(), pending: z.number() }),
+  z.object({ kind: z.literal("covered"), applied: z.number() }),
+]);
+export type NonCashCharge = z.infer<typeof nonCashChargeSchema>;
+export type NonCashChargeAnswer = NonCashCharge | null | "not_permitted";
+
 const addedOutcome = z.object({
   kind: z.literal("added"),
   sale: saleSchema,
