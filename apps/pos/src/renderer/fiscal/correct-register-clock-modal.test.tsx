@@ -2,8 +2,8 @@ import type { CorrectRegisterClockOutcome, ReadClockGuardOutcome } from "@purosu
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import { deferred } from "../platform/test-support/deferred";
+import { render } from "../shell/test-support/render-with-router";
 import { CorrectRegisterClockModal } from "./correct-register-clock-modal";
 
 type Guard = Extract<ReadClockGuardOutcome, { kind: "read" }>;
@@ -52,68 +52,80 @@ async function renderModal(
   };
   const screen = await render(
     <CorrectRegisterClockModal
-      registerName="Caja 1"
       cashSessionOpen={options.cashSessionOpen ?? true}
       guard={options.guard ?? GUARD}
       correctRegisterClock={correct}
       {...handlers}
     />,
   );
-  const dialog = screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" });
+  const dialog = screen.getByRole("dialog", { name: "Reloj atrasado" });
   return { screen, dialog, correct, ...handlers };
 }
 
 function confirmButton(dialog: Awaited<ReturnType<typeof renderModal>>["dialog"]) {
-  return dialog.getByRole("button", { name: "La hora de la caja es correcta" });
+  return dialog.getByRole("button", { name: /^Confirmar hora/ });
 }
 
 describe("CorrectRegisterClockModal", () => {
-  it("shows why the register does not issue, both readings, what to do and that it can be confirmed once per cash session", async () => {
+  it("shows both readings and the confirmation with its Enter key, and the Esc key to close", async () => {
     const { screen, dialog } = await renderModal();
 
-    await expect.element(dialog.getByText("Caja 1 · Punto de venta 00003")).toBeVisible();
-    await expect
-      .element(
-        dialog.getByText(
-          "La hora de la caja quedó atrás de la del último comprobante emitido, así que la caja no emite hasta que la hora sea correcta.",
-        ),
-      )
-      .toBeVisible();
     await expect.element(dialog.getByText("Hora de la caja")).toBeVisible();
     await expect.element(dialog.getByText("15/09/2026 · 09:10")).toBeVisible();
     await expect.element(dialog.getByText("Último comprobante")).toBeVisible();
     await expect.element(dialog.getByText("16/09/2026 · 11:31")).toBeVisible();
-    await expect
-      .element(dialog.getByText("Fijate en otro reloj confiable qué hora es."))
-      .toBeVisible();
-    await expect
-      .element(
-        dialog.getByText("Si la hora de la caja está mal, corregila en Windows y volvé a probar."),
-      )
-      .toBeVisible();
-    await expect
-      .element(dialog.getByText("Si la hora de la caja es la correcta, confirmalo acá abajo."))
-      .toBeVisible();
-    await expect
-      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja").first())
-      .toBeVisible();
-    await expect
-      .element(dialog.getByText("Si la hora vuelve a atrasar, corregila en Windows."))
-      .not.toBeInTheDocument();
+    await expect.element(dialog.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(confirmButton(dialog).getByText("Enter", { exact: true })).toBeVisible();
     await expect.element(confirmButton(dialog)).toBeEnabled();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("says it can be confirmed once until the next opening when no cash session is open", async () => {
-    const { dialog } = await renderModal({ cashSessionOpen: false });
+  it("shows nothing but the readings and the confirmation: no explanation, steps or once-per-session notice", async () => {
+    const { dialog } = await renderModal();
 
+    await expect.element(dialog.getByText(/quedó atrás/)).not.toBeInTheDocument();
+    await expect.element(dialog.getByText(/Fijate en otro reloj/)).not.toBeInTheDocument();
+    await expect.element(dialog.getByText(/una sola vez/)).not.toBeInTheDocument();
     await expect
-      .element(
-        dialog
-          .getByText("Se puede confirmar una sola vez hasta la próxima apertura de caja")
-          .first(),
-      )
-      .toBeVisible();
+      .element(dialog.getByText("Punto de venta", { exact: false }))
+      .not.toBeInTheDocument();
+  });
+
+  it("confirms the clock on Enter", async () => {
+    const { correct, onCorrected } = await renderModal();
+
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() => expect(onCorrected).toHaveBeenCalledOnce());
+    expect(correct).toHaveBeenCalledOnce();
+  });
+
+  it("does not confirm on Enter once the correction was refused", async () => {
+    const { correct } = await renderModal({
+      guard: { ...GUARD, correction: "already_corrected_in_period" },
+    });
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(correct).not.toHaveBeenCalled();
+  });
+
+  it("closes on Esc without asking the core", async () => {
+    const { correct, onClose } = await renderModal();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(correct).not.toHaveBeenCalled();
+  });
+
+  it("closes by pressing the Esc key shown, without asking the core", async () => {
+    const { dialog, correct, onClose } = await renderModal();
+
+    await userEvent.click(dialog.getByRole("button", { name: "Cerrar con Esc" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(correct).not.toHaveBeenCalled();
   });
 
   it("shows the day the tax authority last authorized when no document was issued by this register", async () => {
@@ -216,15 +228,6 @@ describe("CorrectRegisterClockModal", () => {
 
     expect(onCorrected).toHaveBeenCalledOnce();
     expect(onRefused).not.toHaveBeenCalled();
-  });
-
-  it("closes without asking the core when going back", async () => {
-    const { dialog, correct, onClose } = await renderModal();
-
-    await userEvent.click(dialog.getByRole("button", { name: "Volver" }));
-
-    expect(onClose).toHaveBeenCalledOnce();
-    expect(correct).not.toHaveBeenCalled();
   });
 
   it.each<[CorrectRegisterClockOutcome, string]>([
