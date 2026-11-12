@@ -3684,9 +3684,11 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Historial" }));
 
       await expect
-        .element(screen.getByRole("heading", { name: "Historial de ventas" }))
+        .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
         .toBeVisible();
-      await expect.element(screen.getByText("Operación 000482")).toBeVisible();
+      await expect
+        .element(screen.getByRole("table", { name: "Ventas" }).getByText("$ 50.700,00"))
+        .toBeVisible();
       expect(queries).toEqual([{ session: "all", state: "all", page: 1 }]);
     });
 
@@ -3700,7 +3702,7 @@ describe("App", () => {
 
       await userEvent.click(screen.getByRole("link", { name: "Historial" }));
       await expect
-        .element(screen.getByRole("heading", { name: "Historial de ventas" }))
+        .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
         .toBeVisible();
       await userEvent.click(screen.getByRole("link", { name: "Venta" }));
 
