@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { LogOut, Undo2 } from "lucide-react";
+import { Ban, LogOut, Undo2 } from "lucide-react";
 import { ConfirmationPanel } from "./confirmation-panel";
 
 const meta: Meta<typeof ConfirmationPanel> = {
@@ -51,3 +51,21 @@ export const WithNotice: Story = {
 };
 
 export const Busy: Story = { args: { ...refundArgs, busy: true } };
+
+export const Danger: Story = {
+  args: {
+    title: "Anular venta",
+    icon: <Ban />,
+    tone: "danger",
+    locked: true,
+    fieldLabel: "A devolver ahora",
+    value: "$ 25.100,00",
+    details: [
+      { label: "Total", value: "$ 25.192,50" },
+      { label: "Efectivo · en el acto", value: "$ 25.100,00" },
+      { label: "Nota de crédito C", value: "Se emite e imprime" },
+    ],
+    actionLabel: "Anular venta",
+    actionIcon: <Ban />,
+  },
+};
