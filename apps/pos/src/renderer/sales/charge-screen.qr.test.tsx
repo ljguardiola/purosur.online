@@ -393,9 +393,7 @@ describe("ChargeScreen · QR", () => {
     await userEvent.keyboard("{Escape}");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Venta completada" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(screen.router.state.location.pathname).toBe("/");
   });
 
