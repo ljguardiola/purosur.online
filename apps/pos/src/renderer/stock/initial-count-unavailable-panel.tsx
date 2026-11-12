@@ -10,7 +10,7 @@ export function InitialCountUnavailablePanel({ onGoHome }: { onGoHome: () => voi
         <SidePanelTitle
           icon={<Package />}
           title="Inventario inicial"
-          close={{ onPress: onGoHome }}
+          onClose={onGoHome}
         />
       }
       footer={

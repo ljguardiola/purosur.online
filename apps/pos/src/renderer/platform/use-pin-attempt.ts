@@ -25,6 +25,14 @@ export function usePinAttempt(target: PinTarget | null) {
   const secondsLeft = useCountdown(wait);
   const locked = refusal?.kind === "locked";
   const targetId = target?.id;
+  const [pinTargetId, setPinTargetId] = useState(targetId);
+
+  if (pinTargetId !== targetId) {
+    setPinTargetId(targetId);
+    setPin("");
+    setRefusal(undefined);
+    setWait(undefined);
+  }
 
   useEffect(() => {
     if (targetId !== undefined) {

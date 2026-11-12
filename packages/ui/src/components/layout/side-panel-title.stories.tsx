@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Undo2, Wallet } from "lucide-react";
-import { CloseButton } from "../shared/close-button";
+import { Banknote, Undo2, Wallet } from "lucide-react";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -25,16 +24,12 @@ type Story = StoryObj<typeof SidePanelTitle>;
 
 export const Default: Story = {};
 
-export const WithEscapeKeycap: Story = {
-  args: { close: { onPress: () => {} } },
-};
-
 export const WithLabelledEscapeKeycap: Story = {
-  args: { close: { onPress: () => {}, label: "Cancelar" } },
+  args: { onClose: () => {}, closeLabel: "Cancelar" },
 };
 
 export const WithDisabledLabelledEscapeKeycap: Story = {
-  args: { close: { onPress: () => {}, label: "Cancelar", disabled: true } },
+  args: { onClose: () => {}, closeLabel: "Cancelar", closeDisabled: true },
 };
 
 export const Warning: Story = {
@@ -42,6 +37,10 @@ export const Warning: Story = {
     icon: <Undo2 />,
     title: "¿Pasar el cobro a reembolso?",
     tone: "warning",
-    children: <CloseButton onPress={() => undefined} />,
+    onClose: () => undefined,
   },
+};
+
+export const WithEscape: Story = {
+  args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
 };

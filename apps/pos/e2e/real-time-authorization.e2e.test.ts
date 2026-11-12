@@ -111,7 +111,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
 
   it("asks the cloud to authorize the invoice of a sale charged in cash, with the sale behind it", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("button", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
@@ -122,8 +122,8 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     await scanYerba();
 
     await page.getByRole("button", { name: "Cobrar en efectivo" }).click();
-    await page.getByLabel("Importe entregado por el cliente").fill("2.380,00");
-    await page.getByRole("button", { name: "Completar venta" }).click();
+    await page.getByLabel("RECIBIDO").fill("2.380,00");
+    await page.getByRole("button", { name: "Cobrar" }).click();
     await until(() => cloud.authorizationRequests.length === 1, {
       withinMs: WAIT_BOUND_MS,
       waitingFor: "the first real-time authorization request",

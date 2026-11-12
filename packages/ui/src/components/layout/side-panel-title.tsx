@@ -1,4 +1,4 @@
-import { type ReactNode, useContext } from "react";
+import { useContext } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { Keycap } from "../data-display/keycap";
 import { CloseButton } from "../shared/close-button";
@@ -10,8 +10,9 @@ export type SidePanelTitleProps = {
   icon: Icon;
   title: string;
   tone?: "neutral" | "warning";
-  children?: ReactNode;
-  close?: { onPress: () => void; label?: string; disabled?: boolean };
+  onClose?: (() => void) | undefined;
+  closeDisabled?: boolean;
+  closeLabel?: string;
 };
 
 const labelledCloseClassName =
@@ -22,8 +23,9 @@ export function SidePanelTitle({
   icon,
   title,
   tone = "neutral",
-  children,
-  close,
+  onClose,
+  closeDisabled = false,
+  closeLabel,
 }: SidePanelTitleProps) {
   const horizontalInset = useContext(SidePanelInsetContext);
 
@@ -36,19 +38,14 @@ export function SidePanelTitle({
         <span className={iconSlotClassName.lg}>{icon}</span>
       </span>
       <h2 className="flex-1 text-subheading font-bold text-text">{title}</h2>
-      {children}
-      {close === undefined ? null : close.label === undefined ? (
-        <CloseButton onPress={close.onPress} escapeKeycap disabled={close.disabled ?? false} />
+      {onClose === undefined ? null : closeLabel === undefined ? (
+        <CloseButton escapeKeycap disabled={closeDisabled} onPress={onClose} />
       ) : (
-        <AriaButton
-          onPress={close.onPress}
-          isDisabled={close.disabled ?? false}
-          className={labelledCloseClassName}
-        >
+        <AriaButton onPress={onClose} isDisabled={closeDisabled} className={labelledCloseClassName}>
           <span aria-hidden="true" className="flex">
             <Keycap keyName="Escape" />
           </span>
-          {close.label}
+          {closeLabel}
         </AriaButton>
       )}
     </div>

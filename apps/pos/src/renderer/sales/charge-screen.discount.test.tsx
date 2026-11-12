@@ -8,12 +8,17 @@ import {
   SALE_WITH_PART_PAID,
 } from "./test-support/charge-screen";
 
-const DISCOUNT_FIELD = "Descuento por falta de cambio";
+const DISCOUNT_FIELD = "Otro";
+
+async function openShortageOfChange() {
+  await userEvent.keyboard("{F3}");
+}
 
 it("offers the discount in the cash charge of a sale without payments", async () => {
   const { screen } = await renderScreen();
 
   await chooseCash(screen);
+  await openShortageOfChange();
 
   await expect.element(screen.getByRole("textbox", { name: DISCOUNT_FIELD })).toBeVisible();
 });
@@ -22,10 +27,12 @@ it("does not offer the discount in the cash charge of a sale with an approved pa
   const { screen } = await renderScreen({ currentSale: async () => SALE_WITH_PART_PAID });
 
   await chooseCash(screen);
+  await openShortageOfChange();
 
   await expect
     .element(screen.getByRole("textbox", { name: DISCOUNT_FIELD }))
     .not.toBeInTheDocument();
+  await expect.element(screen.getByText("Falta de cambio")).not.toBeInTheDocument();
 });
 
 it("does not offer the discount when the core refuses a discount on the total", async () => {
@@ -34,10 +41,12 @@ it("does not offer the discount when the core refuses a discount on the total", 
   });
 
   await chooseCash(screen);
+  await openShortageOfChange();
 
   await expect
     .element(screen.getByRole("textbox", { name: DISCOUNT_FIELD }))
     .not.toBeInTheDocument();
+  await expect.element(screen.getByText("Falta de cambio")).not.toBeInTheDocument();
 });
 
 it("reads the cash charge with the discount typed and charges with it", async () => {
@@ -51,14 +60,12 @@ it("reads the cash charge with the discount typed and charges with it", async ()
       }),
     });
   await chooseCash(screen);
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-    "5000",
-  );
+  await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "5000");
+  await openShortageOfChange();
   await userEvent.fill(screen.getByRole("textbox", { name: DISCOUNT_FIELD }), "10");
 
   await expect.poll(() => cashCharge).toHaveBeenCalledWith("sale-1", 500_000, 1_000);
-  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
   await expect
     .poll(() => chargeSaleInCashWithChangeDiscount)
@@ -72,12 +79,10 @@ it("asks for the authorization in the modal, with the change shortage subtitle, 
   });
   await chooseCash(screen);
 
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-    "5000",
-  );
+  await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "5000");
+  await openShortageOfChange();
   await userEvent.fill(screen.getByRole("textbox", { name: DISCOUNT_FIELD }), "10");
-  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
   await expect
     .element(authorizationDialog().getByText("Falta de cambio", { exact: true }))
@@ -102,14 +107,12 @@ it("shows the total charged with the discount typed once the charge is completed
     }),
   });
   await chooseCash(screen);
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-    "5000",
-  );
+  await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "5000");
+  await openShortageOfChange();
   await userEvent.fill(screen.getByRole("textbox", { name: DISCOUNT_FIELD }), "10");
-  await expect.element(screen.getByRole("button", { name: "Completar venta" })).toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
 
-  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
   const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
   await expect.element(panel.getByText("$ 4.750,00").first()).toBeVisible();

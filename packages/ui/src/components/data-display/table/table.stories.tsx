@@ -244,6 +244,18 @@ export const RowMuted: Story = {
   ),
 };
 
+export const Locked: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      locked={{ label: "Líneas bloqueadas" }}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+};
+
 const oneActionColumns = [
   ...baseColumns,
   actionsColumn({

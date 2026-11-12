@@ -8,6 +8,7 @@ export type PinDotsFieldProps = {
   value: string;
   onChange: (digits: string) => void;
   errorMessageId?: string | undefined;
+  errorRingWhileFocused?: boolean | undefined;
   disabled?: boolean | undefined;
   autoFocus?: boolean | undefined;
   ref?: Ref<HTMLInputElement> | undefined;
@@ -20,10 +21,13 @@ const dotClassName = {
   empty: "size-3.5 rounded-full bg-border",
 } as const;
 
-function boxClassName(invalid: boolean): string {
+function boxClassName(invalid: boolean, errorRingWhileFocused: boolean): string {
+  const ring = invalid ? "inset-ring-error" : "inset-ring-border";
+  const focusRing = invalid && errorRingWhileFocused ? "" : " focus-within:inset-ring-action";
   return (
     "relative flex h-16 items-center justify-center gap-4 rounded-lg bg-surface inset-ring-2 " +
-    `${invalid ? "inset-ring-error" : "inset-ring-border"} focus-within:inset-ring-action`
+    ring +
+    focusRing
   );
 }
 
@@ -32,6 +36,7 @@ export function PinDotsField({
   value,
   onChange,
   errorMessageId,
+  errorRingWhileFocused = false,
   disabled = false,
   autoFocus = false,
   ref,
@@ -58,7 +63,9 @@ export function PinDotsField({
         </span>
         <Keycap keyName="Digits" />
       </div>
-      <div className={`${boxClassName(invalid)} ${disabled ? "opacity-disabled" : ""}`}>
+      <div
+        className={`${boxClassName(invalid, errorRingWhileFocused)} ${disabled ? "opacity-disabled" : ""}`}
+      >
         {dots}
         <input
           ref={mergeRefs(inputRef, ref)}

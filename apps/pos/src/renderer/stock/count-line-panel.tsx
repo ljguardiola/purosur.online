@@ -271,7 +271,9 @@ export function CountLinePanel({
           <SidePanelTitle
             icon={byWeight ? <Scale /> : <Package />}
             title={product.name}
-            close={{ onPress: cancel, label: "Cancelar", disabled: submitting }}
+            onClose={cancel}
+            closeLabel="Cancelar"
+            closeDisabled={submitting}
           />
         }
         footer={

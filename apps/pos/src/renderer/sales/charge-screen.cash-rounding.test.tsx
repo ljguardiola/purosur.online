@@ -20,13 +20,10 @@ it("shows the rounded total once a cash charge with rounding is completed", asyn
     }),
   });
   await chooseCash(screen);
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-    "5000",
-  );
-  await expect.element(screen.getByRole("button", { name: "Completar venta" })).toBeEnabled();
+  await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "5000");
+  await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
 
-  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
   const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
   await expect.element(panel.getByText("$ 4.750,00").first()).toBeVisible();

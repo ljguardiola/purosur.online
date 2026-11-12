@@ -1,3 +1,5 @@
+import { RefreshCw } from "lucide-react";
+import type { KeyName } from "../data-display/keycap";
 import { Button } from "../forms/button";
 import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
@@ -19,7 +21,14 @@ export type CenteredLoadFailureProps = Omit<LoadFailureProps, "variant" | "onRet
   variant: "centered";
 };
 
-export function LoadFailure(props: LoadFailureProps | CenteredLoadFailureProps) {
+type KeyboardLoadFailureProps = Omit<LoadFailureProps, "variant"> & {
+  variant: "keyboard";
+  keycap: KeyName;
+};
+
+export function LoadFailure(
+  props: LoadFailureProps | CenteredLoadFailureProps | KeyboardLoadFailureProps,
+) {
   const { icon, title, description } = props;
 
   if (props.variant === "centered") {
@@ -65,6 +74,23 @@ export function LoadFailure(props: LoadFailureProps | CenteredLoadFailureProps) 
       {...(description === undefined ? {} : { description })}
     />
   );
+
+  if (props.variant === "keyboard") {
+    return (
+      <div className="flex flex-col gap-4">
+        {notice}
+        <Button
+          fullWidth
+          icon={<RefreshCw />}
+          iconPosition="start"
+          keycap={props.keycap}
+          onPress={onRetry}
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
 
   if (variant === "screen") {
     return (

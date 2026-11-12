@@ -10,6 +10,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -111,6 +112,7 @@ import type {
   SaleForReturnReading,
   SalesHistoryQuery,
   SerialDevicesToRegister,
+  SignInUsers,
 } from "../platform/core-client";
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
@@ -170,7 +172,7 @@ export interface RouterContext {
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
-  signInUsers: () => Promise<SignInUser[]>;
+  signInUsers: () => Promise<SignInUsers>;
   authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   lockedClosers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
@@ -215,6 +217,10 @@ export interface RouterContext {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
+  cashChargeAmounts: (
+    saleId: string,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount: (
     saleId: string,
@@ -882,9 +888,9 @@ const chargeRoute = createRoute({
       signOut,
       currentSale,
       cashCharge,
+      cashChargeAmounts,
       chargeSaleInCash,
       chargeSaleInCashWithChangeDiscount,
-      previewSaleDiscount,
       authorizers,
       chargeSaleByTransfer,
       chargeSaleOnStandaloneTerminal,
@@ -908,9 +914,9 @@ const chargeRoute = createRoute({
         lock={signOut}
         currentSale={currentSale}
         cashCharge={cashCharge}
+        cashChargeAmounts={cashChargeAmounts}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
-        previewSaleDiscount={previewSaleDiscount}
         loadAuthorizers={authorizers}
         chargeSaleByTransfer={chargeSaleByTransfer}
         chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
@@ -1173,16 +1179,8 @@ const signInRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/sign-in", context),
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
-    const registerName = useRegisterName();
     const version = useRegisterVersion();
-    return (
-      <SignInScreen
-        loadUsers={signInUsers}
-        signIn={signIn}
-        registerName={registerName}
-        version={version}
-      />
-    );
+    return <SignInScreen loadUsers={signInUsers} signIn={signIn} version={version} />;
   },
 });
 
@@ -1436,6 +1434,7 @@ export function createAppRouter(
     | "currentSale"
     | "scanProduct"
     | "cashCharge"
+    | "cashChargeAmounts"
     | "chargeSaleInCash"
     | "chargeSaleInCashWithChangeDiscount"
     | "chargeSaleByTransfer"

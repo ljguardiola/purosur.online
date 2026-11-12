@@ -85,6 +85,8 @@ type TableLoadProps =
   | { loading?: TableLoadingState; failure?: never }
   | { loading?: false; failure: LoadFailureProps | CenteredLoadFailureProps };
 
+export type TableLock = { label: string };
+
 export type TableProps<T extends RowData> = {
   table: TableModel<T>;
   "aria-label": string;
@@ -98,4 +100,5 @@ export type TableProps<T extends RowData> = {
   fill?: boolean;
   // With `fill`, keeps the column headers above the empty state instead of replacing them with it.
   emptyKeepsHeaders?: boolean;
+  locked?: TableLock;
 } & TableLoadProps;

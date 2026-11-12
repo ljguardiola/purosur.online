@@ -50,7 +50,7 @@ export function InitialCountSummaryPanel({
         <SidePanelTitle
           icon={<Package />}
           title="Inventario inicial"
-          close={{ onPress: onClose }}
+          onClose={onClose}
         />
       }
       footer={
