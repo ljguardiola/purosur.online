@@ -63,9 +63,7 @@ describe("openSaleStanding", () => {
   it("lists the approved payments with the card type of a Point one", () => {
     const debitPoint = { ...POINT_PAYMENT, id: "payment-6", cardType: "DEBIT" } as const;
 
-    expect(
-      openSaleStanding(5900, [CASH_PAYMENT, debitPoint], [], NOW).approvedPayments,
-    ).toEqual([
+    expect(openSaleStanding(5900, [CASH_PAYMENT, debitPoint], [], NOW).approvedPayments).toEqual([
       { method: "CASH", cardType: null, amount: 2000 },
       { method: "POINT", cardType: "DEBIT", amount: 2000 },
     ]);
