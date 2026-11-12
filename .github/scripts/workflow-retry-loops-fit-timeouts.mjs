@@ -1,5 +1,12 @@
 import { globSync, readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
+import { RETRY_DELAYS_SECONDS } from "./retry-command.mjs";
+import {
+  nodeEntries,
+  stepWorkingDirectory,
+  WORKSPACE,
+  wordPath,
+} from "./workflow-node-commands.mjs";
 
 const GITHUB_DEFAULT_JOB_MINUTES = 360;
 const MAX_LOOP_ROUNDS = 100000;
@@ -11,6 +18,8 @@ const LIST_ENDS = new Set(["then", "do", "done", "fi", "elif", "else", "esac", "
 const INSTANT_BUILTINS = new Set(["echo", "printf", "cd", "pwd", "set", "shopt", "trap", "umask"]);
 const DECLARATION_BUILTINS = new Set(["export", "local", "declare", "readonly", "typeset"]);
 const DURATION_UNITS = { "": 1, s: 1, m: 60, h: 3600, d: 86400 };
+const RETRY_COMMAND_SCRIPT = ".github/scripts/retry-command.mjs";
+const WORKSPACE_EXPRESSION = /^\s*github\.workspace\s*$/;
 
 class ShellSyntaxError extends Error {}
 
@@ -825,8 +834,10 @@ function statusOfArithmetic(value) {
 }
 
 class ShellState {
-  constructor(env) {
+  constructor(env, workingDirectory) {
     this.env = env;
+    this.workingDirectory = workingDirectory;
+    this.unresolvedScripts = new Set();
     this.positional = [];
     this.functions = new Map();
     this.elapsed = 0;
@@ -837,7 +848,8 @@ class ShellState {
   }
 
   clone() {
-    const copy = new ShellState(new Map(this.env));
+    const copy = new ShellState(new Map(this.env), this.workingDirectory);
+    copy.unresolvedScripts = this.unresolvedScripts;
     copy.positional = [...this.positional];
     copy.functions = new Map(this.functions);
     copy.elapsed = this.elapsed;
@@ -948,6 +960,7 @@ function expandPart(part, state) {
     return value === null ? UNKNOWN : String(value);
   }
   if (part.cmdsub !== undefined) return runCommandSubstitution(part, state);
+  if (part.gha !== undefined && WORKSPACE_EXPRESSION.test(part.gha)) return WORKSPACE;
   return UNKNOWN;
 }
 
@@ -999,7 +1012,12 @@ function expandWord(word, state) {
       fields.push(...state.positional);
       continue;
     }
-    if (part.lit !== undefined || part.sq !== undefined || part.dq !== undefined) {
+    if (
+      part.lit !== undefined ||
+      part.sq !== undefined ||
+      part.dq !== undefined ||
+      part.gha !== undefined
+    ) {
       const value = expandPart(part, state);
       if (value === UNKNOWN) unknown = true;
       else current += value;
@@ -1220,8 +1238,34 @@ function exitStatusOf(arg) {
   return arg === "0" ? 0 : /^\d+$/.test(arg ?? "") ? 1 : null;
 }
 
+function runRetryCommand(args, node, state) {
+  const separator = args.indexOf("--");
+  if (separator === -1) return { status: 1, signal: null };
+  const [command, ...commandArgs] = args.slice(separator + 1);
+  state.loopDepth++;
+  for (const delay of [...RETRY_DELAYS_SECONDS, 0]) {
+    runCommand(command, commandArgs, node, state);
+    state.spend(delay);
+  }
+  state.loopDepth--;
+  return { status: null, signal: null };
+}
+
 function runCommand(name, args, node, state) {
   switch (name) {
+    case "node": {
+      const words = args.map((arg) =>
+        arg === UNKNOWN ? { text: "", unresolved: true } : { text: arg, unresolved: false },
+      );
+      const script = nodeEntries(words).find((entry) => entry.kind === "script");
+      if (script === undefined) break;
+      const path = wordPath(script.word, state.workingDirectory);
+      if (path === undefined) state.unresolvedScripts.add(node.text);
+      else if (path === RETRY_COMMAND_SCRIPT) {
+        return runRetryCommand(args.slice(words.indexOf(script.word) + 1), node, state);
+      }
+      break;
+    }
     case "sleep": {
       const durations = args.map(parseDuration);
       if (durations.length === 0 || durations.includes(null)) state.leaveUnbounded(node.text);
@@ -1311,6 +1355,14 @@ function runSimple(node, state) {
       state.assign(name, value);
     }
     return [outcome(state, DONE)];
+  }
+  const [commandWord, ...argWords] = node.words.slice(index);
+  if (literalText(commandWord) === "node" && !state.functions.has("node")) {
+    const args = argWords.flatMap((word) => {
+      const value = expandWord(word, state);
+      return value === UNKNOWN ? [UNKNOWN] : value;
+    });
+    return [outcome(state, runCommand("node", args, node, state))];
   }
   const fields = expandWords(node.words.slice(index), state);
   if (fields === UNKNOWN || fields.length === 0 || fields[0] === UNKNOWN) {
@@ -1579,12 +1631,18 @@ function run(node, state) {
   throw new Error(`unknown shell node ${node.type}`);
 }
 
-function measureRetryLoops(source, env = new Map()) {
-  const worst = new ShellState(new Map());
-  for (const ended of run(parseShell(source), new ShellState(new Map(env)))) {
-    worst.absorbCost(ended.state);
-  }
-  return { seconds: worst.elapsed, unbounded: [...worst.unbounded] };
+function measureRetryLoops(source, env, workingDirectory) {
+  const worst = new ShellState(new Map(), workingDirectory);
+  const start = new ShellState(
+    new Map([["GITHUB_WORKSPACE", WORKSPACE], ...env]),
+    workingDirectory,
+  );
+  for (const ended of run(parseShell(source), start)) worst.absorbCost(ended.state);
+  return {
+    seconds: worst.elapsed,
+    unbounded: [...worst.unbounded],
+    unresolvedScripts: [...start.unresolvedScripts],
+  };
 }
 
 function resolveNode(doc, node) {
@@ -1678,14 +1736,24 @@ function stepViolations(doc, workflow, jobPair, stepItem) {
 
   let measured;
   try {
-    measured = measureRetryLoops(run, literalEnv(doc, [workflow, job, step]));
+    measured = measureRetryLoops(
+      run,
+      literalEnv(doc, [workflow, job, step]),
+      stepWorkingDirectory(doc, workflow, job, step),
+    );
   } catch (error) {
     if (!(error instanceof ShellSyntaxError)) throw error;
     return [`${subject} does not parse as a shell script: ${error.message}`];
   }
+  const unresolved = measured.unresolvedScripts.map(
+    (text) =>
+      `${subject} runs node with a script path that cannot be resolved, so its retry loops ` +
+      `cannot be measured: \`${text}\``,
+  );
   const limit = timeoutInForce(doc, job, step);
-  if (limit === null || measured.seconds <= limit.minutes * 60) return [];
+  if (limit === null || measured.seconds <= limit.minutes * 60) return unresolved;
   return [
+    ...unresolved,
     `${subject} can take ${measured.seconds} seconds in its retry loops, more than the ` +
       `${limit.minutes} minutes its ${limit.owner} allows${describeUnbounded(measured.unbounded)}`,
   ];

@@ -3,16 +3,19 @@ import { isBuiltin } from "node:module";
 import { posix } from "node:path";
 import ts from "typescript";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
+import {
+  flagValue,
+  insideRepository,
+  nodeEntries,
+  stepWorkingDirectory,
+  WORKSPACE,
+  WORKSPACE_PREFIXES,
+  wordPath,
+} from "./workflow-node-commands.mjs";
 
-const WORKSPACE = "\0workspace\0";
 const GITHUB_SCRIPT_ACTION = /^actions\/github-script@/i;
 const GITHUB_SCRIPT_WORKSPACE = "__github_workspace__";
 const WORKSPACE_EXPRESSION = /\$\{\{\s*github\.workspace\s*\}\}/g;
-const WORKSPACE_PREFIXES = [
-  /^\$\{\{\s*github\.workspace\s*\}\}/,
-  /^\$\{GITHUB_WORKSPACE\}/,
-  /^\$GITHUB_WORKSPACE\b/,
-];
 
 const SHELL_PREFIX_WORDS = new Set([
   "if",
@@ -29,43 +32,6 @@ const SHELL_PREFIX_WORDS = new Set([
   "}",
 ]);
 
-const NODE_FLAGS_WITH_VALUE = new Set([
-  "-r",
-  "--require",
-  "--import",
-  "--loader",
-  "--experimental-loader",
-  "-C",
-  "--conditions",
-  "--env-file",
-  "--env-file-if-exists",
-  "--input-type",
-  "--title",
-  "--disable-warning",
-  "--watch-path",
-  "--redirect-warnings",
-  "--experimental-config-file",
-  "--inspect-port",
-  "--test-reporter",
-  "--test-reporter-destination",
-  "--test-name-pattern",
-  "--test-skip-pattern",
-  "--test-shard",
-  "--test-concurrency",
-  "--test-timeout",
-  "--test-isolation",
-  "--test-coverage-include",
-  "--test-coverage-exclude",
-]);
-const NODE_PRELOAD_FLAGS = new Set([
-  "-r",
-  "--require",
-  "--import",
-  "--loader",
-  "--experimental-loader",
-]);
-const NODE_EVAL_FLAGS = new Set(["-e", "--eval", "-p", "--print"]);
-const NODE_NO_SCRIPT_FLAGS = new Set(["-v", "--version", "-h", "--help", "--v8-options"]);
 const PNPM_DIRECTORY_FLAGS = new Set(["-C", "--dir"]);
 const PNPM_FLAGS_WITH_VALUE = new Set([
   "-F",
@@ -98,27 +64,6 @@ function resolveNode(doc, node) {
 function resolveScalar(doc, node) {
   const resolved = resolveNode(doc, node);
   return isScalar(resolved) ? resolved.value : undefined;
-}
-
-function defaultWorkingDirectory(doc, node) {
-  const defaults = resolveNode(doc, node?.get("defaults", true));
-  if (!isMap(defaults)) return undefined;
-  const run = resolveNode(doc, defaults.get("run", true));
-  return isMap(run) ? resolveScalar(doc, run.get("working-directory", true)) : undefined;
-}
-
-// A working directory is a repository path, or undefined when it lies outside the repository or
-// depends on a value only known while the job runs.
-function resolveWorkingDirectory(value) {
-  if (value === undefined || value === null) return ".";
-  let path = String(value);
-  for (const prefix of WORKSPACE_PREFIXES) path = path.replace(prefix, ".");
-  return path.includes("$") ? undefined : insideRepository(".", path);
-}
-
-function insideRepository(directory, path) {
-  const joined = posix.normalize(posix.join(directory, path));
-  return joined === ".." || joined.startsWith("../") || posix.isAbsolute(path) ? undefined : joined;
 }
 
 function findClosing(script, start, open, close) {
@@ -328,12 +273,6 @@ function commandWords(words) {
   return words.slice(start);
 }
 
-function flagValue(args, index, inlineValue) {
-  return inlineValue === undefined
-    ? { value: args[index + 1], next: index + 1 }
-    : { value: { ...args[index], text: inlineValue }, next: index };
-}
-
 function installsDependencies(args, workingDirectory) {
   let directory = workingDirectory;
   for (let index = 0; index < args.length; index += 1) {
@@ -353,57 +292,6 @@ function installsDependencies(args, workingDirectory) {
     }
   }
   return false;
-}
-
-function nodeEntries(args) {
-  const entries = [];
-  const positionals = [];
-  let runsTests = false;
-  let evaluates = false;
-
-  let index = 0;
-  for (; index < args.length; index += 1) {
-    const word = args[index];
-    if (word.text === "--") {
-      index += 1;
-      break;
-    }
-    if (!word.text.startsWith("-") || word.text === "-") break;
-    const [flag, inlineValue] = word.text.split(/=(.*)/s);
-    if (NODE_NO_SCRIPT_FLAGS.has(flag)) return [];
-    if (flag === "--test") runsTests = true;
-    if (NODE_EVAL_FLAGS.has(flag)) {
-      const { value, next } = flagValue(args, index, inlineValue);
-      index = next;
-      if (value !== undefined)
-        entries.push({ kind: "code", code: value.text, label: `node ${flag} code` });
-      evaluates = true;
-    } else if (NODE_FLAGS_WITH_VALUE.has(flag)) {
-      const { value, next } = flagValue(args, index, inlineValue);
-      index = next;
-      if (value !== undefined && NODE_PRELOAD_FLAGS.has(flag)) {
-        entries.push({ kind: "preload", word: value, label: `node ${flag} ${value.text}` });
-      }
-    }
-  }
-  positionals.push(...args.slice(index));
-
-  if (evaluates) return entries;
-  if (runsTests) {
-    if (positionals.length === 0) entries.push({ kind: "default-tests" });
-    for (const word of positionals) entries.push({ kind: "test-file", word });
-  } else if (positionals.length > 0 && positionals[0].text !== "-") {
-    entries.push({ kind: "script", word: positionals[0] });
-  }
-  return entries;
-}
-
-function wordPath(word, workingDirectory) {
-  if (word.unresolved || workingDirectory === undefined) return undefined;
-  if (word.text.startsWith(WORKSPACE)) {
-    return insideRepository(".", `.${word.text.slice(WORKSPACE.length)}`);
-  }
-  return insideRepository(workingDirectory, word.text);
 }
 
 function packageName(specifier) {
@@ -672,7 +560,6 @@ function githubScriptModule(script) {
 function checkWorkflow(path, doc, lineCounter, repository) {
   const jobsNode = resolveNode(doc, doc.get("jobs", true));
   if (!isMap(jobsNode)) return [];
-  const workflowDirectory = defaultWorkingDirectory(doc, doc);
 
   const violations = [];
   for (const jobPair of jobsNode.items) {
@@ -680,7 +567,6 @@ function checkWorkflow(path, doc, lineCounter, repository) {
     if (!isMap(jobNode)) continue;
     const stepsNode = resolveNode(doc, jobNode.get("steps", true));
     if (!isSeq(stepsNode)) continue;
-    const jobDirectory = defaultWorkingDirectory(doc, jobNode) ?? workflowDirectory;
 
     let installed = false;
     for (const stepItem of stepsNode.items) {
@@ -702,9 +588,7 @@ function checkWorkflow(path, doc, lineCounter, repository) {
 
       const run = resolveScalar(doc, stepNode.get("run", true));
       if (typeof run !== "string") continue;
-      const workingDirectory = resolveWorkingDirectory(
-        resolveScalar(doc, stepNode.get("working-directory", true)) ?? jobDirectory,
-      );
+      const workingDirectory = stepWorkingDirectory(doc, doc.contents, jobNode, stepNode);
 
       for (const words of shellCommands(run)) {
         const [command, ...args] = commandWords(words);
