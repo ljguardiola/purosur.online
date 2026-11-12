@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { RETRY_DELAYS_SECONDS } from "./retry-command.mjs";
 import {
   checkFiles,
   describeViolation,
@@ -330,6 +331,43 @@ test("counts every round of a loop with many rounds", () => {
 
     assert.match(messagesOf({ run, jobTimeout: 1 })[0] ?? "", /can take 2000 seconds/, loop[0]);
   }
+});
+
+const RETRY_COMMAND_WAITS = RETRY_DELAYS_SECONDS.reduce((total, delay) => total + delay, 0);
+const RETRY_COMMAND_ATTEMPTS = RETRY_DELAYS_SECONDS.length + 1;
+
+function retryingThroughScript(script, command) {
+  return [`node ${script} --title "Install age" --failure "age was not installed" -- ${command}`];
+}
+
+test("counts the waits of a command retried through retry-command.mjs, however the script's path is written", () => {
+  const command = 'sh -c "apt-get install --yes age"';
+  const minutesCovering = Math.ceil(RETRY_COMMAND_WAITS / 60);
+
+  for (const script of [
+    ".github/scripts/retry-command.mjs",
+    "./.github/scripts/retry-command.mjs",
+  ]) {
+    const run = retryingThroughScript(script, command);
+    assert.deepEqual(messagesOf({ run, stepTimeout: minutesCovering - 1, jobTimeout: 60 }), [
+      `step "Retry" of job build can take ${RETRY_COMMAND_WAITS} seconds in its retry loops, ` +
+        `more than the ${minutesCovering - 1} minutes its step's timeout-minutes allows; ` +
+        `not counted, having no time bound: \`${run[0]}\` (${RETRY_COMMAND_ATTEMPTS} runs)`,
+    ]);
+    assert.deepEqual(messagesOf({ run, stepTimeout: minutesCovering, jobTimeout: 60 }), []);
+  }
+});
+
+test("counts the time limit of a command retried through retry-command.mjs on every attempt", () => {
+  const run = retryingThroughScript(
+    ".github/scripts/retry-command.mjs",
+    "timeout 60 docker pull image",
+  );
+
+  assert.match(
+    messagesOf({ run, jobTimeout: 1 })[0],
+    new RegExp(`can take ${RETRY_COMMAND_WAITS + RETRY_COMMAND_ATTEMPTS * 60} seconds`),
+  );
 });
 
 test("counts attempts run in the background as overlapping, up to the wait for the last", () => {
