@@ -26,7 +26,7 @@ export function WeighingPanel({
   return (
     <section
       aria-labelledby={titleId}
-      className="overflow-hidden rounded-lg border border-warning-soft bg-warning-subtle"
+      className="shrink-0 overflow-hidden rounded-lg border border-warning-soft bg-warning-subtle"
     >
       <div className="flex flex-col gap-4 p-6">
         <div className="flex items-start gap-4">
