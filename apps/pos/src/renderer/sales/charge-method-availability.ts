@@ -13,7 +13,7 @@ export type ChargeMethod =
 export const KEYED_CHARGE_METHODS = ["CASH", "POINT_DEBIT", "POINT_CREDIT", "QR"] as const;
 export type KeyedChargeMethod = (typeof KEYED_CHARGE_METHODS)[number];
 
-export type ChargeMethodState = { kind: "offered" } | { kind: "locked"; reason: string };
+type ChargeMethodState = { kind: "offered" } | { kind: "locked"; reason: string };
 
 export type ChargeMethodAvailability = Partial<Record<ChargeMethod, ChargeMethodState>>;
 
