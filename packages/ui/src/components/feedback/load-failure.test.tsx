@@ -4,7 +4,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import { tokenRgb } from "../../test/token-colors";
+import { paintedBoxShadowLayers, tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
 import {
@@ -96,15 +96,20 @@ test("announces just the title when there is no description", async () => {
   await expect.poll(() => region.textContent).toBe("No se pudo mostrar la pantalla");
 });
 
-test("draws the screen variant's Reintentar as a primary large button", async () => {
-  const screen = await render(
+function renderScreenVariant() {
+  return render(
     <LoadFailure
       variant="screen"
       icon={<ShieldX />}
       title="No se pudo mostrar la pantalla"
+      keycap="R"
       onRetry={() => {}}
     />,
   );
+}
+
+test("draws the screen variant's Reintentar as a primary large button", async () => {
+  const screen = await renderScreenVariant();
   const button = screen.getByRole("button", { name: "Reintentar" }).element() as HTMLElement;
   const style = getComputedStyle(button);
 
@@ -121,23 +126,73 @@ test("draws the screen variant's Reintentar as a primary large button", async ()
   expect(style.backgroundColor).not.toBe(tokenRgb("surface"));
 });
 
-test("stretches the screen variant's button to the notice's width, 16px below it", async () => {
-  const screen = await render(
-    <LoadFailure
-      variant="screen"
-      icon={<ShieldX />}
-      title="No se pudo mostrar la pantalla"
-      onRetry={() => {}}
-    />,
-  );
+test("shows the screen variant's title as the heading of an elevated card with an error badge", async () => {
+  const screen = await renderScreenVariant();
+
+  const heading = screen
+    .getByRole("heading", { level: 1, name: "No se pudo mostrar la pantalla" })
+    .element() as HTMLElement;
+  const card = screen.container.firstElementChild as HTMLElement;
+  expect(card.contains(heading)).toBe(true);
+  expect(getComputedStyle(card).backgroundColor).toBe(tokenRgb("surface"));
+  expect(paintedBoxShadowLayers(card)).not.toEqual([]);
+  const badge = heading.previousElementSibling as HTMLElement;
+  expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("error-subtle"));
+  expect(badge.getAttribute("aria-hidden")).toBe("true");
+});
+
+test("announces the screen variant's failure as an alert", async () => {
+  const screen = await renderScreenVariant();
+
+  const region = screen.getByRole("alert").element();
+  await expect.poll(() => region.textContent).toBe("No se pudo mostrar la pantalla");
+});
+
+test("stretches the screen variant's button across the card, below its title", async () => {
+  const screen = await renderScreenVariant();
 
   const button = screen.getByRole("button", { name: "Reintentar" }).element();
-  const notice = screen.getByRole("alert").element().parentElement as HTMLElement;
-  const noticeRect = notice.getBoundingClientRect();
+  const titleRow = screen.getByRole("heading").element().parentElement as HTMLElement;
   const buttonRect = button.getBoundingClientRect();
-  expect(buttonRect.top).toBe(noticeRect.bottom + 16);
-  expect(buttonRect.left).toBe(noticeRect.left);
-  expect(buttonRect.width).toBe(noticeRect.width);
+  const titleRect = titleRow.getBoundingClientRect();
+  expect(buttonRect.top).toBeGreaterThan(titleRect.bottom);
+  expect(buttonRect.left).toBe(titleRect.left);
+  expect(buttonRect.width).toBe(titleRect.width);
+});
+
+test("shows the key the app gives on the screen variant's Reintentar", async () => {
+  const screen = await renderScreenVariant();
+
+  const button = screen.getByRole("button", { name: "Reintentar" }).element();
+  expect(button.querySelector("kbd")?.textContent).toBe("R");
+});
+
+test("shows the screen variant's retry icon before Reintentar", async () => {
+  const screen = await renderScreenVariant();
+
+  const button = screen.getByRole("button", { name: "Reintentar" }).element();
+  const icon = (button.querySelector("svg") as SVGSVGElement).getBoundingClientRect();
+  const text = document.createRange();
+  text.selectNodeContents(screen.getByText("Reintentar", { exact: true }).element());
+  expect(icon.right).toBeLessThanOrEqual(text.getBoundingClientRect().left);
+});
+
+test("requires the screen variant's retry key, which the section variant does not take", () => {
+  expectTypeOf<{
+    variant: "screen";
+    icon: Icon;
+    title: string;
+    onRetry: () => void;
+  }>().not.toExtend<ComponentProps<typeof LoadFailure>>();
+  expectTypeOf<{
+    variant: "screen";
+    icon: Icon;
+    title: string;
+    keycap: "R";
+    onRetry: () => void;
+  }>().toExtend<ComponentProps<typeof LoadFailure>>();
+  expectTypeOf<LoadFailureProps>().not.toHaveProperty("keycap");
+  expectTypeOf<"screen">().not.toExtend<LoadFailureVariant>();
 });
 
 test("keeps the section variant's medium secondary button as wide as its label", async () => {
@@ -158,14 +213,7 @@ test("keeps the section variant's medium secondary button as wide as its label",
 });
 
 test("has no accessibility violations in the screen variant", async () => {
-  const screen = await render(
-    <LoadFailure
-      variant="screen"
-      icon={<ShieldX />}
-      title="No se pudo mostrar la pantalla"
-      onRetry={() => {}}
-    />,
-  );
+  const screen = await renderScreenVariant();
 
   await expectNoAccessibilityViolations(screen.container);
 });
