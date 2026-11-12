@@ -12,7 +12,7 @@ export type LineItemListProps = {
 
 export function LineItemList({ label, items }: LineItemListProps) {
   return (
-    <ul aria-label={label} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 gap-y-2">
+    <ul aria-label={label} className="grid grid-cols-line-items gap-x-4 gap-y-2">
       {items.map(({ id, name, quantity, amount }) => (
         <li key={id} className="col-span-3 grid grid-cols-subgrid items-baseline">
           <span className="min-w-0 break-words text-body text-text">{name}</span>
