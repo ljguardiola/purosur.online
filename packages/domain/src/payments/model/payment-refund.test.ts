@@ -22,10 +22,12 @@ import {
   RETURN_REFUND_ORIGIN,
   refundAlertKind,
   refundableAmount,
+  refundedAtRegisterNow,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "./payment-refund.js";
+import { PAYMENT_METHODS } from "./payment.js";
 
 const CASH = {
   id: "pay-1",
@@ -510,5 +512,54 @@ describe("exceedsRefundable", () => {
 
   it("refuses any refund once the payment is fully refunded", () => {
     expect(exceedsRefundable(1, 2450, 2450)).toBe(true);
+  });
+});
+
+describe("refundedAtRegisterNow", () => {
+  const refund = (method: PlannedRefund["method"], amount: number): PlannedRefund => ({
+    paymentId: `pay-${method}-${amount}`,
+    method,
+    provider: "NONE",
+    amount,
+    state: plannedRefundState(method),
+  });
+
+  it("is zero when nothing is refunded", () => {
+    expect(refundedAtRegisterNow([])).toBe(0);
+  });
+
+  it("counts the cash handed back on the spot", () => {
+    expect(refundedAtRegisterNow([refund("CASH", 5000), refund("CASH", 250)])).toBe(5250);
+  });
+
+  it("leaves out the refunds that stay pending", () => {
+    expect(
+      refundedAtRegisterNow([refund("CASH", 5000), refund("QR", 10000), refund("TRANSFER", 700)]),
+    ).toBe(5000);
+  });
+
+  it("leaves out a cash refund that is not done", () => {
+    expect(refundedAtRegisterNow([{ ...refund("CASH", 5000), state: "PENDING" }])).toBe(0);
+  });
+
+  it("sums the refunds of the cash payments of any sale", () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            method: fc.constantFrom(...PAYMENT_METHODS),
+            amount: fc.integer({ min: 1, max: 1_000_000 }),
+          }),
+        ),
+        (payments) => {
+          const refunds = payments.map(({ method, amount }) => refund(method, amount));
+          const cashTotal = payments
+            .filter(({ method }) => method === "CASH")
+            .reduce((sum, { amount }) => sum + amount, 0);
+
+          expect(refundedAtRegisterNow(refunds)).toBe(cashTotal);
+        },
+      ),
+    );
   });
 });
