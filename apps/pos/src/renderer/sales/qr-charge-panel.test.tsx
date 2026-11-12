@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { QrChargeModal } from "./qr-charge-modal";
+import { QrChargePanel } from "./qr-charge-panel";
 import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
 
 const TOTAL = 5_070_000;
@@ -36,7 +36,7 @@ async function renderModal(
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <QrChargeModal {...sale} minimum={MINIMUM} start={startCharge} {...callbacks} />,
+    <QrChargePanel {...sale} minimum={MINIMUM} start={startCharge} {...callbacks} />,
   );
   return {
     screen,
@@ -47,7 +47,7 @@ async function renderModal(
   };
 }
 
-describe("QrChargeModal", () => {
+describe("QrChargePanel", () => {
   it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
     const { screen } = await renderModal();
 

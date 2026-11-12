@@ -6,8 +6,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { ShownQrOrder } from "./qr-charge-modal";
-import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
+import type { ShownQrOrder } from "./qr-charge-panel";
+import { QrPaymentWaitPanel } from "./qr-payment-wait-panel";
 
 const TOTAL = 5_070_000;
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
@@ -56,7 +56,7 @@ async function renderModal(
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <QrPaymentWaitModal
+    <QrPaymentWaitPanel
       total={TOTAL}
       paid={1_000_000}
       order={order}
@@ -68,7 +68,7 @@ async function renderModal(
   return { screen, followCharge, abandonCharge, callbacks };
 }
 
-describe("QrPaymentWaitModal", () => {
+describe("QrPaymentWaitPanel", () => {
   it("waits for the customer's payment showing what is owed, the order's steps and the time left", async () => {
     const { screen } = await renderModal();
 

@@ -29,7 +29,7 @@ const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro me
 
 export type ShownQrOrder = Extract<StartMercadoPagoChargeOutcome, { kind: "order_shown" }>;
 
-export type QrChargeModalProps = {
+export type QrChargePanelProps = {
   total: number;
   paid: number;
   pending: number;
@@ -41,7 +41,7 @@ export type QrChargeModalProps = {
   onSessionInvalid: () => void;
 };
 
-export function QrChargeModal({
+export function QrChargePanel({
   total,
   paid,
   pending,
@@ -51,7 +51,7 @@ export function QrChargeModal({
   onOrderShown,
   onSaleUnavailable,
   onSessionInvalid,
-}: QrChargeModalProps) {
+}: QrChargePanelProps) {
   const [notice, setNotice] = useState<string>();
   const { form, submit, submitting } = useRequestForm({
     defaultValues: { amount: formatAmountInput(pending) },

@@ -17,7 +17,7 @@ import {
 import { ArrowRight, CircleX, Info, Lock, QrCode, TimerOff, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { MercadoPagoPaidModal } from "./mercado-pago-paid-modal";
-import type { ShownQrOrder } from "./qr-charge-modal";
+import type { ShownQrOrder } from "./qr-charge-panel";
 import type { FollowedQrCharge } from "./sales-queries";
 import { useAbandonQrChargeMutation, useQrChargeQuery } from "./sales-queries";
 
@@ -27,7 +27,7 @@ export type CompletedQrPayment = Extract<FollowMercadoPagoChargeOutcome, { kind:
 
 type PaidQrCharge = Extract<FollowedQrCharge, { kind: "completed" | "partially_paid" }>;
 
-export type QrPaymentWaitModalProps = {
+export type QrPaymentWaitPanelProps = {
   total: number;
   paid: number;
   order: ShownQrOrder;
@@ -41,7 +41,7 @@ export type QrPaymentWaitModalProps = {
   onSessionInvalid: () => void;
 };
 
-export function QrPaymentWaitModal({
+export function QrPaymentWaitPanel({
   total,
   paid,
   order,
@@ -53,7 +53,7 @@ export function QrPaymentWaitModal({
   onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
-}: QrPaymentWaitModalProps) {
+}: QrPaymentWaitPanelProps) {
   const abandonment = useAbandonQrChargeMutation(abandon);
   const unanswered =
     abandonment.data?.kind === "unavailable" ||

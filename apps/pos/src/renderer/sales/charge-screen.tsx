@@ -47,9 +47,9 @@ import { ChargePaymentPanel } from "./charge-payment-panel";
 import type { ShownPointOrder } from "./point-charge-modal";
 import { PointChargeModal } from "./point-charge-modal";
 import { PointPaymentWaitModal } from "./point-payment-wait-modal";
-import type { ShownQrOrder } from "./qr-charge-modal";
-import { QrChargeModal } from "./qr-charge-modal";
-import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
+import type { ShownQrOrder } from "./qr-charge-panel";
+import { QrChargePanel } from "./qr-charge-panel";
+import { QrPaymentWaitPanel } from "./qr-payment-wait-panel";
 import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
 import { LockedSaleLines } from "./sale-lines";
 import {
@@ -407,7 +407,7 @@ export function ChargeScreen({
         />
       ) : null}
       {sale !== undefined && step.name === "qr" && qrMinimum !== undefined ? (
-        <QrChargeModal
+        <QrChargePanel
           total={sale.total}
           paid={sale.paid}
           pending={sale.pending}
@@ -420,7 +420,7 @@ export function ChargeScreen({
         />
       ) : null}
       {step.name === "qr-wait" ? (
-        <QrPaymentWaitModal
+        <QrPaymentWaitPanel
           total={step.sale.total}
           paid={step.sale.paid}
           order={step.order}
