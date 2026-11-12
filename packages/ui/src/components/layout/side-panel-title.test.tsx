@@ -165,13 +165,11 @@ test("shows a named lock right after the title when given a lock label", async (
   const title = screen.getByRole("heading", { name: "Precio de la línea" }).element();
 
   await expect.element(lock).toBeVisible();
-  expect(title.contains(lock.element())).toBe(true);
-  const text = title.firstChild as Text;
-  const range = document.createRange();
-  range.selectNodeContents(text);
-  expect(lock.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(
-    range.getBoundingClientRect().right,
-  );
+  const text = document.createRange();
+  text.selectNodeContents(title);
+  const lockBox = lock.element().getBoundingClientRect();
+  expect(lockBox.left).toBeGreaterThanOrEqual(text.getBoundingClientRect().right);
+  expect(lockBox.left - text.getBoundingClientRect().right).toBeLessThan(16);
   await expectNoAccessibilityViolations(screen.container);
 });
 
