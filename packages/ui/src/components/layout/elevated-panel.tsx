@@ -7,7 +7,7 @@ import { type Tone, toneClassName } from "../shared/tone";
 import { Eyebrow } from "./eyebrow";
 
 export type ElevatedPanelProps = {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   icon: Icon;
   tone?: Extract<Tone, "info" | "error">;
@@ -26,7 +26,7 @@ export function ElevatedPanel({
   return (
     <div className="flex flex-col gap-5 rounded-lg bg-surface p-6 shadow-lg">
       <div className="flex flex-col gap-1">
-        <Eyebrow text={eyebrow} />
+        {eyebrow === undefined ? null : <Eyebrow text={eyebrow} />}
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"

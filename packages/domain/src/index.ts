@@ -474,7 +474,6 @@ export {
   registerNameLength,
 } from "./installation/index.js";
 export type {
-  ChargeCostMethod,
   ConfirmedByHandMethod,
   HandConfirmedPayment,
   LatePaymentRefund,
@@ -507,7 +506,6 @@ export type {
 } from "./payments/index.js";
 export {
   APPROVED_PAYMENT_STATE,
-  CHARGE_COST_METHODS,
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashAmountToCharge,
