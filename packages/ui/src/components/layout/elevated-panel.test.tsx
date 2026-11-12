@@ -43,6 +43,21 @@ test("shows the eyebrow in capitals, the title as the heading and the body", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("renders no eyebrow when it is not given one", async () => {
+  const screen = await render(
+    <ElevatedPanel title="Dar de alta esta caja" icon={<ShieldCheck />}>
+      <p>Cuerpo</p>
+    </ElevatedPanel>,
+  );
+
+  const titleBlock = screen.getByRole("heading").element().parentElement?.parentElement;
+  expect(titleBlock?.children).toHaveLength(1);
+  await expect
+    .element(screen.getByRole("heading", { level: 1, name: "Dar de alta esta caja" }))
+    .toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
 test("lifts the card off the page with a shadow, on the surface background", async () => {
   const screen = await renderPanel();
 
@@ -104,6 +119,14 @@ test("shows an Esc keycap button named by the app at the right of the title row"
   await userEvent.click(button);
   expect(onPress).toHaveBeenCalledOnce();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("takes no eyebrow", () => {
+  expectTypeOf<{
+    title: string;
+    icon: ElevatedPanelProps["icon"];
+    children: string;
+  }>().toExtend<ElevatedPanelProps>();
 });
 
 test("does not accept an Esc key without the name the app gives it", () => {

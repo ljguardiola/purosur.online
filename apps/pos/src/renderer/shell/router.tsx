@@ -1264,21 +1264,27 @@ const coreDownRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/core-down",
   beforeLoad: ({ context }) => requireRoute("/core-down", context),
-  component: CoreDownNotice,
+  component: function CoreDownNoticeRoute() {
+    return <CoreDownNotice version={useRegisterVersion()} />;
+  },
 });
 
 const updatingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/updating",
   beforeLoad: ({ context }) => requireRoute("/updating", context),
-  component: RegisterUpdatingNotice,
+  component: function RegisterUpdatingNoticeRoute() {
+    return <RegisterUpdatingNotice version={useRegisterVersion()} />;
+  },
 });
 
 const outOfServiceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/out-of-service",
   beforeLoad: ({ context }) => requireRoute("/out-of-service", context),
-  component: OutOfServiceScreen,
+  component: function OutOfServiceScreenRoute() {
+    return <OutOfServiceScreen version={useRegisterVersion()} />;
+  },
 });
 
 const restoringRoute = createRoute({
@@ -1353,7 +1359,9 @@ const olderVersionRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/older-version",
   beforeLoad: ({ context }) => requireRoute("/older-version", context),
-  component: OlderVersionScreen,
+  component: function OlderVersionScreenRoute() {
+    return <OlderVersionScreen version={useRegisterVersion()} />;
+  },
 });
 
 export const routeTree = rootRoute.addChildren([
