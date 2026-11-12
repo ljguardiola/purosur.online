@@ -1,5 +1,6 @@
 import type { CancelPaidSaleOutcome, CurrentSaleAnswer, OpenSale } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import {
   authorizationDialog,
   authorizeInModal,
@@ -17,6 +18,7 @@ const PAID_SALE: OpenSale = {
   ...SALE_OF_YERBA,
   paid: 100_000,
   pending: 376_000,
+  refund_now_on_cancel: 100_000,
   lines_lock: "approved_payment",
   cancel_refusal: null,
   refunds_on_cancel: [CASH_REFUND],
@@ -77,10 +79,26 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await expect.element(screen.getByRole("dialog", { name: "¿Cancelar la venta?" })).toBeVisible();
+    const panel = screen.getByRole("complementary", { name: "Cancelar venta" });
+    await expect.element(panel).toBeVisible();
+    await expect.element(panel.getByText("A DEVOLVER AHORA")).toBeVisible();
+    await expect.element(panel.getByText("$ 1.000,00").first()).toBeVisible();
+    await expect.element(panel.getByText("Efectivo · en el acto", { exact: true })).toBeVisible();
     await expect
-      .element(screen.getByText("Devolver $ 1.000,00 en efectivo", { exact: true }))
-      .toBeVisible();
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("locks the lines table while the panel is open and unlocks it when it closes", async () => {
+    const { screen } = await renderScreen({ currentSale: async () => PAID_SALE });
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await expect.element(screen.getByRole("img", { name: "Líneas bloqueadas" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+
+    await expect
+      .element(screen.getByRole("img", { name: "Líneas bloqueadas" }))
+      .not.toBeInTheDocument();
   });
 
   it("asks the core to cancel the sale shown and empties the cart", async () => {
@@ -92,7 +110,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     expect(cancelPaidSale).toHaveBeenCalledExactlyOnceWith("sale-1", undefined);
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
@@ -109,7 +127,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     });
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await screen.getByRole("button", { name: "Listo" }).click();
 
@@ -127,7 +145,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     });
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
     await expect
       .element(authorizationDialog().getByText("Cancelar venta con pagos", { exact: true }))
       .toBeVisible();
@@ -150,7 +168,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
@@ -164,7 +182,7 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     });
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
   });
@@ -174,9 +192,11 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     const { screen } = await renderScreen({ currentSale: async () => PAID_SALE, cancelPaidSale });
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await screen.getByRole("button", { name: "Seguir con la venta" }).click();
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
@@ -194,7 +214,9 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     await expect
       .element(screen.getByText("Esperá a que termine para cancelar la venta."))
       .toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
   });
 
   it("says it could not be cancelled when the core cannot answer whether it still refuses", async () => {
@@ -207,7 +229,9 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
   });
 
   it("keeps emptying a cart without payments without asking the core for a refund", async () => {
@@ -234,12 +258,11 @@ describe("SaleScreen cancelling a sale with an approved standalone terminal paym
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    const panel = screen.getByRole("complementary", { name: "Cancelar venta" });
     await expect
-      .element(
-        dialog.getByText("Reembolso pendiente del pago con la terminal independiente por $ 900,00"),
-      )
+      .element(panel.getByText("Terminal independiente · reembolso pendiente", { exact: true }))
       .toBeVisible();
+    await expect.element(panel.getByText("$ 900,00")).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 });
@@ -254,17 +277,11 @@ describe("SaleScreen cancelling a sale with an approved Mercado Pago QR payment"
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    const panel = screen.getByRole("complementary", { name: "Cancelar venta" });
     await expect
-      .element(dialog.getByText("Reembolso pendiente del pago con QR por $ 700,00"))
+      .element(panel.getByText("QR · reembolso pendiente", { exact: true }))
       .toBeVisible();
-    await expect
-      .element(
-        dialog.getByText(
-          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
-        ),
-      )
-      .toBeVisible();
+    await expect.element(panel.getByText("$ 700,00")).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 });
@@ -279,17 +296,11 @@ describe("SaleScreen cancelling a sale with an approved integrated terminal paym
 
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    const panel = screen.getByRole("complementary", { name: "Cancelar venta" });
     await expect
-      .element(dialog.getByText("Reembolso pendiente del pago con la terminal por $ 600,00"))
+      .element(panel.getByText("Point · reembolso pendiente", { exact: true }))
       .toBeVisible();
-    await expect
-      .element(
-        dialog.getByText(
-          "La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
-        ),
-      )
-      .toBeVisible();
+    await expect.element(panel.getByText("$ 600,00")).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 
@@ -308,7 +319,7 @@ describe("SaleScreen cancelling a sale with an approved integrated terminal paym
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
 
     expect(cancelPaidSale).toHaveBeenCalledExactlyOnceWith("sale-1", undefined);
     const cancelled = screen.getByRole("dialog", { name: "Venta cancelada" });

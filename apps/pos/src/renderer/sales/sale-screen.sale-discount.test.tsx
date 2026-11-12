@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
 import {
+  chooseRadio,
   pressKeypad,
   QUESO,
   renderScreen,
@@ -23,6 +24,7 @@ import {
 } from "./test-support/sale-screen";
 
 const OPEN_DISCOUNT = "Aplicar descuento al total";
+const PANEL = "Descuento al total";
 const DISCOUNTED_SALE: OpenSale = {
   ...SALE_OF_YERBA,
   sale_discount: { kind: "PERCENT", value: 5, amount: 23_800 },
@@ -41,9 +43,8 @@ const REMOVED_TITLE = "Se quitó el descuento sobre el total porque cambió una 
 const REMOVED_HELP = "Volvé a aplicarlo si corresponde.";
 
 async function applyFivePercent(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "5");
-  await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cliente frecuente");
-  await userEvent.click(screen.getByRole("button", { name: "Aplicar el descuento" }));
+  await userEvent.fill(screen.getByRole("textbox", { name: "DESCUENTO" }), "5");
+  await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
 }
 
 describe("SaleScreen showing the discount on the total", () => {
@@ -56,8 +57,8 @@ describe("SaleScreen showing the discount on the total", () => {
   it("shows the discount the sale has, and charges the total the core answers", async () => {
     const { screen } = await renderScreen({ currentSale: async () => DISCOUNTED_SALE });
 
-    await expect.element(screen.getByText("Descuento sobre el total · 5 %")).toBeVisible();
-    await expect.element(screen.getByText("− $ 238,00")).toBeVisible();
+    await expect.element(screen.getByText("Descuento al total · 5 %")).toBeVisible();
+    await expect.element(screen.getByText("– $ 238,00")).toBeVisible();
     await expect.element(screen.getByText("$ 4.522,00").first()).toBeVisible();
   });
 
@@ -108,18 +109,18 @@ describe("SaleScreen showing the discount on the total", () => {
 });
 
 describe("SaleScreen applying a discount on the total", () => {
-  it("opens the modal naming the lines of the sale", async () => {
+  it("opens the panel in place of the charge panel", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR });
 
     await screen.getByRole("button", { name: OPEN_DISCOUNT }).click();
 
+    await expect.element(screen.getByRole("complementary", { name: PANEL })).toBeVisible();
     await expect
-      .element(screen.getByRole("dialog", { name: "Descuento sobre el total" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("VENTA EN CURSO · 2 LÍNEAS")).toBeVisible();
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
+      .not.toBeInTheDocument();
   });
 
-  it("sends the discount to the core, shows the sale it answers and closes the modal", async () => {
+  it("sends the discount to the core, shows the sale it answers and closes the panel", async () => {
     const applySaleDiscount = vi.fn(
       async (): Promise<ApplySaleDiscountOutcome> => ({ kind: "applied", sale: DISCOUNTED_SALE }),
     );
@@ -133,11 +134,13 @@ describe("SaleScreen applying a discount on the total", () => {
 
     expect(applySaleDiscount).toHaveBeenCalledExactlyOnceWith(
       { kind: "PERCENT", value: 5 },
-      "Cliente frecuente",
+      "Cortesía",
       undefined,
     );
-    await expect.element(screen.getByText("Descuento sobre el total · 5 %")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Descuento al total · 5 %")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
   });
 
   it("asks the core what the typed discount would leave the sale at and shows its answer", async () => {
@@ -155,10 +158,10 @@ describe("SaleScreen applying a discount on the total", () => {
     });
     await screen.getByRole("button", { name: OPEN_DISCOUNT }).click();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "5");
+    await userEvent.fill(screen.getByRole("textbox", { name: "DESCUENTO" }), "5");
 
     expect(previewSaleDiscount).toHaveBeenLastCalledWith({ kind: "PERCENT", value: 5 });
-    await expect.element(screen.getByText("− $ 238,00")).toBeVisible();
+    await expect.element(screen.getByText("– $ 238,00")).toBeVisible();
   });
 
   it("asks someone with permission to authorize it when the sale requires it", async () => {
@@ -172,13 +175,13 @@ describe("SaleScreen applying a discount on the total", () => {
     await applyFivePercent(screen);
 
     await expect
-      .element(authorizationDialog().getByText("Descuento sobre el total", { exact: true }))
+      .element(authorizationDialog().getByText("Descuento al total", { exact: true }))
       .toBeVisible();
     await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
     expect(loadAuthorizers).toHaveBeenCalledWith("apply_total_discount");
   });
 
-  it("closes the modal and reads the sale again when the sale is gone", async () => {
+  it("closes the panel and reads the sale again when the sale is gone", async () => {
     const currentSale = vi.fn(async () => SALE_OF_YERBA);
     const { screen } = await renderScreen({
       currentSale,
@@ -188,7 +191,9 @@ describe("SaleScreen applying a discount on the total", () => {
 
     await applyFivePercent(screen);
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
     await expect.poll(() => currentSale.mock.calls.length).toBe(2);
   });
 
@@ -206,13 +211,19 @@ describe("SaleScreen applying a discount on the total", () => {
     await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
   });
 
-  it("closes the modal from Volver", async () => {
+  it("closes the panel from Esc and brings back the charge panel", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
     await screen.getByRole("button", { name: OPEN_DISCOUNT }).click();
 
-    await screen.getByRole("button", { name: "Volver" }).click();
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
+      .toBeVisible();
+
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
   });
 });
 
@@ -369,12 +380,14 @@ describe("SaleScreen telling the discount on the total was removed", () => {
       }),
     });
     await screen.getByRole("button", { name: "Cambiar el precio de Yerba mate 1 kg" }).click();
-    await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "10");
-    await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Envase dañado");
+    await chooseRadio(screen, "Descuento %");
+    await userEvent.fill(screen.getByRole("textbox", { name: "DESCUENTO" }), "10");
 
-    await userEvent.click(screen.getByRole("button", { name: "Aplicar el descuento" }));
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
 
     await expect.element(screen.getByText(REMOVED_TITLE)).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
   });
 });

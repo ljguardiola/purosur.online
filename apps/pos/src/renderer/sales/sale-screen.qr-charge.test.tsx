@@ -61,7 +61,9 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
     await expect
       .element(screen.getByText("Esperá a que termine para vaciar el carrito."))
       .toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
+      .not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     expect(cancelSale).not.toHaveBeenCalled();
     expect(cancelPaidSale).not.toHaveBeenCalled();
@@ -75,7 +77,7 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
 
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect.element(screen.getByRole("complementary", { name: "Vaciar venta" })).toBeVisible();
     await expect
       .element(screen.getByText("Hay un cobro con Mercado Pago en curso"))
       .not.toBeInTheDocument();
@@ -93,7 +95,9 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
     await expect.element(screen.getByText("No se pudo vaciar el carrito")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
+      .not.toBeInTheDocument();
     expect(cancelSale).not.toHaveBeenCalled();
   });
 });

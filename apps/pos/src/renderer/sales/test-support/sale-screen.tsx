@@ -307,3 +307,18 @@ export const SALE_OF_FOUR_LINES: OpenSale = {
   gross_subtotal: 2_519_250,
   subtotal: 2_519_250,
 };
+
+export async function chooseRadio(
+  screen: Awaited<ReturnType<typeof renderScreen>>["screen"],
+  name: string,
+) {
+  const label = screen.getByRole("radio", { name }).element().closest("label");
+  if (label === null) {
+    throw new Error(`no label found for the option ${name}`);
+  }
+  await userEvent.click(label);
+}
+
+export function legendOf() {
+  return Array.from(document.querySelectorAll("main ul li"), (item) => item.textContent);
+}

@@ -6,6 +6,7 @@ import type {
 } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   ALFAJOR,
@@ -398,7 +399,7 @@ describe("SaleScreen cancelling the sale", () => {
       .not.toBeInTheDocument();
   });
 
-  it("asks for confirmation with what would be discarded", async () => {
+  it("asks for confirmation in place of the charge panel, with what would be discarded", async () => {
     const cancelSale = vi.fn();
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR,
@@ -407,24 +408,20 @@ describe("SaleScreen cancelling the sale", () => {
 
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    const dialog = screen.getByRole("dialog", { name: "¿Vaciar el carrito?" });
-    await expect.element(dialog).toBeVisible();
-    await expect.element(dialog.getByText("Venta en curso · Sin pagos")).toBeVisible();
-    await expect.element(dialog.getByText("Líneas en el carrito")).toBeVisible();
-    await expect.element(dialog.getByText("2", { exact: true })).toBeVisible();
-    await expect.element(dialog.getByText("Total", { exact: true })).toBeVisible();
+    const panel = screen.getByRole("complementary", { name: "Vaciar venta" });
+    await expect.element(panel).toBeVisible();
+    await expect.element(panel.getByText("TOTAL", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("$ 6.260,00")).toBeVisible();
+    await expect.element(panel.getByText("Artículos", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("2", { exact: true })).toBeVisible();
     await expect
-      .element(
-        dialog.getByText(
-          "Se vacía el carrito y no se cobra nada. La mercadería no sale del stock.",
-        ),
-      )
-      .toBeVisible();
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
+      .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(document.body);
     expect(cancelSale).not.toHaveBeenCalled();
   });
 
-  it("goes on with the sale when asked to", async () => {
+  it("goes on with the sale when closed with Esc", async () => {
     const cancelSale = vi.fn();
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
@@ -432,9 +429,11 @@ describe("SaleScreen cancelling the sale", () => {
     });
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await screen.getByRole("button", { name: "Seguir con la venta" }).click();
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     expect(cancelSale).not.toHaveBeenCalled();
   });
@@ -447,10 +446,12 @@ describe("SaleScreen cancelling the sale", () => {
     });
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
+      .not.toBeInTheDocument();
     await expect.element(field).toHaveFocus();
     expect(cancelSale).toHaveBeenCalledOnce();
   });
@@ -462,10 +463,12 @@ describe("SaleScreen cancelling the sale", () => {
     });
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText("No se pudo vaciar el carrito")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
@@ -476,7 +479,7 @@ describe("SaleScreen cancelling the sale", () => {
     });
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText("No se puede vaciar el carrito")).toBeVisible();
     await expect.element(screen.getByText("Ya tiene un pago aprobado.")).toBeVisible();
@@ -491,7 +494,7 @@ describe("SaleScreen cancelling the sale", () => {
     });
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
@@ -500,13 +503,29 @@ describe("SaleScreen cancelling the sale", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
-  it("does not take the focus from the dialog while it is open", async () => {
+  it("does not take the focus from the panel while it is open", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    const keep = screen.getByRole("button", { name: "Seguir con la venta" });
-    await keep.element().focus();
+    const empty = screen.getByRole("button", { name: "Vaciar venta" });
+    await empty.element().focus();
 
-    await expect.element(keep).toHaveFocus();
+    await expect.element(empty).toHaveFocus();
+  });
+
+  it("empties the sale on Enter and closes the panel on Esc, giving the scan field the focus back", async () => {
+    const cancelSale = vi.fn(async (): Promise<CancelSaleOutcome> => ({ kind: "cancelled" }));
+    const { screen, field } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA,
+      cancelSale,
+    });
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(field).toHaveFocus();
+    await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => cancelSale.mock.calls.length).toBe(1);
   });
 });
