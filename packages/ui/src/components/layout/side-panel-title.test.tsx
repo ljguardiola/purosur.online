@@ -80,6 +80,14 @@ test("takes nothing else to draw beside its title", () => {
   expectTypeOf<SidePanelTitleProps>().not.toHaveProperty("children");
 });
 
+test("takes a lock label a caller may not have", () => {
+  expectTypeOf<{
+    icon: SidePanelTitleProps["icon"];
+    title: string;
+    lockLabel: string | undefined;
+  }>().toExtend<SidePanelTitleProps>();
+});
+
 test("colors the icon badge by its tone", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "480px", justifyContent: "flex-end" }}>
