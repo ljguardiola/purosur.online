@@ -25,12 +25,12 @@ test("shows the reading under the title in the regular text color once it settle
   expect(getComputedStyle(screen.getByText("0,172 kg").element()).color).toBe(tokenRgb("text"));
 });
 
-test("draws the reading grey while it has not settled", async () => {
+test("dims the reading like a disabled control while it has not settled", async () => {
   const screen = await render(<ScaleCard reading={{ value: "0,238 kg", settled: false }} />);
 
-  expect(getComputedStyle(screen.getByText("0,238 kg").element()).color).toBe(
-    tokenRgb("text-subtle"),
-  );
+  const style = getComputedStyle(screen.getByText("0,238 kg").element());
+  expect(style.color).toBe(tokenRgb("text"));
+  expect(style.opacity).toBe("0.45");
   await expectNoAccessibilityViolations(screen.container);
 });
 
