@@ -28,7 +28,7 @@ describe("declineSaleReceipt", () => {
     expect(rig.ledger.transactions).toBe(1);
   });
 
-  it("records the decline of a factura C authorized in contingency", () => {
+  it("refuses to decline a factura C authorized in contingency, which always prints", () => {
     const rig = declineRig([
       saleWithFiscal({
         kind: "offline_authorized",
@@ -36,8 +36,8 @@ describe("declineSaleReceipt", () => {
       }),
     ]);
 
-    expect(rig.decline()).toEqual({ kind: "declined" });
-    expect(rig.ledger.state.sales[0]?.printDeclinedAt).toEqual(FIRST_PRINT_AT);
+    expect(rig.decline()).toEqual({ kind: "not_awaiting" });
+    expect(rig.ledger.state.sales[0]?.printDeclinedAt).toBeUndefined();
   });
 
   it("answers declined again without moving the recorded time when it was already declined", () => {
