@@ -75,6 +75,10 @@ describe("SaleScreen charging by keys", () => {
   });
 });
 
+function payment(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
+  return screen.getByRole("complementary", { name: "Panel de cobro" });
+}
+
 describe("SaleScreen when the core answers a method is not offered for the total", () => {
   async function chargeableWith(availability: Partial<typeof AVAILABLE>) {
     const rendered = await renderScreen({
@@ -89,7 +93,7 @@ describe("SaleScreen when the core answers a method is not offered for the total
     const { screen } = await chargeableWith({ point: "below_minimum" });
 
     await expect
-      .element(screen.getByRole("status"))
+      .element(payment(screen).getByRole("status"))
       .toHaveTextContent("Point: no se ofrece para cobrar menos de $ 15,00");
     await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeDisabled();
@@ -109,7 +113,7 @@ describe("SaleScreen when the core answers a method is not offered for the total
     const { screen } = await chargeableWith({ point: "below_minimum", point_minimum: 2_500 });
 
     await expect
-      .element(screen.getByRole("status"))
+      .element(payment(screen).getByRole("status"))
       .toHaveTextContent("Point: no se ofrece para cobrar menos de $ 25,00");
   });
 
@@ -118,7 +122,7 @@ describe("SaleScreen when the core answers a method is not offered for the total
 
     await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
-    await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+    await expect.element(payment(screen).getByRole("status")).not.toBeInTheDocument();
 
     await userEvent.keyboard("{F11}");
     expect(screen.router.state.location.pathname).not.toBe("/charge");
@@ -134,7 +138,7 @@ describe("SaleScreen when the core answers a method is not offered for the total
       const { screen } = await chargeableWith({ point });
 
       await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
-      await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+      await expect.element(payment(screen).getByRole("status")).not.toBeInTheDocument();
     },
   );
 

@@ -203,12 +203,10 @@ describe("PointPaymentWaitPanel", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
       await expect
-        .element(
-          screen.getByText(
-            "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
-          ),
-        )
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent(
+          "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
+        );
       await expect.element(screen.getByRole("timer")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Esperando el pago")).not.toBeInTheDocument();
       const footer = screen.getByRole("button", { name: "Cambiar de medio" }).last();
@@ -230,12 +228,10 @@ describe("PointPaymentWaitPanel", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
       await expect
-        .element(
-          screen.getByText(
-            "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
-          ),
-        )
-        .toBeVisible();
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent(
+          "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
+        );
       await userEvent.keyboard("{Escape}");
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
@@ -261,8 +257,8 @@ describe("PointPaymentWaitPanel", () => {
         .toBeVisible();
       await expect.element(screen.getByText("Volvé a intentarlo en unos segundos.")).toBeVisible();
       await expect
-        .element(screen.getByRole("button", { name: "Reintentar" }))
-        .toHaveTextContent("R");
+        .poll(() => keycapOf(screen.getByRole("button", { name: "Reintentar" })))
+        .toBe("R");
       await expectNoAccessibilityViolations(screen.container);
 
       await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
