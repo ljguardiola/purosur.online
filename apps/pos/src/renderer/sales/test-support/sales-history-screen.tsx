@@ -1,6 +1,7 @@
 import type {
   Authorization,
   PrintCreditNoteOutcome,
+  PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
   ReprintSaleReceiptOutcome,
   SaleHistoryDetailOutcome,
@@ -129,6 +130,7 @@ export type Overrides = Partial<Pick<SalesHistoryScreenProps, "person" | "sessio
     reason: string,
     authorization: Authorization | undefined,
   ) => Promise<ReprintSaleReceiptOutcome>;
+  printDeferredSaleInvoice?: (saleId: string) => Promise<PrintDeferredSaleInvoiceOutcome>;
   voidSale?: (
     saleId: string,
     pendingRefundsConfirmed: boolean,
@@ -194,6 +196,13 @@ export async function renderScreen({
         copy: { kind: "duplicate", order_number: 1 },
       })),
   );
+  const printDeferredSaleInvoice = vi.fn(
+    overrides.printDeferredSaleInvoice ??
+      (async (): Promise<PrintDeferredSaleInvoiceOutcome> => ({
+        kind: "started",
+        copy: { kind: "original" },
+      })),
+  );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
   const screen = await render(
@@ -210,6 +219,7 @@ export async function renderScreen({
         printCreditNote={printCreditNote}
         reprintCreditNote={reprintCreditNote}
         reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
+        printDeferredSaleInvoice={printDeferredSaleInvoice}
         loadAuthorizers={async () => AUTHORIZERS}
         onSessionInvalid={onSessionInvalid}
       />
@@ -225,6 +235,7 @@ export async function renderScreen({
     printCreditNote,
     reprintCreditNote,
     reprintDeferredSaleInvoice,
+    printDeferredSaleInvoice,
     lock,
     onSessionInvalid,
   };
@@ -237,5 +248,21 @@ export function table(screen: Screen) {
 }
 
 export async function chooseSale(screen: Screen, time: string) {
-  await userEvent.click(screen.getByRole("button", { name: `Ver la venta de las ${time}` }));
+  await userEvent.click(table(screen).getByText(time, { exact: true }));
+}
+
+export function legendOf(screen: Screen): string[] {
+  return screen
+    .getByRole("listitem")
+    .elements()
+    .filter((item) => item.querySelector("kbd") !== null && item.closest("table") === null)
+    .map((item) => item.textContent.trim());
+}
+
+export function searchField(screen: Screen) {
+  return screen.getByRole("searchbox", { name: "Escribí el número del comprobante" });
+}
+
+export function detailPanel(screen: Screen) {
+  return screen.getByRole("complementary", { name: "Detalle de la venta" });
 }
