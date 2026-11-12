@@ -6,7 +6,7 @@ export type CountdownCardProps = {
   remainingSeconds: number;
   totalSeconds: number;
   label: string;
-  tone?: "info" | "danger";
+  tone?: Extract<Tone, "info" | "error">;
 };
 
 const VIEW_SIZE = 40;
@@ -16,7 +16,7 @@ const ARC_LENGTH = 100;
 
 const toneOf = {
   info: { tone: "info", arc: "stroke-info" },
-  danger: { tone: "error", arc: "stroke-error" },
+  error: { tone: "error", arc: "stroke-error" },
 } as const satisfies Record<NonNullable<CountdownCardProps["tone"]>, { tone: Tone; arc: string }>;
 
 export function CountdownCard({
