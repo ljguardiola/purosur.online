@@ -97,6 +97,17 @@ export const Weight: Story = {
   args: { kind: "weight", label: "Peso en kilos", value: "", onChange: () => {}, suffix: "kg" },
 };
 
+export const QuantityWithKeycap: Story = {
+  args: {
+    kind: "quantity",
+    label: "Cantidad contada",
+    value: "24",
+    onChange: () => {},
+    suffix: "u",
+    labelKeycap: "Digits",
+  },
+};
+
 export const Quantity: Story = {
   args: {
     kind: "quantity",

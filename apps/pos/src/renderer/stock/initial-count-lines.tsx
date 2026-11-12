@@ -1,19 +1,16 @@
 import type { InitialCountLine } from "@purosur/contracts";
-import type { TableLoadingState } from "@purosur/ui";
-import {
-  actionsColumn,
-  dataColumn,
-  formatCalendarDayNumeric,
-  Table,
-  useTableModel,
-} from "@purosur/ui";
-import { Calendar, ClipboardList, Trash2, TriangleAlert } from "lucide-react";
+import type { Icon, KeyLegendItem, TableLoadingState } from "@purosur/ui";
+import { dataColumn, formatCalendarDayNumeric, Table, useTableModel } from "@purosur/ui";
+import { ClipboardList, TriangleAlert } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
-import { countedText, linesText } from "./initial-count-text";
+import { countedText } from "./initial-count-text";
 
 export type InitialCountLinesProps = {
   state: CoreData<InitialCountLine[]>;
-  onWithdraw: (line: InitialCountLine) => void;
+  selectedLineId: string | undefined;
+  legend: readonly KeyLegendItem[];
+  onSelect: (line: InitialCountLine) => void;
+  unavailable?: { icon: Icon; title: string };
 };
 
 function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
@@ -27,15 +24,18 @@ function ExpiryCell({ expiresOn }: { expiresOn: string | null }) {
   return expiresOn === null ? (
     <span className="text-text-subtle">— Sin vencimiento</span>
   ) : (
-    <span className="flex items-center gap-2">
-      <Calendar aria-hidden="true" className="size-icon-md text-text-subtle" />
-      {formatCalendarDayNumeric(expiresOn)}
-    </span>
+    formatCalendarDayNumeric(expiresOn)
   );
 }
 
-export function InitialCountLines({ state, onWithdraw }: InitialCountLinesProps) {
-  const lines = state.status === "loaded" ? state.value : [];
+export function InitialCountLines({
+  state,
+  selectedLineId,
+  legend,
+  onSelect,
+  unavailable,
+}: InitialCountLinesProps) {
+  const lines = state.status === "loaded" && unavailable === undefined ? state.value : [];
   const table = useTableModel({
     items: lines,
     id: (line) => line.movement_id,
@@ -56,47 +56,36 @@ export function InitialCountLines({ state, onWithdraw }: InitialCountLinesProps)
         align: "end",
         render: (line: InitialCountLine) => countedText(line),
       }),
-      actionsColumn({
-        id: "actions",
-        header: "Acciones de la línea",
-        actions: [
-          (line: InitialCountLine) => ({
-            icon: <Trash2 />,
-            "aria-label": `Quitar ${line.product_name}`,
-            onPress: () => onWithdraw(line),
-          }),
-        ],
-      }),
     ] as const,
   });
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-      <Table
-        aria-label="Líneas cargadas"
-        table={table}
-        {...(state.status === "failed"
-          ? {
-              failure: {
-                icon: <TriangleAlert />,
-                title: "No se pudo leer lo cargado",
-                description: "Volvé a intentarlo en unos segundos.",
-                onRetry: state.retry,
-              },
-            }
-          : { loading: loadingOf(state) })}
-        empty={{
-          icon: <ClipboardList />,
-          title: "Todavía no cargaste ninguna línea",
-          description: "Escaneá un producto o buscalo por nombre para cargar la primera.",
-          variant: "blank",
-        }}
-        footer={
-          lines.length === 0 ? undefined : (
-            <p className="text-detail text-text-subtle">{linesText(lines.length)}</p>
-          )
-        }
-      />
-    </div>
+    <Table
+      aria-label="Líneas cargadas"
+      table={table}
+      fill
+      emptyKeepsHeaders
+      {...(legend.length === 0 ? {} : { legend })}
+      rowState={(line) => (line.movement_id === selectedLineId ? "selected" : undefined)}
+      onRowPress={onSelect}
+      {...(state.status === "failed" && unavailable === undefined
+        ? {
+            failure: {
+              icon: <TriangleAlert />,
+              title: "No se pudo leer lo cargado",
+              description: "Volvé a intentarlo en unos segundos.",
+              onRetry: state.retry,
+            },
+          }
+        : {
+            loading:
+              state.status === "failed" || unavailable !== undefined ? false : loadingOf(state),
+          })}
+      empty={{
+        icon: unavailable === undefined ? <ClipboardList /> : unavailable.icon,
+        title: unavailable === undefined ? "Todavía no cargaste ninguna línea" : unavailable.title,
+        variant: "blank",
+      }}
+    />
   );
 }

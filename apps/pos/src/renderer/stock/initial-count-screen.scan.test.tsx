@@ -29,23 +29,27 @@ function results(
 }
 
 describe("InitialCountScreen scanning and searching the product to count", () => {
-  it("opens the window to count the product of a code that is typed", async () => {
+  it("opens the panel to count the product of a code that is typed", async () => {
     const findCountableProduct = vi.fn(async () => FOUND_YERBA);
     const { screen, field } = await renderScreen({ findCountableProduct });
 
     await scan(field, " 7790001 ");
 
-    await expect.element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+      .toBeVisible();
     expect(findCountableProduct.mock.calls).toEqual([["7790001"]]);
   });
 
-  it("opens the window to count the product of a code the reader reads", async () => {
+  it("opens the panel to count the product of a code the reader reads", async () => {
     const findCountableProduct = vi.fn(async () => FOUND_YERBA);
     const { screen, readBarcode } = await renderScreen({ findCountableProduct });
 
     readBarcode("7790001");
 
-    await expect.element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+      .toBeVisible();
     expect(findCountableProduct.mock.calls).toEqual([["7790001"]]);
   });
 
@@ -63,7 +67,7 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     expect(findCountableProduct).not.toHaveBeenCalled();
   });
 
-  it("reads the count again and shows the new line once the window records it", async () => {
+  it("reads the count again and shows the new line once the panel records it", async () => {
     const readInitialCount = vi
       .fn<() => Promise<ReadInitialCountOutcome>>()
       .mockResolvedValueOnce(readOf([]))
@@ -83,12 +87,14 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     await userEvent.click(screen.getByRole("button", { name: "Confirmar línea" }));
 
     await expect.element(screen.getByRole("cell", { name: "Yerba mate 1 kg" })).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+      .not.toBeInTheDocument();
     expect(recordInitialCountLine).toHaveBeenCalledWith("p2", 24_000, null);
     await expect.element(field).toHaveValue("");
   });
 
-  it("closes the window without recording when it is cancelled", async () => {
+  it("closes the panel without recording when it is cancelled", async () => {
     const { screen, field, recordInitialCountLine } = await renderScreen({
       findCountableProduct: vi.fn(async () => FOUND_YERBA),
     });
@@ -96,7 +102,7 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
 
     await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Cargado hasta ahora")).toBeVisible();
     expect(recordInitialCountLine).not.toHaveBeenCalled();
   });
 
@@ -108,7 +114,7 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     await scan(field, "7790001");
 
     await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Cargado hasta ahora")).toBeVisible();
   });
 
   it("tells the person may not count when the core refuses the code", async () => {
@@ -171,7 +177,22 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     expect(findCountableProduct).not.toHaveBeenCalled();
   });
 
-  it("opens the window to count the product chosen from the results", async () => {
+  it("closes the results with Esc after a click elsewhere, staying on the screen", async () => {
+    const { screen, field } = await renderScreen({
+      searchCountableProducts: vi.fn(async () => results(YERBA_PRODUCT)),
+    });
+    await screen.router.navigate({ to: "/initial-count" });
+    await field.fill("yer");
+    await expect.element(screen.getByRole("listbox")).toBeVisible();
+    await userEvent.click(screen.getByText("Inventario inicial", { exact: true }).first());
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+    expect(screen.router.state.location.pathname).toBe("/initial-count");
+  });
+
+  it("opens the panel to count the product chosen from the results", async () => {
     const { screen, field } = await renderScreen({
       searchCountableProducts: vi.fn(async () => results(QUESO_PRODUCT, YERBA_PRODUCT)),
     });
@@ -179,10 +200,12 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
 
     await userEvent.click(screen.getByRole("option", { name: /Yerba mate 1 kg/ }));
 
-    await expect.element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+      .toBeVisible();
   });
 
-  it("opens the window to count the first result with Enter, after moving with the arrows", async () => {
+  it("opens the panel to count the first result with Enter, after moving with the arrows", async () => {
     const { screen, field } = await renderScreen({
       searchCountableProducts: vi.fn(async () => results(QUESO_PRODUCT, YERBA_PRODUCT)),
     });
@@ -191,7 +214,9 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
 
     await userEvent.keyboard("{ArrowDown}{Enter}");
 
-    await expect.element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+      .toBeVisible();
   });
 
   it("leaves the arrows and Enter to another focused control, without moving or choosing a result", async () => {
@@ -211,7 +236,7 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
       .element(screen.getByRole("option").nth(0))
       .toHaveAttribute("aria-selected", "true");
     await expect
-      .element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" }))
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
       .not.toBeInTheDocument();
   });
 
@@ -251,13 +276,15 @@ describe("InitialCountScreen scanning and searching the product to count", () =>
     await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
   });
 
-  it("keeps the lines already counted in view behind the window", async () => {
+  it("keeps the lines already counted in view beside the panel", async () => {
     const { screen, field } = await renderScreen({
       readInitialCount: vi.fn(async () => readOf([QUESO_LINE])),
       findCountableProduct: vi.fn(async () => FOUND_YERBA),
     });
     await scan(field, "7790001");
 
-    await expect.element(screen.getByRole("dialog", { name: "Yerba mate 1 kg" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+      .toBeVisible();
   });
 });

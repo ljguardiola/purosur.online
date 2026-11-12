@@ -219,3 +219,37 @@ test("keeps every row the same height when the selection moves", async () => {
 
   expect(new Set(heights.flat()).size).toBe(1);
 });
+
+test("keeps the column headers over a centered empty state when asked to", async () => {
+  const screen = await render(
+    <div style={{ height: 480, width: 600 }}>
+      <LinesTable fill emptyKeepsHeaders items={[]} empty={emptyState} />
+    </div>,
+  );
+
+  expect(screen.getByRole("columnheader").elements()).toHaveLength(2);
+  const cardBox = card(screen.getByRole("table").element()).getBoundingClientRect();
+  const headerBox = screen.getByRole("columnheader").first().element().getBoundingClientRect();
+  const title = screen.getByText("La venta está vacía").element();
+  const blockBox = (title.parentElement as HTMLElement).getBoundingClientRect();
+  const bodyTop = headerBox.bottom;
+  const above = blockBox.top - bodyTop;
+  const below = cardBox.bottom - blockBox.bottom;
+  expect(Math.abs(above - below)).toBeLessThanOrEqual(2);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the legend at the bottom under a headed empty state", async () => {
+  const screen = await render(
+    <div style={{ height: 480, width: 600 }}>
+      <LinesTable fill emptyKeepsHeaders items={[]} empty={emptyState} legend={legend} />
+    </div>,
+  );
+
+  const cardBox = card(screen.getByRole("table").element()).getBoundingClientRect();
+  const footerBox = (
+    screen.getByRole("list").element().parentElement as HTMLElement
+  ).getBoundingClientRect();
+  expect(cardBox.bottom - footerBox.bottom).toBeLessThanOrEqual(1);
+  expect(screen.getByRole("columnheader").elements()).toHaveLength(2);
+});
