@@ -9,7 +9,7 @@ export type SidePanelTitleProps = {
   icon: Icon;
   title: string;
   tone?: "neutral" | "warning" | "error";
-  lockLabel?: string;
+  lockLabel?: string | undefined;
   onClose?: (() => void) | undefined;
   closeDisabled?: boolean;
 };
