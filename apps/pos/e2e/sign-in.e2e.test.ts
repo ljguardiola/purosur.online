@@ -66,7 +66,7 @@ describe("signing in to the register", () => {
     const { page } = register;
     await page.getByText("Todavía nadie ingresó en esta caja.", { exact: true }).waitFor();
 
-    await page.getByRole("link", { name: "Primer ingreso" }).click();
+    await page.getByRole("button", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
 

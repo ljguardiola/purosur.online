@@ -50,7 +50,7 @@ describe("the register's serial devices", () => {
       await register.launch();
       const { page } = register;
 
-      await page.getByRole("link", { name: "Primer ingreso" }).click();
+      await page.getByRole("button", { name: "Primer ingreso" }).click();
       await page.getByLabel("Correo").fill(LINUS_EMAIL);
       await page.getByRole("button", { name: "Continuar" }).click();
       await page.getByLabel("PIN").fill("4821");

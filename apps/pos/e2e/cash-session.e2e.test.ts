@@ -55,7 +55,7 @@ describe("the register's cash session", () => {
 
   it("opens with a float and, after a restart, comes back locked until the opener's PIN resumes it", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Primer ingreso" }).click();
+    await page.getByRole("button", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");
