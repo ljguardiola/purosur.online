@@ -20,19 +20,9 @@ import type {
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, PointCardType } from "@purosur/domain";
-import {
-  formatCents,
-  formatNumber,
-  InlineNotice,
-  LoadFailure,
-  LoadingPlaceholder,
-  OptionCardGroup,
-  plural,
-  ScreenHeader,
-  SearchField,
-} from "@purosur/ui";
+import { LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Info, ScanBarcode, TriangleAlert } from "lucide-react";
+import { ScanBarcode, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MercadoPagoChargeKind } from "../platform/core-client";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -41,9 +31,11 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashChargePanel } from "./cash-charge-panel";
 import type { CompletedPayment } from "./charge-completed-modal";
 import { ChargeCompletedModal } from "./charge-completed-modal";
-import type { ChargeMethod } from "./charge-method-options";
-import { chargeMethodOptions } from "./charge-method-options";
+import type { ChargeMethod, KeyedChargeMethod } from "./charge-method-options";
+import { chargeMethodAvailability } from "./charge-method-options";
 import { ChargePaymentPanel } from "./charge-payment-panel";
+import { CombinedPaymentPanel } from "./combined-payment-panel";
+import { OtherChargeMethodsPanel } from "./other-charge-methods-panel";
 import type { ShownPointOrder } from "./point-charge-modal";
 import { PointChargeModal } from "./point-charge-modal";
 import { PointPaymentWaitModal } from "./point-payment-wait-modal";
@@ -58,21 +50,24 @@ import {
   useRefreshCurrentSale,
   useRefreshPaymentMethodAvailability,
 } from "./sales-queries";
-import { StandaloneTerminalChargeModal } from "./standalone-terminal-charge-modal";
-import { TransferChargeModal } from "./transfer-charge-modal";
+import { StandaloneTerminalChargePanel } from "./standalone-terminal-charge-panel";
+import { TransferChargePanel } from "./transfer-charge-panel";
+
+type OtherMethodsOrigin = "sale" | "combined";
 
 type Step =
   | { name: "methods" }
+  | { name: "other-methods"; origin: OtherMethodsOrigin }
   | { name: "cash" }
-  | { name: "transfer" }
-  | { name: "standalone-terminal" }
+  | { name: "transfer"; origin: OtherMethodsOrigin }
+  | { name: "standalone-terminal"; origin: OtherMethodsOrigin }
   | { name: "qr" }
   | { name: "qr-wait"; order: ShownQrOrder; sale: OpenSale }
   | { name: "point"; cardType: PointCardType }
   | { name: "point-wait"; cardType: PointCardType | null; order: ShownPointOrder; sale: OpenSale }
   | { name: "completed"; payment: CompletedPayment; sale: OpenSale };
 
-function stepOf(method: ChargeMethod): Step {
+function stepOf(method: ChargeMethod, origin: OtherMethodsOrigin = "sale"): Step {
   switch (method) {
     case "CASH":
       return { name: "cash" };
@@ -83,9 +78,9 @@ function stepOf(method: ChargeMethod): Step {
     case "QR":
       return { name: "qr" };
     case "TRANSFER":
-      return { name: "transfer" };
+      return { name: "transfer", origin };
     case "STANDALONE_TERMINAL":
-      return { name: "standalone-terminal" };
+      return { name: "standalone-terminal", origin };
   }
 }
 
@@ -189,7 +184,9 @@ export function ChargeScreen({
     read: paymentMethodAvailability,
   });
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
-  const [step, setStep] = useState<Step>({ name: "methods" });
+  const [step, setStep] = useState<Step>(
+    method === undefined ? { name: "other-methods", origin: "sale" } : { name: "methods" },
+  );
   const [notice, setNotice] = useState<{ kind: "cancelled" }>();
   const [preselected, setPreselected] = useState(method);
 
@@ -211,8 +208,8 @@ export function ChargeScreen({
     answer.charge_refusal !== null
       ? undefined
       : answer;
-  const chargeInProgress =
-    step.name === "methods" ? chargeable?.mercado_pago_charge_in_progress : undefined;
+  const choosingMethod = step.name === "methods" || step.name === "other-methods";
+  const chargeInProgress = choosingMethod ? chargeable?.mercado_pago_charge_in_progress : undefined;
   if (chargeable !== undefined && chargeInProgress !== undefined && chargeInProgress !== null) {
     setStep(followedChargeStep(chargeable, chargeInProgress));
   }
@@ -229,28 +226,43 @@ export function ChargeScreen({
   const sale = saleKept ? step.sale : chargeable;
   const paidOrder = sale?.rebuilt_paid_order;
   const paidOrderToApply = paidOrder?.applied === false ? paidOrder : undefined;
-  const { options, belowMinimum } = chargeMethodOptions(availability);
+  const { enabled, belowMinimum } = chargeMethodAvailability(availability);
   const qrMinimum = availability.status === "loaded" ? availability.value.qr_minimum : undefined;
   const pointMinimum =
     availability.status === "loaded" ? availability.value.point_minimum : undefined;
-  const preselectedOption = options.find((option) => option.value === preselected);
-  const waitingForAvailability =
-    preselectedOption === undefined && availability.status === "loading";
+  const preselectedEnabled = preselected !== undefined && enabled.has(preselected);
+  const waitingForAvailability = !preselectedEnabled && availability.status === "loading";
   if (preselected !== undefined && chargeable !== undefined && !waitingForAvailability) {
     setPreselected(undefined);
     const noChargeInProgress = chargeInProgress === undefined || chargeInProgress === null;
     if (
-      step.name === "methods" &&
+      choosingMethod &&
       noChargeInProgress &&
       paidOrderToApply === undefined &&
-      preselectedOption !== undefined &&
-      preselectedOption.disabled !== true
+      preselected !== undefined &&
+      preselectedEnabled
     ) {
-      setStep(stepOf(preselectedOption.value));
+      setStep(stepOf(preselected));
     }
   }
-  const lineCount = sale?.lines.length ?? 0;
-  const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
+  const paidOrderNotice =
+    paidOrderToApply === undefined || sale === undefined ? null : (
+      <RebuiltPaidOrderNotice
+        paidOrder={paidOrderToApply}
+        apply={() => chargeSaleWithPaidOrder(sale.id)}
+        onCompleted={(charge) =>
+          setStep({
+            name: "completed",
+            payment: { method: "PAID_ORDER", orderMethod: paidOrderToApply.method, charge },
+            sale,
+          })
+        }
+        onPartiallyPaid={backToMethodsWithBalance}
+        onSaleChanged={backToMethodsWithBalance}
+        onSaleUnavailable={backToSale}
+        onSessionInvalid={onSessionInvalid}
+      />
+    );
 
   return (
     <RegisterFrame
@@ -294,6 +306,59 @@ export function ChargeScreen({
             onSaleUnavailable={backToSale}
             onSessionInvalid={onSessionInvalid}
           />
+        ) : step.name === "methods" ? (
+          <CombinedPaymentPanel
+            total={sale.total}
+            paid={sale.paid}
+            pending={sale.pending}
+            enabled={enabled}
+            belowMinimum={belowMinimum}
+            cancelledNotice={notice?.kind === "cancelled"}
+            paidOrderNotice={paidOrderNotice}
+            onChoose={(method: KeyedChargeMethod) => {
+              setNotice(undefined);
+              setStep(stepOf(method));
+            }}
+            onChooseOther={() => {
+              setNotice(undefined);
+              setStep({ name: "other-methods", origin: "combined" });
+            }}
+          />
+        ) : step.name === "other-methods" ? (
+          <OtherChargeMethodsPanel
+            pending={sale.pending}
+            paidOrderNotice={paidOrderNotice}
+            onBack={() => (step.origin === "sale" ? backToSale() : setStep({ name: "methods" }))}
+            onChoose={(method) => setStep(stepOf(method, step.origin))}
+          />
+        ) : step.name === "transfer" ? (
+          <TransferChargePanel
+            pending={sale.pending}
+            charge={(amount) => chargeSaleByTransfer(sale.id, amount)}
+            onBack={() => setStep({ name: "other-methods", origin: step.origin })}
+            onCompleted={(charge) =>
+              setStep({ name: "completed", payment: { method: "TRANSFER", charge }, sale })
+            }
+            onPartiallyPaid={backToMethodsWithBalance}
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
+        ) : step.name === "standalone-terminal" ? (
+          <StandaloneTerminalChargePanel
+            pending={sale.pending}
+            charge={(amount) => chargeSaleOnStandaloneTerminal(sale.id, amount)}
+            onBack={() => setStep({ name: "other-methods", origin: step.origin })}
+            onCompleted={(charge) =>
+              setStep({
+                name: "completed",
+                payment: { method: "STANDALONE_TERMINAL", charge },
+                sale,
+              })
+            }
+            onPartiallyPaid={backToMethodsWithBalance}
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
         ) : (
           <ChargePaymentPanel
             total={sale.total}
@@ -314,7 +379,7 @@ export function ChargeScreen({
             onRetry={current.retry}
           />
         ) : null}
-        {sale !== undefined && step.name === "cash" ? (
+        {sale === undefined ? null : (
           <>
             <SearchField
               label="Producto"
@@ -326,86 +391,8 @@ export function ChargeScreen({
             />
             <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
           </>
-        ) : null}
-        {sale === undefined || step.name === "cash" ? null : (
-          <>
-            <ScreenHeader
-              eyebrow={`COBRO · VENTA DE ${formatNumber(lineCount)} ${lines}`}
-              title="Elegí el medio de pago"
-            />
-            {notice?.kind === "cancelled" && step.name === "methods" ? (
-              <InlineNotice tone="info" icon={<Info />} title="Se canceló la orden QR." />
-            ) : null}
-            {paidOrderToApply === undefined || step.name !== "methods" ? null : (
-              <RebuiltPaidOrderNotice
-                paidOrder={paidOrderToApply}
-                apply={() => chargeSaleWithPaidOrder(sale.id)}
-                onCompleted={(charge) =>
-                  setStep({
-                    name: "completed",
-                    payment: { method: "PAID_ORDER", orderMethod: paidOrderToApply.method, charge },
-                    sale,
-                  })
-                }
-                onPartiallyPaid={backToMethodsWithBalance}
-                onSaleChanged={backToMethodsWithBalance}
-                onSaleUnavailable={backToSale}
-                onSessionInvalid={onSessionInvalid}
-              />
-            )}
-            {belowMinimum === undefined ? null : (
-              <InlineNotice
-                tone="info"
-                icon={<Info />}
-                title={`Point: no se ofrece para cobrar menos de ${formatCents(belowMinimum)}`}
-              />
-            )}
-            <OptionCardGroup
-              label="Medio de pago"
-              options={options}
-              value={null}
-              onChange={(method) => {
-                setNotice(undefined);
-                setStep(stepOf(method));
-              }}
-            />
-          </>
         )}
       </main>
-      {sale !== undefined && step.name === "transfer" ? (
-        <TransferChargeModal
-          total={sale.total}
-          paid={sale.paid}
-          pending={sale.pending}
-          charge={(amount) => chargeSaleByTransfer(sale.id, amount)}
-          onChooseAnotherMethod={() => setStep({ name: "methods" })}
-          onCompleted={(charge) =>
-            setStep({ name: "completed", payment: { method: "TRANSFER", charge }, sale })
-          }
-          onPartiallyPaid={backToMethodsWithBalance}
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
-      {sale !== undefined && step.name === "standalone-terminal" ? (
-        <StandaloneTerminalChargeModal
-          total={sale.total}
-          paid={sale.paid}
-          pending={sale.pending}
-          charge={(amount) => chargeSaleOnStandaloneTerminal(sale.id, amount)}
-          onChooseAnotherMethod={() => setStep({ name: "methods" })}
-          onCompleted={(charge) =>
-            setStep({
-              name: "completed",
-              payment: { method: "STANDALONE_TERMINAL", charge },
-              sale,
-            })
-          }
-          onPartiallyPaid={backToMethodsWithBalance}
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
       {sale !== undefined && step.name === "qr" && qrMinimum !== undefined ? (
         <QrChargeModal
           total={sale.total}
