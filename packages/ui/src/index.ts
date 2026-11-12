@@ -71,6 +71,8 @@ export type { WeighingPanelProps } from "./components/data-display/weighing-pane
 export { WeighingPanel } from "./components/data-display/weighing-panel";
 export type { WeightReadoutProps } from "./components/data-display/weight-readout";
 export { WeightReadout } from "./components/data-display/weight-readout";
+export type { CountdownCardProps } from "./components/feedback/countdown-card";
+export { CountdownCard } from "./components/feedback/countdown-card";
 export type { CountdownRingProps } from "./components/feedback/countdown-ring";
 export { CountdownRing } from "./components/feedback/countdown-ring";
 export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
