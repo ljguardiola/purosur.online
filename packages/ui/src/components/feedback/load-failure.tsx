@@ -1,13 +1,14 @@
 import { RefreshCw } from "lucide-react";
 import type { KeyName } from "../data-display/keycap";
 import { Button } from "../forms/button";
+import { ElevatedPanel } from "../layout/elevated-panel";
 import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { InlineNotice } from "./inline-notice";
 import { NoticeLiveRegion } from "./notice-live-region";
 import { PillButton } from "./pill-button";
 
-export type LoadFailureVariant = "section" | "screen" | "pill";
+export type LoadFailureVariant = "section" | "pill";
 
 export type LoadFailureProps = {
   icon: Icon;
@@ -26,9 +27,35 @@ type KeyboardLoadFailureProps = Omit<LoadFailureProps, "variant"> & {
   keycap: KeyName;
 };
 
+type ScreenLoadFailureProps = Omit<LoadFailureProps, "variant" | "description"> & {
+  variant: "screen";
+  keycap: KeyName;
+};
+
 export function LoadFailure(
-  props: LoadFailureProps | CenteredLoadFailureProps | KeyboardLoadFailureProps,
+  props:
+    | LoadFailureProps
+    | CenteredLoadFailureProps
+    | KeyboardLoadFailureProps
+    | ScreenLoadFailureProps,
 ) {
+  if (props.variant === "screen") {
+    return (
+      <ElevatedPanel tone="error" icon={props.icon} title={props.title}>
+        <NoticeLiveRegion assertiveness="assertive" text={props.title} />
+        <Button
+          size="large"
+          icon={<RefreshCw />}
+          iconPosition="start"
+          keycap={props.keycap}
+          onPress={props.onRetry}
+        >
+          Reintentar
+        </Button>
+      </ElevatedPanel>
+    );
+  }
+
   const { icon, title, description } = props;
 
   if (props.variant === "centered") {
@@ -86,17 +113,6 @@ export function LoadFailure(
           keycap={props.keycap}
           onPress={onRetry}
         >
-          Reintentar
-        </Button>
-      </div>
-    );
-  }
-
-  if (variant === "screen") {
-    return (
-      <div className="flex flex-col gap-4">
-        {notice}
-        <Button size="large" onPress={onRetry}>
           Reintentar
         </Button>
       </div>

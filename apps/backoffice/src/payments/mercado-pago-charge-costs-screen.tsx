@@ -29,10 +29,7 @@ export type MercadoPagoChargeCostsScreenProps = {
   services: MercadoPagoChargeCostsScreenServices;
 };
 
-const OTHER_CHARGES = "Otros cobros";
 const PENDING = "Pendiente";
-const OTHER_CHARGES_NOTE =
-  "Los otros cobros son cobros de Mercado Pago que no salieron de una venta del sistema; se muestran en el reporte de todas las sucursales.";
 
 const CHARGE_TIME_ZONE = schemaText(
   mercadoPagoChargeCostsSchema.shape.charges.element.shape.charged_at.meta()?.["timeZone"],
@@ -56,7 +53,6 @@ const GROUPING_OPTIONS = [
 const METHOD_LABELS = {
   QR: "QR",
   POINT: "Point",
-  OTHER: OTHER_CHARGES,
 } as const;
 
 function monthLabel(month: string): string {
@@ -90,8 +86,8 @@ function groupRows(grouping: Grouping, body: MercadoPagoChargeCostsBody | undefi
     case "register":
       return body.registers.map((entry) => ({
         ...entry,
-        key: entry.register_id ?? "other",
-        label: entry.register_id === null ? OTHER_CHARGES : (entry.register_name ?? OTHER_CHARGES),
+        key: entry.register_id,
+        label: entry.register_name,
       }));
   }
 }
@@ -255,11 +251,6 @@ export function MercadoPagoChargeCostsScreen({
   const noun = GROUPING_OPTIONS.find((option) => option.value === filters.group)?.noun ?? "";
   const variant = filters.from === "" ? ("blank" as const) : ("filtered" as const);
   const noCharges = data.status === "loaded" && groupTable.getRowModel().rows.length === 0;
-  const noRegisterCharges = {
-    icon: <Landmark />,
-    title: "Ninguna caja cobró con Mercado Pago en este período",
-    variant,
-  };
 
   return (
     <>
@@ -304,15 +295,11 @@ export function MercadoPagoChargeCostsScreen({
             {...cloudTableState(data, "los costos de Mercado Pago")}
           />
           {data.status === "failed" ? null : (
-            <>
-              <p className="text-text-subtle">{OTHER_CHARGES_NOTE}</p>
-              <Table
-                aria-label="Cobros de Mercado Pago"
-                table={chargesTable}
-                {...cloudTableState(data, "los cobros de Mercado Pago")}
-                empty={noRegisterCharges}
-              />
-            </>
+            <Table
+              aria-label="Cobros de Mercado Pago"
+              table={chargesTable}
+              {...cloudTableState(data, "los cobros de Mercado Pago")}
+            />
           )}
         </>
       )}
