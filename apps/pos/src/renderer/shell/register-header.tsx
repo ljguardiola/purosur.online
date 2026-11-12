@@ -129,8 +129,11 @@ function Crumbs({
   const crumbs = [
     registerEyebrow(registerName),
     ...(person === undefined ? [] : [person.first_name]),
-    ...(cashSession.status === "none" ? ["Sin sesión abierta"] : []),
-    ...(crumb === undefined ? [] : [crumb]),
+    ...(crumb !== undefined
+      ? [crumb]
+      : cashSession.status === "none"
+        ? ["Sin sesión abierta"]
+        : []),
   ];
   return (
     <p className="flex items-center gap-2 text-detail text-text">

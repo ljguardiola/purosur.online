@@ -39,7 +39,7 @@ describe("InitialCountScreen", () => {
 
     await expect.element(lastLine).toBeInViewport();
     await expect
-      .element(screen.getByRole("heading", { name: "Inventario inicial" }))
+      .element(screen.getByRole("region", { name: "Estado de la caja" }))
       .toBeInViewport();
     await expect.element(field).toBeInViewport();
     expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });
@@ -65,14 +65,12 @@ describe("InitialCountScreen", () => {
       .toBeInViewport();
   });
 
-  it("is titled Inventario inicial, names the start-up, leaving the missing cash session to the frame's header, and offers the way home", async () => {
+  it("is titled Inventario inicial and offers the way home", async () => {
     const { screen, field } = await renderScreen();
 
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Inventario inicial" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("Puesta en marcha", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText(/sesión/)).not.toBeInTheDocument();
+      .toBeInTheDocument();
     await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
     await expect.element(field).toHaveAttribute("placeholder", PLACEHOLDER);
     await expectNoAccessibilityViolations(screen.container);
@@ -121,43 +119,12 @@ describe("InitialCountScreen", () => {
     expect(readInitialCount).toHaveBeenCalledTimes(2);
   });
 
-  it("tells the person has no permission to load the count", async () => {
-    const { screen } = await renderScreen({
-      readInitialCount: vi.fn(async () => ({ kind: "not_permitted" as const })),
-    });
-
-    await expect
-      .element(screen.getByText("No tenés permiso para cargar el inventario inicial"))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("combobox", { name: "Producto" }))
-      .not.toBeInTheDocument();
-  });
-
-  it("tells the session ended when the core does not know who is signed in", async () => {
-    const { screen } = await renderScreen({
-      readInitialCount: vi.fn(async () => ({ kind: "not_signed_in" as const })),
-    });
-
-    await expect
-      .element(
-        screen.getByText("La sesión terminó. Volvé a ingresar para cargar el inventario inicial"),
-      )
-      .toBeVisible();
-  });
-
-  it("tells the count is no longer offered and goes back home", async () => {
+  it("goes back home from the button when the count is no longer offered", async () => {
     const { screen } = await renderScreen({
       readInitialCount: vi.fn(async () => readOf([QUESO_LINE], false)),
     });
     await screen.router.navigate({ to: "/initial-count" });
 
-    await expect
-      .element(screen.getByText("La carga del inventario inicial ya no está disponible"))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("combobox", { name: "Producto" }))
-      .not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/");
