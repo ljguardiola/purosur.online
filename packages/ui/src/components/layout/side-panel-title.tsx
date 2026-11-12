@@ -1,4 +1,5 @@
-import { type ReactNode, useContext } from "react";
+import { useContext } from "react";
+import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { toneClassName } from "../shared/tone";
 import { SidePanelInsetContext } from "./side-panel-inset";
@@ -7,10 +8,17 @@ export type SidePanelTitleProps = {
   icon: Icon;
   title: string;
   tone?: "neutral" | "warning";
-  children?: ReactNode;
+  onClose?: (() => void) | undefined;
+  closeDisabled?: boolean;
 };
 
-export function SidePanelTitle({ icon, title, tone = "neutral", children }: SidePanelTitleProps) {
+export function SidePanelTitle({
+  icon,
+  title,
+  tone = "neutral",
+  onClose,
+  closeDisabled = false,
+}: SidePanelTitleProps) {
   const horizontalInset = useContext(SidePanelInsetContext);
 
   return (
@@ -22,7 +30,9 @@ export function SidePanelTitle({ icon, title, tone = "neutral", children }: Side
         <span className={iconSlotClassName.lg}>{icon}</span>
       </span>
       <h2 className="flex-1 text-subheading font-bold text-text">{title}</h2>
-      {children}
+      {onClose === undefined ? null : (
+        <CloseButton escapeKeycap disabled={closeDisabled} onPress={onClose} />
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type {
   AbandonMercadoPagoChargeOutcome,
   AnswerReceiptQuestionOutcome,
   Authorization,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
@@ -12,11 +13,9 @@ import type {
   FollowMercadoPagoChargeOutcome,
   OpenSale,
   PaymentMethodAvailability,
-  PreviewSaleDiscountOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
-  SaleDiscountRequest,
   SignInUser,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
@@ -137,6 +136,15 @@ const COVERED: CashChargeAnswer = {
   cash_rounding: 0,
 };
 
+const AMOUNTS_OF_SALE = (discount?: number): CashChargeAmountsAnswer => ({
+  kind: "amounts",
+  amount_due: 476_000 - (discount ?? 0),
+  amount_to_charge: 476_000 - (discount ?? 0),
+  cash_rounding: 0,
+  quick_amounts: [476_000, 500_000, 1_000_000, 2_000_000],
+  change_discount_option: null,
+});
+
 export const QR_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
 export const QR_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
   kind: "order_shown",
@@ -184,6 +192,10 @@ export type Overrides = {
     tendered: number,
     saleDiscount?: number,
   ) => Promise<CashChargeAnswer>;
+  cashChargeAmounts?: (
+    saleId: string,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAmountsAnswer | null>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount?: (
     saleId: string,
@@ -191,7 +203,6 @@ export type Overrides = {
     discountAmount: number,
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
-  previewSaleDiscount?: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal?: (
     saleId: string,
@@ -219,18 +230,12 @@ export async function renderScreen(overrides: Overrides = {}) {
   onTestFinished(() => page.viewport(414, 896));
   const currentSale = vi.fn(overrides.currentSale ?? (async () => SALE_OF_ONE_LINE));
   const cashCharge = vi.fn(overrides.cashCharge ?? (async () => COVERED));
+  const cashChargeAmounts = vi.fn(
+    overrides.cashChargeAmounts ?? (async (_saleId, discount) => AMOUNTS_OF_SALE(discount)),
+  );
   const chargeSaleInCash = vi.fn(overrides.chargeSaleInCash ?? (async () => COMPLETED));
   const chargeSaleInCashWithChangeDiscount = vi.fn(
     overrides.chargeSaleInCashWithChangeDiscount ?? (async () => COMPLETED),
-  );
-  const previewSaleDiscount = vi.fn(
-    overrides.previewSaleDiscount ??
-      (async (discount: SaleDiscountRequest): Promise<PreviewSaleDiscountOutcome> => ({
-        kind: "preview",
-        subtotal: 476_000,
-        discount_amount: discount.value,
-        total: 476_000 - discount.value,
-      })),
   );
   const loadAuthorizers = vi.fn(
     async (): Promise<SignInUser[]> => [{ id: "u3", first_name: "Sofía" }],
@@ -290,9 +295,9 @@ export async function renderScreen(overrides: Overrides = {}) {
       lock={() => {}}
       currentSale={currentSale}
       cashCharge={cashCharge}
+      cashChargeAmounts={cashChargeAmounts}
       chargeSaleInCash={chargeSaleInCash}
       chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
-      previewSaleDiscount={previewSaleDiscount}
       loadAuthorizers={loadAuthorizers}
       chargeSaleByTransfer={chargeSaleByTransfer}
       chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
@@ -312,9 +317,9 @@ export async function renderScreen(overrides: Overrides = {}) {
     screen,
     currentSale,
     cashCharge,
+    cashChargeAmounts,
     chargeSaleInCash,
     chargeSaleInCashWithChangeDiscount,
-    previewSaleDiscount,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
     chargeSaleWithPaidOrder,
@@ -356,11 +361,8 @@ export async function choosePoint(screen: Screen, cardType: "DEBIT" | "CREDIT" =
 
 export async function chargeInCash(screen: Screen, tendered: string) {
   await chooseCash(screen);
-  await userEvent.fill(
-    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-    tendered,
-  );
-  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+  await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), tendered);
+  await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 }
 
 export function saleWithChargeInProgress(

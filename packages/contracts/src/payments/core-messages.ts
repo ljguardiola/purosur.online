@@ -8,6 +8,7 @@ import {
   requestIdSchema,
   restorationInProgressOutcomeSchema,
 } from "../shared/index.js";
+import { cashChargeAmountsAnswerSchema } from "./cash-charge-amounts.js";
 import { paymentMethodAvailabilitySchema } from "./payment-method-availability.js";
 
 const startMercadoPagoChargeFields = {
@@ -61,6 +62,13 @@ const paymentMethodAvailabilityMessageSchema = z.object({
   request_id: requestIdSchema,
 });
 
+const cashChargeAmountsMessageSchema = z.object({
+  type: z.literal("cash-charge-amounts"),
+  request_id: requestIdSchema,
+  sale_id: z.string(),
+  sale_discount: z.int().positive().optional(),
+});
+
 export const paymentsRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   startMercadoPagoChargeMessageSchema,
   followMercadoPagoChargeMessageSchema,
@@ -69,6 +77,7 @@ export const paymentsRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   rebuildSaleAgainstPaidOrderMessageSchema,
   chargeSaleWithPaidOrderMessageSchema,
   paymentMethodAvailabilityMessageSchema,
+  cashChargeAmountsMessageSchema,
 ]);
 export type PaymentsRendererToCoreMessage = z.infer<typeof paymentsRendererToCoreMessageSchema>;
 
@@ -205,6 +214,12 @@ const chargeSaleWithPaidOrderOutcomeSchema = z.discriminatedUnion("kind", [
 export type ChargeSaleWithPaidOrderOutcome = z.infer<typeof chargeSaleWithPaidOrderOutcomeSchema>;
 
 export const paymentsCoreToRendererMessageSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("cash-charge-amounts-result"),
+    request_id: requestIdSchema,
+    amounts: cashChargeAmountsAnswerSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-charge-amounts-unavailable"), request_id: requestIdSchema }),
   z.object({
     type: z.literal("payment-method-availability-result"),
     request_id: requestIdSchema,

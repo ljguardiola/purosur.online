@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
-import { cashCharge, SMALLEST_CASH_BILL } from "./cash-charge.js";
+import { cashAmountToCharge, cashCharge, SMALLEST_CASH_BILL } from "./cash-charge.js";
 
 describe("SMALLEST_CASH_BILL", () => {
   it("is $100", () => {
@@ -12,6 +12,38 @@ describe("SMALLEST_CASH_BILL", () => {
 function roundedDown(amountDue: number): number {
   return amountDue < SMALLEST_CASH_BILL ? amountDue : amountDue - (amountDue % SMALLEST_CASH_BILL);
 }
+
+describe("cashAmountToCharge", () => {
+  it("takes the rounding to the smallest bill off the amount due", () => {
+    expect(cashAmountToCharge(2_519_250)).toEqual({
+      amountToCharge: 2_510_000,
+      cashRounding: 9250,
+    });
+  });
+
+  it("rounds nothing off a multiple of the smallest bill", () => {
+    expect(cashAmountToCharge(320_000)).toEqual({ amountToCharge: 320_000, cashRounding: 0 });
+  });
+
+  it("rounds nothing off an amount due under the smallest bill", () => {
+    expect(cashAmountToCharge(9999)).toEqual({ amountToCharge: 9999, cashRounding: 0 });
+  });
+
+  it("is what a cash charge of exactly the amount to charge applies and rounds, for every amount due", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 1_000_000 }), (amountDue) => {
+        const { amountToCharge, cashRounding } = cashAmountToCharge(amountDue);
+        expect(cashCharge(amountDue, amountToCharge)).toEqual({
+          kind: "covered",
+          applied: amountToCharge,
+          change: 0,
+          cashRounding,
+        });
+        expect(amountToCharge + cashRounding).toBe(amountDue);
+      }),
+    );
+  });
+});
 
 describe("cashCharge", () => {
   it("applies the whole amount due and gives no change when the tendered amount is exact", () => {
