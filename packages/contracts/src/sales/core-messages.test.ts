@@ -2138,7 +2138,6 @@ describe("asking for the register's sales history", () => {
       point_of_sale: 3,
       number: 1204,
     },
-    operation_number: 482,
     payment_methods: ["CASH", "TRANSFER"],
     total: 7500,
     state: "completed",
@@ -2163,7 +2162,6 @@ describe("asking for the register's sales history", () => {
     },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "in_progress" }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "voided" }] },
-    { ...found, rows: [{ ...row, operation_number: null }] },
     { ...found, rows: [{ ...row, occurred_at: "2026-10-08T09:00:00.000-03:00" }] },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -2188,7 +2186,6 @@ describe("asking for the register's sales history", () => {
       ...found,
       rows: [{ ...row, comprobante: { ...row.comprobante, authorization: undefined } }],
     },
-    { ...found, rows: [{ ...row, operation_number: 0 }] },
     { ...found, rows: [{ ...row, occurred_at: "yesterday" }] },
     { kind: "not_found" },
   ])("rejects the answer %j", (outcome) => {
@@ -2222,7 +2219,6 @@ describe("asking for the detail of one sale of the history", () => {
     comprobante: { kind: "deferred_non_fiscal" },
     operation_number: 482,
     served_by_first_name: "Marta",
-    line_count: 3,
     lines: [
       { product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 6142 },
     ],
@@ -2235,8 +2231,8 @@ describe("asking for the detail of one sale of the history", () => {
     voidability: {
       kind: "voidable",
       refunds: [
-        { method: "CASH", card_type: null, amount: 5000, state: "APPROVED", sent_by_cloud: false },
-        { method: "QR", card_type: null, amount: 2500, state: "PENDING", sent_by_cloud: true },
+        { method: "CASH", card_type: null, amount: 5000, state: "APPROVED" },
+        { method: "QR", card_type: null, amount: 2500, state: "PENDING" },
       ],
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
@@ -2337,7 +2333,6 @@ describe("asking for the detail of one sale of the history", () => {
 
   it.each([
     { kind: "found" },
-    { kind: "found", detail: { ...detail, line_count: -1 } },
     {
       kind: "found",
       detail: { ...detail, payments: [{ method: "CARD", card_type: null, amount: 1 }] },
@@ -2417,9 +2412,7 @@ describe("asking for the detail of one sale of the history", () => {
         ...detail,
         voidability: {
           kind: "voidable",
-          refunds: [
-            { method: "CARD", card_type: null, amount: 1, state: "PENDING", sent_by_cloud: false },
-          ],
+          refunds: [{ method: "CARD", card_type: null, amount: 1, state: "PENDING" }],
         },
       },
     },
@@ -2435,7 +2428,6 @@ describe("asking for the detail of one sale of the history", () => {
               card_type: null,
               amount: 1,
               state: "DISCARDED",
-              sent_by_cloud: false,
             },
           ],
         },
@@ -2453,7 +2445,6 @@ describe("asking for the detail of one sale of the history", () => {
               card_type: null,
               amount: -1,
               state: "APPROVED",
-              sent_by_cloud: false,
             },
           ],
         },

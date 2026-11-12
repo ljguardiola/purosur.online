@@ -19,7 +19,6 @@ function sale(
     entry: {
       saleId: `sale-${number}`,
       occurredAt: new Date(`2026-10-08T12:${String(number % 60).padStart(2, "0")}:00.000Z`),
-      operationNumber: number,
       paymentMethods: ["CASH"],
       total: 1000 * number,
       fiscal: NO_DOCUMENT,
@@ -34,7 +33,7 @@ function manySales(count: number): FakeHistorySale[] {
 }
 
 describe("readSalesHistory", () => {
-  it("shows a sale's time, operation number, payment methods and total", () => {
+  it("shows a sale's time, payment methods and total", () => {
     const history = new FakeRegisterSalesHistory([
       sale(7, { paymentMethods: ["CASH", "TRANSFER"], total: 4500 }),
     ]);
@@ -46,7 +45,6 @@ describe("readSalesHistory", () => {
         saleId: "sale-7",
         occurredAt: new Date("2026-10-08T12:07:00.000Z"),
         comprobante: { kind: "none" },
-        operationNumber: 7,
         paymentMethods: ["CASH", "TRANSFER"],
         total: 4500,
         standing: "completed",

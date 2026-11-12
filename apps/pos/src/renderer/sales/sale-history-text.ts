@@ -1,7 +1,7 @@
 import type { SalesHistoryOutcome } from "@purosur/contracts";
 import type { PaymentMethod, PointCardType } from "@purosur/domain";
 import type { TagProps } from "@purosur/ui";
-import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } from "@purosur/ui";
+import { formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
 import { PAYMENT_METHOD_NAMES } from "../platform/payment-method-names";
 import { comprobantePresentation } from "../shell/sale-receipt-text";
 
@@ -22,10 +22,6 @@ const STATE_PRESENTATION = {
   deferred: { label: "Diferida", tone: "warning" },
   voided: { label: "Anulada", tone: "error" },
 } as const satisfies Record<ShownSaleState, { label: string; tone: TagProps["tone"] }>;
-
-export function operationText(operationNumber: number): string {
-  return `Operación ${formatOperationNumber(operationNumber)}`;
-}
 
 export function paymentMethodsText(methods: readonly PaymentMethod[]): string {
   return methods.length === 0

@@ -1,10 +1,8 @@
 import { invoiceToCorrect, type VoucherReference } from "../../fiscal/index.js";
 import {
-  isRefundSentByCloud,
   type PlannedRefundState,
   type PointCardType,
   plannedRefundState,
-  SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
 import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
 import {
@@ -43,7 +41,6 @@ export type SaleVoidability =
         cardType: PointCardType | null;
         amount: number;
         state: PlannedRefundState;
-        sentByCloud: boolean;
       }[];
       creditNoteCorrects: VoucherReference | null;
     }
@@ -60,7 +57,6 @@ export interface SaleHistoryDetail {
   comprobante: SaleComprobante;
   operationNumber: number | null;
   servedByFirstName: string;
-  lineCount: number;
   lines: SaleHistoryRecord["lines"];
   cashRounding: number;
   payments: SaleHistoryRecord["payments"];
@@ -157,7 +153,6 @@ function saleVoidabilityOf({
       cardType,
       amount,
       state: plannedRefundState(method),
-      sentByCloud: isRefundSentByCloud({ method, origin: SALE_VOIDED_REFUND_ORIGIN }),
     })),
     creditNoteCorrects: invoiceToCorrect(invoices)?.voucher ?? null,
   };

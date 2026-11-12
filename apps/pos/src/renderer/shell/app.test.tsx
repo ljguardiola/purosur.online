@@ -3656,7 +3656,6 @@ describe("App", () => {
       sale_id: "sale-1",
       occurred_at: "2026-09-30T11:42:00.000-03:00",
       comprobante: { kind: "none" },
-      operation_number: 482,
       payment_methods: ["CASH"],
       total: 5_070_000,
       state: "completed",

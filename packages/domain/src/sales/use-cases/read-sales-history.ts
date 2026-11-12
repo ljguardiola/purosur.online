@@ -29,7 +29,6 @@ export interface SalesHistoryRow {
   saleId: string;
   occurredAt: Date;
   comprobante: SaleComprobante;
-  operationNumber: number | null;
   paymentMethods: SalesHistoryEntry["paymentMethods"];
   total: number;
   standing: SaleStanding;

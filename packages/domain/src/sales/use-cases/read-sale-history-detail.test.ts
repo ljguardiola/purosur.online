@@ -26,7 +26,6 @@ function historySale(
     entry: {
       saleId: "sale-1",
       occurredAt: new Date("2026-10-07T15:00:00.000Z"),
-      operationNumber: 482,
       paymentMethods: ["CASH"],
       total: 7500,
       fiscal: { deferred: false, fiscalDocument: null },
@@ -37,7 +36,6 @@ function historySale(
       occurredAt: new Date("2026-10-07T15:00:00.000Z"),
       operationNumber: 482,
       servedByFirstName: "Marta",
-      lineCount: 3,
       lines: [
         { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
         { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 1358 },
@@ -98,7 +96,6 @@ describe("readSaleHistoryDetail", () => {
         },
         operationNumber: 482,
         servedByFirstName: "Marta",
-        lineCount: 3,
         lines: [
           { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
           { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 1358 },
@@ -112,13 +109,12 @@ describe("readSaleHistoryDetail", () => {
         voidability: {
           kind: "voidable",
           refunds: [
-            { method: "CASH", cardType: null, amount: 5000, state: "APPROVED", sentByCloud: false },
+            { method: "CASH", cardType: null, amount: 5000, state: "APPROVED" },
             {
               method: "TRANSFER",
               cardType: null,
               amount: 2500,
               state: "PENDING",
-              sentByCloud: false,
             },
           ],
           creditNoteCorrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
@@ -250,20 +246,18 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "CASH", cardType: null, amount: 5000, state: "APPROVED", sentByCloud: false },
+          { method: "CASH", cardType: null, amount: 5000, state: "APPROVED" },
           {
             method: "TRANSFER",
             cardType: null,
             amount: 1500,
             state: "PENDING",
-            sentByCloud: false,
           },
           {
             method: "STANDALONE_TERMINAL",
             cardType: null,
             amount: 1000,
             state: "PENDING",
-            sentByCloud: false,
           },
         ],
         creditNoteCorrects: null,
@@ -336,13 +330,12 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "QR", cardType: null, amount: 7500, state: "PENDING", sentByCloud: true },
+          { method: "QR", cardType: null, amount: 7500, state: "PENDING" },
           {
             method: "POINT",
             cardType: "CREDIT",
             amount: 1200,
             state: "PENDING",
-            sentByCloud: true,
           },
         ],
         creditNoteCorrects: null,

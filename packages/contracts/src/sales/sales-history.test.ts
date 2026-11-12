@@ -8,7 +8,6 @@ const detail = {
   comprobante: { kind: "none" },
   operation_number: null,
   served_by_first_name: "Marta",
-  line_count: 1,
   lines: [{ product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 6142 }],
   cash_rounding: 92,
   payments: [{ method: "POINT", card_type: "CREDIT", amount: 5000 }],
@@ -21,7 +20,6 @@ const detail = {
         card_type: "CREDIT",
         amount: 5000,
         state: "PENDING",
-        sent_by_cloud: true,
       },
     ],
     credit_note_corrects: null,
@@ -57,7 +55,6 @@ describe("saleHistoryDetailOutcomeSchema", () => {
                 card_type: null,
                 amount: 5000,
                 state: "APPROVED",
-                sent_by_cloud: false,
               },
             ],
             credit_note_corrects: null,
@@ -89,7 +86,7 @@ describe("saleHistoryDetailOutcomeSchema", () => {
         outcome({
           voidability: {
             kind: "voidable",
-            refunds: [{ method: "POINT", amount: 5000, state: "PENDING", sent_by_cloud: true }],
+            refunds: [{ method: "POINT", amount: 5000, state: "PENDING" }],
             credit_note_corrects: null,
           },
         }),

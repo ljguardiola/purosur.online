@@ -3,17 +3,10 @@ import {
   comprobanteLine,
   comprobanteRow,
   documentNumberText,
-  operationText,
   paymentMethodsText,
   paymentRowName,
   saleStatePresentation,
 } from "./sale-history-text";
-
-describe("operationText", () => {
-  it("shows the operation number padded to six digits", () => {
-    expect(operationText(482)).toBe("Operación 000482");
-  });
-});
 
 describe("paymentMethodsText", () => {
   it("names the methods of the sale in Spanish, joined with a middle dot", () => {

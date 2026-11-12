@@ -32,13 +32,12 @@ import { saleTotalOf } from "./sqlite-sale-total";
 interface SaleRow {
   id: string;
   occurred_at: string;
-  operation_number: number | null;
   voided: 0 | 1;
 }
 
 interface DetailRow extends SaleRow {
+  operation_number: number | null;
   first_name: string;
-  line_count: number;
   in_open_session: 0 | 1;
   deferred_short_code: string | null;
   cash_rounding: number;
@@ -160,7 +159,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
                 sales.operation_number AS operation_number, users.first_name AS first_name,
                 sales.cash_rounding AS cash_rounding,
                 ${VOIDED} AS voided, (${IN_THE_OPEN_SESSION}) AS in_open_session,
-                (SELECT count(*) FROM sale_lines WHERE sale_lines.sale_id = sales.id) AS line_count,
                 (SELECT short_code FROM deferred_sales WHERE deferred_sales.sale_id = sales.id)
                   AS deferred_short_code
          FROM sales JOIN users ON users.id = sales.actor_id
@@ -175,7 +173,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       occurredAt: new Date(sale.occurred_at),
       operationNumber: sale.operation_number,
       servedByFirstName: sale.first_name,
-      lineCount: sale.line_count,
       lines: this.linesOf(sale.id),
       cashRounding: sale.cash_rounding,
       total: this.totalOf(sale.id),
@@ -206,8 +203,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   ): SalesHistoryEntry[] {
     const rows = this.database
       .prepare<{ number: number; point_of_sale: number | null }, SaleRow>(
-        `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
-                sales.operation_number AS operation_number, ${VOIDED} AS voided
+        `SELECT sales.id AS id, sales.occurred_at AS occurred_at, ${VOIDED} AS voided
          FROM sales WHERE ${scope} AND (
            EXISTS (
              SELECT 1 FROM fiscal_documents
@@ -232,8 +228,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     const where = `${scope} AND ${sql}`;
     const rows = this.database
       .prepare<(string | number)[], SaleRow>(
-        `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
-                sales.operation_number AS operation_number, ${VOIDED} AS voided
+        `SELECT sales.id AS id, sales.occurred_at AS occurred_at, ${VOIDED} AS voided
          FROM sales WHERE ${where}
          ORDER BY sales.occurred_at DESC, sales.rowid DESC LIMIT ? OFFSET ?`,
       )
@@ -257,7 +252,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return {
       saleId: row.id,
       occurredAt: new Date(row.occurred_at),
-      operationNumber: row.operation_number,
       paymentMethods: methods.map(({ method }) => method),
       total: this.totalOf(row.id),
       fiscal: this.fiscalFactsOfSale(row.id),

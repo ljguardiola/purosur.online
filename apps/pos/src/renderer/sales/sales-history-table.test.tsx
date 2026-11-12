@@ -20,7 +20,6 @@ const ROW: Row = {
     point_of_sale: 3,
     number: 1234,
   },
-  operation_number: 482,
   payment_methods: ["CASH", "POINT"],
   total: 5_070_000,
   state: "completed",

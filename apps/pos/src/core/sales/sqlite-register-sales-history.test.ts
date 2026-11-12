@@ -309,11 +309,10 @@ describe("SqliteRegisterSalesHistory", () => {
       });
     });
 
-    it("shows the sale's time, operation number, total and payment methods", () => {
+    it("shows the sale's time, total and payment methods", () => {
       addSale({
         id: "sale-1",
         occurredAt: "2026-10-08T12:34:00.000Z",
-        operationNumber: 482,
         lines: [1500, 2500],
         payments: [
           { method: "CASH", amount: 1000 },
@@ -325,19 +324,12 @@ describe("SqliteRegisterSalesHistory", () => {
         {
           saleId: "sale-1",
           occurredAt: new Date("2026-10-08T12:34:00.000Z"),
-          operationNumber: 482,
           paymentMethods: ["CASH", "TRANSFER"],
           total: 4000,
           fiscal: { deferred: false, fiscalDocument: null },
           voided: false,
         },
       ]);
-    });
-
-    it("shows no operation number for a sale completed before they were kept", () => {
-      addSale({ id: "old", operationNumber: null });
-
-      expect(all().entries[0]?.operationNumber).toBeNull();
     });
 
     it("names a Mercado Pago QR payment among the payment methods", () => {
@@ -659,7 +651,6 @@ describe("SqliteRegisterSalesHistory", () => {
         {
           saleId: "sale-1",
           occurredAt: new Date("2026-10-08T12:34:00.000Z"),
-          operationNumber: 482,
           paymentMethods: ["CASH", "TRANSFER"],
           total: 4000,
           fiscal: {
@@ -818,7 +809,6 @@ describe("SqliteRegisterSalesHistory", () => {
         occurredAt: new Date("2026-10-08T12:34:00.000Z"),
         operationNumber: 482,
         servedByFirstName: "Marta",
-        lineCount: 3,
         lines: [
           { productName: "Producto", saleUnit: "UNIT", quantity: 1, lineTotal: 1500 },
           { productName: "Producto", saleUnit: "UNIT", quantity: 1, lineTotal: 2500 },

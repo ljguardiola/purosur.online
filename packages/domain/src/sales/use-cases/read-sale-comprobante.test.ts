@@ -21,7 +21,6 @@ function historyOf(fiscal: SaleFiscalFacts) {
       entry: {
         saleId: "sale-1",
         occurredAt: new Date("2026-10-07T15:00:00.000Z"),
-        operationNumber: 482,
         paymentMethods: ["CASH"],
         total: 7500,
         fiscal,

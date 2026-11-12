@@ -33,7 +33,6 @@ describe("voidRefundRow", () => {
         card_type: null,
         amount: 100_000,
         state: "APPROVED",
-        sent_by_cloud: false,
       }),
     ).toEqual({
       name: "Efectivo",
@@ -55,7 +54,6 @@ describe("voidRefundRow", () => {
         card_type: cardType,
         amount: 250_000,
         state: "PENDING",
-        sent_by_cloud: method === "QR",
       }),
     ).toEqual({
       name,

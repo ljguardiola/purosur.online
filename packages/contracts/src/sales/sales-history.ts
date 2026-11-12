@@ -44,7 +44,6 @@ const salesHistoryRowSchema = z.object({
   sale_id: z.string(),
   occurred_at: z.iso.datetime({ offset: true }),
   comprobante: comprobanteSchema,
-  operation_number: operationNumberSchema,
   payment_methods: z.array(z.enum(PAYMENT_METHODS)),
   total: z.int(),
   state: saleStateSchema,
@@ -72,7 +71,6 @@ const saleVoidabilitySchema = z.discriminatedUnion("kind", [
         card_type: z.enum(POINT_CARD_TYPES).nullable(),
         amount: z.int().nonnegative(),
         state: z.enum(PLANNED_REFUND_STATES),
-        sent_by_cloud: z.boolean(),
       }),
     ),
     credit_note_corrects: z
@@ -89,7 +87,6 @@ const saleHistoryDetailSchema = z.object({
   comprobante: comprobanteSchema,
   operation_number: operationNumberSchema,
   served_by_first_name: z.string(),
-  line_count: z.int().nonnegative(),
   lines: z.array(
     z.object({
       product_name: z.string(),

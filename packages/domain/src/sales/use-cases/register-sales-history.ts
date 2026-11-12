@@ -15,7 +15,6 @@ export interface SalesHistoryFilter {
 export interface SalesHistoryEntry {
   saleId: string;
   occurredAt: Date;
-  operationNumber: number | null;
   paymentMethods: PaymentMethod[];
   total: number;
   fiscal: SaleFiscalFacts;
@@ -45,7 +44,6 @@ export interface SaleHistoryRecord {
   occurredAt: Date;
   operationNumber: number | null;
   servedByFirstName: string;
-  lineCount: number;
   lines: SaleHistoryLine[];
   cashRounding: number;
   total: number;

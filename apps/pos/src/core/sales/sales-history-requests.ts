@@ -50,10 +50,9 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
   return voidability.kind === "voidable"
     ? {
         kind: "voidable",
-        refunds: voidability.refunds.map(({ sentByCloud, cardType, ...refund }) => ({
+        refunds: voidability.refunds.map(({ cardType, ...refund }) => ({
           ...refund,
           card_type: cardType,
-          sent_by_cloud: sentByCloud,
         })),
         credit_note_corrects:
           voidability.creditNoteCorrects === null
@@ -91,7 +90,6 @@ export async function salesHistoryFor(
       sale_id: row.saleId,
       occurred_at: inArgentinaTime(row.occurredAt, zoneRules.zoneRules()),
       comprobante: toWireComprobante(row.comprobante),
-      operation_number: row.operationNumber,
       payment_methods: row.paymentMethods,
       total: row.total,
       state: row.standing,
@@ -141,7 +139,6 @@ export async function saleHistoryDetailFor(
       comprobante: toWireComprobante(detail.comprobante),
       operation_number: detail.operationNumber,
       served_by_first_name: detail.servedByFirstName,
-      line_count: detail.lineCount,
       lines: detail.lines.map(({ productName, saleUnit, quantity, lineTotal }) => ({
         product_name: productName,
         sale_unit: saleUnit,

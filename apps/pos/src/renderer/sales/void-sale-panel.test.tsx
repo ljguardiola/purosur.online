@@ -24,7 +24,6 @@ const SALE: SaleDetail = {
   comprobante: { kind: "deferred_non_fiscal" },
   operation_number: 482,
   served_by_first_name: "Tomás",
-  line_count: 8,
   lines: [
     { product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 614_250 },
   ],
@@ -65,14 +64,12 @@ const CASH_REFUND: VoidRefund = {
   card_type: null,
   amount: 5_070_000,
   state: "APPROVED",
-  sent_by_cloud: false,
 };
 const TRANSFER_REFUND: VoidRefund = {
   method: "TRANSFER",
   card_type: null,
   amount: 250_000,
   state: "PENDING",
-  sent_by_cloud: false,
 };
 const VOID = "Anular venta";
 
