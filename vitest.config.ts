@@ -9,6 +9,7 @@ import { defaultClientConditions, defaultServerConditions } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
 import { globAwareModuleCache } from "./.github/scripts/glob-aware-module-cache.mjs";
 import { HeldRunReporter } from "./.github/scripts/held-run-reporter.mjs";
+import { RunScopedWarmupReporter } from "./.github/scripts/run-scoped-warmup-reporter.mjs";
 import {
   ROOT_SLOW_TEST_THRESHOLD,
   SlowTestsReporter,
@@ -29,6 +30,12 @@ const BROWSER_CONNECT_TIMEOUT_MS = 180_000;
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 const heldRunReporter = new HeldRunReporter({ graceMs: 60_000, stallMs: 3 * 60_000 });
+// Transforming every backoffice screen on its first request starves a loaded run; starting them all
+// with the server spreads that one-time cost before the tests ask for them.
+const backofficePagesWarmup = new RunScopedWarmupReporter({
+  whenRunIncludes: "apps/backoffice/",
+  clientFiles: ["apps/backoffice/src/**/*-page.tsx"],
+});
 
 process.env["TZ"] = "UTC";
 
@@ -91,8 +98,10 @@ export default defineConfig({
     passWithNoTests: true,
     slowTestThreshold: ROOT_SLOW_TEST_THRESHOLD,
     sequence: {
-      sequencer: heldRunReporter.trackExecutedFiles(
-        durationBalancedSequencer(process.env["TEST_DURATIONS"]),
+      sequencer: backofficePagesWarmup.trackRunFiles(
+        heldRunReporter.trackExecutedFiles(
+          durationBalancedSequencer(process.env["TEST_DURATIONS"]),
+        ),
       ),
     },
     reporters: [
@@ -112,6 +121,7 @@ export default defineConfig({
       new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
       new UnrunFilesReporter(),
       heldRunReporter,
+      backofficePagesWarmup,
     ],
     projects: [
       {
@@ -184,9 +194,6 @@ export default defineConfig({
       },
       {
         ...compiledReactProject(),
-        // Transforming every backoffice screen on its first request starves a loaded run; starting
-        // them all with the server spreads that one-time cost before the tests ask for them.
-        server: { warmup: { clientFiles: ["./apps/backoffice/src/**/*-page.tsx"] } },
         test: {
           name: "browser",
           include: ["packages/*/src/**/*.test.tsx", "apps/*/src/**/*.test.tsx"],

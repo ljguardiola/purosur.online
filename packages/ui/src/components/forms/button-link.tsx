@@ -1,4 +1,5 @@
 import type { AnchorHTMLAttributes, ReactNode } from "react";
+import { Keycap, type KeyName } from "../data-display/keycap";
 import type { Icon } from "../shared/icon";
 import { type ButtonTextSize, textButtonLinkLook } from "./button";
 
@@ -9,12 +10,13 @@ export type ButtonLinkProps = Omit<
   variant: "text";
   size?: ButtonTextSize;
   icon?: Icon;
+  keycap?: KeyName;
   children: Exclude<ReactNode, null | undefined | boolean>;
 };
 
 const look = { text: textButtonLinkLook };
 
-export function ButtonLink({ variant, size, icon, children, ...props }: ButtonLinkProps) {
+export function ButtonLink({ variant, size, icon, keycap, children, ...props }: ButtonLinkProps) {
   const { className, defaultSize, iconSlotClassName } = look[variant];
   return (
     <a {...props} className={className(size ?? defaultSize)}>
@@ -24,6 +26,11 @@ export function ButtonLink({ variant, size, icon, children, ...props }: ButtonLi
         </span>
       ) : null}
       <span className="truncate">{children}</span>
+      {keycap === undefined ? null : (
+        <span aria-hidden="true" className="ml-auto flex shrink-0">
+          <Keycap keyName={keycap} />
+        </span>
+      )}
     </a>
   );
 }

@@ -6,7 +6,7 @@ import type { SignedInPerson } from "./signed-in-person";
 import type { SignInStore } from "./sqlite-sign-in-store";
 
 export interface SignInDeps extends PinCheckDeps {
-  store: PinCheckDeps["store"] & Pick<SignInStore, "remember">;
+  store: PinCheckDeps["store"] & Pick<SignInStore, "markLastActive" | "remember">;
   signedInPerson: Pick<SignedInPerson, "set" | "clear">;
   openCashSession: () => { openedBy: string } | undefined;
   cashSession: (signedInPersonId: string) => OpenCashSession | null;
@@ -32,7 +32,10 @@ async function signInRemembering(
         ...pinCheckPorts(deps),
         signedInPerson: deps.signedInPerson,
         register: { openSession: deps.openCashSession, sessionToResume: deps.cashSession },
-        rememberedPeople: { remember: (rememberedId) => deps.store.remember(rememberedId) },
+        rememberedPeople: {
+          remember: (rememberedId) => deps.store.remember(rememberedId),
+          markLastActive: (activeId) => deps.store.markLastActive(activeId),
+        },
       },
       { userId, pin, remember },
     ),

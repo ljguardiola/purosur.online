@@ -22,13 +22,22 @@ export type CenteredLoadFailureProps = Omit<LoadFailureProps, "variant" | "onRet
   variant: "centered";
 };
 
+type KeyboardLoadFailureProps = Omit<LoadFailureProps, "variant"> & {
+  variant: "keyboard";
+  keycap: KeyName;
+};
+
 type ScreenLoadFailureProps = Omit<LoadFailureProps, "variant" | "description"> & {
   variant: "screen";
-  retryKeycap: KeyName;
+  keycap: KeyName;
 };
 
 export function LoadFailure(
-  props: LoadFailureProps | CenteredLoadFailureProps | ScreenLoadFailureProps,
+  props:
+    | LoadFailureProps
+    | CenteredLoadFailureProps
+    | KeyboardLoadFailureProps
+    | ScreenLoadFailureProps,
 ) {
   if (props.variant === "screen") {
     return (
@@ -38,7 +47,7 @@ export function LoadFailure(
           size="large"
           icon={<RefreshCw />}
           iconPosition="start"
-          keycap={props.retryKeycap}
+          keycap={props.keycap}
           onPress={props.onRetry}
         >
           Reintentar
@@ -92,6 +101,23 @@ export function LoadFailure(
       {...(description === undefined ? {} : { description })}
     />
   );
+
+  if (props.variant === "keyboard") {
+    return (
+      <div className="flex flex-col gap-4">
+        {notice}
+        <Button
+          fullWidth
+          icon={<RefreshCw />}
+          iconPosition="start"
+          keycap={props.keycap}
+          onPress={onRetry}
+        >
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-start gap-4">

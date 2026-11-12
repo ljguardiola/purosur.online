@@ -37,7 +37,10 @@ function fixture(
         return `session of ${userId}`;
       },
     },
-    rememberedPeople: { remember: (userId) => calls.push(`remember ${userId}`) },
+    rememberedPeople: {
+      remember: (userId) => calls.push(`remember ${userId}`),
+      markLastActive: (userId) => calls.push(`mark last active ${userId}`),
+    },
   };
   return {
     ...created,
@@ -66,7 +69,12 @@ describe("signInAtRegister", () => {
       },
       resumedSession: "session of person-1",
     });
-    expect(created.calls).toEqual(["clear", "resume person-1", "set person-1"]);
+    expect(created.calls).toEqual([
+      "clear",
+      "resume person-1",
+      "mark last active person-1",
+      "set person-1",
+    ]);
   });
 
   it("signs in the person who opened the register's cash session", async () => {
@@ -159,8 +167,19 @@ describe("signInAtRegister", () => {
     await signIn(asked, "123456", true);
     await signIn(notAsked, "123456", false);
 
-    expect(asked.calls).toEqual(["clear", "resume person-1", "remember person-1", "set person-1"]);
-    expect(notAsked.calls).toEqual(["clear", "resume person-1", "set person-1"]);
+    expect(asked.calls).toEqual([
+      "clear",
+      "resume person-1",
+      "remember person-1",
+      "mark last active person-1",
+      "set person-1",
+    ]);
+    expect(notAsked.calls).toEqual([
+      "clear",
+      "resume person-1",
+      "mark last active person-1",
+      "set person-1",
+    ]);
   });
 
   it("does not remember a person whose sign-in is refused", async () => {

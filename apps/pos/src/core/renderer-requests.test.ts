@@ -179,7 +179,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       pinPolicy: () => ({ min_digits: 6 }),
       checkEnrollmentCode: () => [],
       checkPinCodeRedemption: () => [],
-      signInUsers: () => [{ id: "u1", first_name: "Ada" }],
+      signInUsers: () => ({ users: [{ id: "u1", firstName: "Ada" }], lastActiveUserId: "u1" }),
       signIn: async (userId: string, pin: string): Promise<SignInOutcome> => {
         signIns.push({ userId, pin });
         return { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 7 };
@@ -719,6 +719,22 @@ describe("answerRendererRequest", () => {
       type: "sign-in-users",
       request_id: "r3",
       users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: "u1",
+    });
+  });
+
+  it("answers that no user is the last active one when none is marked", async () => {
+    const unmarked = deps(true, {
+      signInUsers: () => ({ users: [{ id: "u1", firstName: "Ada" }], lastActiveUserId: null }),
+    });
+
+    expect(
+      await answerRendererRequest(unmarked.deps, { type: "sign-in-users", request_id: "r6" }),
+    ).toEqual({
+      type: "sign-in-users",
+      request_id: "r6",
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: null,
     });
   });
 

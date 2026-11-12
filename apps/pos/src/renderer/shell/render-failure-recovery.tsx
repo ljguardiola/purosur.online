@@ -18,7 +18,7 @@ function RenderFailureNotice({ onRetry }: { onRetry: () => void }) {
             variant="screen"
             icon={<TriangleAlert />}
             title="No se pudo mostrar la pantalla"
-            retryKeycap="R"
+            keycap="R"
             onRetry={onRetry}
           />
         </main>
