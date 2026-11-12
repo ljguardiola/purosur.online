@@ -75,3 +75,15 @@ test("draws no dashed line when nothing waits", async () => {
   );
   expect(dashed).toEqual([]);
 });
+
+test("keeps its whole content in view beside a sibling that fills a short column", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", flexDirection: "column", height: "200px" }}>
+      <WeighingPanel {...weighing} waiting={<p>Aceite de oliva extra virgen 500 ml</p>} />
+      <div style={{ flex: "1 1 0%", minHeight: "600px" }} />
+    </div>,
+  );
+
+  const region = screen.getByRole("region", { name: "Nueces mariposa" }).element();
+  expect(region.scrollHeight).toBeLessThanOrEqual(region.clientHeight);
+});
