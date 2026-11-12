@@ -764,9 +764,9 @@ describe("QrPaymentWaitPanel", () => {
       await userEvent.keyboard("{Escape}");
       await expect
         .element(
-          rendered.screen.getByText(
-            "No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.",
-          ),
+          rendered.screen
+            .getByText("No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.")
+            .first(),
         )
         .toBeVisible();
       return rendered;
