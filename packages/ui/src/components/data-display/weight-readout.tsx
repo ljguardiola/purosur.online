@@ -12,7 +12,9 @@ function Figure({ label, value, settled }: { label: string; value: string; settl
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg bg-surface px-5 py-4">
       <Eyebrow text={label} />
-      <p className={`text-display ${settled ? "text-text" : "opacity-disabled text-text"}`}>{value}</p>
+      <p className={`text-display ${settled ? "text-text" : "opacity-disabled text-text"}`}>
+        {value}
+      </p>
     </div>
   );
 }
