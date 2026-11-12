@@ -171,9 +171,13 @@ describe("createCoreClient", () => {
       type: "sign-in-users",
       request_id: "request-1",
       users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: "u1",
     });
 
-    expect(await users).toEqual([{ id: "u1", first_name: "Ada" }]);
+    expect(await users).toEqual({
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: "u1",
+    });
     expect(port.posted).toEqual([{ type: "sign-in-users", request_id: "request-1" }]);
   });
 

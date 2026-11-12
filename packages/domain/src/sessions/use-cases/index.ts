@@ -59,6 +59,8 @@ export type {
   SignablePerson,
 } from "./list-authorizers.js";
 export { listAuthorizers } from "./list-authorizers.js";
+export type { ListSignInUsersPorts, SignInUsers } from "./list-sign-in-users.js";
+export { listSignInUsers } from "./list-sign-in-users.js";
 export type {
   LookUpSignInInput,
   LookUpSignInOutcome,
@@ -94,6 +96,7 @@ export type {
   RecordSignInLockoutPorts,
 } from "./record-sign-in-lockout.js";
 export { recordSignInLockout } from "./record-sign-in-lockout.js";
+export type { RememberedPeople, RememberedPerson } from "./remembered-people.js";
 export type {
   CompromiseResponseStepRequest,
   RunCompromiseResponseStepInput,

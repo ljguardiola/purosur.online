@@ -111,7 +111,7 @@ describe("scanning products into a sale on the register", () => {
 
   it("adds a scanned product to the sale, counts a repeated scan, and says what it could not add", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("button", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");

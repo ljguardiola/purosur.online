@@ -64,7 +64,7 @@ describe("searching products by name into a sale on the register", () => {
 
   it("adds the product found by a name typed in any case and without accents, and says what it could not add", async () => {
     const { page } = register;
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("button", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("PIN").fill("4821");

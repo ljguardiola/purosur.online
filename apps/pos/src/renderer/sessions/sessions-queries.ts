@@ -1,6 +1,7 @@
 import type { SignInUser } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
+import type { SignInUsers } from "../platform/core-client";
 import type { CoreData } from "../platform/use-core-query";
 import { useCoreQuery } from "../platform/use-core-query";
 
@@ -15,7 +16,7 @@ function authorizersOf(permission: AuthorizablePermissionKey) {
   return [...sessionsKeys.authorizers, permission] as const;
 }
 
-export function useSignInUsersQuery(read: () => Promise<SignInUser[]>): CoreData<SignInUser[]> {
+export function useSignInUsersQuery(read: () => Promise<SignInUsers>): CoreData<SignInUsers> {
   return useCoreQuery({ queryKey: sessionsKeys.signInUsers, read });
 }
 

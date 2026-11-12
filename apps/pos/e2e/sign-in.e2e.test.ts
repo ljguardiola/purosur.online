@@ -66,7 +66,7 @@ describe("signing in to the register", () => {
     const { page } = register;
     await page.getByText("Todavía nadie ingresó en esta caja.", { exact: true }).waitFor();
 
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("button", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(ANA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
 
@@ -83,14 +83,18 @@ describe("signing in to the register", () => {
       .getByRole("complementary", { name: "¿Salir de la caja?" })
       .getByRole("button", { name: "Salir" })
       .click();
-    await page.getByText("Ana", { exact: true }).waitFor();
-    await page.getByText("Bruno", { exact: true }).waitFor({ state: "detached" });
+    const userSelect = page.getByRole("button", { name: /USUARIO/ });
+    await userSelect.getByText("Ana", { exact: true }).waitFor();
+    await userSelect.click();
+    await page.getByRole("option", { name: "Ana", exact: true }).waitFor();
+    await page.getByRole("option", { name: "Bruno", exact: true }).waitFor({ state: "detached" });
+    await page.keyboard.press("Escape");
   });
 
   it("gives a person with no PIN a code by email to choose one, signs them in and remembers them after Salir", async () => {
     const { page } = register;
 
-    await page.getByRole("link", { name: "Ingresar por primera vez" }).click();
+    await page.getByRole("link", { name: "Primer ingreso" }).click();
     await page.getByLabel("Correo").fill(CARLA_EMAIL);
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByRole("button", { name: "Mandarme un código por correo" }).click();
@@ -106,6 +110,9 @@ describe("signing in to the register", () => {
       .getByRole("complementary", { name: "¿Salir de la caja?" })
       .getByRole("button", { name: "Salir" })
       .click();
-    await page.getByText("Carla", { exact: true }).waitFor();
+    await page
+      .getByRole("button", { name: /USUARIO/ })
+      .getByText("Carla", { exact: true })
+      .waitFor();
   });
 });

@@ -19,6 +19,7 @@ import {
   STORAGE_READ_INTERVAL_MS,
   type ZoneRulesSource,
 } from "@purosur/domain";
+import { listSignInUsers } from "@purosur/domain/sessions/use-cases";
 import * as Sentry from "@sentry/electron/utility";
 import { net } from "electron";
 import {
@@ -1067,7 +1068,10 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
       newPin,
     ),
-  signInUsers: signInStore === undefined ? undefined : () => signInStore.signableUsers(),
+  signInUsers:
+    signInStore === undefined
+      ? undefined
+      : () => listSignInUsers({ rememberedPeople: signInStore }),
   authorizers:
     signInStore === undefined
       ? undefined
