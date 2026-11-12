@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SaleDetail } from "../shell/sale-receipt-text";
 import { saleActionsOf } from "./sale-history-actions";
 import { DETAIL } from "./test-support/sales-history-screen";
 
@@ -11,19 +12,19 @@ const AUTHORIZED_CREDIT_NOTE = {
   authorization_code_due_on: "2026-10-19",
 } as const;
 
-const VOIDED = {
+const VOID_CREDIT_NOTE = {
+  credit_note_id: "cn-1",
+  origin: "sale_void",
+  standing: AUTHORIZED_CREDIT_NOTE,
+  next_copy: { kind: "duplicate", order_number: 1 },
+} as const;
+
+const VOIDED: SaleDetail = {
   ...DETAIL,
   state: "voided",
   voidability: { kind: "not_voidable", refusal: "not_completed" },
-  credit_notes: [
-    {
-      credit_note_id: "cn-1",
-      origin: "sale_void",
-      standing: AUTHORIZED_CREDIT_NOTE,
-      next_copy: { kind: "duplicate", order_number: 1 },
-    },
-  ],
-} as const;
+  credit_notes: [VOID_CREDIT_NOTE],
+};
 
 describe("saleActionsOf a completed sale", () => {
   it("reprints its receipt with F5 and voids it with Supr when the core says it is voidable", () => {
@@ -159,7 +160,7 @@ describe("saleActionsOf a voided sale", () => {
         legend: "Nota de crédito",
         label: "Reimprimir nota de crédito",
         primary: true,
-        action: { kind: "reprint_credit_note", creditNote: VOIDED.credit_notes[0] },
+        action: { kind: "reprint_credit_note", creditNote: VOID_CREDIT_NOTE },
       },
     ]);
     expect(canVoid).toBe(false);
@@ -172,7 +173,7 @@ describe("saleActionsOf a voided sale", () => {
   });
 
   it("prints the credit note's original when the core says it was never printed", () => {
-    const [creditNote] = VOIDED.credit_notes;
+    const creditNote = VOID_CREDIT_NOTE;
     const { entries } = saleActionsOf({
       ...VOIDED,
       reprint: { kind: "sale_voided" },

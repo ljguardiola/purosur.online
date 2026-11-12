@@ -2,12 +2,12 @@ import type { Authorization, SignInUser, VoidSaleOutcome } from "@purosur/contra
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { RegisterFrame } from "../shell/register-frame";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import {
   authorizationDialog,
   authorizeInModal,
 } from "../shell/test-support/authorization-modal-steps";
-import { RegisterFrame } from "../shell/register-frame";
 import { render } from "../shell/test-support/render-with-router";
 import { deferred } from "./test-support/sale-screen";
 import type { VoidCreditNoteCorrects, VoidRefund } from "./void-sale-panel";

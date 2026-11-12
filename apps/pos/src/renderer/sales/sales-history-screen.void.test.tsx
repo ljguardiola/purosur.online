@@ -7,9 +7,9 @@ import {
 import {
   DETAIL,
   detailPanel,
+  FISCAL_ROW,
   legendOf,
   pageOf,
-  FISCAL_ROW,
   renderScreen,
   searchField,
   table,
