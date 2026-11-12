@@ -233,7 +233,7 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
   const lapsed =
     answer.data?.kind === "lapsed" ||
     (offered &&
-      answer.isIdle &&
+      !answerSent &&
       receipt.status === "loaded" &&
       receipt.value.standing === "declined");
   const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
@@ -279,7 +279,7 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
   }
 
   useKeys([
-    { key: "Escape", run: skip, enabled: mayAnswer },
+    { key: "Escape", run: skip },
     { key: "F2", run: changePrinter, enabled: mayChangeFailedPrinter },
   ]);
   useKeys(
