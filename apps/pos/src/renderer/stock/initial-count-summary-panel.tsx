@@ -46,13 +46,7 @@ export function InitialCountSummaryPanel({
     <SidePanel
       width="wide"
       label="Resumen del inventario"
-      header={
-        <SidePanelTitle
-          icon={<Package />}
-          title="Inventario inicial"
-          onClose={onClose}
-        />
-      }
+      header={<SidePanelTitle icon={<Package />} title="Inventario inicial" onClose={onClose} />}
       footer={
         <Button
           size="large"

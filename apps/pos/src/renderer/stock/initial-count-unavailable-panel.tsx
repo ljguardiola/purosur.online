@@ -6,13 +6,7 @@ export function InitialCountUnavailablePanel({ onGoHome }: { onGoHome: () => voi
     <SidePanel
       width="wide"
       label="Inventario inicial"
-      header={
-        <SidePanelTitle
-          icon={<Package />}
-          title="Inventario inicial"
-          onClose={onGoHome}
-        />
-      }
+      header={<SidePanelTitle icon={<Package />} title="Inventario inicial" onClose={onGoHome} />}
       footer={
         <Button
           size="large"
