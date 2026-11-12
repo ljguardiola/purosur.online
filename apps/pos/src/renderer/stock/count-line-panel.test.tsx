@@ -108,6 +108,12 @@ describe("CountLinePanel", () => {
       .toHaveAttribute("inputmode", "decimal");
   });
 
+  it("reads Sin vencimiento in the empty expiry field", async () => {
+    const { screen } = await renderPanel();
+
+    await expect.element(screen.getByText("Sin vencimiento", { exact: true })).toBeVisible();
+  });
+
   it("writes no help under the fields", async () => {
     const { screen } = await renderPanel();
 

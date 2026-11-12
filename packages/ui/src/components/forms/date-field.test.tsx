@@ -36,6 +36,7 @@ type NoRangeHarnessProps = {
   label: string;
   description?: string;
   disabled?: boolean;
+  placeholder?: string;
 };
 
 function DateFieldHarness({ variant, ...props }: NoRangeHarnessProps) {
@@ -1673,4 +1674,36 @@ test("names the calendar's month buttons and shows those names as tooltips", asy
 
   await userEvent.hover(screen.getByRole("button", { name: "Mes siguiente" }));
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mes siguiente");
+});
+
+test("shows its placeholder in place of the empty date until a segment takes the focus", async () => {
+  const screen = await render(
+    <DateFieldHarness variant="register" label="Vencimiento" placeholder="Sin vencimiento" />,
+  );
+  const placeholder = screen.getByText("Sin vencimiento");
+  const segments = fieldGroup(screen, "Vencimiento").querySelector('[role="spinbutton"]')
+    ?.parentElement as HTMLElement;
+
+  await expect.element(placeholder).toBeVisible();
+  expect(getComputedStyle(segments).opacity).toBe("0");
+
+  await userEvent.click(placeholder, { force: true });
+
+  await expect.element(placeholder).not.toBeVisible();
+  expect(getComputedStyle(segments).opacity).toBe("1");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows the date it holds instead of its placeholder", async () => {
+  const screen = await render(
+    <DateField
+      name="expiry"
+      label="Vencimiento"
+      placeholder="Sin vencimiento"
+      value={new CalendarDate(2027, 3, 15)}
+      onChange={() => {}}
+    />,
+  );
+
+  await expect.element(screen.getByText("Sin vencimiento")).not.toBeInTheDocument();
 });
