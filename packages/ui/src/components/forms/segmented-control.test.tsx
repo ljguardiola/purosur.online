@@ -380,3 +380,28 @@ test("cannot widen V through `value` at a real call site with no explicit type a
   });
   expectTypeOf(invalidCall).toEqualTypeOf<false>();
 });
+
+test("spans its container with options of equal width when full width", async () => {
+  const screen = await render(
+    <div style={{ width: "600px" }}>
+      <SegmentedControl {...baseProps({ fullWidth: true })} />
+    </div>,
+  );
+  const container = segmentContainer(screen, "Entry mode").getBoundingClientRect();
+  const first = segmentOption(screen, "Discount").getBoundingClientRect();
+  const second = segmentOption(screen, "New price").getBoundingClientRect();
+
+  expect(container.width).toBeCloseTo(600, 0);
+  expect(first.width).toBeCloseTo(second.width, 0);
+  expect(first.width + second.width).toBeGreaterThan(container.width - 20);
+});
+
+test("keeps its content width when not full width", async () => {
+  const screen = await render(
+    <div style={{ width: "600px" }}>
+      <SegmentedControl {...baseProps()} />
+    </div>,
+  );
+
+  expect(segmentContainer(screen, "Entry mode").getBoundingClientRect().width).toBeLessThan(600);
+});
