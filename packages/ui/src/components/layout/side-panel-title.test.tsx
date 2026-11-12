@@ -1,8 +1,9 @@
-import { Undo2, Wallet } from "lucide-react";
+import { Ban, Undo2, Wallet } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { tokenRgb } from "../../test/token-colors";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle, type SidePanelTitleProps } from "./side-panel-title";
 
@@ -145,4 +146,37 @@ test("closes the panel from its Esc button beside the title", async () => {
 
   expect(onClose).toHaveBeenCalledOnce();
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("paints the icon badge red on light red in the error tone", async () => {
+  const screen = await render(<SidePanelTitle icon={<Ban />} title="Cancelar venta" tone="error" />);
+  const badge = screen.container.querySelector("svg")?.closest("span[aria-hidden='true']");
+
+  const style = getComputedStyle(badge as Element);
+  expect(style.backgroundColor).toBe(tokenRgb("error-subtle"));
+  expect(style.color).toBe(tokenRgb("error-strong"));
+});
+
+test("shows a named lock right after the title when given a lock label", async () => {
+  const screen = await render(
+    <SidePanelTitle icon={<Wallet />} title="Precio de la línea" lockLabel="Precio bloqueado" />,
+  );
+  const lock = screen.getByRole("img", { name: "Precio bloqueado" });
+  const title = screen.getByRole("heading", { name: "Precio de la línea" }).element();
+
+  await expect.element(lock).toBeVisible();
+  expect(title.contains(lock.element())).toBe(true);
+  const text = title.firstChild as Text;
+  const range = document.createRange();
+  range.selectNodeContents(text);
+  expect(lock.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(
+    range.getBoundingClientRect().right,
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows no lock when it has no lock label", async () => {
+  const screen = await render(<SidePanelTitle icon={<Wallet />} title="Precio de la línea" />);
+
+  await expect.element(screen.getByRole("img")).not.toBeInTheDocument();
 });
