@@ -51,10 +51,10 @@ export const Warning: Story = {
   args: { tone: "warning", children: "Contingencia con CAEA" },
 };
 
-export const Danger: Story = {
+export const Failure: Story = {
   args: { tone: "error", children: "Anulada" },
 };
 
-export const StatusError: Story = {
+export const StatusFailure: Story = {
   args: { tone: "error", variant: "status", children: "Anulada" },
 };
