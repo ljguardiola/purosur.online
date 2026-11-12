@@ -452,3 +452,7 @@ export function renderCombinedPayment(overrides: Overrides = {}) {
     ...overrides,
   });
 }
+
+export function valueBeside(screen: Screen, label: string): string | null {
+  return screen.getByText(label, { exact: true }).element().nextElementSibling?.textContent ?? null;
+}

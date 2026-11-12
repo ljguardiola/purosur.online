@@ -6,6 +6,7 @@ import {
   renderScreen,
   SALE_OF_ONE_LINE,
   SALE_WITH_PART_PAID,
+  valueBeside,
 } from "./test-support/charge-screen";
 
 const REGISTER = "Registrar pago";
@@ -112,7 +113,7 @@ describe("ChargeScreen · terminal independiente", () => {
       .element(screen.getByRole("heading", { name: "Terminal independiente" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel).toHaveTextContent("Pagado– $ 2.000,00");
+    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 2.000,00");
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
     expect(chargeSaleOnStandaloneTerminal).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });

@@ -11,6 +11,7 @@ import {
   SALE_OF_ONE_LINE,
   SALE_OF_TWO_LINES,
   SALE_WITH_PART_PAID,
+  valueBeside,
 } from "./test-support/charge-screen";
 
 const FAILED_PRINT: ReceiptPrintStatusOutcome = {
@@ -68,8 +69,8 @@ describe("ChargeScreen", () => {
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("FALTA")).toBeVisible();
     await expect.element(panel.getByText("$ 3.760,00")).toBeVisible();
-    await expect.element(panel).toHaveTextContent("Total$ 4.760,00");
-    await expect.element(panel).toHaveTextContent("Pagado– $ 1.000,00");
+    await expect.poll(() => valueBeside(screen, "Total")).toBe("$ 4.760,00");
+    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 1.000,00");
   });
 
   it("marks Venta as the current screen of the menu", async () => {
@@ -322,7 +323,7 @@ describe("ChargeScreen", () => {
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("FALTA")).toBeVisible();
-    await expect.element(panel).toHaveTextContent("Pagado– $ 4.000,00");
+    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 4.000,00");
     await expect.element(panel.getByText("$ 760,00")).toBeVisible();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 400_000);
@@ -472,7 +473,7 @@ describe("ChargeScreen", () => {
       .element(screen.getByRole("heading", { name: "Transferencia" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel).toHaveTextContent("Pagado– $ 2.000,00");
+    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 2.000,00");
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });

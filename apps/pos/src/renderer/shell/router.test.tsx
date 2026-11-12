@@ -3318,7 +3318,7 @@ describe("the charge route's Mercado Pago QR", () => {
     await expect.element(screen.getByRole("button", { name: "Crear orden" })).toBeVisible();
   });
 
-  it("shows Otros medios when the route carries a method that does not exist", async () => {
+  it("shows the combined payment when the route carries a method that does not exist", async () => {
     const router = createRegisterRouter(
       routeTree,
       {
@@ -3331,7 +3331,7 @@ describe("the charge route's Mercado Pago QR", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 

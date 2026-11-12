@@ -6,6 +6,7 @@ import {
   renderScreen,
   SALE_OF_ONE_LINE,
   SALE_WITH_PART_PAID,
+  valueBeside,
 } from "./test-support/charge-screen";
 
 describe("ChargeScreen · Otros medios by keys", () => {
@@ -102,7 +103,7 @@ describe("ChargeScreen · Otros medios by keys", () => {
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("FALTA")).toBeVisible();
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
-    await expect.element(panel).toHaveTextContent("Pagado– $ 2.000,00");
+    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 2.000,00");
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });
 
