@@ -48,6 +48,20 @@ describe("RegisterFrame", () => {
       .not.toBeInTheDocument();
   });
 
+  it("ends the header's crumbs with the crumb of its screen", async () => {
+    const screen = await render(
+      <RegisterStatusProvider value={STATUS}>
+        <RegisterFrame background="surface" rail={null} crumb="Antes de empezar">
+          <main>contenido</main>
+        </RegisterFrame>
+      </RegisterStatusProvider>,
+    );
+
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }))
+      .toMatchTextContent(/^CAJA 1•Ada•Sin sesión abierta•Antes de empezar/);
+  });
+
   it("shows the header above the content, between the rail and the panel", async () => {
     const screen = await render(
       <RegisterStatusProvider value={STATUS}>{frame()}</RegisterStatusProvider>,
@@ -67,23 +81,6 @@ describe("RegisterFrame", () => {
     expect(header.left).toBeGreaterThanOrEqual(rail.right);
     expect(header.right).toBeLessThanOrEqual(panel.left);
     expect(panel.top).toBeLessThan(header.top + 1);
-  });
-
-  it("shows its title as the header's third crumb", async () => {
-    const screen = await render(
-      <RegisterStatusProvider value={STATUS}>
-        <RegisterFrame
-          background="surface"
-          rail={<nav aria-label="Riel">riel</nav>}
-          title="Inventario inicial"
-        >
-          <main>contenido</main>
-        </RegisterFrame>
-      </RegisterStatusProvider>,
-    );
-
-    await expect.element(screen.getByText("Inventario inicial", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Sin sesión abierta")).not.toBeInTheDocument();
   });
 
   it("covers the aside with a panel rendered through the frame's panel slot, from the rail", async () => {

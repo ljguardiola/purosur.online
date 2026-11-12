@@ -122,13 +122,15 @@ function Crumbs({
   person,
   registerName,
   cashSession,
-  title,
-}: Pick<RegisterStatusData, "person" | "registerName" | "cashSession"> & { title?: string }) {
+  crumb,
+}: Pick<RegisterStatusData, "person" | "registerName" | "cashSession"> & {
+  crumb: string | undefined;
+}) {
   const crumbs = [
     registerEyebrow(registerName),
     ...(person === undefined ? [] : [person.first_name]),
-    ...(title !== undefined
-      ? [title]
+    ...(crumb !== undefined
+      ? [crumb]
       : cashSession.status === "none"
         ? ["Sin sesión abierta"]
         : []),
@@ -155,6 +157,8 @@ function Crumbs({
   );
 }
 
+export type RegisterHeaderProps = RegisterStatusData & { crumb?: string | undefined };
+
 export function RegisterHeader({
   person,
   registerName,
@@ -162,8 +166,8 @@ export function RegisterHeader({
   status,
   backupTickets,
   onDiscardBackupTickets,
-  title,
-}: RegisterStatusData & { title?: string }) {
+  crumb,
+}: RegisterHeaderProps) {
   const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
   const noticeCount =
     (status.status === "loaded"
@@ -179,7 +183,7 @@ export function RegisterHeader({
           person={person}
           registerName={registerName}
           cashSession={cashSession}
-          {...(title === undefined ? {} : { title })}
+          crumb={crumb}
         />
         <div className="flex flex-wrap items-center gap-2">
           {status.status === "loaded" && status.value.cloud === "unreachable" ? (

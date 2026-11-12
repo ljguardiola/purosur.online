@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Wallet } from "lucide-react";
+import { Undo2, Wallet } from "lucide-react";
+import { CloseButton } from "../shared/close-button";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -34,4 +35,13 @@ export const WithLabelledEscapeKeycap: Story = {
 
 export const WithDisabledLabelledEscapeKeycap: Story = {
   args: { close: { onPress: () => {}, label: "Cancelar", disabled: true } },
+};
+
+export const Warning: Story = {
+  args: {
+    icon: <Undo2 />,
+    title: "¿Pasar el cobro a reembolso?",
+    tone: "warning",
+    children: <CloseButton onPress={() => undefined} />,
+  },
 };

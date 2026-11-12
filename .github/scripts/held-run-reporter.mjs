@@ -22,6 +22,9 @@ export class HeldRunReporter {
   #remaining = new Map();
   #running = new Set();
   #finished = [];
+  #testFrames = new Map();
+  #testFrameOfPage = new Map();
+  #observedServers = new WeakSet();
   #watching = false;
   #projectStallTimers = new Map();
   #runStallTimer;
@@ -53,6 +56,32 @@ export class HeldRunReporter {
     this.#vitest = vitest;
   }
 
+  onBrowserInit(project) {
+    const server = project.browser?.vite.httpServer;
+    if (!server || this.#observedServers.has(server)) return;
+    this.#observedServers.add(server);
+    server.on("request", (request) => this.#testFrameRequested(request));
+    server.on("upgrade", (request) => this.#testFrameConnected(request));
+  }
+
+  #testFrameRequested(request) {
+    const { searchParams } = new URL(request.url ?? "", "http://localhost");
+    const sessionId = searchParams.get("sessionId");
+    const moduleId = searchParams.get("iframeId");
+    const project = sessionId && this.#vitest._browserSessions.getSession(sessionId)?.project.name;
+    if (!moduleId || project == null) return;
+    const key = fileKey(project, moduleId);
+    this.#testFrames.set(key, { sessionId });
+    this.#testFrameOfPage.set(sessionId, key);
+  }
+
+  #testFrameConnected(request) {
+    const { pathname, searchParams } = new URL(request.url ?? "", "http://localhost");
+    if (pathname !== "/__vitest_browser_api__" || searchParams.get("type") !== "tester") return;
+    const frame = this.#testFrames.get(this.#testFrameOfPage.get(searchParams.get("sessionId")));
+    if (frame) frame.testerId = searchParams.get("rpcId");
+  }
+
   onTestRunStart() {
     this.#stop();
   }
@@ -68,6 +97,8 @@ export class HeldRunReporter {
     );
     this.#running.clear();
     this.#finished = [];
+    this.#testFrames.clear();
+    this.#testFrameOfPage.clear();
     this.#watching = true;
     this.#armRunStallTimer();
   }
@@ -165,9 +196,7 @@ export class HeldRunReporter {
       this.#log(
         `held-run: ${plural(moduleIds.length, `"${project}" file`)} still to report: ` +
           moduleIds.map((moduleId) => relative(this.#vitest.config.root, moduleId)).join(", ") +
-          this.#openPages([project], "has")
-            .map((line) => `; ${line}`)
-            .join(""),
+          this.#startingStep(project, moduleIds),
       );
     }
     await this.#reportRunEnd("failed");
@@ -178,14 +207,51 @@ export class HeldRunReporter {
     this.#exit(1);
   }
 
-  #openPages(projectNames, verb) {
+  #startingStep(projectName, moduleIds) {
+    const project = this.#vitest.projects.find((project) => project.name === projectName);
+    const state = project?.browser?.state;
+    if (!state) return "";
+    const open = [...state.orchestrators.keys()];
+    const neverConnected = [...this.#vitest._browserSessions.sessionIds].filter(
+      (sessionId) =>
+        !state.orchestrators.has(sessionId) &&
+        this.#vitest._browserSessions.getSession(sessionId)?.project === project,
+    );
+    const pages = [
+      open.length > 0 && `${plural(open.length, "browser page")} open: ${open.join(", ")}`,
+      neverConnected.length > 0 &&
+        `${plural(neverConnected.length, "browser page")} whose orchestrator never connected: ${neverConnected.join(", ")}`,
+    ].filter(Boolean);
+    const frames = moduleIds.flatMap((moduleId) => {
+      const frame = this.#testFrames.get(fileKey(projectName, moduleId));
+      if (!frame) return [];
+      const file = relative(this.#vitest.config.root, moduleId);
+      if (frame.testerId == null) {
+        return [
+          `the test frame of ${file} was requested on page ${frame.sessionId} and never connected`,
+        ];
+      }
+      return state.testers.has(frame.testerId)
+        ? [`the test frame of ${file} connected on page ${frame.sessionId}`]
+        : [
+            `the test frame of ${file} was requested on page ${frame.sessionId} and has no open connection`,
+          ];
+    });
+    return (
+      `; "${projectName}" has ${pages.length > 0 ? pages.join(" and ") : "no browser page open"}; ` +
+      (frames.length > 0
+        ? frames.join("; ")
+        : `no test frame was requested for ${moduleIds.length === 1 ? "it" : "them"}`)
+    );
+  }
+
+  #openPages() {
     return this.#vitest.projects
-      .filter((project) => projectNames.includes(project.name))
       .map((project) => ({ name: project.name, sessions: project.browser?.state.orchestrators }))
       .filter(({ sessions }) => sessions && sessions.size > 0)
       .map(
         ({ name, sessions }) =>
-          `"${name}" ${verb} ${plural(sessions.size, "browser page")} open: ${[...sessions.keys()].join(", ")}`,
+          `"${name}" still has ${plural(sessions.size, "browser page")} open: ${[...sessions.keys()].join(", ")}`,
       );
   }
 
@@ -200,10 +266,7 @@ export class HeldRunReporter {
 
   async #endHeldRun() {
     this.#stop();
-    const openPages = this.#openPages(
-      this.#vitest.projects.map((project) => project.name),
-      "still has",
-    );
+    const openPages = this.#openPages();
     this.#log(
       `held-run: every test file reported ${this.#graceMs / 1000}s ago and Vitest has not ended. ` +
         (openPages.length > 0 ? openPages.join("; ") : "no browser page is open"),

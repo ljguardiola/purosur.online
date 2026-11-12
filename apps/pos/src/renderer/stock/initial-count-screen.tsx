@@ -379,7 +379,7 @@ export function InitialCountScreen({
   return (
     <RegisterFrame
       background="subtle"
-      title="Inventario inicial"
+      crumb="Inventario inicial"
       rail={<NoSessionRail person={person} current="/initial-count" signOut={signOut} />}
       aside={
         !open ? (
