@@ -9,7 +9,7 @@ import {
   WeighingPanel,
   WeightReadout,
 } from "@purosur/ui";
-import { Info, Keyboard } from "lucide-react";
+import { Info } from "lucide-react";
 import { useEffect } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { ScaleWeighing } from "../platform/use-scale-weighing";
@@ -159,7 +159,7 @@ export function WeighingCard({
           <Button
             variant="secondary"
             size="large"
-            icon={<Keyboard />}
+            onTintedSurface
             keycap="F5"
             disabled={!following}
             onPress={typeInstead}
