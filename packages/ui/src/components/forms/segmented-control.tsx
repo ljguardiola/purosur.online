@@ -14,8 +14,7 @@ export type SegmentedControlProps<V extends string> = OptionChoiceProps<
   fullWidth?: boolean;
 };
 
-const containerClassName =
-  "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1";
+const containerClassName = "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1";
 
 const containerSizeClassName: Record<SegmentedControlSize, string> = {
   large: "h-control-4xl",

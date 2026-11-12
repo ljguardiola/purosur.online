@@ -674,9 +674,7 @@ describe("what cancelling a sale with approved payments refunds", () => {
     ["a fractional amount handed back now", 0.5],
     ["a negative amount handed back now", -1],
   ])("rejects %s", (_case, refundNow) => {
-    expect(
-      saleSchema.safeParse({ ...sale, refund_now_on_cancel: refundNow }).success,
-    ).toBe(false);
+    expect(saleSchema.safeParse({ ...sale, refund_now_on_cancel: refundNow }).success).toBe(false);
   });
 
   it("accepts an amount handed back now", () => {

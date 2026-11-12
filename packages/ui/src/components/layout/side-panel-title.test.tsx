@@ -149,7 +149,9 @@ test("closes the panel from its Esc button beside the title", async () => {
 });
 
 test("paints the icon badge red on light red in the error tone", async () => {
-  const screen = await render(<SidePanelTitle icon={<Ban />} title="Cancelar venta" tone="error" />);
+  const screen = await render(
+    <SidePanelTitle icon={<Ban />} title="Cancelar venta" tone="error" />,
+  );
   const badge = screen.container.querySelector("svg")?.closest("span[aria-hidden='true']");
 
   const style = getComputedStyle(badge as Element);

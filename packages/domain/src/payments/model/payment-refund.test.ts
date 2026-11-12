@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { PAYMENT_METHODS } from "./payment.js";
 import {
   exceedsRefundable,
   isRefundDiscarded,
@@ -27,7 +28,6 @@ import {
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,
 } from "./payment-refund.js";
-import { PAYMENT_METHODS } from "./payment.js";
 
 const CASH = {
   id: "pay-1",

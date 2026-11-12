@@ -34,11 +34,7 @@ export function SidePanelTitle({
       </span>
       <h2 className="text-subheading font-bold text-text">{title}</h2>
       {lockLabel === undefined ? null : (
-        <Lock
-          role="img"
-          aria-label={lockLabel}
-          className={` shrink-0 text-text-subtle`}
-        />
+        <Lock role="img" aria-label={lockLabel} className={` shrink-0 text-text-subtle`} />
       )}
       <span aria-hidden="true" className="flex-1" />
       {onClose === undefined ? null : (
