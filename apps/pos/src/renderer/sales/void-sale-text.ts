@@ -1,7 +1,6 @@
-import type { TagProps } from "@purosur/ui";
 import { formatCents } from "@purosur/ui";
-import { paidPaymentName } from "../platform/payment-method-names";
 import type { SaleDetail } from "../shell/sale-receipt-text";
+import { paymentRowName } from "./sale-history-text";
 
 type Voidability = SaleDetail["voidability"];
 
@@ -25,27 +24,18 @@ export function voidRefusalReason(refusal: VoidRefusal): string | undefined {
   }
 }
 
-export function voidRefundPresentation(refund: VoidRefund): {
-  title: string;
-  description: string;
-  chip: { label: string; tone: TagProps["tone"] };
+export function voidRefundRow(refund: VoidRefund): {
+  name: string;
+  label: string;
+  value: string;
   pending: boolean;
 } {
-  const title = `${paidPaymentName(refund.method, refund.card_type)} · ${formatCents(refund.amount)}`;
-  if (refund.state === "APPROVED") {
-    return {
-      title,
-      description: "Lo devolvés en efectivo en el momento.",
-      chip: { label: "En el acto", tone: "success" },
-      pending: false,
-    };
-  }
+  const pending = refund.state !== "APPROVED";
+  const name = paymentRowName(refund.method, refund.card_type);
   return {
-    title,
-    description: refund.sent_by_cloud
-      ? "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo."
-      : "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
-    chip: { label: "Pendiente", tone: "info" },
-    pending: true,
+    name,
+    label: `${name} · ${pending ? "reembolso pendiente" : "en el acto"}`,
+    value: formatCents(refund.amount),
+    pending,
   };
 }
