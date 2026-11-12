@@ -207,13 +207,13 @@ describe("ChargeScreen · Point", () => {
       });
 
       await expect
-        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
+        .element(screen.getByText("Pagado en la terminal"))
         .toBeVisible();
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
       await expect
-        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
+        .element(screen.getByText("Pagado en la terminal"))
         .toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
