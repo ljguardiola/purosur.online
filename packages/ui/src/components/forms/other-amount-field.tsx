@@ -1,6 +1,6 @@
 import { Input as AriaInput, TextField as AriaTextField } from "react-aria-components";
 import { Keycap, type KeyName } from "../data-display/keycap";
-import { fieldErrorClassName } from "./field-styles";
+import { disabledTextProps, fieldErrorClassName } from "./field-styles";
 import { useDecimalTyping } from "./use-decimal-typing";
 
 export type OtherAmountFieldProps = {
@@ -45,7 +45,11 @@ export function OtherAmountField({
           `${selected ? "border-action bg-action-subtle" : "border-border bg-surface"}`
         }
       >
-        <span aria-hidden="true" className="shrink-0 text-subheading font-bold text-text-subtle">
+        <span
+          aria-hidden="true"
+          {...disabledTextProps(disabled)}
+          className="shrink-0 text-subheading font-bold text-text-subtle"
+        >
           {prefix}
         </span>
         <AriaInput
