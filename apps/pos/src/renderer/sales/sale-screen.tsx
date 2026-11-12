@@ -702,10 +702,18 @@ export function SaleScreen({
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
   const readAvailabilityAgain = useEffectEvent(() => void refreshAvailability());
   const saleTotal = sale?.total;
+  const availabilityReadForTotal = useRef<number>(undefined);
   useEffect(() => {
-    if (saleTotal !== undefined) {
+    if (saleTotal === undefined) {
+      return;
+    }
+    if (
+      availabilityReadForTotal.current !== undefined &&
+      availabilityReadForTotal.current !== saleTotal
+    ) {
       readAvailabilityAgain();
     }
+    availabilityReadForTotal.current = saleTotal;
   }, [saleTotal]);
   const pointBelowMinimum =
     availability.status === "loaded" && availability.value.point === "below_minimum";

@@ -24,19 +24,18 @@ import {
 import {
   CHARGE_IN_PROGRESS_MESSAGE,
   exceedsPendingMessage,
-  ORDER_FAILED_MESSAGE,
+  ORDER_UNREACHABLE_MESSAGE,
   PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
 
 const REFUSED_MESSAGE = "Mercado Pago rechazó la orden. Cobrá con otro medio.";
 const NOT_CONFIGURED_MESSAGE = "La Point integrada no está configurada en esta caja.";
+const ORDER_NOT_CREATED_MESSAGE = "No se pudo crear la orden. Cobrá con otro medio.";
 
 export type ShownPointOrder = Extract<
   StartMercadoPagoChargeOutcome,
   { kind: "order_shown" | "order_unconfirmed" }
 >;
-
-type Notice = { message: string; retryable: boolean };
 
 export type PointChargePanelProps = {
   pending: number;
@@ -60,7 +59,7 @@ export function PointChargePanel({
   onSessionInvalid,
 }: PointChargePanelProps) {
   const amountBox = useRef<HTMLDivElement>(null);
-  const [notice, setNotice] = useState<Notice>();
+  const [notice, setNotice] = useState<string>();
   const { form, submit, submitting } = useRequestForm({
     defaultValues: { amount: formatAmountInput(pending) },
     request: { schema: mercadoPagoChargeRequestSchema, from: mercadoPagoChargeRequestFrom },
@@ -85,16 +84,16 @@ export function PointChargePanel({
           showFieldError("amount", `La Point no acepta cobros menores a ${formatCents(minimum)}`);
           break;
         case "not_configured":
-          setNotice({ message: NOT_CONFIGURED_MESSAGE, retryable: false });
+          setNotice(NOT_CONFIGURED_MESSAGE);
           break;
         case "order_refused":
-          setNotice({ message: REFUSED_MESSAGE, retryable: false });
+          setNotice(REFUSED_MESSAGE);
           break;
         case "mercado_pago_charge_in_progress":
-          setNotice({ message: CHARGE_IN_PROGRESS_MESSAGE, retryable: false });
+          setNotice(CHARGE_IN_PROGRESS_MESSAGE);
           break;
         case "paid_order_not_applied":
-          setNotice({ message: PAID_ORDER_NOT_APPLIED_MESSAGE, retryable: false });
+          setNotice(PAID_ORDER_NOT_APPLIED_MESSAGE);
           break;
         case "empty_sale":
         case "zero_total":
@@ -109,8 +108,10 @@ export function PointChargePanel({
           onSessionInvalid();
           break;
         case "unreachable":
+          setNotice(ORDER_UNREACHABLE_MESSAGE);
+          break;
         case "unavailable":
-          setNotice({ message: ORDER_FAILED_MESSAGE, retryable: true });
+          setNotice(ORDER_NOT_CREATED_MESSAGE);
           break;
       }
     },
@@ -124,11 +125,10 @@ export function PointChargePanel({
     if (submitting) {
       return;
     }
-    setNotice(undefined);
     void submit();
   }
 
-  const refused = notice !== undefined && !notice.retryable;
+  const refused = notice !== undefined;
 
   function pressEnter() {
     if (refused) {
@@ -194,12 +194,7 @@ export function PointChargePanel({
     >
       <FigureStat size="hero" label="A COBRAR" value={formatCents(pending)} />
       <div ref={amountBox}>
-        <form.AppField
-          name="amount"
-          listeners={{
-            onChange: () => setNotice((shown) => (shown?.retryable === false ? shown : undefined)),
-          }}
-        >
+        <form.AppField name="amount">
           {(field) => (
             <TextField
               kind="amount"
@@ -215,7 +210,7 @@ export function PointChargePanel({
         </form.AppField>
       </div>
       {notice === undefined ? null : (
-        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice.message} />
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
       )}
     </SidePanel>
   );

@@ -9,12 +9,13 @@ import {
   FigureStat,
   formatCents,
   InlineNotice,
+  LoadFailure,
   LoadingPlaceholder,
   ProgressSteps,
   SidePanel,
   SidePanelTitle,
 } from "@purosur/ui";
-import { ArrowRight, CircleX, CreditCard, RefreshCw, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleX, CreditCard, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import { pointCardTitle } from "../platform/payment-method-names";
@@ -223,6 +224,10 @@ export function PointPaymentWaitPanel({
   );
 
   if (paidCharge !== undefined) {
+    const continueAfterPayment = () =>
+      paidCharge.kind === "completed"
+        ? onCompleted({ ...paidCharge, amount: order.amount })
+        : void onPartiallyPaid();
     return (
       <MercadoPagoPaidPanel
         icon={<CreditCard />}
@@ -230,11 +235,8 @@ export function PointPaymentWaitPanel({
         paidLabel="Pagado con Point"
         amount={order.amount}
         pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
-        onContinue={() =>
-          paidCharge.kind === "completed"
-            ? onCompleted({ ...paidCharge, amount: order.amount })
-            : void onPartiallyPaid()
-        }
+        onContinue={continueAfterPayment}
+        onClose={continueAfterPayment}
       >
         <ProgressSteps steps={[{ id: "paid", label: "Pagado en la terminal", state: "done" }]} />
       </MercadoPagoPaidPanel>
@@ -268,20 +270,7 @@ export function PointPaymentWaitPanel({
         />
       }
       footer={
-        view === "waiting" ? undefined : view === "follow-failed" ? (
-          retrying ? undefined : (
-            <Button
-              size="large"
-              fullWidth
-              icon={<RefreshCw />}
-              iconPosition="start"
-              keycap="R"
-              onPress={followAgain}
-            >
-              Reintentar
-            </Button>
-          )
-        ) : (
+        view === "waiting" || view === "follow-failed" ? undefined : (
           <Button
             size="large"
             fullWidth
@@ -303,11 +292,13 @@ export function PointPaymentWaitPanel({
         retrying ? (
           <LoadingPlaceholder variant="card" lines={2} />
         ) : (
-          <InlineNotice
-            tone="error"
+          <LoadFailure
+            variant="keyboard"
+            keycap="R"
             icon={<CircleX />}
             title="No se pudo consultar el cobro en la terminal"
             description="Volvé a intentarlo en unos segundos."
+            onRetry={followAgain}
           />
         )
       ) : null}

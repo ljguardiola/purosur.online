@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { Button as AriaButton } from "react-aria-components";
 import { Keycap } from "../data-display/keycap";
 import { iconSlotClassName } from "./icon";
 import { IconOnlyButton } from "./icon-only-button";
@@ -33,14 +34,13 @@ export function CloseButton({
         <span aria-hidden="true">
           <Keycap keyName="Escape" />
         </span>
-        <IconOnlyButton
-          name={label}
+        <AriaButton
           onPress={onPress}
-          disabled={disabled}
+          isDisabled={disabled}
           className={labelledCloseButtonClassName}
         >
           {label}
-        </IconOnlyButton>
+        </AriaButton>
       </span>
     );
   }
