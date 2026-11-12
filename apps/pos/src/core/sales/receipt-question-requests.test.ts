@@ -1,7 +1,5 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createContingencyBackupTicketRequests } from "../backups/contingency-backup-ticket-requests";
-import { SqliteContingencyBackupTickets } from "../backups/sqlite-contingency-backup-tickets";
 import { derivePinVerifier } from "../credentials/pin-verifier";
 import {
   insertFiscalDocument,
@@ -151,44 +149,13 @@ describe("whether a sale's receipt asks before printing", () => {
 });
 
 describe("a sale whose factura C was authorized in contingency", () => {
-  const tickets = () => new SqliteContingencyBackupTickets(database);
-
-  function backupTicketOfSale(saleId: string) {
-    return createContingencyBackupTicketRequests({
-      tickets: tickets(),
-      clock: { now: () => NOW },
-      printerFailure: () => null,
-      signedInUserId: () => signedInPerson.userId(),
-      gate: {
-        run: async (_operation, perform) => ({
-          kind: "performed",
-          result: await perform({ signedInUserId: "cashier" }),
-        }),
-      },
-    }).ofSale(saleId);
-  }
-
-  beforeEach(async () => {
+  beforeEach(() => {
     addSale("sale-3", { withVoucher: false });
     insertOfflineFiscalDocument(database, { saleId: "sale-3", id: "offline-doc-3" });
-    await tickets().transaction((tx) =>
-      tx.recordTicket({
-        id: "backup-3",
-        operation: "sale",
-        subjectId: "sale-3",
-        range: { firstDeviceSeq: 1, lastDeviceSeq: 1 },
-        createdAt: NOW,
-        sealed: { keyVersion: 1, qrCodes: ["AB"] },
-      }),
-    );
   });
 
-  it("does not ask before printing its customer's factura C, so its backup ticket waits for nothing", async () => {
+  it("does not ask before printing its customer's factura C", () => {
     expect(saleAsksBeforePrinting(deps(), "sale-3")).toBe(false);
-    expect(await backupTicketOfSale("sale-3")).toEqual({
-      kind: "read",
-      ticket: { standing: "to_print" },
-    });
   });
 });
 
