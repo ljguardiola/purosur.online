@@ -233,7 +233,10 @@ describe("reprintReceipt", () => {
       copy: { kind: "duplicate", orderNumber: 1 },
     });
     expect(rig.ledger.state.sales[0]?.reprints).toEqual([
-      expect.objectContaining({ orderNumber: 1, reason: { kind: "requested", text: INPUT.reason } }),
+      expect.objectContaining({
+        orderNumber: 1,
+        reason: { kind: "requested", text: INPUT.reason },
+      }),
     ]);
   });
 
