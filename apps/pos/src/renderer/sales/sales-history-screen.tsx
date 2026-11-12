@@ -98,6 +98,8 @@ const REPRINT_STARTED_TITLES: Record<PrintedDocument, string> = {
   deferred_invoice: "La reimpresión de la factura sale en cuanto la impresora esté lista",
 };
 
+const KEY_ORDER = ["F5", "F6", "Enter"];
+
 const NO_SALES_WITH_NUMBER = "No hay ventas con ese número";
 
 const NO_FOUND: CoreData<ShownSalesHistory> = {
@@ -375,6 +377,9 @@ export function SalesHistoryScreen({
 
   const panelOpen = panel !== undefined;
   const entries = actions === undefined ? [] : actions.entries;
+  const keyedEntries = [...entries].sort(
+    (left, right) => KEY_ORDER.indexOf(left.key ?? "F5") - KEY_ORDER.indexOf(right.key ?? "F5"),
+  );
   const shownLegend = rows.length > 0;
   const legend = useKeys(
     [
@@ -395,7 +400,7 @@ export function SalesHistoryScreen({
         run: () => changeSession(session === "open" ? "all" : "open"),
         enabled: refusal === undefined,
       },
-      ...entries.flatMap((entry) =>
+      ...keyedEntries.flatMap((entry) =>
         entry.key === undefined || sale === undefined
           ? []
           : [
