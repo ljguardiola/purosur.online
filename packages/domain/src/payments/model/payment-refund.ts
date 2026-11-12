@@ -60,7 +60,7 @@ export function plannedRefunds(payments: readonly RefundablePayment[]): PlannedR
 
 export function refundedAtRegisterNow(refunds: readonly PlannedRefund[]): number {
   return refunds
-    .filter((refund) => refund.method === "CASH" && refund.state === REFUND_DONE_STATE)
+    .filter((refund) => refund.state === REFUND_DONE_STATE)
     .reduce((total, refund) => total + refund.amount, 0);
 }
 
