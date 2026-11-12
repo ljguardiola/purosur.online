@@ -37,15 +37,14 @@ test("draws the figures in the regular text color once the reading settled", asy
   expect(getComputedStyle(screen.getByText("$ 2.820,80").element()).color).toBe(tokenRgb("text"));
 });
 
-test("draws the figures grey while the reading has not settled", async () => {
+test("dims the figures like a disabled control while the reading has not settled", async () => {
   const screen = await render(<WeightReadout {...readout} settled={false} />);
 
-  expect(getComputedStyle(screen.getByText("0,172 kg").element()).color).toBe(
-    tokenRgb("text-subtle"),
-  );
-  expect(getComputedStyle(screen.getByText("$ 2.820,80").element()).color).toBe(
-    tokenRgb("text-subtle"),
-  );
+  for (const figure of ["0,172 kg", "$ 2.820,80"]) {
+    const style = getComputedStyle(screen.getByText(figure).element());
+    expect(style.color).toBe(tokenRgb("text"));
+    expect(style.opacity).toBe("0.45");
+  }
   await expectNoAccessibilityViolations(screen.container);
 });
 
