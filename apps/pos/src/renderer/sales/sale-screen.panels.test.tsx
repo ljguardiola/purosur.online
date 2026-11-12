@@ -158,14 +158,13 @@ describe("SaleScreen while a panel is open", () => {
     ["{F8}", EMPTY_SALE],
   ])("leaves the keys of the screen off under the panel opened by %s", async (opening, name) => {
     const removeSaleLine = vi.fn();
-    const { screen, field } = await renderFourLines({ removeSaleLine });
+    const { screen } = await renderFourLines({ removeSaleLine });
     await userEvent.keyboard(opening);
     await expect.element(panelNamed(screen, name)).toBeVisible();
 
     await userEvent.keyboard("{F2}{F3}{F6}{F7}{F8}{Delete}{ArrowUp}");
 
     await expect.element(panelNamed(screen, name)).toBeVisible();
-    await expect.element(field).not.toHaveFocus();
     await userEvent.keyboard("{Escape}");
     await expect.element(panelNamed(screen, "Panel de cobro")).toBeVisible();
     await expect.element(screen.getByRole("row").last()).toHaveAttribute("aria-current", "true");

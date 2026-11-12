@@ -58,7 +58,7 @@ describe("SaleScreen showing the discount on the total", () => {
     const { screen } = await renderScreen({ currentSale: async () => DISCOUNTED_SALE });
 
     await expect.element(screen.getByText("Descuento al total · 5 %")).toBeVisible();
-    await expect.element(screen.getByText("– $ 238,00")).toBeVisible();
+    await expect.element(screen.getByText("− $ 238,00")).toBeVisible();
     await expect.element(screen.getByText("$ 4.522,00").first()).toBeVisible();
   });
 

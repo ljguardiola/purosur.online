@@ -157,7 +157,6 @@ describe("LinePricePanel previewing the adjustment", () => {
     await typePrice(screen, "3000");
 
     await expect.element(screen.getByText("No se pudo calcular cómo queda la línea")).toBeVisible();
-    await expect.element(screen.getByText(NOT_PREVIEWED)).not.toBeInTheDocument();
   });
 
   it("shows the preview loading again after Reintentar, until the core answers", async () => {

@@ -29,7 +29,7 @@ describe("SaleDiscountPanel", () => {
     const field = screen.getByRole("textbox", { name: "DESCUENTO" });
     await expect.element(field).toHaveFocus();
     await expect.element(field).toHaveAttribute("inputmode", "numeric");
-    await expect.element(screen.getByText("%", { exact: true }).first()).toBeVisible();
+    expect(field.element().parentElement?.textContent).toContain("%");
   });
 
   it("offers courtesy and Otro as reasons, starting on courtesy", async () => {

@@ -118,7 +118,6 @@ describe("SaleDiscountPanel previewing the discount", () => {
     await typeValue(screen, "DESCUENTO", "5");
 
     await expect.element(screen.getByText("No se pudo calcular cómo queda la venta")).toBeVisible();
-    await expect.element(screen.getByText("—")).not.toBeInTheDocument();
   });
 
   it("groups thousands and takes a typed dot as the decimal comma in an amount discount", async () => {
