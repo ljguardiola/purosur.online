@@ -272,12 +272,16 @@ export function useSaleHistoryDetailQuery({
   saleId,
   read,
 }: {
-  saleId: string;
+  saleId: string | undefined;
   read: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
 }): CoreData<ShownSaleHistoryDetail> {
   return useCoreQuery({
-    queryKey: salesKeys.saleDetail(saleId),
+    queryKey: salesKeys.saleDetail(saleId ?? ""),
+    enabled: saleId !== undefined,
     read: async () => {
+      if (saleId === undefined) {
+        return "unavailable";
+      }
       const outcome = await read(saleId);
       return outcome.kind === "unavailable" ? "unavailable" : outcome;
     },
