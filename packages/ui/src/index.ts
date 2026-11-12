@@ -300,6 +300,7 @@ export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
 export {
   parseAmountCents,
+  parseDocumentNumber,
   parseEsArNumber,
   parseWeightQuantity,
   parseWeightThousandths,

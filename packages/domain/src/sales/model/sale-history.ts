@@ -101,6 +101,23 @@ export function saleStandingOf({
   return isDefinedBy(SALE_STANDING_DEFINITIONS.in_progress, facts) ? "in_progress" : "completed";
 }
 
+export interface SaleDocumentNumber {
+  pointOfSale: number | null;
+  number: number;
+}
+
+export function saleHasDocumentNumber(
+  facts: SaleFiscalFacts,
+  { pointOfSale, number }: SaleDocumentNumber,
+): boolean {
+  const comprobante = saleComprobanteOf(facts);
+  return (
+    comprobante.kind === "fiscal" &&
+    comprobante.number === number &&
+    (pointOfSale === null || comprobante.pointOfSale === pointOfSale)
+  );
+}
+
 export function saleComprobanteOf({ deferred, fiscalDocument }: SaleFiscalFacts): SaleComprobante {
   if (fiscalDocument?.state === "AUTHORIZED") {
     const { documentType, authorization, pointOfSale, number } = fiscalDocument;

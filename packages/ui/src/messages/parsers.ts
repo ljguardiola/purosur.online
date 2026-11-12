@@ -41,3 +41,29 @@ export function parseWeightQuantity(value: string, unit: "KG" | "G"): number | u
   const digits = parseEsArNumber(value, 0);
   return digits ? Number(digits.whole) : undefined;
 }
+
+const DOCUMENT_NUMBER_PATTERN = /^(?:(\d+)-)?(\d+)$/;
+
+function positiveInteger(digits: string): number | undefined {
+  const value = Number(digits);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+export function parseDocumentNumber(
+  value: string,
+): { pointOfSale: number | null; number: number } | undefined {
+  const match = DOCUMENT_NUMBER_PATTERN.exec(value.trim());
+  if (!match) {
+    return undefined;
+  }
+  const [, pointOfSaleDigits, numberDigits] = match;
+  const number = positiveInteger(numberDigits as string);
+  if (number === undefined) {
+    return undefined;
+  }
+  if (pointOfSaleDigits === undefined) {
+    return { pointOfSale: null, number };
+  }
+  const pointOfSale = positiveInteger(pointOfSaleDigits);
+  return pointOfSale === undefined ? undefined : { pointOfSale, number };
+}

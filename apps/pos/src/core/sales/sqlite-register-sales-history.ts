@@ -6,6 +6,7 @@ import {
   isDeferralPending,
   PENDING_DEFERRED_SALE_RECORD,
   SALE_STANDING_DEFINITIONS,
+  type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
   type SaleStanding,
@@ -144,6 +145,14 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return this.page(OF_THIS_REGISTER, filter);
   }
 
+  salesOfOpenSessionWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[] {
+    return this.withDocument(`${OF_THIS_REGISTER} AND ${IN_THE_OPEN_SESSION}`, document);
+  }
+
+  salesOfRegisterWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[] {
+    return this.withDocument(OF_THIS_REGISTER, document);
+  }
+
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {
     const sale = this.database
       .prepare<[string], DetailRow>(
@@ -189,6 +198,33 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       deferredShortCode: sale.deferred_short_code,
       hasReturn: this.hasReturn(sale.id),
     };
+  }
+
+  private withDocument(
+    scope: string,
+    { pointOfSale, number }: SaleDocumentNumber,
+  ): SalesHistoryEntry[] {
+    const rows = this.database
+      .prepare<{ number: number; point_of_sale: number | null }, SaleRow>(
+        `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
+                sales.operation_number AS operation_number, ${VOIDED} AS voided
+         FROM sales WHERE ${scope} AND (
+           EXISTS (
+             SELECT 1 FROM fiscal_documents
+             WHERE fiscal_documents.sale_id = sales.id AND fiscal_documents.number = @number
+               AND (@point_of_sale IS NULL OR fiscal_documents.point_of_sale = @point_of_sale)
+           ) OR EXISTS (
+             SELECT 1 FROM offline_fiscal_documents
+             WHERE offline_fiscal_documents.sale_id = sales.id
+               AND offline_fiscal_documents.document_type = 'factura_c'
+               AND offline_fiscal_documents.number = @number
+               AND (@point_of_sale IS NULL OR offline_fiscal_documents.point_of_sale = @point_of_sale)
+           )
+         )
+         ORDER BY sales.occurred_at DESC, sales.rowid DESC`,
+      )
+      .all({ number, point_of_sale: pointOfSale });
+    return rows.map((row) => this.entryOf(row));
   }
 
   private page(scope: string, { standing, offset, limit }: SalesHistoryFilter): SalesHistoryPage {

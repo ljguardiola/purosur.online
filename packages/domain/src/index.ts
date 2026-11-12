@@ -951,6 +951,7 @@ export type {
   SaleDiscount,
   SaleDiscountRecord,
   SaleDiscountValue,
+  SaleDocumentNumber,
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleLine,

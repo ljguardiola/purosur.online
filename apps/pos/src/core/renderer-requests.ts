@@ -1253,6 +1253,13 @@ export async function answerRendererRequest(
                 session: message.session,
                 state: message.state,
                 page: message.page,
+                document:
+                  message.document === null
+                    ? null
+                    : {
+                        pointOfSale: message.document.point_of_sale,
+                        number: message.document.number,
+                      },
               })),
         ),
       };

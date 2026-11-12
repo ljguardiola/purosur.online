@@ -209,7 +209,7 @@ export type CashMovementInput = RecordCashMovementRequest;
 export type SalesHistoryQuery = Pick<
   Extract<SalesRendererToCoreMessage, { type: "sales-history" }>,
   "session" | "state" | "page"
->;
+> & { document?: { pointOfSale: number | null; number: number } | undefined };
 
 export type SerialDevicesToRegister = Extract<
   RegisterRendererToCoreMessage,
@@ -995,9 +995,19 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "reprint-sale-receipt-result" ? answer.outcome : undefined),
       );
     },
-    salesHistory({ session, state, page }) {
+    salesHistory({ session, state, page, document }) {
       return ask(
-        { type: "sales-history", request_id: deps.newRequestId(), session, state, page },
+        {
+          type: "sales-history",
+          request_id: deps.newRequestId(),
+          session,
+          state,
+          page,
+          document:
+            document === undefined
+              ? null
+              : { point_of_sale: document.pointOfSale, number: document.number },
+        },
         (answer) => (answer.type === "sales-history-result" ? answer.outcome : undefined),
       );
     },

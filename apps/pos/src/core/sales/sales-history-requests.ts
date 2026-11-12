@@ -31,6 +31,7 @@ export interface SalesHistoryRequest {
   session: "open" | "all";
   state: "all" | "completed" | "in_progress" | "deferred" | "voided";
   page: number;
+  document: { pointOfSale: number | null; number: number } | null;
 }
 
 export function toWireComprobante(comprobante: SaleComprobante) {
@@ -67,12 +68,17 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
 
 export async function salesHistoryFor(
   { database, gate, zoneRules }: SalesHistoryRequestDeps,
-  { session, state, page }: SalesHistoryRequest,
+  { session, state, page, document }: SalesHistoryRequest,
 ): Promise<SalesHistoryOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async () =>
     readSalesHistory(
       { history: new SqliteRegisterSalesHistory(database) },
-      { session, standing: state === "all" ? undefined : state, page },
+      {
+        session,
+        standing: state === "all" ? undefined : state,
+        page,
+        ...(document === null ? {} : { document }),
+      },
     ),
   );
   if (guarded.kind !== "performed") {

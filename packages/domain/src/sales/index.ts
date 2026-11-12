@@ -62,6 +62,7 @@ export {
 export type {
   DeferredSaleRecord,
   SaleComprobante,
+  SaleDocumentNumber,
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleStanding,

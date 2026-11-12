@@ -225,6 +225,9 @@ const salesHistoryMessageSchema = z.object({
   session: salesHistorySessionSchema,
   state: salesHistoryStateSchema,
   page: z.int().positive(),
+  document: z
+    .object({ point_of_sale: z.int().positive().nullable(), number: z.int().positive() })
+    .nullable(),
 });
 
 const saleHistoryDetailMessageSchema = z.object({
