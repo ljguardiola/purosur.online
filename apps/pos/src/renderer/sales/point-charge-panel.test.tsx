@@ -53,6 +53,10 @@ async function renderPanel(
   };
 }
 
+function keycapOf(button: { element: () => Element }) {
+  return button.element().querySelector("kbd")?.textContent;
+}
+
 describe("PointChargePanel", () => {
   it("is the Point débito charge: its title, Esc with Cambiar de medio, the amount to charge and the amount field, focused", async () => {
     const { screen, field } = await renderPanel(undefined, {
@@ -88,7 +92,7 @@ describe("PointChargePanel", () => {
   it("shows the Enter key on Enviar a la terminal", async () => {
     const { send } = await renderPanel();
 
-    await expect.element(send).toHaveTextContent(/Enter/);
+    await expect.poll(() => keycapOf(send)).toBe("Enter");
   });
 
   it("goes back to the methods with Esc", async () => {
@@ -203,7 +207,7 @@ describe("PointChargePanel", () => {
         .element(screen.getByRole("button", { name: "Enviar a la terminal" }))
         .not.toBeInTheDocument();
       const change = screen.getByRole("button", { name: "Cambiar de medio" }).last();
-      await expect.element(change).toHaveTextContent(/Enter/);
+      await expect.poll(() => keycapOf(change)).toBe("Enter");
       await userEvent.keyboard("{Enter}");
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
       expect(callbacks.onOrderShown).not.toHaveBeenCalled();

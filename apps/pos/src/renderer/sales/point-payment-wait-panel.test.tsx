@@ -77,6 +77,10 @@ function buttonLabels(screen: Awaited<ReturnType<typeof renderPanel>>["screen"])
     .map((button) => button.textContent);
 }
 
+function keycapOf(button: { element: () => Element }) {
+  return button.element().querySelector("kbd")?.textContent;
+}
+
 describe("PointPaymentWaitPanel", () => {
   it.each([
     ["CREDIT", "Point crédito"],
@@ -208,7 +212,7 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByRole("timer")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Esperando el pago")).not.toBeInTheDocument();
       const footer = screen.getByRole("button", { name: "Cambiar de medio" }).last();
-      await expect.element(footer).toHaveTextContent(/Enter/);
+      await expect.poll(() => keycapOf(footer)).toBe("Enter");
       await userEvent.keyboard("{Enter}");
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
@@ -342,8 +346,8 @@ describe("PointPaymentWaitPanel", () => {
         screen.getByText("Cancelá el cobro en la terminal.", { exact: true }).elements(),
       ).toHaveLength(0);
       await expect
-        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent(/Enter/);
+        .poll(() => keycapOf(screen.getByRole("button", { name: "Cambiar de medio" })))
+        .toBe("Enter");
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
@@ -373,8 +377,8 @@ describe("PointPaymentWaitPanel", () => {
         .toHaveTextContent("Cancelá el cobro en la terminal.");
       await expect.element(screen.getByRole("button", { name: "Cambiar de medio" })).toBeEnabled();
       await expect
-        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent(/Enter/);
+        .poll(() => keycapOf(screen.getByRole("button", { name: "Cambiar de medio" })))
+        .toBe("Enter");
       await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
@@ -587,8 +591,8 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
       await expect.element(screen.getByText("Se puede volver a intentar")).not.toBeInTheDocument();
       await expect
-        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent(/Enter/);
+        .poll(() => keycapOf(screen.getByRole("button", { name: "Cambiar de medio" })))
+        .toBe("Enter");
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
       await expectNoAccessibilityViolations(screen.container);
 
@@ -607,8 +611,8 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
       await expect.element(screen.getByText("No se aprobó")).not.toBeInTheDocument();
       await expect
-        .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent(/Enter/);
+        .poll(() => keycapOf(screen.getByRole("button", { name: "Cambiar de medio" })))
+        .toBe("Enter");
       await expectNoAccessibilityViolations(screen.container);
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
