@@ -994,6 +994,7 @@ export async function previewSaleLineAdjustmentFor(
         kind: "preview",
         discount_amount: outcome.discountAmount,
         line_total: outcome.lineTotal,
+        line_total_reduction: outcome.lineTotalReduction,
       }
     : outcome;
 }

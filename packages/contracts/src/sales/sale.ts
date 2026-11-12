@@ -291,6 +291,7 @@ export const previewSaleLineAdjustmentOutcomeSchema = z.discriminatedUnion("kind
     kind: z.literal("preview"),
     discount_amount: z.int().nonnegative(),
     line_total: z.int().nonnegative(),
+    line_total_reduction: z.int(),
   }),
   z.object({ kind: z.literal("unknown_line") }),
   z.object({ kind: z.literal("same_as_list_price") }),
