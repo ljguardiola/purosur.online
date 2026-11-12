@@ -59,14 +59,20 @@ test("offers the primary action with the Enter key shown, and runs it when press
   expect(onAccept).toHaveBeenCalledOnce();
 });
 
-test("disables both actions while the primary one is disabled", async () => {
-  const { onAccept, render: renderIt } = renderCard({
+test("disables the skip as well while the primary action is disabled", async () => {
+  const {
+    onAccept,
+    onSkip,
+    render: renderIt,
+  } = renderCard({
     accept: { label: "Sí", icon: <Check />, onPress: () => {}, disabled: true },
   });
   const screen = await renderIt();
 
   await expect.element(screen.getByRole("button", { name: "Sí" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Omitir" })).toBeDisabled();
   expect(onAccept).not.toHaveBeenCalled();
+  expect(onSkip).not.toHaveBeenCalled();
 });
 
 test("has no accessibility violations", async () => {
