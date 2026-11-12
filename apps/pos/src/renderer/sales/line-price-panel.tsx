@@ -9,30 +9,38 @@ import type {
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
+  Eyebrow,
+  FigureStat,
   fieldErrorMessage,
   formatCents,
+  formatNumber,
   formatWeight,
   InlineNotice,
   LoadFailure,
-  LoadingPlaceholder,
-  Modal,
+  OptionCardGroup,
   SegmentedControl,
+  SidePanel,
+  SidePanelTitle,
   SummaryRowGroup,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ArrowLeft, Check, Percent, Tag, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { Check, Pencil, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import { useAuthorization } from "../shell/use-authorization";
 import type { AdjustmentKind } from "./adjust-line-form";
 import {
+  ADJUST_LINE_REASONS,
   adjustLineFormRequestSchema,
   adjustLineRequestFrom,
   adjustLineValueMessage,
   EMPTY_ADJUST_LINE_FORM,
+  OTHER_REASON,
   previewAdjustmentFrom,
   REQUIRED_REASON_MESSAGE,
+  reasonOptionsOf,
 } from "./adjust-line-form";
 import { useAdjustmentPreviewQuery } from "./sales-queries";
 
@@ -41,25 +49,22 @@ const SAME_AS_LIST_PRICE_MESSAGE = "Ese es el precio de lista. Ingresá otro pre
 const DISCOUNT_EXCEEDS_LINE_MESSAGE = "El descuento no puede ser mayor al total de la línea.";
 const AUTHORIZING = "cambiar precios o descuentos";
 const PERMISSION: AuthorizablePermissionKey = "override_line_price_or_discount";
+const NOT_PREVIEWED = "—";
 
 const MODE_OPTIONS = [
-  { value: "DISCOUNT", label: "Descuento", icon: <Percent /> },
-  { value: "PRICE", label: "Precio nuevo", icon: <Tag /> },
+  { value: "PRICE", label: "Precio nuevo" },
+  { value: "PERCENT", label: "Descuento %" },
+  { value: "AMOUNT", label: "Descuento $" },
 ] as const;
 
-const DISCOUNT_UNIT_OPTIONS = [
-  { value: "PERCENT", label: "%" },
-  { value: "AMOUNT", label: "$" },
-] as const;
+const REASON_OPTIONS = reasonOptionsOf(ADJUST_LINE_REASONS);
 
-const NOT_PREVIEWED = "—";
-const REPLACES_PROMOTION_HINT = "Reemplaza la promoción de la línea, si tiene.";
-
-export type AdjustLineModalProps = {
+export type LinePricePanelProps = {
   lineId: string;
   productName: string;
   listUnitPrice: number;
   quantity: number;
+  lineTotal: number;
   saleUnit: OpenSale["lines"][number]["sale_unit"];
   authorizationRequired: boolean;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
@@ -92,22 +97,23 @@ function previewRefusalMessage(
   }
 }
 
-function valueLabel(kind: AdjustmentKind): string {
-  switch (kind) {
-    case "PRICE":
-      return "Precio nuevo";
-    case "PERCENT":
-      return "Porcentaje de descuento";
-    case "AMOUNT":
-      return "Monto de descuento";
+function valueLabel(kind: AdjustmentKind, saleUnit: LinePricePanelProps["saleUnit"]): string {
+  if (kind !== "PRICE") {
+    return "DESCUENTO";
   }
+  return saleUnit === "KG" ? "PRECIO NUEVO POR KG" : "PRECIO NUEVO POR UNIDAD";
 }
 
-export function AdjustLineModal({
+function focusInput(box: HTMLElement | null) {
+  box?.querySelector("input")?.focus();
+}
+
+export function LinePricePanel({
   lineId,
   productName,
   listUnitPrice,
   quantity,
+  lineTotal,
   saleUnit,
   authorizationRequired,
   loadAuthorizers,
@@ -117,8 +123,9 @@ export function AdjustLineModal({
   onSaleGone,
   onSessionInvalid,
   onClose,
-}: AdjustLineModalProps) {
+}: LinePricePanelProps) {
   const [notice, setNotice] = useState<string>();
+  const valueBox = useRef<HTMLDivElement>(null);
   const authorization = useAuthorization({
     permission: PERMISSION,
     required: authorizationRequired,
@@ -133,10 +140,10 @@ export function AdjustLineModal({
   } = useRequestForm({
     defaultValues: EMPTY_ADJUST_LINE_FORM,
     request: { schema: adjustLineFormRequestSchema, from: adjustLineRequestFrom },
-    fields: { adjustment: "value", reason: "reason" },
+    fields: { adjustment: "value", reason: "otherReason" },
     messages: {
       value: ({ kind }) => adjustLineValueMessage(kind),
-      reason: REQUIRED_REASON_MESSAGE,
+      otherReason: REQUIRED_REASON_MESSAGE,
     },
     onSubmit: async ({ adjustment, reason }, { showFieldError }) => {
       if (!authorization.ready) {
@@ -193,6 +200,10 @@ export function AdjustLineModal({
     },
   });
 
+  useEffect(() => {
+    focusInput(valueBox.current);
+  }, []);
+
   const previewedAdjustment = previewAdjustmentFrom(typed);
   const preview = useAdjustmentPreviewQuery({
     lineId,
@@ -202,12 +213,13 @@ export function AdjustLineModal({
   });
   const previewed = preview.status === "loaded" ? preview.value : undefined;
   const previewLoading = previewedAdjustment !== undefined && preview.status === "loading";
-  const previewRowsShown = !previewLoading && preview.status !== "failed";
+  const previewShown = previewed?.kind === "preview" ? previewed : undefined;
 
   function changeKind(kind: AdjustmentKind) {
     form.setFieldValue("kind", kind);
     form.setFieldValue("value", "");
     clearFieldError("value");
+    setNotice(undefined);
   }
 
   function handleSubmit() {
@@ -216,86 +228,111 @@ export function AdjustLineModal({
     }
     setNotice(undefined);
     clearFieldError("value");
-    clearFieldError("reason");
+    clearFieldError("otherReason");
     void submit();
   }
 
-  return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next && !submitting) {
+  useKeys([
+    {
+      key: "Escape",
+      run: () => {
+        if (!submitting) {
           onClose();
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={<Percent />}
-      context={`${productName.toLocaleUpperCase("es-AR")} · ${saleUnit === "KG" ? formatWeight(quantity) : `${quantity} U`}`}
-      title="Cambiar el precio de la línea"
-      closable={!submitting}
+      },
+    },
+  ]);
+  useKeys([{ key: "Enter", run: handleSubmit }], { fallback: true });
+
+  return (
+    <SidePanel
+      label="Precio de la línea"
+      width="wide"
+      header={
+        <SidePanelTitle
+          icon={<Pencil />}
+          title="Precio de la línea"
+          onClose={submitting ? undefined : onClose}
+        />
+      }
       footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={onClose}
-          >
-            Volver
-          </Button>
-          <Button
-            size="large"
-            fullWidth
-            icon={<Check />}
-            disabled={submitting}
-            onPress={handleSubmit}
-          >
-            <form.Subscribe selector={(state) => state.values.kind}>
-              {(kind) => (kind === "PRICE" ? "Aplicar el precio" : "Aplicar el descuento")}
-            </form.Subscribe>
-          </Button>
-        </>
+        <Button
+          size="large"
+          fullWidth
+          icon={<Check />}
+          iconPosition="start"
+          keycap="Enter"
+          disabled={submitting}
+          onPress={handleSubmit}
+        >
+          Aplicar
+        </Button>
       }
     >
-      <div className="flex flex-col gap-5">
-        <form.Subscribe selector={(state) => state.values.kind}>
-          {(kind) => (
-            <div className="flex items-center justify-between gap-4">
-              <SegmentedControl
-                label="Tipo de ajuste"
-                options={MODE_OPTIONS}
-                value={kind === "PRICE" ? "PRICE" : "DISCOUNT"}
-                onChange={(mode) => changeKind(mode === "PRICE" ? "PRICE" : "PERCENT")}
-              />
-              {kind === "PRICE" ? null : (
-                <SegmentedControl
-                  label="Unidad del descuento"
-                  options={DISCOUNT_UNIT_OPTIONS}
-                  value={kind}
-                  onChange={changeKind}
-                />
-              )}
-            </div>
-          )}
-        </form.Subscribe>
+      {previewLoading ? (
+        <FigureStat size="hero" label="QUEDA EN" loading />
+      ) : (
+        <FigureStat
+          size="hero"
+          label="QUEDA EN"
+          value={previewShown === undefined ? NOT_PREVIEWED : formatCents(previewShown.line_total)}
+        />
+      )}
+      <SummaryRowGroup
+        variant="plain"
+        rows={[
+          {
+            label: productName,
+            value: saleUnit === "KG" ? formatWeight(quantity) : `${formatNumber(quantity)} u`,
+          },
+          {
+            label: "Precio de lista",
+            value: `${formatCents(listUnitPrice)} / ${saleUnit === "KG" ? "kg" : "u"}`,
+          },
+          { label: "Antes", value: formatCents(lineTotal) },
+          ...(previewLoading
+            ? []
+            : [
+                {
+                  label: "Diferencia",
+                  value:
+                    previewShown === undefined
+                      ? NOT_PREVIEWED
+                      : `– ${formatCents(previewShown.discount_amount)}`,
+                },
+              ]),
+        ]}
+      />
+      {preview.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudo calcular cómo queda la línea"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={preview.retry}
+        />
+      ) : null}
+      <form.Subscribe selector={(state) => state.values.kind}>
+        {(kind) => (
+          <SegmentedControl
+            label="Tipo de ajuste"
+            size="large"
+            fullWidth
+            options={MODE_OPTIONS}
+            value={kind}
+            onChange={changeKind}
+          />
+        )}
+      </form.Subscribe>
+      <div ref={valueBox}>
         <form.Subscribe selector={(state) => state.values.kind}>
           {(kind) => (
             <form.AppField name="value" listeners={{ onChange: () => setNotice(undefined) }}>
               {(field) => (
                 <TextField
-                  {...(kind === "PRICE"
-                    ? ({ kind: "amount", prefix: "$" } as const)
-                    : ({
-                        kind: "discount",
-                        width: "narrow",
-                        ...(kind === "PERCENT" ? { suffix: "%" } : {}),
-                      } as const))}
-                  label={valueLabel(kind)}
-                  labelVisuallyHidden
-                  {...(kind === "PRICE" ? {} : { description: REPLACES_PROMOTION_HINT })}
-                  {...(kind === "PERCENT" ? { inputMode: "numeric" } : { decimals: 2 })}
+                  {...(kind === "PERCENT"
+                    ? ({ kind: "quantity", suffix: "%", inputMode: "numeric" } as const)
+                    : ({ kind: "amount", prefix: "$", decimals: 2 } as const))}
+                  label={valueLabel(kind, saleUnit)}
                   value={field.state.value}
                   onChange={field.handleChange}
                   disabled={submitting}
@@ -307,63 +344,46 @@ export function AdjustLineModal({
             </form.AppField>
           )}
         </form.Subscribe>
-        <SummaryRowGroup
-          variant="filled"
-          rows={[
-            { label: "Precio de lista", value: formatCents(listUnitPrice), detail: true },
-            ...(!previewRowsShown || typed.kind === "PRICE"
-              ? []
-              : [
-                  {
-                    label: "Descuento",
-                    value:
-                      previewed?.kind === "preview"
-                        ? `− ${formatCents(previewed.discount_amount)}`
-                        : NOT_PREVIEWED,
-                    detail: true as const,
-                    tone: "error" as const,
-                  },
-                ]),
-            ...(previewRowsShown
-              ? [
-                  {
-                    label: "Queda la línea en",
-                    value:
-                      previewed?.kind === "preview"
-                        ? formatCents(previewed.line_total)
-                        : NOT_PREVIEWED,
-                    detail: true as const,
-                    tone: "info" as const,
-                  },
-                ]
-              : []),
-          ]}
-        />
-        {previewLoading ? (
-          <LoadingPlaceholder variant="card" lines={typed.kind === "PRICE" ? 1 : 2} />
-        ) : null}
-        {preview.status === "failed" ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo calcular cómo queda la línea"
-            description="Volvé a intentarlo en unos segundos."
-            onRetry={preview.retry}
-          />
-        ) : null}
-        <form.AppField name="reason" listeners={{ onChange: () => setNotice(undefined) }}>
-          {(field) => <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />}
-        </form.AppField>
-        <AuthorizationModal
-          authorization={authorization}
-          subtitle="Cambiar precio o descuento"
-          action={AUTHORIZING}
-          submitting={submitting}
-          onConfirm={handleSubmit}
-        />
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
       </div>
-    </Modal>
+      <div className="flex flex-col gap-2">
+        <Eyebrow text="MOTIVO" />
+        <form.AppField name="reasonOption">
+          {(field) => (
+            <OptionCardGroup
+              layout="grid"
+              columns={2}
+              label="Motivo"
+              options={REASON_OPTIONS}
+              value={field.state.value}
+              onChange={(reason) => {
+                field.handleChange(reason);
+                setNotice(undefined);
+              }}
+            />
+          )}
+        </form.AppField>
+      </div>
+      <form.Subscribe selector={(state) => state.values.reasonOption}>
+        {(reason) =>
+          reason === OTHER_REASON ? (
+            <form.AppField name="otherReason" listeners={{ onChange: () => setNotice(undefined) }}>
+              {(field) => (
+                <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />
+              )}
+            </form.AppField>
+          ) : null
+        }
+      </form.Subscribe>
+      <AuthorizationModal
+        authorization={authorization}
+        subtitle="Cambiar precio o descuento"
+        action={AUTHORIZING}
+        submitting={submitting}
+        onConfirm={handleSubmit}
+      />
+      {notice === undefined ? null : (
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
+      )}
+    </SidePanel>
   );
 }

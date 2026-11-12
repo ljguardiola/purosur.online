@@ -1,11 +1,12 @@
 import type { Authorization, CancelPaidSaleOutcome, SignInUser } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
-import { Button, formatCents, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
-import { ArrowLeft, CircleX, TriangleAlert, X } from "lucide-react";
+import { ConfirmationPanel, formatCents } from "@purosur/ui";
+import { Ban } from "lucide-react";
 import { useState } from "react";
+import { useKeys } from "../platform/key-layer";
+import { paymentMethodName } from "../platform/payment-method-names";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import type { Refund } from "../shell/refund-lines";
-import { RefundLines } from "../shell/refund-lines";
 import { useAuthorization } from "../shell/use-authorization";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
@@ -13,10 +14,10 @@ const QR_CHARGE_IN_PROGRESS_MESSAGE =
   "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
 const AUTHORIZING = "cancelar una venta con pagos";
 
-export type CancelPaidSaleModalProps = {
+export type CancelPaidSalePanelProps = {
   saleId: string;
   total: number;
-  paid: number;
+  refundNow: number;
   refunds: readonly Refund[];
   authorizationRequired: boolean;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
@@ -30,10 +31,19 @@ export type CancelPaidSaleModalProps = {
   onClose: () => void;
 };
 
-export function CancelPaidSaleModal({
+function refundMethodName(method: Refund["method"]): string {
+  return method === "QR" ? "QR" : paymentMethodName(method);
+}
+
+function refundLabel(refund: Refund): string {
+  const when = refund.state === "PENDING" ? "reembolso pendiente" : "en el acto";
+  return `${refundMethodName(refund.method)} · ${when}`;
+}
+
+export function CancelPaidSalePanel({
   saleId,
   total,
-  paid,
+  refundNow,
   refunds,
   authorizationRequired,
   loadAuthorizers,
@@ -42,7 +52,7 @@ export function CancelPaidSaleModal({
   onSaleGone,
   onSessionInvalid,
   onClose,
-}: CancelPaidSaleModalProps) {
+}: CancelPaidSalePanelProps) {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
@@ -106,63 +116,47 @@ export function CancelPaidSaleModal({
     }
   }
 
-  return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next && !submitting) {
+  useKeys([
+    {
+      key: "Escape",
+      run: () => {
+        if (!submitting) {
           onClose();
         }
-      }}
-      width="confirmation"
-      tone="error"
-      icon={<CircleX />}
-      context="Venta en curso · Con pagos"
-      title="¿Cancelar la venta?"
-      closable={!submitting}
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={onClose}
-          >
-            Seguir con la venta
-          </Button>
-          <Button
-            destructive
-            size="large"
-            icon={<X />}
-            fullWidth
-            disabled={submitting}
-            onPress={() => void confirm()}
-          >
-            Cancelar la venta
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <SummaryRowGroup
-          rows={[
-            { label: "Total", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(paid), strong: true },
-          ]}
-        />
-        <RefundLines refunds={refunds} />
-        <AuthorizationModal
-          authorization={authorization}
-          subtitle="Cancelar venta con pagos"
-          action={AUTHORIZING}
-          submitting={submitting}
-          onConfirm={() => void confirm()}
-        />
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
-      </div>
-    </Modal>
+      },
+    },
+  ]);
+  useKeys([{ key: "Enter", run: () => void confirm() }], { fallback: true });
+
+  return (
+    <>
+      <ConfirmationPanel
+        title="Cancelar venta"
+        icon={<Ban />}
+        tone="error"
+        fieldLabel="A DEVOLVER AHORA"
+        value={formatCents(refundNow)}
+        details={[
+          { label: "Total", value: formatCents(total) },
+          ...refunds.map((refund) => ({
+            label: refundLabel(refund),
+            value: formatCents(refund.amount),
+          })),
+        ]}
+        actionLabel="Cancelar venta"
+        actionIcon={<Ban />}
+        busy={submitting}
+        {...(notice === undefined ? {} : { notice })}
+        onClose={onClose}
+        onConfirm={() => void confirm()}
+      />
+      <AuthorizationModal
+        authorization={authorization}
+        subtitle="Cancelar venta con pagos"
+        action={AUTHORIZING}
+        submitting={submitting}
+        onConfirm={() => void confirm()}
+      />
+    </>
   );
 }

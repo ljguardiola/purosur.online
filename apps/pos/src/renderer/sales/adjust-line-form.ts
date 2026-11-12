@@ -13,6 +13,18 @@ export const OTHER_REASON = "Otro";
 
 export const ADJUST_LINE_REASONS = ["Precio de etiqueta", "Producto dañado", OTHER_REASON] as const;
 
+type ReasonOption = { value: string; label: string };
+
+export function reasonOptionsOf(
+  reasons: readonly [string, ...string[]],
+): [ReasonOption, ...ReasonOption[]] {
+  const [first, ...rest] = reasons;
+  return [
+    { value: first, label: first },
+    ...rest.map((reason) => ({ value: reason, label: reason })),
+  ];
+}
+
 export type AdjustLineFormValues = {
   kind: AdjustmentKind;
   value: string;
