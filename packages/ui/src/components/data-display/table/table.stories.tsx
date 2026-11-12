@@ -835,3 +835,15 @@ export const RegisterCardFailure: Story = {
     />
   ),
 };
+
+export const Inactive: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      inactive
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+};
