@@ -706,6 +706,25 @@ describe("QrPaymentWaitPanel", () => {
     await expect.poll(() => callbacks.onCancelled.mock.calls.length).toBe(1);
     expect(abandonCharge).toHaveBeenCalledTimes(2);
   });
+
+  it("marks the order that could not be cancelled with a crossed circle", async () => {
+    const { screen } = await renderPanel(answering(WAITING), ORDER, async () => ({
+      kind: "unavailable",
+    }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+    const notice = screen
+      .getByText("No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos.")
+      .first();
+    await expect.element(notice).toBeVisible();
+
+    let frame = notice.element().parentElement;
+    while (frame !== null && frame.querySelector("svg") === null) {
+      frame = frame.parentElement;
+    }
+    expect(frame?.querySelector("svg")?.getAttribute("class")).toContain("lucide-circle-x");
+  });
+
   it("abandons the order with Esc while waiting", async () => {
     const { screen, abandonCharge, callbacks } = await renderPanel();
     await expect.element(screen.getByText("2:41")).toBeVisible();
