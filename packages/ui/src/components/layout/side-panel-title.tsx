@@ -14,6 +14,7 @@ export type SidePanelTitleProps = {
   onClose?: (() => void) | undefined;
   closeDisabled?: boolean;
   locked?: boolean;
+  closeLabel?: string;
 };
 
 const badgeToneClassName = {
@@ -29,6 +30,7 @@ export function SidePanelTitle({
   onClose,
   closeDisabled = false,
   locked = false,
+  closeLabel,
 }: SidePanelTitleProps) {
   const horizontalInset = useContext(SidePanelInsetContext);
 
@@ -50,7 +52,7 @@ export function SidePanelTitle({
         ) : null}
       </h2>
       {onClose === undefined ? null : (
-        <CloseButton escapeKeycap disabled={closeDisabled} onPress={onClose} />
+        <CloseButton escapeKeycap label={closeLabel} disabled={closeDisabled} onPress={onClose} />
       )}
     </div>
   );
