@@ -324,15 +324,15 @@ export function SaleDiscountPanel({
         </form.AppField>
       </div>
       <form.Subscribe selector={(state) => state.values.reasonOption}>
-        {(reason) =>
-          reason === OTHER_REASON ? (
-            <form.AppField name="otherReason" listeners={{ onChange: () => setNotice(undefined) }}>
-              {(field) => (
+        {(reason) => (
+          <form.AppField name="otherReason" listeners={{ onChange: () => setNotice(undefined) }}>
+            {(field) =>
+              reason === OTHER_REASON ? (
                 <field.TextField kind="plain-text" label="Motivo" disabled={submitting} />
-              )}
-            </form.AppField>
-          ) : null
-        }
+              ) : null
+            }
+          </form.AppField>
+        )}
       </form.Subscribe>
       <AuthorizationModal
         authorization={authorization}
