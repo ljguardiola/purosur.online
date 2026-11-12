@@ -1,4 +1,4 @@
-import type { SummaryRowProps } from "@purosur/ui";
+import type { KeyName, SummaryRowProps } from "@purosur/ui";
 import {
   Button,
   EmptyState,
@@ -6,218 +6,163 @@ import {
   FigureStat,
   formatCents,
   formatClockTime,
+  formatDayMonthAndTime,
   formatNumber,
   formatOperationNumber,
   formatShortCode,
+  formatWeight,
+  Keycap,
+  LineItemList,
   LoadFailure,
   LoadingPlaceholder,
-  plural,
   SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { CircleX, FileSearch, Lock, Printer, ReceiptText, TriangleAlert } from "lucide-react";
+import { FileSearch, Lock, Printer, ReceiptText, RefreshCw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { paidPaymentName } from "../platform/payment-method-names";
 import type { CoreData } from "../platform/use-core-query";
-import type { SaleDetail, SaleDetailCreditNote } from "../shell/sale-receipt-text";
-import {
-  comprobantePresentation,
-  nonEmptyRows,
-  receiptCopyPresentation,
-} from "../shell/sale-receipt-text";
-import { creditNotePrintButton, creditNoteRowOf } from "./credit-note-text";
+import type { SaleDetail } from "../shell/sale-receipt-text";
+import { nonEmptyRows } from "../shell/sale-receipt-text";
+import { creditNoteRowOf } from "./credit-note-text";
+import { comprobanteRow, paymentRowName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
-import { useSaleHistoryDetailQuery } from "./sales-queries";
-import { voidRefusalReason } from "./void-sale-text";
+
+export type SaleButton = {
+  key?: KeyName;
+  label: string;
+  primary: boolean;
+  onPress: () => void;
+};
+
+export type SaleHistoryDetailPanelProps = {
+  detail: CoreData<ShownSaleHistoryDetail> | undefined;
+  withDate: boolean;
+  buttons: readonly SaleButton[];
+  escape: boolean;
+};
 
 function detailRows(sale: SaleDetail): SummaryRowProps[] {
-  const comprobante = comprobantePresentation(sale.comprobante);
+  const comprobante = comprobanteRow(sale.comprobante);
   return [
-    ...(comprobante === undefined
-      ? []
-      : [
-          { label: "Comprobante", value: comprobante.name },
-          {
-            label: sale.comprobante.kind === "fiscal" ? "Número" : "Situación",
-            value: comprobante.detail,
-          },
-        ]),
+    ...(comprobante === undefined ? [] : [comprobante]),
+    ...sale.credit_notes.map(creditNoteRowOf),
+    ...sale.payments.map((payment) => ({
+      label: paymentRowName(payment.method, payment.card_type),
+      value: formatCents(payment.amount),
+    })),
+    ...(sale.cash_rounding > 0
+      ? [{ label: "Redondeo", value: `– ${formatCents(sale.cash_rounding)}` }]
+      : []),
     ...(sale.short_code === null
       ? []
       : [{ label: "Código de consulta", value: formatShortCode(sale.short_code) }]),
-    ...(sale.state === "voided" ? [{ label: "Estado", value: "Anulada" }] : []),
-    ...sale.credit_notes.map(creditNoteRowOf),
     ...(sale.operation_number === null
       ? []
       : [{ label: "Operación", value: formatOperationNumber(sale.operation_number) }]),
     { label: "Atendió", value: sale.served_by_first_name },
-    {
-      label: "Productos",
-      value: `${formatNumber(sale.line_count)} ${plural(sale.line_count, { one: "línea", other: "líneas" })}`,
-    },
   ];
 }
 
-type SaleActions = {
-  onReprint: (sale: SaleDetail) => void;
-  onPrintOriginal: (sale: SaleDetail) => void;
-  onVoid: (sale: SaleDetail) => void;
-  onPrintCreditNote: (sale: SaleDetail, creditNote: SaleDetailCreditNote) => void;
-  onReprintCreditNote: (sale: SaleDetail, creditNote: SaleDetailCreditNote) => void;
-  onReprintDeferredInvoice: (sale: SaleDetail) => void;
-};
-
-function SaleFooter({
-  sale,
-  onReprint,
-  onPrintOriginal,
-  onVoid,
-  onPrintCreditNote,
-  onReprintCreditNote,
-  onReprintDeferredInvoice,
-}: { sale: SaleDetail } & SaleActions) {
-  const { voidability } = sale;
-  const refusalReason =
-    voidability.kind === "voidable" ? undefined : voidRefusalReason(voidability.refusal);
-  const offersVoid = voidability.kind === "voidable" || refusalReason !== undefined;
-  const printableCreditNotes = sale.credit_notes.flatMap((creditNote) =>
-    creditNote.next_copy === null ? [] : [{ ...creditNote, next_copy: creditNote.next_copy }],
-  );
-  const offersCreditNote = printableCreditNotes.length > 0;
-  const offersInvoiceDuplicate =
-    sale.reprint.kind === "available" && sale.deferred_invoice_next_copy?.kind === "duplicate";
-  if (
-    sale.reprint.kind !== "available" &&
-    !offersVoid &&
-    !offersCreditNote &&
-    !offersInvoiceDuplicate
-  ) {
+function Buttons({ buttons }: { buttons: readonly SaleButton[] }) {
+  if (buttons.length === 0) {
     return null;
   }
+  return buttons.map(({ key, label, primary, onPress }) => (
+    <Button
+      key={label}
+      variant={primary ? "primary" : "secondary"}
+      size="large"
+      fullWidth
+      icon={<Printer />}
+      {...(primary ? { iconPosition: "start" as const } : {})}
+      {...(key === undefined ? {} : { keycap: key })}
+      onPress={onPress}
+    >
+      {label}
+    </Button>
+  ));
+}
+
+function Header({ escape }: { escape: boolean }) {
   return (
-    <div className="flex flex-col gap-3">
-      {sale.reprint.kind === "available" ? (
-        <Button
-          variant="secondary"
-          size="large"
-          fullWidth
-          icon={<Printer />}
-          onPress={() =>
-            sale.next_copy.kind === "original" ? onPrintOriginal(sale) : onReprint(sale)
-          }
-        >
-          {receiptCopyPresentation(sale.next_copy).printButton}
-        </Button>
-      ) : null}
-      {offersInvoiceDuplicate ? (
-        <Button
-          variant="secondary"
-          size="large"
-          fullWidth
-          icon={<Printer />}
-          onPress={() => onReprintDeferredInvoice(sale)}
-        >
-          Reimprimir factura
-        </Button>
-      ) : null}
-      {printableCreditNotes.map((creditNote) => (
-        <Button
-          key={creditNote.credit_note_id}
-          variant="secondary"
-          size="large"
-          fullWidth
-          icon={<Printer />}
-          onPress={() =>
-            creditNote.next_copy.kind === "duplicate"
-              ? onReprintCreditNote(sale, creditNote)
-              : onPrintCreditNote(sale, creditNote)
-          }
-        >
-          {creditNotePrintButton(creditNote, printableCreditNotes.length > 1)}
-        </Button>
-      ))}
-      {offersVoid ? (
-        <Button
-          variant="secondary"
-          size="large"
-          fullWidth
-          icon={<CircleX />}
-          {...(refusalReason === undefined ? {} : { disabledReason: refusalReason })}
-          onPress={() => onVoid(sale)}
-        >
-          Anular venta
-        </Button>
-      ) : null}
-      {sale.void_authorization_required && offersVoid ? (
-        <p className="text-detail text-text-subtle">
-          Sin permiso para anular, se pide el PIN de alguien que lo tenga.
-        </p>
-      ) : null}
+    <div className="flex items-center justify-between px-8 pt-8">
+      <Eyebrow text="DETALLE DE LA VENTA" />
+      {escape ? <Keycap keyName="Escape" /> : null}
     </div>
+  );
+}
+
+function Message({
+  children,
+  escape = false,
+  footer,
+}: {
+  children: ReactNode;
+  escape?: boolean;
+  footer?: ReactNode;
+}) {
+  return (
+    <SidePanel label="Detalle de la venta" header={<Header escape={escape} />} footer={footer}>
+      {children}
+    </SidePanel>
   );
 }
 
 function Sale({
   sale,
-  onReprint,
-  onPrintOriginal,
-  onVoid,
-  onPrintCreditNote,
-  onReprintCreditNote,
-  onReprintDeferredInvoice,
-}: { sale: SaleDetail } & SaleActions) {
-  const details = nonEmptyRows(detailRows(sale));
-  const payments = nonEmptyRows(
-    sale.payments.map((payment) => ({
-      label: paidPaymentName(payment.method, payment.card_type),
-      value: formatCents(payment.amount),
-    })),
-  );
+  withDate,
+  buttons,
+}: {
+  sale: SaleDetail;
+  withDate: boolean;
+  buttons: readonly SaleButton[];
+}) {
+  const rows = nonEmptyRows(detailRows(sale));
+  const when = withDate
+    ? formatDayMonthAndTime(sale.occurred_at)
+    : formatClockTime(sale.occurred_at);
   return (
     <SidePanel
       label="Detalle de la venta"
-      footer={
-        <SaleFooter
-          sale={sale}
-          onReprint={onReprint}
-          onPrintOriginal={onPrintOriginal}
-          onVoid={onVoid}
-          onPrintCreditNote={onPrintCreditNote}
-          onReprintCreditNote={onReprintCreditNote}
-          onReprintDeferredInvoice={onReprintDeferredInvoice}
-        />
-      }
+      footer={buttons.length === 0 ? undefined : <Buttons buttons={buttons} />}
     >
       <FigureStat
-        label={`VENTA DE LAS ${formatClockTime(sale.occurred_at)}`}
+        size="hero"
+        variant="plain"
+        label={`VENTA · ${when}`}
         value={formatCents(sale.total)}
       />
-      {details === undefined ? null : <SummaryRowGroup rows={details} />}
-      {payments === undefined ? null : (
+      {rows === undefined ? null : <SummaryRowGroup rows={rows} />}
+      {sale.lines.length === 0 ? null : (
         <div className="flex flex-col gap-2">
-          <Eyebrow text="PAGOS" />
-          <SummaryRowGroup rows={payments} />
+          <Eyebrow text="PRODUCTOS" />
+          <LineItemList
+            label="Productos"
+            items={sale.lines.map((line, position) => ({
+              id: `${position}`,
+              name: line.product_name,
+              quantity:
+                line.sale_unit === "KG"
+                  ? formatWeight(line.quantity)
+                  : `${formatNumber(line.quantity)} u`,
+              amount: formatCents(line.line_total),
+            }))}
+          />
         </div>
       )}
     </SidePanel>
   );
 }
 
-function Message({ children }: { children: ReactNode }) {
-  return <SidePanel label="Detalle de la venta">{children}</SidePanel>;
-}
-
-function SelectedSale({
+function Selected({
   detail,
-  onReprint,
-  onPrintOriginal,
-  onVoid,
-  onPrintCreditNote,
-  onReprintCreditNote,
-  onReprintDeferredInvoice,
+  withDate,
+  buttons,
 }: {
   detail: CoreData<ShownSaleHistoryDetail>;
-} & SaleActions) {
+  withDate: boolean;
+  buttons: readonly SaleButton[];
+}) {
   if (detail.status === "loading") {
     return (
       <Message>
@@ -228,29 +173,32 @@ function SelectedSale({
   }
   if (detail.status === "failed") {
     return (
-      <Message>
+      <Message
+        footer={
+          <Button
+            size="large"
+            fullWidth
+            icon={<RefreshCw />}
+            iconPosition="start"
+            keycap="R"
+            onPress={detail.retry}
+          >
+            Reintentar
+          </Button>
+        }
+      >
         <LoadFailure
+          variant="centered"
           icon={<TriangleAlert />}
           title="No se pudo leer la venta"
           description="Volvé a intentarlo en unos segundos."
-          onRetry={detail.retry}
         />
       </Message>
     );
   }
   switch (detail.value.kind) {
     case "found":
-      return (
-        <Sale
-          sale={detail.value.detail}
-          onReprint={onReprint}
-          onPrintOriginal={onPrintOriginal}
-          onVoid={onVoid}
-          onPrintCreditNote={onPrintCreditNote}
-          onReprintCreditNote={onReprintCreditNote}
-          onReprintDeferredInvoice={onReprintDeferredInvoice}
-        />
-      );
+      return <Sale sale={detail.value.detail} withDate={withDate} buttons={buttons} />;
     case "not_found":
       return (
         <Message>
@@ -284,51 +232,15 @@ function SelectedSale({
   }
 }
 
-function SelectedSaleReader({
-  saleId,
-  readDetail,
-  onReprint,
-  onPrintOriginal,
-  onVoid,
-  onPrintCreditNote,
-  onReprintCreditNote,
-  onReprintDeferredInvoice,
-}: {
-  saleId: string;
-  readDetail: SaleHistoryDetailPanelProps["readDetail"];
-} & SaleActions) {
-  const detail = useSaleHistoryDetailQuery({ saleId, read: readDetail });
-  return (
-    <SelectedSale
-      detail={detail}
-      onReprint={onReprint}
-      onPrintOriginal={onPrintOriginal}
-      onVoid={onVoid}
-      onPrintCreditNote={onPrintCreditNote}
-      onReprintCreditNote={onReprintCreditNote}
-      onReprintDeferredInvoice={onReprintDeferredInvoice}
-    />
-  );
-}
-
-export type SaleHistoryDetailPanelProps = {
-  saleId: string | undefined;
-  readDetail: Parameters<typeof useSaleHistoryDetailQuery>[0]["read"];
-} & SaleActions;
-
 export function SaleHistoryDetailPanel({
-  saleId,
-  readDetail,
-  onReprint,
-  onPrintOriginal,
-  onVoid,
-  onPrintCreditNote,
-  onReprintCreditNote,
-  onReprintDeferredInvoice,
+  detail,
+  withDate,
+  buttons,
+  escape,
 }: SaleHistoryDetailPanelProps) {
-  if (saleId === undefined) {
+  if (detail === undefined) {
     return (
-      <Message>
+      <Message escape={escape}>
         <EmptyState
           variant="blank"
           icon={<ReceiptText />}
@@ -337,16 +249,5 @@ export function SaleHistoryDetailPanel({
       </Message>
     );
   }
-  return (
-    <SelectedSaleReader
-      saleId={saleId}
-      readDetail={readDetail}
-      onReprint={onReprint}
-      onPrintOriginal={onPrintOriginal}
-      onVoid={onVoid}
-      onPrintCreditNote={onPrintCreditNote}
-      onReprintCreditNote={onReprintCreditNote}
-      onReprintDeferredInvoice={onReprintDeferredInvoice}
-    />
-  );
+  return <Selected detail={detail} withDate={withDate} buttons={buttons} />;
 }
