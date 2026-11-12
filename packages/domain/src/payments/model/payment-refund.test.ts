@@ -17,6 +17,7 @@ import {
   type PlannedRefundState,
   plannedRefundState,
   plannedRefunds,
+  REFUND_DONE_STATE,
   REFUND_ORIGINS,
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
@@ -540,6 +541,10 @@ describe("refundedAtRegisterNow", () => {
 
   it("leaves out a cash refund that is not done", () => {
     expect(refundedAtRegisterNow([{ ...refund("CASH", 5000), state: "PENDING" }])).toBe(0);
+  });
+
+  it("leaves to the refund's state, not its method, whether it is handed back now", () => {
+    expect(refundedAtRegisterNow([{ ...refund("QR", 1200), state: REFUND_DONE_STATE }])).toBe(1200);
   });
 
   it("sums the refunds of the cash payments of any sale", () => {
