@@ -133,8 +133,9 @@ describe("PointPaymentWaitPanel", () => {
       const { screen } = await renderPanel();
 
       await expect.element(screen.getByText("2:41")).toBeVisible();
-      expect(buttonLabels(screen)).toEqual(["Cambiar de medio"]);
-      expect(screen.container.querySelector("kbd")?.textContent).toBe("Esc");
+      expect(buttonLabels(screen)).toEqual(["EscCambiar de medio"]);
+      const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
+      expect(keys).toEqual(["Esc"]);
     });
 
     it("abandons the order with Esc and goes back to the methods", async () => {
