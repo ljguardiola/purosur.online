@@ -1,17 +1,19 @@
 import type { StartMercadoPagoChargeOutcome } from "@purosur/contracts";
 import {
   Button,
+  FigureStat,
   fieldErrorMessage,
   formatAmountInput,
   formatCents,
   InlineNotice,
-  Modal,
-  SummaryRowGroup,
+  SidePanel,
+  SidePanelTitle,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ArrowLeft, Info, QrCode, TriangleAlert } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, Info, QrCode, TriangleAlert } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
 import {
   mercadoPagoChargeRequestFrom,
@@ -30,10 +32,9 @@ const REFUSED_MESSAGE = "Mercado Pago no pudo crear la orden. Cobrá con otro me
 export type ShownQrOrder = Extract<StartMercadoPagoChargeOutcome, { kind: "order_shown" }>;
 
 export type QrChargePanelProps = {
-  total: number;
-  paid: number;
   pending: number;
   minimum: number;
+  regenerate?: number;
   start: (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
   onChooseAnotherMethod: () => void;
   onOrderShown: (order: ShownQrOrder) => void;
@@ -41,20 +42,25 @@ export type QrChargePanelProps = {
   onSessionInvalid: () => void;
 };
 
+function focusInput(box: HTMLElement | null) {
+  box?.querySelector("input")?.focus();
+}
+
 export function QrChargePanel({
-  total,
-  paid,
   pending,
   minimum,
+  regenerate,
   start,
   onChooseAnotherMethod,
   onOrderShown,
   onSaleUnavailable,
   onSessionInvalid,
 }: QrChargePanelProps) {
-  const [notice, setNotice] = useState<string>();
+  const [notice, setNotice] = useState<{ message: string; refused: boolean }>();
+  const amountBox = useRef<HTMLDivElement>(null);
+  const regenerated = useRef(false);
   const { form, submit, submitting } = useRequestForm({
-    defaultValues: { amount: formatAmountInput(pending) },
+    defaultValues: { amount: formatAmountInput(regenerate ?? pending) },
     request: { schema: mercadoPagoChargeRequestSchema, from: mercadoPagoChargeRequestFrom },
     fields: { amount: "amount" },
     messages: { amount: INVALID_AMOUNT_MESSAGE },
@@ -76,16 +82,16 @@ export function QrChargePanel({
           showFieldError("amount", `El QR no acepta cobros menores a ${formatCents(minimum)}`);
           break;
         case "order_refused":
-          setNotice(REFUSED_MESSAGE);
+          setNotice({ message: REFUSED_MESSAGE, refused: true });
           break;
         case "unreachable":
-          setNotice(ORDER_UNREACHABLE_MESSAGE);
+          setNotice({ message: ORDER_UNREACHABLE_MESSAGE, refused: true });
           break;
         case "mercado_pago_charge_in_progress":
-          setNotice(CHARGE_IN_PROGRESS_MESSAGE);
+          setNotice({ message: CHARGE_IN_PROGRESS_MESSAGE, refused: true });
           break;
         case "paid_order_not_applied":
-          setNotice(PAID_ORDER_NOT_APPLIED_MESSAGE);
+          setNotice({ message: PAID_ORDER_NOT_APPLIED_MESSAGE, refused: true });
           break;
         case "empty_sale":
         case "zero_total":
@@ -100,72 +106,95 @@ export function QrChargePanel({
           onSessionInvalid();
           break;
         case "unavailable":
-          setNotice(ORDER_FAILED_MESSAGE);
+          setNotice({ message: ORDER_FAILED_MESSAGE, refused: false });
           break;
       }
     },
   });
 
   function createOrder() {
+    if (submitting) {
+      return;
+    }
     setNotice(undefined);
     void submit();
   }
 
-  return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next) {
+  const createRegeneratedOrder = useEffectEvent(createOrder);
+
+  useEffect(() => {
+    if (regenerate === undefined) {
+      focusInput(amountBox.current);
+    } else if (!regenerated.current) {
+      regenerated.current = true;
+      createRegeneratedOrder();
+    }
+  }, [regenerate]);
+
+  const leaving = notice?.refused === true;
+
+  useKeys([
+    {
+      key: "Escape",
+      run: () => {
+        if (!submitting) {
           onChooseAnotherMethod();
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={<QrCode />}
-      context="QR DE MERCADO PAGO"
-      contextTone="info"
-      title="¿Cuánto se cobra con QR?"
-      closable={!submitting}
+      },
+    },
+  ]);
+  useKeys([{ key: "Enter", run: leaving ? onChooseAnotherMethod : createOrder }], {
+    fallback: true,
+  });
+
+  return (
+    <SidePanel
+      label="Cobro con QR"
+      width="wide"
+      header={
+        <SidePanelTitle
+          icon={<QrCode />}
+          title="QR"
+          closeLabel="Cambiar de medio"
+          closeDisabled={submitting}
+          onClose={onChooseAnotherMethod}
+        />
+      }
       footer={
-        <>
+        leaving ? (
           <Button
-            variant="secondary"
             size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
+            fullWidth
+            icon={<ArrowRight />}
+            iconPosition="start"
+            keycap="Enter"
             onPress={onChooseAnotherMethod}
           >
             Cambiar de medio
           </Button>
+        ) : (
           <Button
             size="large"
             fullWidth
             icon={<QrCode />}
+            iconPosition="start"
+            keycap="Enter"
             dataStatus={submitting ? "loading" : "loaded"}
             onPress={createOrder}
           >
             Crear orden
           </Button>
-        </>
+        )
       }
     >
-      <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          variant="filled"
-          orientation="horizontal"
-          rows={[
-            { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(paid) },
-            { label: "Saldo pendiente", value: formatCents(pending), emphasized: true },
-          ]}
-        />
+      <FigureStat size="hero" label="A COBRAR" value={formatCents(pending)} />
+      <div ref={amountBox}>
         <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
           {(field) => (
             <TextField
               kind="amount"
               prefix="$"
-              label="Importe a cobrar con este medio"
-              description="Si cobrás menos, el resto queda pendiente para otro medio."
+              label="IMPORTE"
               decimals={2}
               value={field.state.value}
               onChange={field.handleChange}
@@ -174,15 +203,15 @@ export function QrChargePanel({
             />
           )}
         </form.AppField>
-        <InlineNotice
-          tone="info"
-          icon={<Info />}
-          title="La orden se crea por este importe. Después ya no se puede cambiar."
-        />
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
       </div>
-    </Modal>
+      <InlineNotice
+        tone="info"
+        icon={<Info />}
+        title="La orden se crea por este importe. Después ya no se puede cambiar."
+      />
+      {notice === undefined ? null : (
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice.message} />
+      )}
+    </SidePanel>
   );
 }
