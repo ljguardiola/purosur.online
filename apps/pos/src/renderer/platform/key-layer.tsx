@@ -106,11 +106,15 @@ function candidatesFor(
   if (isInsideDialog(event.target)) {
     return [];
   }
-  return registrations
+  const reaching = registrations
     .filter(
       (registration) => registration.fallback === fallback && reaches(registration, event.target),
     )
     .reverse();
+  return [
+    ...reaching.filter((registration) => registration.within !== undefined),
+    ...reaching.filter((registration) => registration.within === undefined),
+  ];
 }
 
 function bindingFor(

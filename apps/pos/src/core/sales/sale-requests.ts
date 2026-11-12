@@ -18,6 +18,7 @@ import type {
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
+  FindProductByCodeOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenSale,
@@ -76,6 +77,7 @@ import {
   chargeSaleOnStandaloneTerminal,
   chargeSaleWithPaidOrder,
   currentSale,
+  findProductByCode,
   type IdGenerator,
   type OperationAuthorization,
   previewSaleDiscount,
@@ -452,6 +454,34 @@ export async function searchProductsFor(
       matches: found.matches,
     })),
     more: outcome.more,
+  };
+}
+
+export async function findProductByCodeFor(
+  { database, gate, restoration }: Pick<SaleRequestDeps, "database" | "gate" | "restoration">,
+  code: string,
+): Promise<FindProductByCodeOutcome> {
+  const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
+    findProductByCode(
+      { ledger: saleLedger(database), restoration },
+      { actorId: signedInUserId, code },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const outcome = guarded.result;
+  if (outcome.kind !== "found") {
+    return { kind: outcome.kind };
+  }
+  return {
+    kind: "found",
+    product: {
+      product_id: outcome.product.productId,
+      name: outcome.product.name,
+      sale_unit: outcome.product.saleUnit,
+      unit_price: outcome.product.unitPrice,
+    },
   };
 }
 

@@ -6,6 +6,7 @@ import type {
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
   CurrentSaleAnswer,
+  FindProductByCodeOutcome,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
@@ -56,6 +57,7 @@ export const salesKeys = {
   saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
     [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  productByCode: (code: string) => [...salesKey, "product-by-code", code] as const,
   paymentMethodAvailabilityRoot: [...salesKey, "payment-method-availability"] as const,
   paymentMethodAvailability: (sessionId: string, userId: string) =>
     [...salesKey, "payment-method-availability", sessionId, userId] as const,
@@ -474,4 +476,44 @@ export function useSearchProducts(
     queryClient
       .fetchQuery({ queryKey: salesKeys.search(query), queryFn: () => read(query), gcTime: 0 })
       .catch((): SearchProductsOutcome => ({ kind: "unavailable" }));
+}
+
+type ProductByCode = Exclude<FindProductByCodeOutcome, { kind: "unavailable" }>;
+
+async function readProductByCode(
+  read: (code: string) => Promise<FindProductByCodeOutcome>,
+  code: string,
+): Promise<ProductByCode | "unavailable"> {
+  const outcome = await read(code);
+  return outcome.kind === "unavailable" ? "unavailable" : outcome;
+}
+
+export function useProductByCodeQuery({
+  code,
+  read,
+}: {
+  code: string | undefined;
+  read: (code: string) => Promise<FindProductByCodeOutcome>;
+}): CoreData<ProductByCode> {
+  return useCoreQuery({
+    queryKey: salesKeys.productByCode(code ?? ""),
+    read: () => readProductByCode(read, code ?? ""),
+    enabled: code !== undefined,
+  });
+}
+
+export function useFindProductByCode(
+  read: (code: string) => Promise<FindProductByCodeOutcome>,
+): (code: string) => Promise<FindProductByCodeOutcome> {
+  const queryClient = useQueryClient();
+  return (code) =>
+    queryClient
+      .fetchQuery({
+        ...coreQueryOptions({
+          queryKey: salesKeys.productByCode(code),
+          read: () => readProductByCode(read, code),
+        }),
+        gcTime: 0,
+      })
+      .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
 }

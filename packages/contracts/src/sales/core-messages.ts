@@ -27,6 +27,7 @@ import {
   chargeSaleInCashOutcomeSchema,
   chargeSaleInCashWithChangeDiscountOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
+  findProductByCodeOutcomeSchema,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
   nonCashChargeSchema,
@@ -139,6 +140,12 @@ const searchProductsMessageSchema = z.object({
   type: z.literal("search-products"),
   request_id: requestId,
   query: z.string(),
+});
+
+const findProductByCodeMessageSchema = z.object({
+  type: z.literal("find-product-by-code"),
+  request_id: requestId,
+  code: z.string().min(1),
 });
 
 const addProductMessageSchema = z.object({
@@ -304,6 +311,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cancelPaidSaleMessageSchema,
   voidSaleMessageSchema,
   searchProductsMessageSchema,
+  findProductByCodeMessageSchema,
   addProductMessageSchema,
   addWeighedProductMessageSchema,
   weighProductMessageSchema,
@@ -469,6 +477,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("search-products-result"),
     request_id: requestId,
     outcome: searchProductsOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("find-product-by-code-result"),
+    request_id: requestId,
+    outcome: findProductByCodeOutcomeSchema,
   }),
   z.object({
     type: z.literal("add-product-result"),

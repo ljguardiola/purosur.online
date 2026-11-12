@@ -570,6 +570,23 @@ describe("useKeys", () => {
       expect(run).not.toHaveBeenCalled();
       expect(clicked).toHaveBeenCalledTimes(1);
     });
+
+    it("runs its keys before a screen-wide binding registered after it", async () => {
+      const run = vi.fn();
+      const screenWide = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <ScopedKeys run={run} clicked={vi.fn()} />
+          <Keys bindings={[{ key: "Enter", run: screenWide }]} />
+        </>,
+      );
+
+      await userEvent.click(screen.getByLabelText("Producto"));
+      await userEvent.keyboard("{Enter}");
+
+      expect(run).toHaveBeenCalledOnce();
+      expect(screenWide).not.toHaveBeenCalled();
+    });
   });
 
   describe("as the frame's fallback", () => {

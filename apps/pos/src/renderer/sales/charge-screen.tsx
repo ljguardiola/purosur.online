@@ -21,7 +21,7 @@ import type {
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, PointCardType } from "@purosur/domain";
-import { LoadFailure, LoadingPlaceholder, SearchField } from "@purosur/ui";
+import { LoadFailure, LoadingPlaceholder, ScaleCard, SearchField } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ScanBarcode, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -385,14 +385,19 @@ export function ChargeScreen({
         ) : null}
         {sale === undefined ? null : (
           <>
-            <SearchField
-              label="Producto"
-              disabled
-              placeholder="Escaneá o escribí el nombre"
-              icon={<ScanBarcode />}
-              value=""
-              onChange={() => {}}
-            />
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <SearchField
+                  label="Producto"
+                  disabled
+                  placeholder="Escaneá o escribí el nombre"
+                  icon={<ScanBarcode />}
+                  value=""
+                  onChange={() => {}}
+                />
+              </div>
+              <ScaleCard />
+            </div>
             <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
           </>
         )}

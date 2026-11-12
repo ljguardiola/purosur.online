@@ -41,6 +41,7 @@ import {
   chargeSaleInCashWithChangeDiscountFor,
   chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
+  findProductByCodeFor,
   nonCashChargeFor,
   type OutboxSaleRequestDeps,
   previewSaleDiscountFor,
@@ -507,6 +508,63 @@ describe("searching products by name on the register", () => {
     database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
 
     expect(await searchProductsFor(deps(), "yer")).toEqual({ kind: "no_open_session" });
+  });
+});
+
+describe("finding a product by its code on the register", () => {
+  it("answers the product the way the screen shows it, with its price", async () => {
+    expect(await findProductByCodeFor(deps(), "111")).toEqual({
+      kind: "found",
+      product: { product_id: "p1", name: "Yerba", sale_unit: "UNIT", unit_price: 1500 },
+    });
+  });
+
+  it("answers no price for a product that has none", async () => {
+    expect(await findProductByCodeFor(deps(), "222")).toEqual({
+      kind: "found",
+      product: { product_id: "p2", name: "Queso", sale_unit: "KG", unit_price: null },
+    });
+  });
+
+  it("answers an unknown code", async () => {
+    expect(await findProductByCodeFor(deps(), "999")).toEqual({ kind: "unknown_code" });
+  });
+
+  it("answers a code of an inactive product as unknown", async () => {
+    database.prepare("UPDATE products SET active = 0 WHERE id = 'p1'").run();
+
+    expect(await findProductByCodeFor(deps(), "111")).toEqual({ kind: "unknown_code" });
+  });
+
+  it("does not start a sale", async () => {
+    await findProductByCodeFor(deps(), "111");
+
+    expect(database.prepare("SELECT COUNT(*) AS count FROM sales").get()).toEqual({ count: 0 });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    signedInPerson.clear();
+
+    expect(await findProductByCodeFor(deps(), "111")).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a signed-in person without the permission to sell", async () => {
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await findProductByCodeFor(deps(), "111")).toEqual({ kind: "not_permitted" });
+  });
+
+  it("answers that no session is open", async () => {
+    database.prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = 'x'").run();
+
+    expect(await findProductByCodeFor(deps(), "111")).toEqual({ kind: "no_open_session" });
+  });
+
+  it("answers that the restoration of the register is in progress", async () => {
+    markRegisterStale();
+
+    expect(await findProductByCodeFor(deps(), "111")).toEqual({ kind: "restoration_in_progress" });
   });
 });
 

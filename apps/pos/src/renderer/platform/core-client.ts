@@ -35,6 +35,7 @@ import type {
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
   FindDeferredSaleOutcome,
+  FindProductByCodeOutcome,
   FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   FiscalCoreToRendererMessage,
@@ -251,6 +252,7 @@ export interface CoreClient {
   openingFloatSuggestion(): Promise<OpeningFloatSuggestion | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
+  findProductByCode(code: string): Promise<FindProductByCodeOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
   addWeighedProduct(
     productId: string,
@@ -1041,6 +1043,12 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     searchProducts(query) {
       return ask({ type: "search-products", request_id: deps.newRequestId(), query }, (answer) =>
         answer.type === "search-products-result" ? answer.outcome : undefined,
+      );
+    },
+    findProductByCode(code) {
+      return ask(
+        { type: "find-product-by-code", request_id: deps.newRequestId(), code },
+        (answer) => (answer.type === "find-product-by-code-result" ? answer.outcome : undefined),
       );
     },
     addProduct(productId) {

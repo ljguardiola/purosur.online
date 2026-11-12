@@ -223,7 +223,7 @@ describe("SaleScreen's key legend under the lines", () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_FOUR_LINES });
     await expect.element(screen.getByText("Pasas de uva")).toBeVisible();
 
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F3Pesar", "SuprQuitar"]);
   });
 
   it("adds +/− Cantidad while a unit line is selected, and not on a weighed line", async () => {
@@ -241,7 +241,7 @@ describe("SaleScreen's key legend under the lines", () => {
       .toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar", "+/−Cantidad"]);
     await userEvent.keyboard("{ArrowUp}");
 
-    await expect.poll(() => legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
+    await expect.poll(() => legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F3Pesar", "SuprQuitar"]);
   });
 });
 

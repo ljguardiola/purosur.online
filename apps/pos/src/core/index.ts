@@ -197,6 +197,7 @@ import {
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
+  findProductByCodeFor,
   nonCashChargeFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
@@ -1544,6 +1545,18 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
             },
             query,
+          ),
+  findProductByCode:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (code) =>
+          findProductByCodeFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+            },
+            code,
           ),
   addProduct:
     localDatabase === undefined || actionGate === undefined

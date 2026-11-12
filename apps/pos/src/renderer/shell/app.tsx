@@ -431,6 +431,7 @@ function Register({ core }: { core: CoreClient }) {
     followMercadoPagoCharge,
     abandonMercadoPagoCharge,
     searchProducts: (query: string) => core.searchProducts(query),
+    findProductByCode: (code: string) => core.findProductByCode(code),
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>
       core.addWeighedProduct(productId, weightThousandths),

@@ -16,6 +16,7 @@ import {
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
+  findProductByCodeOutcomeSchema,
   previewSaleDiscountOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleSchema,
@@ -1336,6 +1337,47 @@ describe("searchProductsOutcomeSchema", () => {
         more: true,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("findProductByCodeOutcomeSchema", () => {
+  const product = { product_id: "p1", name: "Yerba mate", sale_unit: "UNIT", unit_price: 2500 };
+
+  it.each([
+    { kind: "found", product },
+    { kind: "found", product: { ...product, sale_unit: "KG", unit_price: null } },
+    { kind: "unknown_code" },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "no_open_session" },
+    { kind: "restoration_in_progress" },
+    { kind: "unavailable" },
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(findProductByCodeOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    ["a found product without its product", { kind: "found" }],
+    ["a product without its id", { kind: "found", product: { ...product, product_id: undefined } }],
+    ["a product without its name", { kind: "found", product: { ...product, name: undefined } }],
+    [
+      "a product without its sale unit",
+      { kind: "found", product: { ...product, sale_unit: undefined } },
+    ],
+    [
+      "a product sold by an unknown unit",
+      { kind: "found", product: { ...product, sale_unit: "BOX" } },
+    ],
+    [
+      "a product without saying whether it has a price",
+      { kind: "found", product: { ...product, unit_price: undefined } },
+    ],
+    ["a negative price", { kind: "found", product: { ...product, unit_price: -1 } }],
+    ["a fractional price", { kind: "found", product: { ...product, unit_price: 1.5 } }],
+    ["an unknown outcome", { kind: "somewhere_else" }],
+    ["an outcome that only searching has", { kind: "results", products: [], more: false }],
+  ])("rejects %s", (_case, outcome) => {
+    expect(findProductByCodeOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
