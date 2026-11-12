@@ -164,7 +164,7 @@ describe("VoidSalePanel", () => {
     await expect.element(panel.getByText("Se emite e imprime")).not.toBeInTheDocument();
   });
 
-  it("has a danger title with the Esc key and a lock only when another person must authorize", async () => {
+  it("has an error-toned title with the Esc key and a lock only when another person must authorize", async () => {
     const { panel } = await renderPanel({ authorizationRequired: true });
 
     await expect.element(panel.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
