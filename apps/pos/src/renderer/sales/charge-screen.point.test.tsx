@@ -175,7 +175,7 @@ describe("ChargeScreen · Point", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
       await expect.element(screen.getByRole("dialog").getByText("Point · Débito")).toBeVisible();
     });
 
@@ -414,7 +414,7 @@ describe("ChargeScreen · Point", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
       await expect
         .element(screen.getByRole("dialog").getByText("Point · Débito", { exact: true }))
         .toBeVisible();

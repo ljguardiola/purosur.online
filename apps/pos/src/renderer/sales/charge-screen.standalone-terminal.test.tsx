@@ -92,7 +92,7 @@ describe("ChargeScreen · terminal independiente", () => {
     await chooseStandaloneTerminal(screen);
     await userEvent.click(screen.getByRole("button", { name: REGISTER }));
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     await expect
       .element(screen.getByRole("dialog").getByText("Terminal independiente", { exact: true }))
       .toBeVisible();

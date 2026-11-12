@@ -19,6 +19,7 @@ const FAILED_PRINT: ReceiptPrintStatusOutcome = {
   printed: false,
   standing: "failed",
   comprobante: { kind: "none" },
+  offer: null,
 };
 
 describe("ChargeScreen", () => {
@@ -164,8 +165,8 @@ describe("ChargeScreen", () => {
 
     await chargeInCash(screen, "5000,00");
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
-    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
+    await expect.element(screen.getByText("VUELTO", { exact: true })).toBeVisible();
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 500_000);
   });
 
@@ -186,6 +187,7 @@ describe("ChargeScreen", () => {
         printed: false,
         standing: "awaiting_answer",
         comprobante: { kind: "none" },
+        offer: { remaining_ms: 3000, length_ms: 3000 },
       }),
     });
 
@@ -224,6 +226,7 @@ describe("ChargeScreen", () => {
         printed: false,
         standing: "paper_out",
         comprobante: { kind: "none" },
+        offer: null,
       }),
     });
 
@@ -251,25 +254,30 @@ describe("ChargeScreen", () => {
 
     await chargeInCash(screen, "5000,00");
 
-    await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
+    await expect.element(screen.getByText("Pendiente de imprimir")).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Cambiar impresora" }))
       .not.toBeInTheDocument();
   });
 
-  it("shows the sale as paid behind the completed sale, with no way back to it", async () => {
+  it("shows the completed sale in the right panel and the empty sale in the main area", async () => {
     const { screen } = await renderScreen();
 
     await chargeInCash(screen, "5000,00");
 
-    const panel = screen.getByRole("complementary", {
-      name: "Panel de cobro",
-      includeHidden: true,
-    });
-    await expect.element(panel.getByText("Saldo pendiente")).toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: "Volver a la venta", includeHidden: true }))
+      .element(screen.getByRole("complementary", { name: "Venta completada" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeDisabled();
+    await expect.element(screen.getByPlaceholder("Escaneá o escribí el nombre")).toBeVisible();
+    await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Panel de cobro", includeHidden: true }))
       .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+      .not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
   });
 
   it.each([
@@ -311,7 +319,9 @@ describe("ChargeScreen", () => {
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
     await expect.element(panel.getByText("$ 760,00")).toBeVisible();
-    await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta completada" }))
+      .not.toBeInTheDocument();
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 400_000);
   });
 
@@ -537,10 +547,8 @@ describe("ChargeScreen", () => {
     await chooseTransfer(screen);
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
   });
 

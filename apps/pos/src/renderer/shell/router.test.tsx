@@ -2267,7 +2267,7 @@ describe("the register's router", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
   });
 

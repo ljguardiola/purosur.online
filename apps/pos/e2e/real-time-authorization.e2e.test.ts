@@ -136,9 +136,9 @@ describe("authorizing a sale's invoice in real time on the register", () => {
       buyer_tax_status_code: 5,
       sale_event: { event_type: "sale_completed" },
     });
-    await page.getByRole("heading", { name: "¿Imprimir ticket?" }).waitFor();
+    await page.getByRole("group", { name: "¿Imprimir ticket?" }).waitFor();
     await page.getByRole("button", { name: "Sí" }).click();
-    await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
+    await page.getByText("Pendiente de imprimir").waitFor();
     await page.getByText("La impresora no está configurada", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Seguir vendiendo" }).click();
     await page.getByText("La venta está vacía").waitFor();

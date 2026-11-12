@@ -1,7 +1,7 @@
 import { Check, Printer } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { render } from "vitest-browser-react";
 import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { TimedOfferCard, type TimedOfferCardProps } from "./timed-offer-card";
 

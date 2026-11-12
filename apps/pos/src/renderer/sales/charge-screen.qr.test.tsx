@@ -113,7 +113,7 @@ describe("ChargeScreen · QR", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     });
 
     it("shows the whole wait as the total of a charge reopened part way through it", async () => {
@@ -244,7 +244,9 @@ describe("ChargeScreen · QR", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     await expect
-      .element(screen.getByText("VENTA COMPLETADA"), { timeout: NEXT_ASK_TIMEOUT_MS })
+      .element(screen.getByRole("heading", { name: "Venta completada" }), {
+        timeout: NEXT_ASK_TIMEOUT_MS,
+      })
       .toBeVisible();
     await expect
       .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
@@ -270,7 +272,9 @@ describe("ChargeScreen · QR", () => {
         timeout: NEXT_ASK_TIMEOUT_MS,
       })
       .toBeVisible();
-    await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta completada" }))
+      .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
       .toBeVisible();
@@ -291,7 +295,9 @@ describe("ChargeScreen · QR", () => {
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     await expect
-      .element(screen.getByText("VENTA COMPLETADA"), { timeout: NEXT_ASK_TIMEOUT_MS })
+      .element(screen.getByRole("heading", { name: "Venta completada" }), {
+        timeout: NEXT_ASK_TIMEOUT_MS,
+      })
       .toBeVisible();
     await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
   });
@@ -420,7 +426,7 @@ describe("ChargeScreen · QR", () => {
       await expect.element(screen.getByText("El cliente ya pagó")).not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
       await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
     });
 

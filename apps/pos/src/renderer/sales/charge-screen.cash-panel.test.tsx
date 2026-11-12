@@ -65,7 +65,7 @@ it("sets what was received with a quick-amount key and charges it with Enter", a
   await userEvent.keyboard("{Enter}");
 
   await expect.poll(() => chargeSaleInCash.mock.calls).toEqual([["sale-1", 500_000]]);
-  await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
 });
 
 it("goes back to the sale with Esc", async () => {
@@ -130,7 +130,7 @@ it("stays on the cash charge, and shows the completed sale, when Esc is pressed 
     cash_rounding: 0,
   });
 
-  await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
   expect(screen.router.state.location.pathname).toBe("/");
 });
 
