@@ -312,7 +312,7 @@ export function ChargeScreen({
         ) : step.name === "methods" || (step.name === "qr" && qrMinimum === undefined) ? (
           <CombinedPaymentPanel
             total={sale.total}
-            paid={sale.paid}
+            payments={sale.payments}
             pending={sale.pending}
             methods={methods}
             cancelledNotice={notice?.kind === "cancelled"}
