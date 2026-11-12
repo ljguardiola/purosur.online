@@ -303,7 +303,10 @@ export function InitialCountScreen({
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
   const resultCount = found?.products.length ?? 0;
-  useKeys([{ key: "Escape", run: () => setDismissed(true) }], { active: found !== undefined });
+  useKeys([{ key: "Escape", run: () => setDismissed(true) }], {
+    active: found !== undefined,
+    within: counting === undefined ? undefined : field,
+  });
   useKeys(
     [
       {
