@@ -9,6 +9,8 @@ const detail = {
   operation_number: null,
   served_by_first_name: "Marta",
   line_count: 1,
+  lines: [{ product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 6142 }],
+  cash_rounding: 92,
   payments: [{ method: "POINT", card_type: "CREDIT", amount: 5000 }],
   state: "completed",
   voidability: {
@@ -92,6 +94,54 @@ describe("saleHistoryDetailOutcomeSchema", () => {
         }),
       ).success,
     ).toBe(false);
+  });
+
+  describe("the lines and the cash rounding of the sale", () => {
+    const line = {
+      product_name: "Yerba mate orgánica",
+      sale_unit: "UNIT",
+      quantity: 2,
+      line_total: 1,
+    };
+    const accepts = (changes: Record<string, unknown>) =>
+      saleHistoryDetailOutcomeSchema.safeParse(outcome(changes)).success;
+
+    it("accepts weighed and counted lines, and a sale with no cash rounding", () => {
+      expect(accepts({ lines: [line, { ...line, sale_unit: "KG", quantity: 325 }] })).toBe(true);
+      expect(accepts({ cash_rounding: 0 })).toBe(true);
+    });
+
+    it("refuses a sale without its lines or its cash rounding", () => {
+      expect(accepts({ lines: undefined })).toBe(false);
+      expect(accepts({ cash_rounding: undefined })).toBe(false);
+    });
+
+    it("refuses a line without any one of its fields", () => {
+      for (const field of Object.keys(line)) {
+        const { [field]: _removed, ...rest } = line;
+
+        expect(accepts({ lines: [rest] }), field).toBe(false);
+      }
+    });
+
+    it("refuses a line of a sale unit that is neither counted nor weighed", () => {
+      expect(accepts({ lines: [{ ...line, sale_unit: "LITER" }] })).toBe(false);
+    });
+
+    it("refuses a line whose quantity is not a positive whole number", () => {
+      expect(accepts({ lines: [{ ...line, quantity: 0 }] })).toBe(false);
+      expect(accepts({ lines: [{ ...line, quantity: 1.5 }] })).toBe(false);
+    });
+
+    it("refuses a line amount with decimals", () => {
+      expect(accepts({ lines: [{ ...line, line_total: 1.5 }] })).toBe(false);
+    });
+
+    it("refuses a cash rounding a cash payment could not leave", () => {
+      expect(accepts({ cash_rounding: -1 })).toBe(false);
+      expect(accepts({ cash_rounding: 10000 })).toBe(false);
+      expect(accepts({ cash_rounding: 92.5 })).toBe(false);
+    });
   });
 
   describe("the credit notes of the sale", () => {

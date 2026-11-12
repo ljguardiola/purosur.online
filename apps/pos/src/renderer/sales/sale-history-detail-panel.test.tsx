@@ -26,6 +26,10 @@ const FISCAL_SALE: SaleDetail = {
   operation_number: 482,
   served_by_first_name: "Tomás",
   line_count: 8,
+  lines: [
+    { product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 614_250 },
+  ],
+  cash_rounding: 0,
   payments: [
     { method: "TRANSFER", card_type: null, amount: 3_070_000 },
     { method: "CASH", card_type: null, amount: 2_000_000 },

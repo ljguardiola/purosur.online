@@ -334,6 +334,8 @@ describe("the detail of a sale of the history", () => {
         operation_number: 482,
         served_by_first_name: "Linus",
         line_count: 1,
+        lines: [{ product_name: "Yerba", sale_unit: "UNIT", quantity: 2, line_total: 3000 }],
+        cash_rounding: 0,
         payments: [{ method: "CASH", card_type: null, amount: 3000 }],
         state: "completed",
         voidability: {

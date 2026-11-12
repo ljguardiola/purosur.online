@@ -38,6 +38,11 @@ function historySale(
       operationNumber: 482,
       servedByFirstName: "Marta",
       lineCount: 3,
+      lines: [
+        { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
+        { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 1358 },
+      ],
+      cashRounding: 92,
       total: 7500,
       payments: [
         { method: "CASH", amount: 5000, cardType: null },
@@ -94,6 +99,11 @@ describe("readSaleHistoryDetail", () => {
         operationNumber: 482,
         servedByFirstName: "Marta",
         lineCount: 3,
+        lines: [
+          { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
+          { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 1358 },
+        ],
+        cashRounding: 92,
         payments: [
           { method: "CASH", amount: 5000, cardType: null },
           { method: "TRANSFER", amount: 2500, cardType: null },

@@ -24,6 +24,10 @@ const SALE: SaleDetail = {
   operation_number: 482,
   served_by_first_name: "Tomás",
   line_count: 8,
+  lines: [
+    { product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 614_250 },
+  ],
+  cash_rounding: 0,
   payments: [{ method: "CASH", card_type: null, amount: 5_070_000 }],
   state: "deferred",
   voidability: { kind: "voidable", refunds: [], credit_note_corrects: null },

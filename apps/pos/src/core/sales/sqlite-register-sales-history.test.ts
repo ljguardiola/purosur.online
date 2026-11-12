@@ -653,6 +653,12 @@ describe("SqliteRegisterSalesHistory", () => {
         operationNumber: 482,
         servedByFirstName: "Marta",
         lineCount: 3,
+        lines: [
+          { productName: "Producto", saleUnit: "UNIT", quantity: 1, lineTotal: 1500 },
+          { productName: "Producto", saleUnit: "UNIT", quantity: 1, lineTotal: 2500 },
+          { productName: "Producto", saleUnit: "UNIT", quantity: 1, lineTotal: 500 },
+        ],
+        cashRounding: 0,
         total: 4500,
         payments: [
           { method: "CASH", amount: 1000, cardType: null },
@@ -684,6 +690,34 @@ describe("SqliteRegisterSalesHistory", () => {
         deferredShortCode: null,
         hasReturn: false,
       });
+    });
+
+    it("lists the lines in the order they were sold, weighed ones in thousandths of a kilogram", () => {
+      addSale({ id: "sale-1", lines: [6142, 3200] });
+      database
+        .prepare(
+          `UPDATE sale_lines SET product_name = 'Almendras peladas', sale_unit = 'KG',
+             weight_source = 'MANUAL', quantity = 325 WHERE id = 'sale-1-line-0'`,
+        )
+        .run();
+      database
+        .prepare(
+          "UPDATE sale_lines SET product_name = 'Yerba mate orgánica', quantity = 2 WHERE id = 'sale-1-line-1'",
+        )
+        .run();
+      database.prepare("UPDATE sale_lines SET position = 3 WHERE id = 'sale-1-line-0'").run();
+
+      expect(history.saleOfRegister("sale-1")?.lines).toEqual([
+        { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 3200 },
+        { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
+      ]);
+    });
+
+    it("carries the cash rounding the sale was charged with", () => {
+      addSale({ id: "sale-1", lines: [2519250] });
+      database.prepare("UPDATE sales SET cash_rounding = 9250 WHERE id = 'sale-1'").run();
+
+      expect(history.saleOfRegister("sale-1")?.cashRounding).toBe(9250);
     });
 
     it("lists the credit note of a voided sale and those of the returns of a sale, in the order recorded", () => {
