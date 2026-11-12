@@ -1,4 +1,4 @@
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -344,6 +344,18 @@ describe("WeighingCard", () => {
     expect(keyOf("Confirmar")).toBe("Enter");
     expect(keyOf("Escribir peso")).toBe("F5");
     expect(keyOf("Cancelar")).toBe("Esc");
+  });
+
+  it("draws the type-weight button on the surface with no icon besides its key", async () => {
+    const { screen } = await renderCard(async () => STABLE_250);
+    const typeWeight = screen.getByRole("button", { name: "Escribir peso" });
+    await expect.element(typeWeight).toBeEnabled();
+
+    const icons = [...typeWeight.element().querySelectorAll("svg")].filter(
+      (icon) => icon.closest("kbd") === null,
+    );
+    expect(icons).toEqual([]);
+    expect(getComputedStyle(typeWeight.element()).backgroundColor).toBe(tokenRgb("surface"));
   });
 
   it("opens the typed weight form with F5", async () => {
