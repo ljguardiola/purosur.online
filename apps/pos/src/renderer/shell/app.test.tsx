@@ -2450,7 +2450,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
@@ -2513,7 +2513,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
-    await userEvent.click(screen.getByRole("button", { name: "Registrar pago aprobado" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar pago" }));
 
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
@@ -2580,7 +2580,7 @@ describe("App", () => {
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
     await expect
       .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
       .toBeVisible();
@@ -2716,8 +2716,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
-    await userEvent.click(screen.getByText("QR", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "QR" }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
@@ -2797,8 +2796,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
-    await userEvent.click(screen.getByText("QR", { exact: true }));
+    await userEvent.click(screen.getByRole("button", { name: "QR" }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));

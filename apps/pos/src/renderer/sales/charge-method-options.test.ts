@@ -1,6 +1,6 @@
 import type { PaymentMethodAvailability } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
-import { chargeMethodOptions } from "./charge-method-options";
+import { chargeMethodAvailability } from "./charge-method-options";
 
 const AVAILABLE: PaymentMethodAvailability = {
   qr: "available",
@@ -10,121 +10,59 @@ const AVAILABLE: PaymentMethodAvailability = {
 };
 
 function loaded(availability: Partial<PaymentMethodAvailability> = {}) {
-  return chargeMethodOptions({
+  return chargeMethodAvailability({
     status: "loaded",
     value: { ...AVAILABLE, ...availability },
     refreshing: false,
   });
 }
 
-function shown(options: ReturnType<typeof chargeMethodOptions>["options"]) {
-  return options.map(({ value, description, disabled }) => ({
-    value,
-    description,
-    disabled: disabled ?? false,
-  }));
-}
+describe("chargeMethodAvailability", () => {
+  it("enables every method when every method is available", () => {
+    const { enabled, belowMinimum } = loaded();
 
-describe("chargeMethodOptions", () => {
-  it("names the terminal options and the QR as the register's keys do", () => {
-    const { options } = loaded();
-
-    expect(options.map(({ label }) => label)).toEqual([
-      "Efectivo",
-      "Point débito",
-      "Point crédito",
-      "QR",
-      "Transferencia",
-      "Terminal independiente",
-    ]);
-  });
-
-  it("offers cash, the terminal by debit and by credit, the QR, transfer and the standalone terminal, in that order, when every method is available", () => {
-    const { options, belowMinimum } = loaded();
-
-    expect(shown(options)).toEqual([
-      { value: "CASH", description: "Cargás lo entregado y ves el vuelto", disabled: false },
-      {
-        value: "POINT_DEBIT",
-        description: "Tarjeta en la terminal · requiere internet",
-        disabled: false,
-      },
-      {
-        value: "POINT_CREDIT",
-        description: "Tarjeta en la terminal · requiere internet",
-        disabled: false,
-      },
-      { value: "QR", description: "El cliente escanea el QR · requiere internet", disabled: false },
-      {
-        value: "TRANSFER",
-        description: "Confirmás al ver el ingreso en la cuenta del negocio",
-        disabled: false,
-      },
-      {
-        value: "STANDALONE_TERMINAL",
-        description: "Segunda Point · cargás el resultado a mano",
-        disabled: false,
-      },
-    ]);
+    expect([...enabled].sort()).toEqual(
+      ["CASH", "POINT_CREDIT", "POINT_DEBIT", "QR", "STANDALONE_TERMINAL", "TRANSFER"].sort(),
+    );
     expect(belowMinimum).toBeUndefined();
   });
 
-  it("shows the terminal and the QR as unavailable without a connection", () => {
-    const { options } = loaded({ qr: "offline", point: "offline" });
+  it.each(["offline", "not_configured"] as const)(
+    "disables the terminal and the QR when they are %s, keeping the methods that need no connection",
+    (state) => {
+      const { enabled } = loaded({ qr: state, point: state });
 
-    expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
-      { value: "POINT_DEBIT", description: "No disponible sin conexión", disabled: true },
-      { value: "POINT_CREDIT", description: "No disponible sin conexión", disabled: true },
-      { value: "QR", description: "No disponible sin conexión", disabled: true },
-    ]);
+      expect([...enabled].sort()).toEqual(["CASH", "STANDALONE_TERMINAL", "TRANSFER"]);
+    },
+  );
+
+  it("disables only the QR when it is not configured", () => {
+    const { enabled } = loaded({ qr: "not_configured" });
+
+    expect(enabled.has("QR")).toBe(false);
+    expect(enabled.has("POINT_DEBIT")).toBe(true);
+    expect(enabled.has("POINT_CREDIT")).toBe(true);
   });
 
-  it("shows the terminal as not configured on the register, disabled, while keeping the QR available", () => {
-    const { options } = loaded({ point: "not_configured" });
+  it("disables only the terminal when it is not configured", () => {
+    const { enabled } = loaded({ point: "not_configured" });
 
-    expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
-      { value: "POINT_DEBIT", description: "No configurada en esta caja", disabled: true },
-      { value: "POINT_CREDIT", description: "No configurada en esta caja", disabled: true },
-    ]);
+    expect(enabled.has("QR")).toBe(true);
+    expect(enabled.has("POINT_DEBIT")).toBe(false);
+    expect(enabled.has("POINT_CREDIT")).toBe(false);
   });
 
-  it("shows the QR as not configured on the register, disabled, while keeping the terminal available", () => {
-    const { options } = loaded({ qr: "not_configured" });
+  it("disables the QR below its minimum", () => {
+    const { enabled } = loaded({ qr: "below_minimum" });
 
-    expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
-      { value: "QR", description: "No configurado en esta caja", disabled: true },
-    ]);
+    expect(enabled.has("QR")).toBe(false);
   });
 
-  it("shows the QR as unavailable below its minimum, disabled, naming that minimum", () => {
-    const { options } = loaded({ qr: "below_minimum" });
+  it("disables the terminal below its minimum and names that minimum", () => {
+    const { enabled, belowMinimum } = loaded({ point: "below_minimum" });
 
-    expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
-      {
-        value: "QR",
-        description: "No se ofrece para cobrar menos de $ 15,00",
-        disabled: true,
-      },
-    ]);
-  });
-
-  it("keeps the standalone terminal enabled when the integrated methods are offline", () => {
-    const { options } = loaded({ qr: "offline", point: "offline" });
-
-    expect(shown(options).find(({ value }) => value === "STANDALONE_TERMINAL")?.disabled).toBe(
-      false,
-    );
-  });
-
-  it("leaves the terminal out below its minimum and names that minimum", () => {
-    const { options, belowMinimum } = loaded({ point: "below_minimum" });
-
-    expect(options.map(({ value }) => value)).toEqual([
-      "CASH",
-      "QR",
-      "TRANSFER",
-      "STANDALONE_TERMINAL",
-    ]);
+    expect(enabled.has("POINT_DEBIT")).toBe(false);
+    expect(enabled.has("POINT_CREDIT")).toBe(false);
     expect(belowMinimum).toBe(1500);
   });
 
@@ -132,15 +70,11 @@ describe("chargeMethodOptions", () => {
     ["is still loading", { status: "loading" }],
     ["could not be read", { status: "failed", retry: () => undefined }],
   ] as const)(
-    "offers cash, transfer and the standalone terminal while the availability %s",
+    "enables cash, transfer and the standalone terminal while the availability %s",
     (_state, availability) => {
-      const { options, belowMinimum } = chargeMethodOptions(availability);
+      const { enabled, belowMinimum } = chargeMethodAvailability(availability);
 
-      expect(options.map(({ value }) => value)).toEqual([
-        "CASH",
-        "TRANSFER",
-        "STANDALONE_TERMINAL",
-      ]);
+      expect([...enabled].sort()).toEqual(["CASH", "STANDALONE_TERMINAL", "TRANSFER"]);
       expect(belowMinimum).toBeUndefined();
     },
   );

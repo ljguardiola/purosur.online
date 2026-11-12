@@ -22,49 +22,54 @@ const FAILED_PRINT: ReceiptPrintStatusOutcome = {
 };
 
 describe("ChargeScreen", () => {
-  it("offers transfer as a way to pay, next to cash", async () => {
+  it("offers transfer and the independent terminal when no method was chosen", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("radio", { name: "Transferencia" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Transferencia" })).toBeVisible();
     await expect
-      .element(screen.getByText("Confirmás al ver el ingreso en la cuenta del negocio"))
+      .element(screen.getByRole("button", { name: "Terminal independiente" }))
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("offers cash as the way to pay, for the sale in progress", async () => {
+  it("shows the search field and the locked lines of the sale in progress beside the panel", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_TWO_LINES });
 
-    await expect.element(screen.getByText("COBRO · VENTA DE 2 LÍNEAS")).toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
-    await expect.element(screen.getByText("Cargás lo entregado y ves el vuelto")).toBeVisible();
-    await expectNoAccessibilityViolations(screen.container);
+    await expect.element(screen.getByPlaceholder("Escaneá o escribí el nombre")).toBeDisabled();
+    const lines = screen.getByRole("table", { name: "Líneas de la venta" });
+    await expect.element(lines.getByText("Yerba mate 1 kg")).toBeVisible();
+    await expect.element(lines.getByText("Alfajor triple")).toBeVisible();
+    await expect.element(lines.getByRole("img", { name: "Líneas bloqueadas" })).toBeVisible();
+    await expect.element(screen.getByText("Elegí el medio de pago")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/COBRO · VENTA DE/)).not.toBeInTheDocument();
   });
 
-  it("says one line in the singular", async () => {
-    const { screen } = await renderScreen();
-
-    await expect.element(screen.getByText("COBRO · VENTA DE 1 LÍNEA")).toBeVisible();
-  });
-
-  it("shows the total still to be charged in the payment panel", async () => {
+  it("shows the total still to be charged as what is to be charged", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_TWO_LINES });
 
-    const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel.getByText("$ 6.260,00").first()).toBeVisible();
-    await expect.element(panel.getByText("$ 0,00")).toBeVisible();
+    const panel = screen.getByRole("complementary", { name: "Otros medios" });
+    await expect.element(panel.getByText("A COBRAR")).toBeVisible();
+    await expect.element(panel.getByText("$ 6.260,00")).toBeVisible();
   });
 
-  it("shows the paid amount and the pending balance the core answers for the sale", async () => {
-    const { screen } = await renderScreen({ currentSale: async () => SALE_WITH_PART_PAID });
+  it("shows the total, what is paid and what is missing in the combined payment", async () => {
+    const { screen } = await renderScreen({
+      method: "QR",
+      currentSale: async () => SALE_WITH_PART_PAID,
+      paymentMethodAvailability: async () => ({
+        qr: "offline",
+        point: "offline",
+        point_minimum: 1500,
+        qr_minimum: 1500,
+      }),
+    });
 
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel.getByText("$ 4.760,00")).toBeVisible();
-    await expect.element(panel.getByText("$ 1.000,00")).toBeVisible();
+    await expect.element(panel.getByText("FALTA")).toBeVisible();
     await expect.element(panel.getByText("$ 3.760,00")).toBeVisible();
+    await expect.element(panel.getByText("$ 4.760,00")).toBeVisible();
+    await expect.element(panel.getByText("– $ 1.000,00")).toBeVisible();
   });
 
   it("marks Venta as the current screen of the menu", async () => {
@@ -84,10 +89,18 @@ describe("ChargeScreen", () => {
     await expect.element(screen.getByRole("link", { name: "Historial" })).toBeVisible();
   });
 
-  it("goes back to the sale from Volver a la venta", async () => {
+  it("goes back to the sale from Otros medios with Esc", async () => {
     const { screen } = await renderScreen();
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver a la venta" }));
+    await userEvent.keyboard("{Escape}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
+  });
+
+  it("goes back to the sale from the close button of Otros medios", async () => {
+    const { screen } = await renderScreen();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
   });
@@ -143,7 +156,7 @@ describe("ChargeScreen", () => {
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
     expect(currentSale).toHaveBeenCalledTimes(2);
   });
 
@@ -210,7 +223,7 @@ describe("ChargeScreen", () => {
     const { screen, receiptPrintStatus } = await renderScreen();
 
     await chooseTransfer(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect.element(screen.getByText("Impreso")).toBeVisible();
     expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
@@ -281,7 +294,9 @@ describe("ChargeScreen", () => {
     });
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
-    await expect.element(screen.getByText("Elegí el medio de pago")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Otros medios" }))
+      .not.toBeInTheDocument();
   });
 
   it("goes back to the methods, with the balance the core now answers, after a partial cash payment", async () => {
@@ -305,11 +320,9 @@ describe("ChargeScreen", () => {
     await expect
       .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
       .not.toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
+    await expect.element(panel.getByText("FALTA")).toBeVisible();
+    await expect.element(panel.getByText("– $ 4.000,00")).toBeVisible();
     await expect.element(panel.getByText("$ 760,00")).toBeVisible();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 400_000);
@@ -363,14 +376,13 @@ describe("ChargeScreen", () => {
     });
 
     await chooseTransfer(screen);
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
-      "2000,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "IMPORTE" }), "2000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect.poll(() => chargeSaleByTransfer.mock.calls.length).toBe(1);
-    await expect.element(screen.getByRole("button", { name: "Vi el ingreso" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Registrar transferencia" }))
+      .toBeDisabled();
   });
 
   it("says the sale could not be loaded when it cannot be read again after a partial cash payment", async () => {
@@ -398,7 +410,7 @@ describe("ChargeScreen", () => {
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
-    await expect.element(screen.getByText("Elegí el medio de pago")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("FALTA")).not.toBeInTheDocument();
   });
 
   it("says the sale could not be loaded when it cannot be read again after a partial transfer", async () => {
@@ -421,14 +433,11 @@ describe("ChargeScreen", () => {
     });
 
     await chooseTransfer(screen);
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
-      "2000,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "IMPORTE" }), "2000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
-    await expect.element(screen.getByText("Elegí el medio de pago")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("FALTA")).not.toBeInTheDocument();
   });
 
   it("charges the pending balance by transfer unless the cashier lowers the amount", async () => {
@@ -437,7 +446,7 @@ describe("ChargeScreen", () => {
     });
 
     await chooseTransfer(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 376_000);
   });
@@ -456,14 +465,11 @@ describe("ChargeScreen", () => {
     });
 
     await chooseTransfer(screen);
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
-      "2000,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "IMPORTE" }), "2000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect
-      .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
+      .element(screen.getByRole("heading", { name: "Transferencia" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("$ 2.000,00")).toBeVisible();
@@ -515,27 +521,25 @@ describe("ChargeScreen", () => {
     },
   );
 
-  it("waits for the transfer without charging when Transferencia is chosen, and returns to the methods from No llegó", async () => {
+  it("opens the transfer without charging when Transferencia is chosen, and returns to Otros medios with Esc", async () => {
     const { screen, chargeSaleByTransfer } = await renderScreen();
 
     await chooseTransfer(screen);
-    await expect
-      .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
-      .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "No llegó: cambiar de medio" }));
+    await expect.element(screen.getByRole("heading", { name: "Transferencia" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
 
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "Esperando el ingreso en la cuenta" }))
+      .element(screen.getByRole("heading", { name: "Transferencia" }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByRole("radio", { name: "Transferencia" })).toBeVisible();
     expect(chargeSaleByTransfer).not.toHaveBeenCalled();
   });
 
-  it("charges the sale by transfer from Vi el ingreso and shows it as completed with no change", async () => {
+  it("charges the sale by transfer from Registrar transferencia and shows it as completed with no change", async () => {
     const { screen, chargeSaleByTransfer } = await renderScreen();
 
     await chooseTransfer(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     await expect
@@ -548,7 +552,7 @@ describe("ChargeScreen", () => {
     const { screen } = await renderScreen();
 
     await chooseTransfer(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
@@ -560,7 +564,7 @@ describe("ChargeScreen", () => {
       const { screen } = await renderScreen({ chargeSaleByTransfer: async () => ({ kind }) });
 
       await chooseTransfer(screen);
-      await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+      await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
       await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
     },
@@ -574,20 +578,9 @@ describe("ChargeScreen", () => {
       });
 
       await chooseTransfer(screen);
-      await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
+      await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
       await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
     },
   );
-
-  it("counts the lines of the sale with the thousands separator", async () => {
-    const lines = SALE_OF_TWO_LINES.lines.flatMap((line) =>
-      Array.from({ length: 999 }, (_, index) => ({ ...line, id: `${line.id}-${index}` })),
-    );
-    const { screen } = await renderScreen({
-      currentSale: async () => ({ ...SALE_OF_TWO_LINES, lines }),
-    });
-
-    await expect.element(screen.getByText("COBRO · VENTA DE 1.998 LÍNEAS")).toBeVisible();
-  });
 });

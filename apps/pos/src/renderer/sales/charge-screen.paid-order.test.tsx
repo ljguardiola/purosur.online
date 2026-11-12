@@ -34,9 +34,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
   ])("offers nothing for %s", async (_case, sale) => {
     const { screen } = await renderScreen({ currentSale: async () => sale });
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
   });
 

@@ -173,7 +173,7 @@ const screenFor: Record<
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
-  "/charge": (screen) => screen.getByRole("heading", { name: "Elegí el medio de pago" }),
+  "/charge": (screen) => screen.getByRole("heading", { name: "Otros medios" }),
   "/history": (screen) => screen.getByRole("heading", { name: "Historial de ventas" }),
   "/deferred-sale": (screen) =>
     screen.getByRole("heading", { name: "Escaneá el documento del cliente" }),
@@ -3271,27 +3271,37 @@ describe("the charge route's Mercado Pago QR", () => {
     );
   }
 
-  it("offers the QR and the terminal once the core answers that they are available", async () => {
+  it("offers transfer and the independent terminal when the route carries no method", async () => {
     const router = chargeRouterWith(async () => AVAILABLE);
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Transferencia" })).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Terminal independiente" }))
+      .toBeEnabled();
   });
 
   it("shows the QR and the terminal as unavailable when the core answers that they are offline", async () => {
-    const router = chargeRouterWith(async () => ({
-      qr: "offline",
-      point: "offline",
-      point_minimum: 1500,
-      qr_minimum: 1500,
-    }));
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+        ...SALE_TO_CHARGE,
+        paymentMethodAvailability: async () => ({
+          qr: "offline",
+          point: "offline",
+          point_minimum: 1500,
+          qr_minimum: 1500,
+        }),
+      },
+      "/charge?method=QR",
+    );
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
   });
 
   it("opens the chosen method's charge when the route carries it", async () => {
@@ -3310,7 +3320,7 @@ describe("the charge route's Mercado Pago QR", () => {
     await expect.element(screen.getByRole("button", { name: "Crear orden" })).toBeVisible();
   });
 
-  it("shows the methods to choose from when the route carries a method that does not exist", async () => {
+  it("shows Otros medios when the route carries a method that does not exist", async () => {
     const router = createRegisterRouter(
       routeTree,
       {
@@ -3323,7 +3333,7 @@ describe("the charge route's Mercado Pago QR", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
+    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
