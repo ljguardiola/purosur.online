@@ -123,11 +123,12 @@ describe("ChargeScreen · Point", () => {
     await choosePoint(screen);
     await userEvent.keyboard("{Escape}");
     await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
       .toBeVisible();
     expect(startMercadoPagoCharge).not.toHaveBeenCalled();
 
-    await choosePoint(screen);
+    await userEvent.keyboard("{F9}");
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     await userEvent.keyboard("{Enter}");
 
     await expect.element(screen.getByText("Esperando el pago")).toBeVisible();
@@ -149,9 +150,7 @@ describe("ChargeScreen · Point", () => {
       }),
     });
     await choosePoint(screen);
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     const readsBefore = paymentMethodAvailability.mock.calls.length;
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
