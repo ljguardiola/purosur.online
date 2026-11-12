@@ -227,11 +227,11 @@ describe("ChargeScreen · Point", () => {
         followMercadoPagoCharge: async () => ({ kind: "declined" }),
       });
 
-      await expect.element(screen.getByText("Pago rechazado.")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect.element(screen.getByText("Pago rechazado.")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
     });
 
     it("shows the whole wait as the total while the sale is read again", async () => {
@@ -418,7 +418,7 @@ describe("ChargeScreen · Point", () => {
       });
       const readsBefore = currentSale.mock.calls.length;
 
-      await expect.element(screen.getByText("Pago rechazado.")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect

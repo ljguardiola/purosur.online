@@ -88,7 +88,7 @@ describe("PointChargePanel", () => {
   it("shows the Enter key on Enviar a la terminal", async () => {
     const { send } = await renderPanel();
 
-    await expect.element(send).toHaveTextContent("Enter");
+    await expect.element(send).toHaveTextContent(/Enter/);
   });
 
   it("goes back to the methods with Esc", async () => {
@@ -203,7 +203,7 @@ describe("PointChargePanel", () => {
         .element(screen.getByRole("button", { name: "Enviar a la terminal" }))
         .not.toBeInTheDocument();
       const change = screen.getByRole("button", { name: "Cambiar de medio" }).last();
-      await expect.element(change).toHaveTextContent("Enter");
+      await expect.element(change).toHaveTextContent(/Enter/);
       await userEvent.keyboard("{Enter}");
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
       expect(callbacks.onOrderShown).not.toHaveBeenCalled();

@@ -208,7 +208,7 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByRole("timer")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Esperando el pago")).not.toBeInTheDocument();
       const footer = screen.getByRole("button", { name: "Cambiar de medio" }).last();
-      await expect.element(footer).toHaveTextContent("Enter");
+      await expect.element(footer).toHaveTextContent(/Enter/);
       await userEvent.keyboard("{Enter}");
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
@@ -343,7 +343,7 @@ describe("PointPaymentWaitPanel", () => {
       ).toHaveLength(0);
       await expect
         .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent("Enter");
+        .toHaveTextContent(/Enter/);
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
@@ -374,7 +374,7 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByRole("button", { name: "Cambiar de medio" })).toBeEnabled();
       await expect
         .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent("Enter");
+        .toHaveTextContent(/Enter/);
       await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
@@ -451,7 +451,7 @@ describe("PointPaymentWaitPanel", () => {
             .first(),
         )
         .toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+      await userEvent.keyboard("{Enter}");
 
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
     });
@@ -588,7 +588,7 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("Se puede volver a intentar")).not.toBeInTheDocument();
       await expect
         .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent("Enter");
+        .toHaveTextContent(/Enter/);
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
       await expectNoAccessibilityViolations(screen.container);
 
@@ -608,7 +608,7 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("No se aprobó")).not.toBeInTheDocument();
       await expect
         .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-        .toHaveTextContent("Enter");
+        .toHaveTextContent(/Enter/);
       await expectNoAccessibilityViolations(screen.container);
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
@@ -618,7 +618,7 @@ describe("PointPaymentWaitPanel", () => {
 
     it.each(["{Escape}", "{Enter}"])("goes back to the methods with %s", async (key) => {
       const { screen, callbacks } = await renderPanel(answering({ kind: "declined" }));
-      await expect.element(screen.getByText("Pago rechazado.")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
 
       await userEvent.keyboard(key);
 
