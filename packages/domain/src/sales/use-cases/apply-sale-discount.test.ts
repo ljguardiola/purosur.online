@@ -129,6 +129,7 @@ describe("applySaleDiscount", () => {
       kind: "applied",
       sale: { ...OPEN_SALE, saleDiscount: discount },
       balance: { paid: 0, pending: 7155 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -156,6 +157,7 @@ describe("applySaleDiscount", () => {
       expect.objectContaining({
         kind: "applied",
         balance: { paid: 0, pending: 7000 },
+        approvedPayments: [],
       }),
     );
   });

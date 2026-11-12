@@ -119,6 +119,7 @@ describe("weighProductOnScale", () => {
       removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 11250 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
