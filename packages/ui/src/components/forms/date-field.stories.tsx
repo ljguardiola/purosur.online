@@ -73,6 +73,10 @@ export const Register: Story = {
   args: { value: null },
 };
 
+export const RegisterPlaceholder: Story = {
+  args: { value: null, placeholder: "Sin vencimiento" },
+};
+
 export const RegisterFilled: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
 };

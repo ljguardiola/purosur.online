@@ -23,7 +23,9 @@ it("shows the sale's lines locked on the left beside the cash charge on the righ
   await expect
     .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
     .toBeVisible();
-  await expect.element(screen.getByRole("radio", { name: "Efectivo" })).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("heading", { name: "Otros medios" }))
+    .not.toBeInTheDocument();
 });
 
 it("shows no key legend under the locked lines", async () => {

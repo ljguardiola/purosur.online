@@ -421,6 +421,7 @@ function Register({ core }: { core: CoreClient }) {
       saleDiscount === undefined
         ? core.cashCharge(saleId, tendered)
         : core.cashCharge(saleId, tendered, saleDiscount),
+    nonCashCharge: (saleId: string, amount: number) => core.nonCashCharge(saleId, amount),
     chargeSaleInCash,
     chargeSaleInCashWithChangeDiscount,
     chargeSaleByTransfer,

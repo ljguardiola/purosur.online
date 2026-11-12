@@ -148,6 +148,8 @@ export type { FilePickerProps } from "./components/forms/file-picker";
 export { FilePicker } from "./components/forms/file-picker";
 export type { IconButtonProps } from "./components/forms/icon-button";
 export { IconButton } from "./components/forms/icon-button";
+export type { KeyOptionCardProps } from "./components/forms/key-option-card";
+export { KeyOptionCard } from "./components/forms/key-option-card";
 export type { KeyTileProps } from "./components/forms/key-tile";
 export { KeyTile } from "./components/forms/key-tile";
 export type {

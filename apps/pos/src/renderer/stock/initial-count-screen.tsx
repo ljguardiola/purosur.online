@@ -7,14 +7,8 @@ import type {
   WeighCountedProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
-import {
-  Button,
-  ElevatedNotice,
-  EmptyState,
-  FloatingNotification,
-  ScreenHeader,
-  SearchField,
-} from "@purosur/ui";
+import type { KeyLegendItem } from "@purosur/ui";
+import { ElevatedNotice, InlineNotice, SearchField, ToastStack } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, Lock, ScanBarcode, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
@@ -27,10 +21,11 @@ import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { CountLineModal } from "./count-line-modal";
+import { CountLinePanel } from "./count-line-panel";
 import type { CountableProduct, CountableSearchedProduct } from "./countable-product";
 import { InitialCountLines } from "./initial-count-lines";
 import { InitialCountSummaryPanel } from "./initial-count-summary-panel";
+import { InitialCountUnavailablePanel } from "./initial-count-unavailable-panel";
 import {
   linesOf,
   useInitialCountQuery,
@@ -59,12 +54,13 @@ export type InitialCountScreenProps = {
 
 type Problem = "unknown_code" | "not_permitted" | "lookup_failed";
 
+const UNKNOWN_CODE_NOTICE = {
+  icon: <ScanBarcode />,
+  title: "No hay ningún producto con ese código",
+  description: "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
+} as const;
+
 const PROBLEM_NOTICES = {
-  unknown_code: {
-    icon: <ScanBarcode />,
-    title: "No hay ningún producto con ese código",
-    description: "Buscalo por nombre. Si no aparece, falta darlo de alta en el backoffice.",
-  },
   not_permitted: {
     icon: <Lock />,
     title: "No tenés permiso para cargar el inventario inicial",
@@ -92,12 +88,30 @@ const WITHDRAW_NOTICES = {
 
 const LETTER = /\p{L}/u;
 
+const FIELD_KEY: KeyLegendItem = { keyName: "Tab", label: "Campo" };
+
 function focusScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.focus();
 }
 
 function selectScanField(form: HTMLFormElement | null) {
   form?.querySelector("input")?.select();
+}
+
+function unavailableReason(answer: ReadInitialCountOutcome | undefined, retired: boolean) {
+  if (retired || (answer?.kind === "read" && !answer.offered)) {
+    return { icon: <Ban />, title: "La carga del inventario inicial ya no está disponible" };
+  }
+  if (answer?.kind === "not_permitted") {
+    return { icon: <Lock />, title: "No tenés permiso para cargar el inventario inicial" };
+  }
+  if (answer?.kind === "not_signed_in") {
+    return {
+      icon: <TriangleAlert />,
+      title: "La sesión terminó. Volvé a ingresar para cargar el inventario inicial",
+    };
+  }
+  return undefined;
 }
 
 export function InitialCountScreen({
@@ -113,6 +127,7 @@ export function InitialCountScreen({
 }: InitialCountScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
+  const main = useRef<HTMLElement>(null);
   const withdrawInFlight = useRef(false);
   const count = useInitialCountQuery(readInitialCount);
   const refreshCount = useRefreshInitialCount();
@@ -125,6 +140,7 @@ export function InitialCountScreen({
   const [counting, setCounting] = useState<CountableProduct>();
   const [retired, setRetired] = useState(false);
   const [withdrawNotice, setWithdrawNotice] = useState<"not_permitted" | "failed">();
+  const [selectedLineId, setSelectedLineId] = useState<string>();
   const listboxId = useId();
 
   useEffect(() => {
@@ -219,7 +235,7 @@ export function InitialCountScreen({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const submitted = code.trim();
-    if (submitted !== "") {
+    if (submitted !== "" && counting === undefined) {
       await find(submitted);
     }
   }
@@ -236,6 +252,9 @@ export function InitialCountScreen({
   }
 
   function choose(product: CountableProduct) {
+    if (counting !== undefined) {
+      return;
+    }
     setCode("");
     setResults(undefined);
     setCounting(product);
@@ -247,7 +266,7 @@ export function InitialCountScreen({
     await refreshCount();
   }
 
-  async function withdraw(line: InitialCountLine) {
+  async function withdraw(line: InitialCountLine, neighbor: InitialCountLine | undefined) {
     if (withdrawInFlight.current) {
       return;
     }
@@ -261,6 +280,7 @@ export function InitialCountScreen({
       case "withdrawn":
       case "not_found":
       case "already_withdrawn":
+        setSelectedLineId(neighbor?.movement_id);
         await refreshCount();
         break;
       case "not_permitted":
@@ -283,9 +303,12 @@ export function InitialCountScreen({
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
   const resultCount = found?.products.length ?? 0;
+  useKeys([{ key: "Escape", run: () => setDismissed(true) }], {
+    active: found !== undefined,
+    ...(counting === undefined ? {} : { within: field }),
+  });
   useKeys(
     [
-      { key: "Escape", run: () => setDismissed(true), enabled: found !== undefined },
       {
         key: "Enter",
         run: () => {
@@ -308,87 +331,136 @@ export function InitialCountScreen({
   );
 
   const answer = count.status === "loaded" ? count.value : undefined;
-  const open = !retired && (answer === undefined || (answer.kind === "read" && answer.offered));
-  useBarcodeReadings(open ? (reading) => void takeReading(reading) : undefined);
+  const unavailable = unavailableReason(answer, retired);
+  const open = unavailable === undefined;
+  const counted = counting === undefined;
+  useBarcodeReadings(open && counted ? (reading) => void takeReading(reading) : undefined);
   const lines = linesOf(count);
+  const countedLines = lines.status === "loaded" ? lines.value : [];
+  const selectedLine =
+    countedLines.find(({ movement_id }) => movement_id === selectedLineId) ?? countedLines[0];
+
+  function moveSelection(pressed: string) {
+    const index = countedLines.findIndex(
+      ({ movement_id }) => movement_id === selectedLine?.movement_id,
+    );
+    const next = Math.min(
+      countedLines.length - 1,
+      Math.max(0, index + (pressed === "ArrowDown" ? 1 : -1)),
+    );
+    setSelectedLineId(countedLines[next]?.movement_id);
+  }
+
+  function withdrawSelected() {
+    if (selectedLine === undefined) {
+      return;
+    }
+    const index = countedLines.indexOf(selectedLine);
+    void withdraw(selectedLine, countedLines[index + 1] ?? countedLines[index - 1]);
+  }
+
+  const lineBindings = [
+    {
+      key: "ArrowUpDown",
+      label: "Líneas",
+      run: moveSelection,
+      enabled: open && countedLines.length > 0 && !choosing,
+    },
+    {
+      key: "Delete",
+      label: "Quitar",
+      run: withdrawSelected,
+      enabled: open && selectedLine !== undefined,
+    },
+  ] as const;
+  const lineLegend = useKeys(lineBindings, { active: counted });
+  useKeys(lineBindings, { active: !counted, within: main });
+  useKeys([{ key: "F12", run: goHome, enabled: open && counted }]);
+  useKeys([{ key: "Enter", run: goHome, enabled: !open }], { fallback: true });
+  const legend = counted ? lineLegend : [...lineLegend, FIELD_KEY];
 
   return (
     <RegisterFrame
       background="subtle"
+      crumb="Inventario inicial"
       rail={<NoSessionRail person={person} current="/initial-count" signOut={signOut} />}
-      aside={open ? <InitialCountSummaryPanel state={lines} onFinish={goHome} /> : null}
+      aside={
+        !open ? (
+          <InitialCountUnavailablePanel onGoHome={goHome} />
+        ) : counting === undefined ? (
+          <InitialCountSummaryPanel state={lines} onFinish={goHome} onClose={goHome} />
+        ) : (
+          <CountLinePanel
+            product={counting}
+            recordLine={recordInitialCountLine}
+            weigh={weighCountedProduct}
+            onRecorded={() => void recorded()}
+            onNotOffered={retire}
+            onSessionInvalid={onSessionInvalid}
+            onClose={() => setCounting(undefined)}
+          />
+        )
+      }
     >
-      <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <ScreenHeader eyebrow="Puesta en marcha" title="Inventario inicial" />
-        {open ? (
-          <>
-            <form ref={field} noValidate className="relative" onSubmit={submit}>
-              <SearchField
-                label="Producto"
-                placeholder="Escaneá el producto o buscalo por nombre"
-                icon={<ScanBarcode />}
-                value={code}
-                onChange={type}
-                combobox={{
-                  expanded: choosing,
-                  listboxId,
-                  activeOptionId: choosing ? searchOptionId(listboxId, activeIndex) : undefined,
-                }}
-              />
-              <ProductSearchResults
-                listboxId={listboxId}
-                search={found}
-                activeIndex={activeIndex}
-                onChoose={choose}
-              />
-              <ElevatedNotice
-                notice={problem === undefined ? undefined : PROBLEM_NOTICES[problem]}
-              />
-            </form>
-            <InitialCountLines state={lines} onWithdraw={(line) => void withdraw(line)} />
-          </>
-        ) : null}
-        {answer?.kind === "not_permitted" ? (
-          <EmptyState
-            variant="blank"
-            icon={<Lock />}
-            title="No tenés permiso para cargar el inventario inicial"
+      <main ref={main} className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
+        <h1 className="sr-only">Inventario inicial</h1>
+        <form ref={field} noValidate className="relative" onSubmit={submit}>
+          <SearchField
+            label="Producto"
+            placeholder="Escaneá el producto o buscalo por nombre"
+            icon={<ScanBarcode />}
+            disabled={!open}
+            invalid={problem === "unknown_code"}
+            value={code}
+            onChange={type}
+            combobox={{
+              expanded: choosing,
+              listboxId,
+              activeOptionId: choosing ? searchOptionId(listboxId, activeIndex) : undefined,
+            }}
           />
-        ) : null}
-        {answer?.kind === "not_signed_in" ? (
-          <EmptyState
-            variant="blank"
-            icon={<TriangleAlert />}
-            title="La sesión terminó. Volvé a ingresar para cargar el inventario inicial"
+          <ProductSearchResults
+            listboxId={listboxId}
+            search={found}
+            activeIndex={activeIndex}
+            onChoose={choose}
           />
-        ) : null}
-        {retired || (answer?.kind === "read" && !answer.offered) ? (
-          <EmptyState
-            variant="blank"
-            icon={<Ban />}
-            title="La carga del inventario inicial ya no está disponible"
-            actions={<Button onPress={goHome}>Volver al inicio</Button>}
+          {problem === "unknown_code" ? (
+            <div className="mt-4">
+              <InlineNotice tone="error" {...UNKNOWN_CODE_NOTICE} />
+            </div>
+          ) : null}
+          <ElevatedNotice
+            notice={
+              problem === undefined || problem === "unknown_code"
+                ? undefined
+                : PROBLEM_NOTICES[problem]
+            }
           />
-        ) : null}
+        </form>
+        <ToastStack
+          toasts={
+            withdrawNotice === undefined
+              ? []
+              : [
+                  {
+                    id: withdrawNotice,
+                    tone: "error",
+                    ...WITHDRAW_NOTICES[withdrawNotice],
+                    onDismiss: () => setWithdrawNotice(undefined),
+                  },
+                ]
+          }
+        >
+          <InitialCountLines
+            state={lines}
+            selectedLineId={selectedLine?.movement_id}
+            legend={open ? legend : []}
+            onSelect={(line) => setSelectedLineId(line.movement_id)}
+            {...(unavailable === undefined ? {} : { unavailable })}
+          />
+        </ToastStack>
       </main>
-      {counting === undefined ? null : (
-        <CountLineModal
-          product={counting}
-          recordLine={recordInitialCountLine}
-          weigh={weighCountedProduct}
-          onRecorded={() => void recorded()}
-          onNotOffered={retire}
-          onSessionInvalid={onSessionInvalid}
-          onClose={() => setCounting(undefined)}
-        />
-      )}
-      {withdrawNotice === undefined ? null : (
-        <FloatingNotification
-          tone="error"
-          {...WITHDRAW_NOTICES[withdrawNotice]}
-          onDismiss={() => setWithdrawNotice(undefined)}
-        />
-      )}
     </RegisterFrame>
   );
 }

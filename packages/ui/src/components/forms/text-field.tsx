@@ -7,6 +7,7 @@ import {
   Text as AriaText,
   TextField as AriaTextField,
 } from "react-aria-components";
+import { Keycap, type KeyName } from "../data-display/keycap";
 import { Tooltip } from "../overlays/tooltip";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
@@ -62,6 +63,8 @@ type TextFieldCommonProps = {
   type?: "text" | "password";
   inputMode?: "text" | "numeric" | "decimal";
   decimals?: number;
+  // A key the field answers to, drawn at the right end of the label row. The caller binds it.
+  labelKeycap?: KeyName;
 };
 
 type TextFieldKindProps =
@@ -161,6 +164,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
     type = "text",
     inputMode,
     decimals,
+    labelKeycap,
     kind,
   } = props;
   const [attachInput, onDecimalChange] = useDecimalTyping(decimals, onChange);
@@ -303,6 +307,21 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
     </div>
   );
 
+  const labelElement = (
+    <AriaLabel
+      id={labelId}
+      className={
+        labelVisuallyHidden
+          ? "sr-only"
+          : required
+            ? `${fieldLabelClassName[size]} ${requiredFieldLabelSuffixClassName}`
+            : fieldLabelClassName[size]
+      }
+    >
+      {label}
+    </AriaLabel>
+  );
+
   return (
     <AriaTextField
       value={value}
@@ -316,18 +335,14 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
       {...describedByProps}
       className={`${fieldWrapperClassName} ${fieldWrapperGapClassName[size]}`}
     >
-      <AriaLabel
-        id={labelId}
-        className={
-          labelVisuallyHidden
-            ? "sr-only"
-            : required
-              ? `${fieldLabelClassName[size]} ${requiredFieldLabelSuffixClassName}`
-              : fieldLabelClassName[size]
-        }
-      >
-        {label}
-      </AriaLabel>
+      {labelKeycap === undefined ? (
+        labelElement
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          {labelElement}
+          <Keycap keyName={labelKeycap} />
+        </div>
+      )}
       {kind === "discount" ? (
         <div className="flex items-center gap-3">
           {boxElement}
