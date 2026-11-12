@@ -16,7 +16,7 @@ export type Standing = Found["standing"];
 
 export type Comprobante = Found["comprobante"];
 
-export const DEFAULT_OFFER = { remaining_ms: 3000, length_ms: 3000 };
+const DEFAULT_OFFER = { remaining_ms: 3000, length_ms: 3000 };
 
 export function found(
   standing: Standing,
