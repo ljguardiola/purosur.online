@@ -8,7 +8,7 @@ import { until, untilLogged, within } from "./test-support/until";
 // A fresh data folder holds no enrollment, so a core that is up shows the enrollment screen.
 const CORE_UP_TEXT = "Dar de alta esta caja";
 const CORE_DOWN_TITLE = "Esperá un momento";
-const CORE_DOWN_BODY = "La caja vuelve a funcionar sola en unos minutos.";
+const CORE_DOWN_BODY = "La caja vuelve a funcionar sola en unos minutos";
 
 // Electron's own service name for a Node.js utility process, robust against other utility
 // processes (network, audio, storage...) Electron itself may also spawn.
@@ -139,8 +139,12 @@ describe("the register's own recovery once the core's bounded restarts run out",
               ...(enclosing ? [enclosing] : []),
               ...(element?.querySelectorAll('[role="alert"]') ?? []),
             ];
-            return alerts.find((alert) => alert.textContent?.includes(title));
+            return alerts.find((alert) => alert.textContent?.includes(body));
           };
+          const showsTitleOutside = (alert: Element): boolean =>
+            [...document.querySelectorAll("h1")].some(
+              (heading) => heading.textContent === title && !alert.contains(heading),
+            );
           const observer = new MutationObserver((records) => {
             for (const record of records) {
               for (const node of [record.target, ...record.addedNodes]) {
@@ -148,7 +152,7 @@ describe("the register's own recovery once the core's bounded restarts run out",
                 if (alert !== undefined) {
                   observer.disconnect();
                   window.removeEventListener("message", onMessage);
-                  resolve({ title: true, body: alert.textContent?.includes(body) ?? false });
+                  resolve({ title: showsTitleOutside(alert), body: true });
                   return;
                 }
               }

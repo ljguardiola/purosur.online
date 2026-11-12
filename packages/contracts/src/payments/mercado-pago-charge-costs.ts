@@ -1,6 +1,5 @@
 import {
   ARGENTINA_TIME_ZONE,
-  CHARGE_COST_METHODS,
   isCalendarDay,
   isReportPeriodAsked,
   MERCADO_PAGO_PAYMENT_METHODS,
@@ -44,11 +43,11 @@ export const mercadoPagoChargeCostsSchema = z.object({
   ),
   days: z.array(z.object({ day: calendarDay, ...entry })),
   months: z.array(z.object({ month: calendarMonth, ...entry })),
-  methods: z.array(z.object({ method: z.enum(CHARGE_COST_METHODS), ...entry })),
+  methods: z.array(z.object({ method: z.enum(MERCADO_PAGO_PAYMENT_METHODS), ...entry })),
   registers: z.array(
     z.object({
-      register_id: recordIdSchema().nullable(),
-      register_name: z.string().nullable(),
+      register_id: recordIdSchema(),
+      register_name: z.string(),
       ...entry,
     }),
   ),

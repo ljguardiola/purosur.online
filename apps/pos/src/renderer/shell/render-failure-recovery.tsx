@@ -2,9 +2,30 @@ import { LoadFailure } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { Component, Fragment } from "react";
+import { KeyLayerProvider, useKeys } from "../platform/key-layer";
 import { BrandPanelScreen } from "./brand-panel-screen";
 
 const AUTOMATIC_RESTART_BUDGET = 2;
+
+function RenderFailureNotice({ onRetry }: { onRetry: () => void }) {
+  useKeys([{ key: "R", run: onRetry }]);
+
+  return (
+    <div className="h-screen w-full">
+      <BrandPanelScreen>
+        <main className="w-full max-w-110">
+          <LoadFailure
+            variant="screen"
+            icon={<TriangleAlert />}
+            title="No se pudo mostrar la pantalla"
+            keycap="R"
+            onRetry={onRetry}
+          />
+        </main>
+      </BrandPanelScreen>
+    </div>
+  );
+}
 
 interface RenderFailureRecoveryProps {
   children: ReactNode;
@@ -55,18 +76,9 @@ export class RenderFailureRecovery extends Component<
   override render(): ReactNode {
     if (this.state.phase === "exhausted") {
       return (
-        <div className="h-screen w-full">
-          <BrandPanelScreen>
-            <div className="w-full max-w-112">
-              <LoadFailure
-                variant="screen"
-                icon={<TriangleAlert />}
-                title="No se pudo mostrar la pantalla"
-                onRetry={this.retry}
-              />
-            </div>
-          </BrandPanelScreen>
-        </div>
+        <KeyLayerProvider>
+          <RenderFailureNotice onRetry={this.retry} />
+        </KeyLayerProvider>
       );
     }
 

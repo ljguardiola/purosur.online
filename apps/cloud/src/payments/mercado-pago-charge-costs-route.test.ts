@@ -7,7 +7,10 @@ import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js
 import { registerMercadoPagoChargeCostsRoute } from "./mercado-pago-charge-costs-route.js";
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 import {
+  accountWithdrawalRow,
+  accountYieldRow,
   insertSettlementMovements,
+  receivedTransferRow,
   settlementRow,
 } from "./test-support/settlement-movement-fixtures.js";
 
@@ -167,14 +170,42 @@ describe("GET /reports/mercado-pago-charge-costs", () => {
     expect(response.json().totals).toMatchObject({ charges_count: 1, pending_count: 1 });
   });
 
-  it("counts a settled charge that no payment of the system names as another charge", async () => {
+  it("counts only the movements of the system's charges, leaving out every other movement of the account", async () => {
     const { headers } = await signedInWith(db, ["view_mercado_pago_charge_costs"], NOW);
-    await insertSettlementMovements(db, [settlementRow({ sourceId: "OTHER1" })]);
+    const registerId = await insertRegister(db, "Caja 1");
+    const charge = await approvedCharge(registerId);
+    await insertSettlementMovements(db, [
+      settlementRow({ sourceId: "PAY1", externalReference: charge.id }),
+      settlementRow({
+        sourceId: "PAY1",
+        transactionType: "REFUND",
+        grossAmount: -2_000,
+        feeAmount: 90,
+        taxesAmount: 18,
+        netAmount: -1_892,
+      }),
+      accountWithdrawalRow(),
+      accountYieldRow(),
+      receivedTransferRow(),
+      settlementRow({ sourceId: "OUTSIDE1", externalReference: crypto.randomUUID() }),
+    ]);
 
     const response = await chargeCosts(headers);
 
-    expect(response.json().charges).toEqual([]);
-    expect(response.json().methods).toMatchObject([{ method: "OTHER", charges_count: 1 }]);
-    expect(response.json().totals).toMatchObject({ charges_count: 1, net_amount: 9_460 });
+    const counted = {
+      charges_count: 1,
+      pending_count: 0,
+      gross_amount: 8_000,
+      fee_amount: -360,
+      financing_fee_amount: 0,
+      taxes_amount: -72,
+      net_amount: 7_568,
+    };
+    expect(response.json().totals).toEqual(counted);
+    expect(response.json().methods).toEqual([{ method: "QR", ...counted }]);
+    expect(response.json().registers).toEqual([
+      { register_id: registerId, register_name: "Caja 1", ...counted },
+    ]);
+    expect(response.json().days).toEqual([{ day: "2026-10-09", ...counted }]);
   });
 });

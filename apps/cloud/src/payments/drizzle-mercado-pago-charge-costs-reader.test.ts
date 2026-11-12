@@ -7,7 +7,6 @@ import { DrizzleMercadoPagoChargeCostsReader } from "./drizzle-mercado-pago-char
 import { insertRegister, pendingTransaction } from "./test-support/payment-transaction-fixtures.js";
 import {
   insertSettlementMovements,
-  MOVEMENT_DATE,
   settlementRow,
 } from "./test-support/settlement-movement-fixtures.js";
 
@@ -144,77 +143,5 @@ describe("DrizzleMercadoPagoChargeCostsReader.chargesOfPeriod", () => {
     const charges = await reader().chargesOfPeriod({ locationId, period: wholeOctober });
 
     expect(charges.map((charge) => charge.paymentTransactionId)).toEqual([inside.id]);
-  });
-});
-
-describe("DrizzleMercadoPagoChargeCostsReader.otherChargesOfPeriod", () => {
-  it("lists the sources no payment transaction of ours explains, with all their movements", async () => {
-    const registerId = await insertRegister(db, "Caja 1");
-    const ours = await approvedCharge(registerId);
-    await insertSettlementMovements(db, [
-      settlementRow({ sourceId: "OURS", externalReference: ours.id }),
-      settlementRow({ sourceId: "EMPTY", externalReference: "" }),
-      settlementRow({ sourceId: "EMPTY", transactionType: "REFUND" }),
-      settlementRow({ sourceId: "UNKNOWN", externalReference: crypto.randomUUID() }),
-      settlementRow({ sourceId: "NONE", externalReference: null }),
-    ]);
-
-    const others = await reader().otherChargesOfPeriod({ period: wholeOctober });
-
-    expect(others.map((other) => other.sourceId).sort()).toEqual(["EMPTY", "NONE", "UNKNOWN"]);
-    expect(others.find((other) => other.sourceId === "EMPTY")?.movements).toHaveLength(2);
-  });
-
-  it("leaves out a source explained by a payment transaction in any location", async () => {
-    const [other] = await db
-      .insert(registers)
-      .values({ locationId: await insertLocation(db), name: "Caja 9" })
-      .returning({ id: registers.id });
-    const charge = await approvedCharge(other?.id ?? "");
-    await insertSettlementMovements(db, [
-      settlementRow({ sourceId: "ELSEWHERE", externalReference: charge.id }),
-    ]);
-
-    expect(await reader().otherChargesOfPeriod({ period: wholeOctober })).toEqual([]);
-  });
-
-  it("lists a source a payment transaction of ours names but that was not approved, since no charge of ours lists it", async () => {
-    const registerId = await insertRegister(db, "Caja 1");
-    const locationId = await seededLocationId(db);
-    const expired = await approvedCharge(registerId, { state: "EXPIRED" });
-    await insertSettlementMovements(db, [
-      settlementRow({ sourceId: "EXPIRED", externalReference: expired.id }),
-    ]);
-
-    const others = await reader().otherChargesOfPeriod({ period: wholeOctober });
-
-    expect(await reader().chargesOfPeriod({ locationId, period: wholeOctober })).toEqual([]);
-    expect(others.map((other) => other.sourceId)).toEqual(["EXPIRED"]);
-  });
-
-  it("leaves out a source with no movement on a day of the period", async () => {
-    await insertSettlementMovements(db, [
-      settlementRow({ sourceId: "SEPTEMBER", transactionDate: new Date("2026-09-30T14:00:00Z") }),
-      settlementRow({ sourceId: "INSIDE", transactionDate: MOVEMENT_DATE }),
-    ]);
-
-    const others = await reader().otherChargesOfPeriod({ period: wholeOctober });
-
-    expect(others.map((other) => other.sourceId)).toEqual(["INSIDE"]);
-  });
-
-  it("keeps the movements of a source outside the period when another one is inside", async () => {
-    await insertSettlementMovements(db, [
-      settlementRow({ sourceId: "SPLIT", transactionDate: new Date("2026-09-30T14:00:00Z") }),
-      settlementRow({
-        sourceId: "SPLIT",
-        transactionType: "REFUND",
-        transactionDate: MOVEMENT_DATE,
-      }),
-    ]);
-
-    const [other] = await reader().otherChargesOfPeriod({ period: wholeOctober });
-
-    expect(other?.movements).toHaveLength(2);
   });
 });
