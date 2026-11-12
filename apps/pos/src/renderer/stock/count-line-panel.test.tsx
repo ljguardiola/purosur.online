@@ -74,12 +74,7 @@ async function typeCounted(screen: Rendered["screen"], typed: string) {
 }
 
 async function typeExpiry(screen: Rendered["screen"], typed: string) {
-  await userEvent.click(
-    screen
-      .getByRole("group", { name: /^Vencimiento/ })
-      .getByRole("spinbutton")
-      .first(),
-  );
+  await userEvent.click(screen.getByText("Sin vencimiento", { exact: true }));
   await userEvent.keyboard(typed);
 }
 
