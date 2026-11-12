@@ -10,6 +10,7 @@ export type SidePanelTitleProps = {
   tone?: "neutral" | "warning" | "error";
   onClose?: (() => void) | undefined;
   closeDisabled?: boolean;
+  closeLabel?: string;
 };
 
 export function SidePanelTitle({
@@ -18,6 +19,7 @@ export function SidePanelTitle({
   tone = "neutral",
   onClose,
   closeDisabled = false,
+  closeLabel,
 }: SidePanelTitleProps) {
   const horizontalInset = useContext(SidePanelInsetContext);
 
@@ -31,7 +33,7 @@ export function SidePanelTitle({
       </span>
       <h2 className="flex-1 text-subheading font-bold text-text">{title}</h2>
       {onClose === undefined ? null : (
-        <CloseButton escapeKeycap disabled={closeDisabled} onPress={onClose} />
+        <CloseButton escapeKeycap label={closeLabel} disabled={closeDisabled} onPress={onClose} />
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Ban, Banknote, Undo2, Wallet } from "lucide-react";
+import { Ban, Banknote, QrCode, Undo2, Wallet } from "lucide-react";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -39,4 +39,8 @@ export const WithEscape: Story = {
 
 export const ErrorTone: Story = {
   args: { icon: <Ban />, title: "¿Cancelar la venta?", tone: "error", onClose: () => undefined },
+};
+
+export const WithCloseLabel: Story = {
+  args: { icon: <QrCode />, title: "QR", onClose: () => {}, closeLabel: "Cambiar de medio" },
 };

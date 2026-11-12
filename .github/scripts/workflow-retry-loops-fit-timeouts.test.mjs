@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { RETRY_DELAYS_SECONDS } from "./retry-command.mjs";
 import {
   checkFiles,
   describeViolation,
@@ -330,6 +331,108 @@ test("counts every round of a loop with many rounds", () => {
 
     assert.match(messagesOf({ run, jobTimeout: 1 })[0] ?? "", /can take 2000 seconds/, loop[0]);
   }
+});
+
+const RETRY_COMMAND_WAITS = RETRY_DELAYS_SECONDS.reduce((total, delay) => total + delay, 0);
+const RETRY_COMMAND_ATTEMPTS = RETRY_DELAYS_SECONDS.length + 1;
+
+function retryingThroughScript(script, command) {
+  return [`node ${script} --title "Install age" --failure "age was not installed" -- ${command}`];
+}
+
+function assertMeasuresRetryCommand(script, options = {}) {
+  const run = retryingThroughScript(script, 'sh -c "apt-get install --yes age"');
+  const minutesCovering = Math.ceil(RETRY_COMMAND_WAITS / 60);
+
+  assert.deepEqual(
+    messagesOf({ ...options, run, stepTimeout: minutesCovering - 1, jobTimeout: 60 }),
+    [
+      `step "Retry" of job build can take ${RETRY_COMMAND_WAITS} seconds in its retry loops, ` +
+        `more than the ${minutesCovering - 1} minutes its step's timeout-minutes allows; ` +
+        `not counted, having no time bound: \`${run[0]}\` (${RETRY_COMMAND_ATTEMPTS} runs)`,
+    ],
+    script,
+  );
+  assert.deepEqual(
+    messagesOf({ ...options, run, stepTimeout: minutesCovering, jobTimeout: 60 }),
+    [],
+    script,
+  );
+}
+
+test("counts the waits of a command retried through retry-command.mjs, however the script's path is written", () => {
+  assertMeasuresRetryCommand(".github/scripts/retry-command.mjs");
+  assertMeasuresRetryCommand("./.github/scripts/retry-command.mjs");
+  assertMeasuresRetryCommand("--no-warnings .github/scripts/retry-command.mjs");
+  assertMeasuresRetryCommand(
+    "--disable-warning ExperimentalWarning .github/scripts/retry-command.mjs",
+  );
+});
+
+test("counts the waits of a command retried through retry-command.mjs given from the workspace", () => {
+  assertMeasuresRetryCommand('"$GITHUB_WORKSPACE/.github/scripts/retry-command.mjs"');
+  assertMeasuresRetryCommand(`\${GITHUB_WORKSPACE}/.github/scripts/retry-command.mjs`);
+  assertMeasuresRetryCommand(`\${{ github.workspace }}/.github/scripts/retry-command.mjs`);
+  assertMeasuresRetryCommand(`"\${{ github.workspace }}/.github/scripts/retry-command.mjs"`);
+});
+
+test("counts the waits of a command retried through retry-command.mjs given from the step's working directory, then the job's defaults", () => {
+  assertMeasuresRetryCommand("../../.github/scripts/retry-command.mjs", {
+    stepExtra: ["working-directory: apps/cloud"],
+  });
+  assertMeasuresRetryCommand("retry-command.mjs", {
+    stepExtra: ["working-directory: .github/scripts"],
+  });
+  assertMeasuresRetryCommand("../../.github/scripts/retry-command.mjs", {
+    jobExtra: ["defaults:", "  run:", "    working-directory: apps/cloud"],
+  });
+});
+
+test("refuses a step running node with a script path it cannot resolve, since it could be retry-command.mjs", () => {
+  const unresolved = (run, options = {}) =>
+    messagesOf({ ...options, run: [run], stepTimeout: 60, jobTimeout: 60 });
+
+  for (const [run, options] of [
+    ['node "$SCRIPT" --title "Install age" --failure "not installed" -- apt-get install age', {}],
+    ["node $SCRIPT --title Install --failure Failed -- apt-get install age", {}],
+    [
+      "node retry-command.mjs --title Install --failure Failed -- apt-get install age",
+      { stepExtra: [`working-directory: \${{ runner.temp }}/x`] },
+    ],
+    ["node ../retry-command.mjs --title Install --failure Failed -- apt-get install age", {}],
+  ]) {
+    assert.deepEqual(
+      unresolved(run, options),
+      [
+        `step "Retry" of job build runs node with a script path that cannot be resolved, ` +
+          `so its retry loops cannot be measured: \`${run}\``,
+      ],
+      run,
+    );
+  }
+});
+
+test("measures nothing for node running a script other than retry-command.mjs", () => {
+  assert.deepEqual(
+    messagesOf({
+      run: ["node .github/scripts/other.mjs -- sleep 600"],
+      stepTimeout: 1,
+      jobTimeout: 60,
+    }),
+    [],
+  );
+});
+
+test("counts the time limit of a command retried through retry-command.mjs on every attempt", () => {
+  const run = retryingThroughScript(
+    ".github/scripts/retry-command.mjs",
+    "timeout 60 docker pull image",
+  );
+
+  assert.match(
+    messagesOf({ run, jobTimeout: 1 })[0],
+    new RegExp(`can take ${RETRY_COMMAND_WAITS + RETRY_COMMAND_ATTEMPTS * 60} seconds`),
+  );
 });
 
 test("counts attempts run in the background as overlapping, up to the wait for the last", () => {
