@@ -56,7 +56,7 @@ export function QrChargePanel({
   onSaleUnavailable,
   onSessionInvalid,
 }: QrChargePanelProps) {
-  const [notice, setNotice] = useState<{ message: string; refused: boolean }>();
+  const [notice, setNotice] = useState<string>();
   const amountBox = useRef<HTMLDivElement>(null);
   const regenerated = useRef(false);
   const { form, submit, submitting } = useRequestForm({
@@ -79,19 +79,19 @@ export function QrChargePanel({
           showFieldError("amount", INVALID_AMOUNT_MESSAGE);
           break;
         case "below_minimum":
-          showFieldError("amount", `El QR no acepta cobros menores a ${formatCents(minimum)}`);
+          setNotice(`El QR no acepta cobros menores a ${formatCents(minimum)}`);
           break;
         case "order_refused":
-          setNotice({ message: REFUSED_MESSAGE, refused: true });
+          setNotice(REFUSED_MESSAGE);
           break;
         case "unreachable":
-          setNotice({ message: ORDER_UNREACHABLE_MESSAGE, refused: true });
+          setNotice(ORDER_UNREACHABLE_MESSAGE);
           break;
         case "mercado_pago_charge_in_progress":
-          setNotice({ message: CHARGE_IN_PROGRESS_MESSAGE, refused: true });
+          setNotice(CHARGE_IN_PROGRESS_MESSAGE);
           break;
         case "paid_order_not_applied":
-          setNotice({ message: PAID_ORDER_NOT_APPLIED_MESSAGE, refused: true });
+          setNotice(PAID_ORDER_NOT_APPLIED_MESSAGE);
           break;
         case "empty_sale":
         case "zero_total":
@@ -106,7 +106,7 @@ export function QrChargePanel({
           onSessionInvalid();
           break;
         case "unavailable":
-          setNotice({ message: ORDER_FAILED_MESSAGE, refused: false });
+          setNotice(ORDER_FAILED_MESSAGE);
           break;
       }
     },
@@ -131,7 +131,7 @@ export function QrChargePanel({
     }
   }, [regenerate]);
 
-  const leaving = notice?.refused === true;
+  const leaving = notice !== undefined;
 
   useKeys([
     {
@@ -210,7 +210,7 @@ export function QrChargePanel({
         title="La orden se crea por este importe. Después ya no se puede cambiar."
       />
       {notice === undefined ? null : (
-        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice.message} />
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
       )}
     </SidePanel>
   );

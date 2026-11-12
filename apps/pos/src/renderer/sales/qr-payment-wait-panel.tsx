@@ -187,18 +187,21 @@ export function QrPaymentWaitPanel({
 
   if (paidCharge !== undefined) {
     return (
-      <MercadoPagoPaidPanel
-        icon={<QrCode />}
-        title="QR"
-        paidLabel="Pagado con QR"
-        amount={amount}
-        pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
-        onContinue={() =>
-          paidCharge.kind === "completed"
-            ? onCompleted({ ...paidCharge, amount })
-            : void onPartiallyPaid()
-        }
-      />
+      <>
+        <IgnoredEscape />
+        <MercadoPagoPaidPanel
+          icon={<QrCode />}
+          title="QR"
+          paidLabel="Pagado con QR"
+          amount={amount}
+          pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
+          onContinue={() =>
+            paidCharge.kind === "completed"
+              ? onCompleted({ ...paidCharge, amount })
+              : void onPartiallyPaid()
+          }
+        />
+      </>
     );
   }
 
@@ -330,10 +333,24 @@ function WaitKeys({
   abandoning: boolean;
   onAbandon: () => void;
 }) {
-  useKeys([{ key: "Escape", run: onAbandon, enabled: !abandoning }]);
+  useKeys([
+    {
+      key: "Escape",
+      run: () => {
+        if (!abandoning) {
+          onAbandon();
+        }
+      },
+    },
+  ]);
   useKeys([{ key: "Enter", run: onAbandon, enabled: abandonFailed && !abandoning }], {
     fallback: true,
   });
+  return null;
+}
+
+function IgnoredEscape() {
+  useKeys([{ key: "Escape", run: () => {} }]);
   return null;
 }
 
@@ -411,7 +428,14 @@ function EndedPanel({
   abandonFailed?: boolean;
 }) {
   useKeys([
-    { key: "Escape", run: onLeave, enabled: !leaving },
+    {
+      key: "Escape",
+      run: () => {
+        if (!leaving) {
+          onLeave();
+        }
+      },
+    },
     ...(onRegenerate === undefined ? [] : [{ key: "F2" as const, run: onRegenerate }]),
   ]);
   useKeys([{ key: "Enter", run: onLeave, enabled: !leaving }], { fallback: true });

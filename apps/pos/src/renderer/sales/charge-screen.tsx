@@ -249,7 +249,10 @@ export function ChargeScreen({
       setStep(stepOf(preselectedOption.value));
     }
   }
-  const sidePanelStep = step.name === "cash" || step.name === "qr" || step.name === "qr-wait";
+  const sidePanelStep =
+    step.name === "cash" ||
+    (step.name === "qr" && qrMinimum !== undefined) ||
+    step.name === "qr-wait";
   const lineCount = sale?.lines.length ?? 0;
   const lines = plural(lineCount, { one: "LÍNEA", other: "LÍNEAS" });
 
