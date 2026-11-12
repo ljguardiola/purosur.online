@@ -1165,6 +1165,15 @@ function SaleHistoryDetailProbe({
   return <p>{detail.status === "loaded" ? detail.value.kind : detail.status}</p>;
 }
 
+function NoSaleChosenProbe({
+  read,
+}: {
+  read: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+}) {
+  const detail = useSaleHistoryDetailQuery({ saleId: undefined, read });
+  return <p>{detail.status}</p>;
+}
+
 describe("sale history detail query", () => {
   it("reads the detail of the sale it is given", async () => {
     const read = vi.fn(async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "not_found" }));
@@ -1180,5 +1189,13 @@ describe("sale history detail query", () => {
     );
 
     await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("reads nothing while no sale is chosen", async () => {
+    const read = vi.fn(async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "not_found" }));
+    const screen = await renderWithClient(<NoSaleChosenProbe read={read} />);
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
   });
 });
