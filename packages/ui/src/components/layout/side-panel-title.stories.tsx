@@ -36,3 +36,12 @@ export const Warning: Story = {
 export const WithEscape: Story = {
   args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
 };
+
+export const WithCloseLabel: Story = {
+  args: {
+    icon: <Banknote />,
+    title: "Point débito",
+    onClose: () => {},
+    closeLabel: "Cambiar de medio",
+  },
+};

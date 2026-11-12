@@ -146,3 +146,33 @@ test("closes the panel from its Esc button beside the title", async () => {
   expect(onClose).toHaveBeenCalledOnce();
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("shows the Esc keycap followed by its close label, which names the button", async () => {
+  const onClose = vi.fn();
+  const screen = await render(
+    <SidePanelTitle
+      icon={<Wallet />}
+      title="Point débito"
+      onClose={onClose}
+      closeLabel="Cambiar de medio"
+    />,
+  );
+  const button = screen.getByRole("button", { name: "Cambiar de medio" });
+
+  await expect.element(button).toBeVisible();
+  expect(button.element().textContent).toBe("EscCambiar de medio");
+  await expect
+    .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
+    .not.toBeInTheDocument();
+  await userEvent.click(button);
+  expect(onClose).toHaveBeenCalledOnce();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("offers no close button for a close label without onClose", async () => {
+  const screen = await render(
+    <SidePanelTitle icon={<Wallet />} title="Point débito" closeLabel="Cambiar de medio" />,
+  );
+
+  await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
+});
