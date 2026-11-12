@@ -110,6 +110,7 @@ export const saleSchema = z.object({
   lines_lock: z.enum(["approved_payment", "mercado_pago_charge_in_progress"]).nullable(),
   cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
+  refund_now_on_cancel: cents,
   cancel_authorization_required: z.boolean(),
   adjust_authorization_required: z.boolean(),
   sale_discount_authorization_required: z.boolean(),
