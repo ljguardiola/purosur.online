@@ -108,6 +108,35 @@ const NO_FOUND: CoreData<ShownSalesHistory> = {
   refreshing: false,
 };
 
+function reprintNextCopy(
+  open: Extract<OpenPanel, { kind: "reprint" }>,
+  shown: SaleDetail,
+): ReceiptCopyShown | null | undefined {
+  switch (open.document) {
+    case "credit_note":
+      return shown.credit_notes.find((candidate) => candidate.credit_note_id === open.creditNoteId)
+        ?.next_copy;
+    case "deferred_invoice":
+      return shown.deferred_invoice_next_copy;
+    case "sale_receipt":
+      return shown.next_copy;
+  }
+}
+
+function panelShown(
+  open: OpenPanel | undefined,
+  shown: SaleDetail | undefined,
+): OpenPanel | undefined {
+  if (open === undefined || shown === undefined) {
+    return undefined;
+  }
+  const stillOffered =
+    open.kind === "void"
+      ? shown.voidability.kind === "voidable"
+      : reprintNextCopy(open, shown)?.kind === "duplicate";
+  return stillOffered ? open : undefined;
+}
+
 function emptyStateOf(
   refusal: "lacks_permission" | "not_signed_in" | undefined,
   searching: boolean,
@@ -196,6 +225,7 @@ export function SalesHistoryScreen({
   const sale =
     detail.status === "loaded" && detail.value.kind === "found" ? detail.value.detail : undefined;
   const actions = sale === undefined ? undefined : saleActionsOf(sale);
+  const shownPanel = panelShown(panel, sale);
 
   useEffect(() => {
     if (selectedId !== undefined) {
@@ -375,7 +405,7 @@ export function SalesHistoryScreen({
     }
   }
 
-  const panelOpen = panel !== undefined;
+  const panelOpen = shownPanel !== undefined;
   const entries = actions === undefined ? [] : actions.entries;
   const keyedEntries = [...entries].sort(
     (left, right) => KEY_ORDER.indexOf(left.key ?? "F5") - KEY_ORDER.indexOf(right.key ?? "F5"),
@@ -482,12 +512,7 @@ export function SalesHistoryScreen({
     const creditNote = shown.credit_notes.find(
       (candidate) => candidate.credit_note_id === open.creditNoteId,
     );
-    const nextCopy =
-      open.document === "credit_note"
-        ? creditNote?.next_copy
-        : open.document === "deferred_invoice"
-          ? shown.deferred_invoice_next_copy
-          : shown.next_copy;
+    const nextCopy = reprintNextCopy(open, shown);
     if (nextCopy?.kind !== "duplicate") {
       return null;
     }
@@ -526,7 +551,7 @@ export function SalesHistoryScreen({
     );
   }
 
-  const locked = refusal !== undefined || panel?.kind === "void";
+  const locked = refusal !== undefined || shownPanel?.kind === "void";
 
   return (
     <RegisterFrame
@@ -570,15 +595,15 @@ export function SalesHistoryScreen({
               history={history}
               withDate={session === "all"}
               selectedSaleId={selectedId}
-              inactive={panel?.kind === "void"}
-              legend={panel?.kind === "void" ? [] : legend}
+              inactive={shownPanel?.kind === "void"}
+              legend={shownPanel?.kind === "void" ? [] : legend}
               empty={emptyStateOf(refusal, typed, session)}
               onSelect={select}
             />
           </div>
         </ToastStack>
       </main>
-      {panel?.kind === "void" && sale !== undefined && sale.voidability.kind === "voidable" ? (
+      {shownPanel?.kind === "void" && sale !== undefined && sale.voidability.kind === "voidable" ? (
         <VoidSalePanel
           sale={sale}
           refunds={sale.voidability.refunds}
@@ -600,7 +625,7 @@ export function SalesHistoryScreen({
           onClose={() => setPanel(undefined)}
         />
       ) : null}
-      {panel?.kind === "reprint" && sale !== undefined ? reprintPanel(panel, sale) : null}
+      {shownPanel?.kind === "reprint" && sale !== undefined ? reprintPanel(shownPanel, sale) : null}
     </RegisterFrame>
   );
 }

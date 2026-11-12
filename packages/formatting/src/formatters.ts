@@ -218,6 +218,16 @@ export function formatDayAndTime(instant: string, timeZone = writtenTimeZone(ins
 }
 
 export function formatDayMonthAndTime(instant: string): string {
+  const { dayMonth, time } = dayMonthAndTimeOf(instant);
+  return `${dayMonth} · ${time}`;
+}
+
+export function formatDayMonthAndTimeInColumn(instant: string): string {
+  const { dayMonth, time } = dayMonthAndTimeOf(instant);
+  return `${dayMonth} ${time}`;
+}
+
+function dayMonthAndTimeOf(instant: string): { dayMonth: string; time: string } {
   const moment = new Date(instant);
   const timeZone = writtenTimeZone(instant);
   const dayParts = new Intl.DateTimeFormat(LOCALE, {
@@ -233,7 +243,7 @@ export function formatDayMonthAndTime(instant: string): string {
     hourCycle: "h23",
     timeZone,
   });
-  return `${part("day")}/${part("month")} · ${time}`;
+  return { dayMonth: `${part("day")}/${part("month")}`, time };
 }
 
 export function formatCountdown(seconds: number): string {

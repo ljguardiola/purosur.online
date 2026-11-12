@@ -7,7 +7,7 @@ import type {
 import type { AuthorizablePermissionKey, PrintedDocument } from "@purosur/domain";
 import {
   Button,
-  Eyebrow,
+  FigureStat,
   formatCents,
   formatClockTime,
   formatDayMonthAndTime,
@@ -129,8 +129,12 @@ export function ReprintSalePanel({
             </Button>
           }
         >
-          <Eyebrow text={copy.comesOutAs.toUpperCase()} />
-          <p className="text-hero text-text">{formatCents(sale.total)}</p>
+          <FigureStat
+            label={copy.comesOutAs.toUpperCase()}
+            size="hero"
+            variant="plain"
+            value={formatCents(sale.total)}
+          />
           {rows === undefined ? null : <SummaryRowGroup rows={rows} />}
           <form.AppField name="reason" listeners={{ onChange: clearNotice }}>
             {(field) => (

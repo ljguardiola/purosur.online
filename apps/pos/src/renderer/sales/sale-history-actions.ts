@@ -68,29 +68,37 @@ const FACTURA_ENTRY = {
   primary: false,
 } as const;
 
+const TICKET_ENTRY = {
+  key: "F6",
+  legend: "Ticket",
+  label: "Reimprimir ticket",
+  primary: false,
+} as const;
+
+const PRINT_DEFERRED_INVOICE_ENTRY: SaleActionEntry = {
+  key: "Enter",
+  legend: "Imprimir factura",
+  label: "Imprimir factura",
+  primary: true,
+  action: { kind: "print_deferred_invoice" },
+};
+
 function entriesOf(sale: SaleDetail): SaleActionEntry[] {
-  if (sale.state === "deferred") {
-    return [
-      {
-        key: "Enter",
-        legend: "Imprimir factura",
-        label: "Imprimir factura",
-        primary: true,
-        action: { kind: "print_deferred_invoice" },
-      },
-    ];
-  }
   const creditNotes = printableCreditNotes(sale);
   const numbered = creditNotes.length > 1;
   if (sale.state === "voided") {
     const [first, ...others] = creditNotes;
+    const receipt = sale.comprobante.kind === "fiscal" ? FACTURA_ENTRY : TICKET_ENTRY;
     return [
       ...others.map((creditNote) => creditNoteEntry(creditNote, numbered, false)),
       ...(sale.reprint.kind === "available" && sale.next_copy.kind === "duplicate"
-        ? [{ ...FACTURA_ENTRY, action: { kind: "reprint_receipt" } } as const]
+        ? [{ ...receipt, action: { kind: "reprint_receipt" } } as const]
         : []),
       ...(first === undefined ? [] : [creditNoteEntry(first, numbered, true)]),
     ];
+  }
+  if (sale.state === "deferred" || sale.deferred_invoice_next_copy?.kind === "original") {
+    return [PRINT_DEFERRED_INVOICE_ENTRY];
   }
   return [
     ...creditNotes.map((creditNote) => creditNoteEntry(creditNote, numbered, false)),

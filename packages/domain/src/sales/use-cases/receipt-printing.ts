@@ -125,7 +125,11 @@ async function printGrantedReceipt<Grant extends ReceiptPrintGrant, Refusal>(
     if (delivery === undefined) {
       return { kind: "not_found" };
     }
-    const availability = receiptPrintAvailability(key.document, delivery);
+    const availability = receiptPrintAvailability(
+      key.document,
+      delivery,
+      reasonOfDuplicate.kind === "requested" ? "reprint_with_reason" : "print",
+    );
     if (availability.kind === "sale_voided") {
       return { kind: "sale_voided" };
     }

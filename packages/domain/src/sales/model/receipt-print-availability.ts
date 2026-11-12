@@ -9,13 +9,17 @@ export type ReceiptPrintAvailability =
 
 type DeliveryFacts = Pick<ReceiptDelivery, "voided" | "printAttemptedAt" | "reprintCount">;
 
+type ReceiptPrintRequest = "print" | "reprint_with_reason";
+
 export function receiptPrintAvailability(
   document: "sale_receipt",
   delivery: DeliveryFacts,
+  request: ReceiptPrintRequest,
 ): SaleReceiptAvailability;
 export function receiptPrintAvailability(
   document: PrintedDocument,
   delivery: DeliveryFacts & Pick<ReceiptDelivery, "creditNoteAuthorized">,
+  request: ReceiptPrintRequest,
 ): ReceiptPrintAvailability;
 export function receiptPrintAvailability(
   document: PrintedDocument,
@@ -23,6 +27,7 @@ export function receiptPrintAvailability(
     creditNoteAuthorized,
     ...delivery
   }: DeliveryFacts & Partial<Pick<ReceiptDelivery, "creditNoteAuthorized">>,
+  request: ReceiptPrintRequest,
 ): ReceiptPrintAvailability {
   if (document === "credit_note") {
     return creditNoteAuthorized === true
@@ -32,7 +37,9 @@ export function receiptPrintAvailability(
   if (!delivery.voided) {
     return { kind: "available" };
   }
-  return document === "sale_receipt" && nextReceiptCopy(delivery).kind === "duplicate"
+  return document === "sale_receipt" &&
+    request === "reprint_with_reason" &&
+    nextReceiptCopy(delivery).kind === "duplicate"
     ? { kind: "available" }
     : { kind: "sale_voided" };
 }

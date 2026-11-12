@@ -267,6 +267,7 @@ export {
   formatDate,
   formatDayAndTime,
   formatDayMonthAndTime,
+  formatDayMonthAndTimeInColumn,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,

@@ -8,7 +8,7 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
   Checkbox,
-  Eyebrow,
+  FigureStat,
   formatCents,
   InlineNotice,
   SidePanel,
@@ -186,8 +186,12 @@ export function VoidSalePanel({
             </Button>
           }
         >
-          <Eyebrow text="A DEVOLVER AHORA" />
-          <p className="text-hero text-text">{formatCents(returnedNow)}</p>
+          <FigureStat
+            label="A DEVOLVER AHORA"
+            size="hero"
+            variant="plain"
+            value={formatCents(returnedNow)}
+          />
           <SummaryRowGroup
             rows={[
               { label: "Total", value: formatCents(sale.total) },

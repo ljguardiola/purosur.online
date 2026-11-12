@@ -109,7 +109,11 @@ export function readSaleHistoryDetail(
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record),
-      reprint: receiptPrintAvailability("sale_receipt", { ...delivery, voided }),
+      reprint: receiptPrintAvailability(
+        "sale_receipt",
+        { ...delivery, voided },
+        "reprint_with_reason",
+      ),
       nextCopy: nextReceiptCopy(delivery),
       deferredInvoiceNextCopy:
         deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,

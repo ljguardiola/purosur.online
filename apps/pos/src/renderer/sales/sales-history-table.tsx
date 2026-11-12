@@ -3,7 +3,7 @@ import {
   dataColumn,
   formatCents,
   formatClockTime,
-  formatDayMonthAndTime,
+  formatDayMonthAndTimeInColumn,
   Table,
   TableCellText,
   Tag,
@@ -52,7 +52,7 @@ export function SalesHistoryTable({
       render: (row: Row) => (
         <TableCellText strong>
           {withDate
-            ? formatDayMonthAndTime(row.occurred_at).replace(" · ", " ")
+            ? formatDayMonthAndTimeInColumn(row.occurred_at)
             : formatClockTime(row.occurred_at)}
         </TableCellText>
       ),
