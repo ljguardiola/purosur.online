@@ -54,7 +54,11 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     await expect
-      .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
+      .element(
+        screen
+          .getByRole("complementary", { name: "Venta completada" })
+          .getByText("QR de Mercado Pago", { exact: true }),
+      )
       .toBeVisible();
     expect(chargeSaleWithPaidOrder).toHaveBeenCalledExactlyOnceWith("sale-1");
   });
@@ -76,7 +80,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     await expect
-      .element(screen.getByRole("dialog").getByRole("status"))
+      .element(screen.getByRole("complementary", { name: "Venta completada" }).getByRole("status"))
       .toHaveTextContent(
         "Reembolso pendiente de $ 240,00 por Mercado Pago La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
       );

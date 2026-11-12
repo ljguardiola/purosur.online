@@ -436,7 +436,7 @@ describe("SaleCompletedPanel", () => {
           readReceiptStatus: async () => found(standing),
         });
 
-        await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
+        await expect.element(screen.getByText("Pendiente de imprimir")).toBeVisible();
         await expect
           .element(screen.getByRole("button", { name: "Cambiar impresora" }))
           .not.toBeInTheDocument();

@@ -147,7 +147,12 @@ describe("ChargeCompletedPanel", () => {
         method: "CASH",
         charge: { kind: "completed", ...SALE, tendered: 500_000, change: 24_000, cash_rounding: 0 },
       },
-      async () => ({ ...PRINTED, printed: false, standing: "awaiting_answer" }),
+      async () => ({
+        ...PRINTED,
+        printed: false,
+        standing: "awaiting_answer",
+        offer: { remaining_ms: 3000, length_ms: 3000 },
+      }),
       answerReceiptQuestion,
     );
 

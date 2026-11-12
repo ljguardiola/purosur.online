@@ -268,7 +268,7 @@ describe("ChargeScreen", () => {
     await expect
       .element(screen.getByRole("complementary", { name: "Venta completada" }))
       .toBeVisible();
-    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeDisabled();
+    await expect.element(screen.getByRole("searchbox", { name: "Producto" })).toBeDisabled();
     await expect.element(screen.getByPlaceholder("Escaneá o escribí el nombre")).toBeVisible();
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
     await expect

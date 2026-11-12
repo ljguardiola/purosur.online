@@ -249,7 +249,11 @@ describe("ChargeScreen · QR", () => {
       })
       .toBeVisible();
     await expect
-      .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
+      .element(
+        screen
+          .getByRole("complementary", { name: "Venta completada" })
+          .getByText("QR de Mercado Pago", { exact: true }),
+      )
       .toBeVisible();
     expect(followMercadoPagoCharge).toHaveBeenCalledWith(QR_PAYMENT_ID);
     await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
