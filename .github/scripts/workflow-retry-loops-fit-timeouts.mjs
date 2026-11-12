@@ -1,5 +1,6 @@
 import { globSync, readFileSync } from "node:fs";
 import { isAlias, isMap, isScalar, isSeq, LineCounter, parseDocument } from "yaml";
+import { RETRY_DELAYS_SECONDS } from "./retry-command.mjs";
 
 const GITHUB_DEFAULT_JOB_MINUTES = 360;
 const MAX_LOOP_ROUNDS = 100000;
@@ -11,6 +12,7 @@ const LIST_ENDS = new Set(["then", "do", "done", "fi", "elif", "else", "esac", "
 const INSTANT_BUILTINS = new Set(["echo", "printf", "cd", "pwd", "set", "shopt", "trap", "umask"]);
 const DECLARATION_BUILTINS = new Set(["export", "local", "declare", "readonly", "typeset"]);
 const DURATION_UNITS = { "": 1, s: 1, m: 60, h: 3600, d: 86400 };
+const RETRY_COMMAND_SCRIPT = /^(\.\/)?\.github\/scripts\/retry-command\.mjs$/;
 
 class ShellSyntaxError extends Error {}
 
@@ -1220,8 +1222,28 @@ function exitStatusOf(arg) {
   return arg === "0" ? 0 : /^\d+$/.test(arg ?? "") ? 1 : null;
 }
 
+function runRetryCommand(args, node, state) {
+  const separator = args.indexOf("--");
+  if (separator === -1) return { status: 1, signal: null };
+  const [command, ...commandArgs] = args.slice(separator + 1);
+  state.loopDepth++;
+  for (const delay of [...RETRY_DELAYS_SECONDS, 0]) {
+    runCommand(command, commandArgs, node, state);
+    state.spend(delay);
+  }
+  state.loopDepth--;
+  return { status: null, signal: null };
+}
+
 function runCommand(name, args, node, state) {
   switch (name) {
+    case "node": {
+      const script = args.findIndex((arg) => arg === UNKNOWN || !arg.startsWith("-"));
+      if (typeof args[script] === "string" && RETRY_COMMAND_SCRIPT.test(args[script])) {
+        return runRetryCommand(args.slice(script + 1), node, state);
+      }
+      break;
+    }
     case "sleep": {
       const durations = args.map(parseDuration);
       if (durations.length === 0 || durations.includes(null)) state.leaveUnbounded(node.text);
