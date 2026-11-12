@@ -271,6 +271,7 @@ describe("printing a completed sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: "printer_not_configured",
+      offer: null,
       comprobante: { kind: "none" },
     });
     await printCompletedSaleReceiptFor(deps(), "sale-1");
@@ -308,6 +309,7 @@ describe("the print status of a sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: null,
+      offer: null,
       comprobante: { kind: "none" },
     });
   });
@@ -320,6 +322,7 @@ describe("the print status of a sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: "printing",
+      offer: null,
       comprobante: { kind: "none" },
     });
   });
@@ -346,6 +349,7 @@ describe("the print status of a sale's receipt", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: "failed",
+      offer: null,
       comprobante: { kind: "none" },
     });
   });
@@ -417,7 +421,7 @@ function jobsRunningUnwatched(): ReceiptRequestDeps["jobs"] {
     isPreparing: () => false,
     endPreparing: () => {},
     holdForAnswer: () => {},
-    isHeldForAnswer: () => false,
+    offerDeadlineOf: () => undefined,
     releaseAnswer: () => false,
     start: async (_saleId, run) => ({
       kind: "answered",

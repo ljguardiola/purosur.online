@@ -21,6 +21,7 @@ import { type ReceiptRequestDeps, receiptPrintStatusFor } from "./receipt-reques
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
+const OFFER_DEADLINE = new Date(NOW.getTime() + 3000);
 const COMPLETED_AT = "2026-10-08T11:59:00.000Z";
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -31,6 +32,7 @@ let signedInPerson: SignedInPerson;
 let printer: ControllableReceiptPrinter;
 let jobs: ReturnType<typeof createReceiptPrintJobs>;
 let syncs: number;
+let moment: Date;
 
 function deps(): ReceiptRequestDeps {
   return {
@@ -40,9 +42,9 @@ function deps(): ReceiptRequestDeps {
       signedInPerson,
       readPepper: async () => PEPPER,
       hashPin: async () => "hash-of-another-pin",
-      now: () => NOW,
+      now: () => moment,
     }),
-    now: () => NOW,
+    now: () => moment,
     ids: { next: () => "id-1" },
     readOutboxChainKey: async () => CHAIN_KEY,
     signedInUserId: () => signedInPerson.userId(),
@@ -109,6 +111,7 @@ beforeEach(() => {
   printer = new ControllableReceiptPrinter();
   jobs = createReceiptPrintJobs({ reportFailure: () => {} });
   syncs = 0;
+  moment = NOW;
 });
 
 afterEach(() => {
@@ -180,20 +183,8 @@ describe("a sale whose factura C was authorized in contingency", () => {
     );
   });
 
-  it("asks before printing its customer's factura C, while its backup ticket waits for it", async () => {
-    expect(saleAsksBeforePrinting(deps(), "sale-3")).toBe(true);
-    expect(await backupTicketOfSale("sale-3")).toEqual({
-      kind: "read",
-      ticket: { standing: "awaiting_customer_document" },
-    });
-  });
-
-  it("leaves its backup ticket to print once the cashier says no", async () => {
-    jobs.holdForAnswer("sale-3");
-
-    expect(await answer("sale-3", false)).toEqual({ kind: "declined" });
-
-    expect(printer.waiting).toEqual([]);
+  it("does not ask before printing its customer's factura C, so its backup ticket waits for nothing", async () => {
+    expect(saleAsksBeforePrinting(deps(), "sale-3")).toBe(false);
     expect(await backupTicketOfSale("sale-3")).toEqual({
       kind: "read",
       ticket: { standing: "to_print" },
@@ -203,11 +194,11 @@ describe("a sale whose factura C was authorized in contingency", () => {
 
 describe("answering the question of a held sale", () => {
   it("answers not_signed_in when nobody is signed in", async () => {
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
     signedInPerson.clear();
 
     expect(await answer("sale-1", true)).toEqual({ kind: "not_signed_in" });
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
+    expect(jobs.offerDeadlineOf("sale-1")).toEqual(OFFER_DEADLINE);
   });
 
   it("answers not_awaiting for a sale no question is held for, printing nothing", async () => {
@@ -218,11 +209,11 @@ describe("answering the question of a held sale", () => {
   });
 
   it("prints the original and releases the question when the cashier says yes", async () => {
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
 
     expect(await answer("sale-1", true)).toEqual({ kind: "printing" });
 
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(false);
+    expect(jobs.offerDeadlineOf("sale-1")).toBeUndefined();
     printer.becomeReady();
     await vi.waitFor(() => expect(jobs.standingOf("sale-1")).toBe("printed"));
     expect(printer.handed).toHaveLength(1);
@@ -230,11 +221,11 @@ describe("answering the question of a held sale", () => {
   });
 
   it("records the decline, prints nothing, releases the question and syncs when the cashier says no", async () => {
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
 
     expect(await answer("sale-1", false)).toEqual({ kind: "declined" });
 
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(false);
+    expect(jobs.offerDeadlineOf("sale-1")).toBeUndefined();
     expect(printer.waiting).toEqual([]);
     expect(printer.handed).toEqual([]);
     expect(declinedAt("sale-1")).toEqual({
@@ -249,11 +240,11 @@ describe("answering the question of a held sale", () => {
       `CREATE TRIGGER refuse_decline BEFORE UPDATE OF print_declined_at ON sales
        BEGIN SELECT RAISE(ABORT, 'disk unavailable'); END;`,
     );
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
 
     await expect(answer("sale-1", false)).rejects.toThrow("disk unavailable");
 
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
+    expect(jobs.offerDeadlineOf("sale-1")).toEqual(OFFER_DEADLINE);
     expect(declinedAt("sale-1")).toEqual({ print_declined_at: null, print_attempted_at: null });
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       standing: "awaiting_answer",
@@ -261,15 +252,15 @@ describe("answering the question of a held sale", () => {
   });
 
   it("answers not_found, releasing the question, for a held sale the register does not hold", async () => {
-    jobs.holdForAnswer("missing");
+    jobs.holdForAnswer("missing", OFFER_DEADLINE);
 
     expect(await answer("missing", false)).toEqual({ kind: "not_found" });
-    expect(jobs.isHeldForAnswer("missing")).toBe(false);
+    expect(jobs.offerDeadlineOf("missing")).toBeUndefined();
   });
 
   it("answers not_awaiting and records no decline for a held sale whose receipt does not ask", async () => {
     addSale("sale-2", { withVoucher: false });
-    jobs.holdForAnswer("sale-2");
+    jobs.holdForAnswer("sale-2", OFFER_DEADLINE);
 
     expect(await answer("sale-2", false)).toEqual({ kind: "not_awaiting" });
     expect(declinedAt("sale-2")).toEqual({ print_declined_at: null, print_attempted_at: null });
@@ -289,7 +280,7 @@ describe("the print status of a sale held for the cashier's answer", () => {
   });
 
   it("stands as awaiting_answer while the question is held", async () => {
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
 
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       kind: "found",
@@ -300,7 +291,7 @@ describe("the print status of a sale held for the cashier's answer", () => {
   });
 
   it("stands as declined once the cashier said no, and the next copy is still the original", async () => {
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
     await answer("sale-1", false);
 
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
@@ -309,5 +300,98 @@ describe("the print status of a sale held for the cashier's answer", () => {
       printed: false,
       standing: "declined",
     });
+  });
+});
+
+describe("the print offer lapsing", () => {
+  it("stands as awaiting_answer with the time left and the offer's length right after the hold", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      standing: "awaiting_answer",
+      offer: { remaining_ms: 3000, length_ms: 3000 },
+    });
+  });
+
+  it("counts the time left down with the core's clock", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    moment = new Date(NOW.getTime() + 1200);
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      standing: "awaiting_answer",
+      offer: { remaining_ms: 1800, length_ms: 3000 },
+    });
+  });
+
+  it("carries no offer once the cashier answered", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    await answer("sale-1", false);
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      standing: "declined",
+      offer: null,
+    });
+  });
+
+  it("stands as declined with no offer after the deadline, printing nothing, recording the decline, releasing the hold and syncing", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    moment = OFFER_DEADLINE;
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1", () => syncNow())).toMatchObject({
+      standing: "declined",
+      offer: null,
+      printed: false,
+    });
+
+    expect(printer.waiting).toEqual([]);
+    expect(printer.handed).toEqual([]);
+    expect(declinedAt("sale-1")).toEqual({
+      print_declined_at: OFFER_DEADLINE.toISOString(),
+      print_attempted_at: null,
+    });
+    expect(jobs.offerDeadlineOf("sale-1")).toBeUndefined();
+    expect(syncs).toBe(1);
+  });
+
+  it("answers lapsed, printing nothing, when the cashier says yes after the deadline", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    moment = new Date(OFFER_DEADLINE.getTime() + 1);
+
+    expect(await answer("sale-1", true)).toEqual({ kind: "lapsed" });
+
+    expect(printer.waiting).toEqual([]);
+    expect(printer.handed).toEqual([]);
+    expect(jobs.offerDeadlineOf("sale-1")).toBeUndefined();
+    expect(declinedAt("sale-1")).toEqual({
+      print_declined_at: moment.toISOString(),
+      print_attempted_at: null,
+    });
+  });
+
+  it("answers lapsed when the cashier says no after the deadline", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    moment = new Date(OFFER_DEADLINE.getTime() + 1);
+
+    expect(await answer("sale-1", false)).toEqual({ kind: "lapsed" });
+  });
+
+  it("still prints when the cashier says yes just before the deadline", async () => {
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    moment = new Date(OFFER_DEADLINE.getTime() - 1);
+
+    expect(await answer("sale-1", true)).toEqual({ kind: "printing" });
+  });
+
+  it("re-holds the question with the same deadline when recording the decline fails", async () => {
+    database.exec(
+      `CREATE TRIGGER refuse_decline BEFORE UPDATE OF print_declined_at ON sales
+       BEGIN SELECT RAISE(ABORT, 'disk unavailable'); END;`,
+    );
+    jobs.holdForAnswer("sale-1", OFFER_DEADLINE);
+    moment = new Date(NOW.getTime() + 500);
+
+    await expect(answer("sale-1", false)).rejects.toThrow("disk unavailable");
+
+    expect(jobs.offerDeadlineOf("sale-1")).toEqual(OFFER_DEADLINE);
   });
 });
