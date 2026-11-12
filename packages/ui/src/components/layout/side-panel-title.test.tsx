@@ -154,7 +154,10 @@ test("shows a lock after the title, inside the heading, that assistive technolog
 
   await expect.element(heading).toHaveTextContent("Anular venta Pide autorización");
   const lock = heading.element().querySelector("svg") as SVGElement;
-  const title = screen.getByText("Anular venta").element().getBoundingClientRect();
+  const titleText = heading.element().firstChild as Text;
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(titleText);
+  const title = titleRange.getBoundingClientRect();
   expect(lock.getBoundingClientRect().left).toBeGreaterThanOrEqual(title.right);
   expect(getComputedStyle(lock).color).toBe(tokenRgb("text-subtle"));
   await expectNoAccessibilityViolations(screen.container);
