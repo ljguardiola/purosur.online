@@ -160,7 +160,9 @@ test("shows the Esc keycap followed by its close label, which names the button",
   const button = screen.getByRole("button", { name: "Cambiar de medio" });
 
   await expect.element(button).toBeVisible();
-  expect(button.element().textContent).toBe("EscCambiar de medio");
+  const keycap = screen.getByText("Esc").element().getBoundingClientRect();
+
+  expect(button.element().getBoundingClientRect().left).toBeGreaterThanOrEqual(keycap.right);
   await expect
     .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
     .not.toBeInTheDocument();
