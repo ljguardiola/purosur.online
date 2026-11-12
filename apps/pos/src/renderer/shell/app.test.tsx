@@ -115,6 +115,7 @@ function coreAnswering(
     cashCharge?: CoreClient["cashCharge"];
     cashChargeAmounts?: CoreClient["cashChargeAmounts"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
+    nonCashCharge?: CoreClient["nonCashCharge"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     chargeSaleOnStandaloneTerminal?: CoreClient["chargeSaleOnStandaloneTerminal"];
     paymentMethodAvailability?: CoreClient["paymentMethodAvailability"];
@@ -437,6 +438,9 @@ function coreAnswering(
     },
     async chargeSaleInCashWithChangeDiscount() {
       return { kind: "unavailable" };
+    },
+    async nonCashCharge(saleId, amount) {
+      return sales.nonCashCharge === undefined ? null : sales.nonCashCharge(saleId, amount);
     },
     async chargeSaleByTransfer(saleId, amount) {
       return sales.chargeSaleByTransfer === undefined
@@ -2438,6 +2442,10 @@ describe("App", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
+        nonCashCharge: async (saleId, amount) =>
+          saleId === "sale-1" && amount === 100_000
+            ? { kind: "partial", applied: 100_000, pending: 123_400 }
+            : { kind: "covered", applied: amount },
         chargeSaleByTransfer: async (saleId, amount) => {
           charges.push([saleId, amount]);
           return { kind: "completed", sale_id: saleId, total: 238_000 };
@@ -2450,6 +2458,11 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
+    const amount = screen.getByRole("textbox", { name: "IMPORTE" });
+    await userEvent.fill(amount, "1000,00");
+    await expect.element(screen.getByText("QUEDA")).toBeVisible();
+    await expect.element(screen.getByText("$ 1.234,00")).toBeVisible();
+    await userEvent.fill(amount, "2380,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
     await expect

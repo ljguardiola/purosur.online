@@ -31,7 +31,9 @@ describe("ChargeScreen · QR", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "not_configured" }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
     await userEvent.keyboard("{F11}");
     await expect
@@ -46,7 +48,9 @@ describe("ChargeScreen · QR", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "below_minimum" }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
     await userEvent.keyboard("{F11}");
     await expect
@@ -146,19 +150,32 @@ describe("ChargeScreen · QR", () => {
   it.each<[string, () => Promise<PaymentMethodAvailability | null>]>([
     ["is still loading", () => new Promise(() => {})],
     ["could not be read", async () => null],
-  ])("offers no QR while the availability %s", async (_state, paymentMethodAvailability) => {
-    const { screen } = await renderCombinedPayment({ paymentMethodAvailability });
+  ])(
+    "leaves the QR and the terminal out while the availability %s",
+    async (_state, paymentMethodAvailability) => {
+      const { screen } = await renderCombinedPayment({ paymentMethodAvailability });
 
-    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeEnabled();
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
-  });
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeEnabled();
+      await expect.element(screen.getByRole("button", { name: "QR" })).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Point débito" }))
+        .not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("button", { name: "Point crédito" }))
+        .not.toBeInTheDocument();
+    },
+  );
 
   it("shows the QR as unavailable without a connection, and does not open it", async () => {
     const { screen, startMercadoPagoCharge } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
     await userEvent.keyboard("{F11}");
     await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect
@@ -274,10 +291,12 @@ describe("ChargeScreen · QR", () => {
     const { screen, currentSale } = await renderScreen({
       followMercadoPagoCharge: async () => ({ kind: "declined" }),
     });
-    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
+    await chooseQr(screen);
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con QR?" }))
+      .toBeVisible();
     const readsBefore = currentSale.mock.calls.length;
 
-    await chooseQr(screen);
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 

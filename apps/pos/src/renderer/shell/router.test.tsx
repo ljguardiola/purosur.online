@@ -264,6 +264,7 @@ function contextWith(
     currentSale: async () => null,
     cashCharge: async () => ({ kind: "invalid_amount" }),
     cashChargeAmounts: async () => null,
+    nonCashCharge: async () => null,
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     chargeSaleInCashWithChangeDiscount: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
@@ -3322,8 +3323,12 @@ describe("the charge route's Mercado Pago QR", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
   });
 
   it("opens the chosen method's charge when the route carries it", async () => {

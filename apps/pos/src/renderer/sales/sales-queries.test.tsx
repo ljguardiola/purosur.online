@@ -5,6 +5,7 @@ import type {
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
+  NonCashChargeAnswer,
   OpenSale,
   PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
@@ -26,6 +27,7 @@ import {
   useCashChargeAmountsQuery,
   useCashChargeQuery,
   useCurrentSaleQuery,
+  useNonCashChargeQuery,
   usePaymentMethodAvailabilityQuery,
   useQrChargeQuery,
   useReadCurrentSale,
@@ -574,6 +576,89 @@ describe("cash charge query", () => {
       <CashChargeProbe
         read={() => Promise.reject(new Error("the connection was replaced"))}
         tendered={500_000}
+      />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+});
+
+function NonCashChargeProbe({
+  read,
+  saleId = "sale-1",
+  pending = 476_000,
+  amount,
+}: {
+  read: (amount: number) => Promise<NonCashChargeAnswer>;
+  saleId?: string;
+  pending?: number;
+  amount: number | undefined;
+}) {
+  const charge = useNonCashChargeQuery({ saleId, pending, amount, read });
+  return <p>{charge.status === "loaded" ? JSON.stringify(charge.value) : charge.status}</p>;
+}
+
+describe("non-cash charge query", () => {
+  it.each<[string, NonCashChargeAnswer]>([
+    ["what the sale needs", { kind: "partial", applied: 100_000, pending: 376_000 }],
+    ["no sale in progress", null],
+    ["a refusal to sell", "not_permitted"],
+  ])("holds %s as an answer, not a failure", async (_name, answer) => {
+    const screen = await renderWithClient(
+      <NonCashChargeProbe read={async () => answer} amount={100_000} />,
+    );
+
+    await expect.element(screen.getByText(JSON.stringify(answer))).toBeVisible();
+  });
+
+  it("asks the core with the typed amount", async () => {
+    const read = vi.fn<(amount: number) => Promise<NonCashChargeAnswer>>(async () => null);
+    const screen = await renderWithClient(<NonCashChargeProbe read={read} amount={100_005} />);
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith(100_005);
+  });
+
+  it("does not ask while there is no amount typed", async () => {
+    const read = vi.fn<(amount: number) => Promise<NonCashChargeAnswer>>(async () => null);
+    const screen = await renderWithClient(<NonCashChargeProbe read={read} amount={undefined} />);
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, string, number, number]>([
+    ["another amount", "sale-1", 476_000, 200_000],
+    ["another sale", "sale-2", 476_000, 100_000],
+    ["another pending balance of the sale", "sale-1", 490_000, 100_000],
+  ])("never shows the answer given for %s", async (_what, saleId, pending, amount) => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <NonCashChargeProbe read={async () => "not_permitted"} amount={100_000} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText('"not_permitted"')).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <NonCashChargeProbe
+          read={() => new Promise(() => {})}
+          saleId={saleId}
+          pending={pending}
+          amount={amount}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderWithClient(
+      <NonCashChargeProbe
+        read={() => Promise.reject(new Error("the connection was replaced"))}
+        amount={100_000}
       />,
     );
 

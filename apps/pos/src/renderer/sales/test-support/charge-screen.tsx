@@ -11,6 +11,7 @@ import type {
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
+  NonCashChargeAnswer,
   OpenSale,
   PaymentMethodAvailability,
   ReadContingencyBackupTicketOfSaleOutcome,
@@ -25,7 +26,7 @@ import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { MercadoPagoChargeKind } from "../../platform/core-client";
 import { render } from "../../shell/test-support/render-with-router";
-import type { ChargeMethod } from "../charge-method-options";
+import type { ChargeMethod } from "../charge-method-availability";
 import type { ChargeScreenProps } from "../charge-screen";
 import { ChargeScreen } from "../charge-screen";
 
@@ -205,6 +206,7 @@ export type Overrides = {
     discountAmount: number,
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
+  nonCashCharge?: (saleId: string, amount: number) => Promise<NonCashChargeAnswer>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal?: (
     saleId: string,
@@ -222,18 +224,18 @@ export type Overrides = {
 type Remount = { setMethod?: (method: ChargeMethod) => void };
 
 function RemountableScreen({
-  remount,
+  onMounted,
   initialMethod,
   screen,
 }: {
-  remount: Remount;
+  onMounted: (setMethod: (method: ChargeMethod) => void) => void;
   initialMethod: ChargeMethod | undefined;
   screen: (method: ChargeMethod | undefined) => ReactNode;
 }) {
   const [method, setMethod] = useState(initialMethod);
   useEffect(() => {
-    remount.setMethod = setMethod;
-  }, [remount]);
+    onMounted(setMethod);
+  }, [onMounted]);
   return <Fragment key={method ?? "none"}>{screen(method)}</Fragment>;
 }
 
@@ -261,6 +263,10 @@ export async function renderScreen(overrides: Overrides = {}) {
   );
   const loadAuthorizers = vi.fn(
     async (): Promise<SignInUser[]> => [{ id: "u3", first_name: "Sofía" }],
+  );
+  const nonCashCharge = vi.fn(
+    overrides.nonCashCharge ??
+      (async (): Promise<NonCashChargeAnswer> => ({ kind: "covered", applied: 476_000 })),
   );
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
@@ -312,7 +318,9 @@ export async function renderScreen(overrides: Overrides = {}) {
   const remount: Remount = {};
   const screen = await render(
     <RemountableScreen
-      remount={remount}
+      onMounted={(setMethod) => {
+        remount.setMethod = setMethod;
+      }}
       initialMethod={overrides.method}
       screen={(method) => (
         <ChargeScreen
@@ -326,6 +334,7 @@ export async function renderScreen(overrides: Overrides = {}) {
           chargeSaleInCash={chargeSaleInCash}
           chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
           loadAuthorizers={loadAuthorizers}
+          nonCashCharge={nonCashCharge}
           chargeSaleByTransfer={chargeSaleByTransfer}
           chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
           chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
@@ -350,6 +359,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     cashChargeAmounts,
     chargeSaleInCash,
     chargeSaleInCashWithChangeDiscount,
+    nonCashCharge,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
     chargeSaleWithPaidOrder,

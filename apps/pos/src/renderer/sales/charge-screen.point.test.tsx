@@ -30,9 +30,15 @@ describe("ChargeScreen · Point", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
     await userEvent.keyboard("{F9}{F10}{F11}");
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
@@ -46,8 +52,12 @@ describe("ChargeScreen · Point", () => {
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "not_configured" }),
     });
 
-    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
     await userEvent.keyboard("{F9}{F10}");
     await expect
@@ -57,19 +67,25 @@ describe("ChargeScreen · Point", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("offers no terminal below its minimum and says why, keeping the QR available", async () => {
+  it("locks the terminal below its minimum and says why on its tile, keeping the QR available", async () => {
     const { screen } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "below_minimum" }),
     });
 
     await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
-    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeDisabled();
     await expect
-      .element(
-        screen.getByRole("status").getByText("Point: no se ofrece para cobrar menos de $ 15,00"),
-      )
-      .toBeVisible();
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    const tile = screen.getByRole("button", { name: "Point débito" });
+    await userEvent.hover(tile);
+    await userEvent.unhover(tile);
+    await userEvent.hover(tile);
+    await expect
+      .element(screen.getByRole("tooltip"))
+      .toHaveTextContent("No se ofrece para cobrar menos de $ 15,00");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -83,10 +99,12 @@ describe("ChargeScreen · Point", () => {
         pending: 16_000,
       }),
     });
-    await expect.element(screen.getByRole("heading", { name: "Otros medios" })).toBeVisible();
+    await choosePoint(screen);
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .toBeVisible();
     const readsBefore = paymentMethodAvailability.mock.calls.length;
 
-    await choosePoint(screen);
     await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 

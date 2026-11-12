@@ -84,8 +84,9 @@ describe("ChargeScreen · Otros medios by keys", () => {
       SALE_OF_ONE_LINE,
       { ...SALE_OF_ONE_LINE, paid: 200_000, pending: 276_000 },
     ];
-    const { screen, chargeSaleByTransfer } = await renderScreen({
+    const { screen, chargeSaleByTransfer, nonCashCharge } = await renderScreen({
       currentSale: async () => reads.shift() ?? SALE_WITH_PART_PAID,
+      nonCashCharge: async () => ({ kind: "partial", applied: 200_000, pending: 276_000 }),
       chargeSaleByTransfer: async () => ({
         kind: "partially_paid",
         sale_id: "sale-1",
@@ -98,6 +99,7 @@ describe("ChargeScreen · Otros medios by keys", () => {
     await userEvent.keyboard("1");
     await userEvent.fill(screen.getByRole("textbox", { name: "IMPORTE" }), "2000,00");
     await expect.element(screen.getByText("QUEDA")).toBeVisible();
+    expect(nonCashCharge).toHaveBeenLastCalledWith("sale-1", 200_000);
     await userEvent.keyboard("{Enter}");
 
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
@@ -154,13 +156,5 @@ describe("ChargeScreen · combined payment by keys", () => {
     await expect
       .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con QR?" }))
       .toBeVisible();
-  });
-
-  it("shows the keys of the methods beside them", async () => {
-    const { screen } = await renderCombinedPayment();
-
-    await expect.element(screen.getByText("FALTA")).toBeVisible();
-    const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
-    expect(keys).toEqual(expect.arrayContaining(["F12", "F9", "F10", "F11", "F1"]));
   });
 });

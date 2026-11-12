@@ -46,7 +46,9 @@ describe("ChargeScreen · chosen method", () => {
     });
 
     await expect.element(screen.getByText("FALTA")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 

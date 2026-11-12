@@ -2,18 +2,22 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { ChargeMethod } from "./charge-method-options";
+import type { ChargeMethodAvailability } from "./charge-method-availability";
 import type { CombinedPaymentPanelProps } from "./combined-payment-panel";
 import { CombinedPaymentPanel } from "./combined-payment-panel";
 
-const ALL_ENABLED: ReadonlySet<ChargeMethod> = new Set([
-  "CASH",
-  "POINT_DEBIT",
-  "POINT_CREDIT",
-  "QR",
-  "TRANSFER",
-  "STANDALONE_TERMINAL",
-]);
+const OFFERED = { kind: "offered" } as const;
+
+const ALL_OFFERED: ChargeMethodAvailability = {
+  CASH: OFFERED,
+  POINT_DEBIT: OFFERED,
+  POINT_CREDIT: OFFERED,
+  QR: OFFERED,
+  TRANSFER: OFFERED,
+  STANDALONE_TERMINAL: OFFERED,
+};
+
+const WITHOUT_CONNECTION = { kind: "locked", reason: "No disponible sin conexión" } as const;
 
 async function renderPanel(props: Partial<CombinedPaymentPanelProps> = {}) {
   await page.viewport(1280, 1000);
@@ -25,8 +29,7 @@ async function renderPanel(props: Partial<CombinedPaymentPanelProps> = {}) {
       total={2_519_250}
       paid={1_000_000}
       pending={1_519_250}
-      enabled={ALL_ENABLED}
-      belowMinimum={undefined}
+      methods={ALL_OFFERED}
       cancelledNotice={false}
       paidOrderNotice={null}
       onChoose={onChoose}
@@ -113,14 +116,54 @@ describe("CombinedPaymentPanel", () => {
     expect(onChooseOther).toHaveBeenCalledOnce();
   });
 
-  it("disables the tiles of the methods that are not enabled, and ignores their keys", async () => {
+  it("locks the tiles of the methods the core refuses, and ignores their keys", async () => {
     const { screen, onChoose } = await renderPanel({
-      enabled: new Set<ChargeMethod>(["CASH", "TRANSFER", "STANDALONE_TERMINAL"]),
+      methods: {
+        ...ALL_OFFERED,
+        POINT_DEBIT: WITHOUT_CONNECTION,
+        POINT_CREDIT: WITHOUT_CONNECTION,
+        QR: WITHOUT_CONNECTION,
+      },
     });
 
-    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+    for (const name of ["Point débito", "Point crédito", "QR"]) {
+      await expect
+        .element(screen.getByRole("button", { name }))
+        .toHaveAttribute("aria-disabled", "true");
+    }
+    await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeEnabled();
+    await userEvent.keyboard("{F9}{F10}{F11}");
+    expect(onChoose).not.toHaveBeenCalled();
+  });
+
+  it("says why a tile is locked in a tooltip on it, with no line beside the tiles", async () => {
+    const reason = "No se ofrece para cobrar menos de $ 15,00";
+    const { screen } = await renderPanel({
+      methods: { ...ALL_OFFERED, POINT_DEBIT: { kind: "locked", reason } },
+    });
+
+    await expect.element(screen.getByText(reason)).not.toBeInTheDocument();
+    const tile = screen.getByRole("button", { name: "Point débito" });
+    await userEvent.hover(tile);
+    await userEvent.unhover(tile);
+    await userEvent.hover(tile);
+
+    await expect.element(screen.getByRole("tooltip")).toHaveTextContent(reason);
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("leaves out the tiles of the methods the core has not answered for, and ignores their keys", async () => {
+    const { screen, onChoose } = await renderPanel({
+      methods: { CASH: OFFERED, TRANSFER: OFFERED, STANDALONE_TERMINAL: OFFERED },
+    });
+
+    await expect
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "QR" })).not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Cobrar en efectivo" })).toBeEnabled();
     await userEvent.keyboard("{F9}{F10}{F11}");
     expect(onChoose).not.toHaveBeenCalled();
@@ -130,14 +173,6 @@ describe("CombinedPaymentPanel", () => {
     const { screen } = await renderPanel({ cancelledNotice: true });
 
     await expect.element(screen.getByText("Se canceló la orden QR.").first()).toBeVisible();
-  });
-
-  it("names the minimum below which the terminal is not offered", async () => {
-    const { screen } = await renderPanel({ belowMinimum: 1500 });
-
-    await expect
-      .element(screen.getByText("Point: no se ofrece para cobrar menos de $ 15,00").first())
-      .toBeVisible();
   });
 
   it("shows the notice of the paid order it is given", async () => {

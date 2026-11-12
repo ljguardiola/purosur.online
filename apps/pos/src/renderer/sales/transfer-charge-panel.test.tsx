@@ -1,4 +1,4 @@
-import type { ChargeSaleByTransferOutcome } from "@purosur/contracts";
+import type { ChargeSaleByTransferOutcome, NonCashChargeAnswer } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -15,11 +15,23 @@ const COMPLETED: ChargeSaleByTransferOutcome = {
 const AMOUNT_FIELD = "IMPORTE";
 
 type Charge = (amount: number) => Promise<ChargeSaleByTransferOutcome>;
+type ReadCharge = (amount: number) => Promise<NonCashChargeAnswer>;
 
-async function renderPanel(charge: Charge = async () => COMPLETED, pending: number = TOTAL) {
+async function answerLikeTheCore(amount: number): Promise<NonCashChargeAnswer> {
+  return amount < TOTAL
+    ? { kind: "partial", applied: amount, pending: TOTAL - amount }
+    : { kind: "covered", applied: TOTAL };
+}
+
+async function renderPanel(
+  charge: Charge = async () => COMPLETED,
+  pending: number = TOTAL,
+  readCharge: ReadCharge = answerLikeTheCore,
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const chargeSale = vi.fn(charge);
+  const readSaleCharge = vi.fn(readCharge);
   const callbacks = {
     onBack: vi.fn(),
     onCompleted: vi.fn(),
@@ -28,11 +40,18 @@ async function renderPanel(charge: Charge = async () => COMPLETED, pending: numb
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <TransferChargePanel pending={pending} charge={chargeSale} {...callbacks} />,
+    <TransferChargePanel
+      saleId="sale-1"
+      pending={pending}
+      readCharge={readSaleCharge}
+      charge={chargeSale}
+      {...callbacks}
+    />,
   );
   return {
     screen,
     chargeSale,
+    readSaleCharge,
     callbacks,
     field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
     register: screen.getByRole("button", { name: "Registrar transferencia" }),
@@ -80,25 +99,46 @@ describe("TransferChargePanel", () => {
     await expect.element(field).toHaveFocus();
   });
 
-  it("shows what remains after a typed amount below the pending balance", async () => {
-    const { screen, field } = await renderPanel();
+  it("shows what the core says remains after the typed amount", async () => {
+    const { screen, field, readSaleCharge } = await renderPanel(undefined, TOTAL, async () => ({
+      kind: "partial",
+      applied: 100_000,
+      pending: 123_400,
+    }));
 
     await userEvent.fill(field, "1000,00");
 
     await expect.element(screen.getByText("QUEDA")).toBeVisible();
-    await expect.element(screen.getByText("$ 3.760,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 1.234,00")).toBeVisible();
+    expect(readSaleCharge).toHaveBeenLastCalledWith(100_000);
   });
 
-  it.each(["4760,00", "5000,00", "0", ""])(
-    "shows no remainder for the typed amount %j",
-    async (typed) => {
-      const { screen, field } = await renderPanel();
+  it.each<[string, NonCashChargeAnswer]>([
+    ["covers the pending balance", { kind: "covered", applied: 100_000 }],
+    ["exceeds the pending balance", { kind: "exceeds_pending", pending: 50_000 }],
+    ["is not a valid amount", { kind: "invalid_amount" }],
+    ["belongs to no sale in progress", null],
+    ["may not be charged by the person signed in", "not_permitted"],
+  ])("shows no remainder when the core says the typed amount %s", async (_case, answer) => {
+    const { screen, field, readSaleCharge } = await renderPanel(
+      undefined,
+      TOTAL,
+      async () => answer,
+    );
 
-      await userEvent.fill(field, typed);
+    await userEvent.fill(field, "1000,00");
 
-      await expect.element(screen.getByText("QUEDA")).not.toBeInTheDocument();
-    },
-  );
+    await expect.poll(() => readSaleCharge.mock.calls).toContainEqual([100_000]);
+    await expect.element(screen.getByText("QUEDA")).not.toBeInTheDocument();
+  });
+
+  it("shows no remainder while no amount is typed", async () => {
+    const { screen, field } = await renderPanel();
+
+    await userEvent.fill(field, "");
+
+    await expect.element(screen.getByText("QUEDA")).not.toBeInTheDocument();
+  });
 
   it("registers the transfer with Enter, for the amount shown", async () => {
     const { chargeSale, callbacks } = await renderPanel();
