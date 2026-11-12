@@ -1,6 +1,10 @@
 import type { AnswerReceiptQuestionOutcome } from "@purosur/contracts";
 import { declineSaleReceipt, receiptQuestionOf } from "@purosur/domain/sales/use-cases";
-import { printCompletedSaleReceiptFor, type ReceiptRequestDeps } from "./receipt-requests";
+import {
+  lapsedOfferReleased,
+  printCompletedSaleReceiptFor,
+  type ReceiptRequestDeps,
+} from "./receipt-requests";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 
 export interface ReceiptAnswer {
@@ -19,14 +23,14 @@ export function saleAsksBeforePrinting(
   );
 }
 
-function declineHeld(deps: ReceiptRequestDeps, saleId: string) {
+function declineHeld(deps: ReceiptRequestDeps, saleId: string, deadline: Date) {
   try {
     return declineSaleReceipt(
       { ledger: new SqliteReceiptLedger(deps.database), clock: { now: deps.now } },
       { saleId },
     );
   } catch (error) {
-    deps.jobs.holdForAnswer(saleId);
+    deps.jobs.holdForAnswer(saleId, deadline);
     throw error;
   }
 }
@@ -39,20 +43,26 @@ export async function answerReceiptQuestionFor(
   if (deps.signedInUserId() === undefined) {
     return { kind: "not_signed_in" };
   }
-  if (!deps.jobs.releaseAnswer(saleId)) {
+  const deadline = deps.jobs.offerDeadlineOf(saleId);
+  if (deadline === undefined) {
     return { kind: "not_awaiting" };
   }
+  if (lapsedOfferReleased(deps, saleId)?.offer.kind === "lapsed") {
+    syncNow();
+    return { kind: "lapsed" };
+  }
+  deps.jobs.releaseAnswer(saleId);
   if (print) {
     try {
       await printCompletedSaleReceiptFor(deps, saleId);
     } catch (error) {
-      deps.jobs.holdForAnswer(saleId);
+      deps.jobs.holdForAnswer(saleId, deadline);
       throw error;
     }
     syncNow();
     return { kind: "printing" };
   }
-  const declined = declineHeld(deps, saleId);
+  const declined = declineHeld(deps, saleId, deadline);
   if (declined.kind === "declined") {
     syncNow();
   }
