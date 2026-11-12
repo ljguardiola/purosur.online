@@ -8,7 +8,7 @@ import type {
 import type { PointCardType } from "@purosur/domain";
 import type { CompletedCharge } from "./cash-charge-panel";
 import type { CompletedPointPayment } from "./point-payment-wait-panel";
-import type { CompletedQrPayment } from "./qr-payment-wait-modal";
+import type { CompletedQrPayment } from "./qr-payment-wait-panel";
 import { SaleCompletedModal } from "./sale-completed-modal";
 import type { CompletedStandaloneTerminal } from "./standalone-terminal-charge-modal";
 import type { CompletedTransfer } from "./transfer-charge-modal";

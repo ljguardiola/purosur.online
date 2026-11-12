@@ -14,34 +14,28 @@ export const escapeKeycapButtonClassName =
   "data-focus-visible:focus-ring";
 
 const labelledCloseButtonClassName =
-  "flex h-control-lg shrink-0 items-center rounded-lg px-1 text-body font-bold text-info outline-none " +
-  "data-focus-visible:focus-ring";
+  "flex h-control-lg shrink-0 items-center gap-2 rounded-lg px-1 text-body font-medium text-text-accent " +
+  "outline-none data-disabled:opacity-disabled data-focus-visible:focus-ring";
 
 export function CloseButton({
   onPress,
   escapeKeycap = false,
-  disabled = false,
   label,
+  disabled = false,
 }: {
   onPress: () => void;
   escapeKeycap?: boolean;
+  label?: string | undefined;
   disabled?: boolean;
-  label?: string;
 }) {
   if (escapeKeycap && label !== undefined) {
     return (
-      <span className="flex shrink-0 items-center gap-2">
+      <AriaButton onPress={onPress} isDisabled={disabled} className={labelledCloseButtonClassName}>
         <span aria-hidden="true">
           <Keycap keyName="Escape" />
         </span>
-        <AriaButton
-          onPress={onPress}
-          isDisabled={disabled}
-          className={labelledCloseButtonClassName}
-        >
-          {label}
-        </AriaButton>
-      </span>
+        {label}
+      </AriaButton>
     );
   }
   return (

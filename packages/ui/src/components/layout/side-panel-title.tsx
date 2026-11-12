@@ -33,12 +33,7 @@ export function SidePanelTitle({
       </span>
       <h2 className="flex-1 text-subheading font-bold text-text">{title}</h2>
       {onClose === undefined ? null : (
-        <CloseButton
-          escapeKeycap
-          disabled={closeDisabled}
-          onPress={onClose}
-          {...(closeLabel === undefined ? {} : { label: closeLabel })}
-        />
+        <CloseButton escapeKeycap label={closeLabel} disabled={closeDisabled} onPress={onClose} />
       )}
     </div>
   );
