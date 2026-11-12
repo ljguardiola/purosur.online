@@ -269,7 +269,7 @@ describe("PointPaymentWaitPanel", () => {
       expect(followCharge).toHaveBeenCalledTimes(2);
     });
 
-    it("asks again with the R key, and abandons the order with Esc while it cannot be followed", async () => {
+    it("asks again with the R key, without abandoning the order", async () => {
       const { screen, followCharge, abandonCharge } = await renderPanel(
         answering({ kind: "unavailable" }, WAITING),
       );
@@ -299,7 +299,7 @@ describe("PointPaymentWaitPanel", () => {
   describe("when the order may have reached the terminal while the cloud could not be reached", () => {
     const UNCONFIRMED = { ...ORDER, kind: "order_unconfirmed" } as const;
 
-    it("says to cancel on the terminal and wait for the connection, while it keeps following the payment", async () => {
+    it("says there is no connection to the cloud and to cancel on the terminal, while it keeps following the payment", async () => {
       const { screen, followCharge, callbacks } = await renderPanel(
         undefined,
         undefined,
@@ -461,7 +461,7 @@ describe("PointPaymentWaitPanel", () => {
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
     });
 
-    it("says to cancel on the terminal and wait for the connection when the register cannot reach the cloud, staying on the wait", async () => {
+    it("says there is no connection to the cloud and to cancel on the terminal when abandoning cannot reach the cloud, staying on the wait", async () => {
       const { screen, callbacks } = await renderPanel(answering(WAIT_OVER), async () => ({
         kind: "unreachable",
       }));
@@ -531,7 +531,7 @@ describe("PointPaymentWaitPanel", () => {
   });
 
   describe("when the customer paid", () => {
-    it("shows the amount paid and advances only from Continuar once the payment is approved", async () => {
+    it("shows the amount paid and advances only from Continuar or Esc once the payment is approved", async () => {
       const { screen, callbacks } = await renderPanel(answering(WAITING, COMPLETED));
 
       await expect
@@ -547,13 +547,34 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("Completado")).toBeInTheDocument();
       await expect.element(screen.getByText("Falta cobrar")).not.toBeInTheDocument();
       expect(callbacks.onCompleted).not.toHaveBeenCalled();
-      expect(screen.getByRole("button").elements()).toHaveLength(1);
+      expect(screen.getByRole("button").elements()).toHaveLength(2);
       await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
 
       await userEvent.keyboard("{Enter}");
 
       expect(callbacks.onCompleted.mock.calls).toEqual([[{ ...COMPLETED, amount: 3_000_000 }]]);
+    });
+
+    it("continues with Esc as with Continuar once the payment is approved", async () => {
+      const { screen, callbacks } = await renderPanel(answering(COMPLETED));
+      await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      expect(callbacks.onCompleted.mock.calls).toEqual([[{ ...COMPLETED, amount: 3_000_000 }]]);
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+    });
+
+    it("goes back to the methods from the Esc button after a partial payment, as with Continuar", async () => {
+      const { screen, callbacks } = await renderPanel(answering(PARTIALLY_PAID));
+      await expect.element(screen.getByText("Falta cobrar")).toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+      await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
     });
 
     it("shows what is still to be charged and goes back to the methods from Continuar after a partial payment", async () => {
@@ -607,7 +628,7 @@ describe("PointPaymentWaitPanel", () => {
   });
 
   describe("when the terminal declined the payment", () => {
-    it("says nothing was charged and goes back to the methods from Cambiar de medio", async () => {
+    it("says the payment was rejected and goes back to the methods from Cambiar de medio", async () => {
       const { screen, callbacks } = await renderPanel(answering({ kind: "declined" }));
 
       await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();

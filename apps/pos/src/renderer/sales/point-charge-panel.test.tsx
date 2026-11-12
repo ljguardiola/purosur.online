@@ -224,28 +224,42 @@ describe("PointChargePanel", () => {
     await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("says the charge could not be sent when the core cannot answer", async () => {
-    const { screen, send } = await renderPanel(async () => {
-      throw new Error("core down");
-    });
+  it.each([
+    {
+      when: "the core answers it could not reach the cloud",
+      start: async (): Promise<StartMercadoPagoChargeOutcome> => ({ kind: "unreachable" }),
+      message: "No se pudo crear la orden porque la caja no llega a la nube. Cobrá con otro medio.",
+    },
+    {
+      when: "the core answers it is unavailable",
+      start: async (): Promise<StartMercadoPagoChargeOutcome> => ({ kind: "unavailable" }),
+      message: "No se pudo crear la orden. Cobrá con otro medio.",
+    },
+    {
+      when: "the core cannot answer",
+      start: async (): Promise<StartMercadoPagoChargeOutcome> => {
+        throw new Error("core down");
+      },
+      message: "No se pudo crear la orden. Cobrá con otro medio.",
+    },
+  ])(
+    "says the charge could not be sent when $when, and leaves only Cambiar de medio with Enter",
+    async ({ start, message }) => {
+      const { screen, send, startCharge, callbacks } = await renderPanel(start);
 
-    await userEvent.click(send);
+      await userEvent.click(send);
 
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("No se pudo crear la orden. Probá de nuevo.");
-  });
-
-  it("says the charge could not be sent, letting it be sent again, when the core answers it could not reach the cloud", async () => {
-    const { screen, send } = await renderPanel(async () => ({ kind: "unreachable" }));
-
-    await userEvent.click(send);
-
-    await expect
-      .element(screen.getByRole("alert"))
-      .toHaveTextContent("No se pudo crear la orden. Probá de nuevo.");
-    await expect.element(send).toBeEnabled();
-  });
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(message);
+      await expect
+        .element(screen.getByRole("button", { name: "Enviar a la terminal" }))
+        .not.toBeInTheDocument();
+      const change = screen.getByRole("button", { name: "Cambiar de medio" }).last();
+      await expect.poll(() => keycapOf(change)).toBe("Enter");
+      await userEvent.keyboard("{Enter}");
+      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+      expect(startCharge).toHaveBeenCalledOnce();
+    },
+  );
 
   it.each([
     { kind: "empty_sale" },

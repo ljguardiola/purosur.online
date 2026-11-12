@@ -142,6 +142,17 @@ describe("SaleScreen when the core answers a method is not offered for the total
     },
   );
 
+  it("reads the availability once for the sale shown", async () => {
+    const { screen, paymentMethodAvailability } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA,
+    });
+
+    await expect.element(screen.getByText("Yerba mate 1 kg").first()).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
+
+    expect(paymentMethodAvailability).toHaveBeenCalledOnce();
+  });
+
   it("reads the availability again when the total of the sale changes", async () => {
     const { screen, field, paymentMethodAvailability } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
