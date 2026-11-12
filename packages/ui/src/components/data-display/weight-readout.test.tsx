@@ -51,3 +51,12 @@ test("dims the figures like a disabled control while the reading has not settled
 test("does not accept a readout without saying whether it settled", () => {
   expectTypeOf<typeof readout>().not.toExtend<WeightReadoutProps>();
 });
+
+test("draws both labels in the warning color", async () => {
+  const screen = await render(<WeightReadout {...readout} settled />);
+
+  for (const label of ["Peso", "Importe"]) {
+    expect(getComputedStyle(screen.getByText(label).element()).color).toBe(tokenRgb("warning"));
+  }
+  await expectNoAccessibilityViolations(screen.container);
+});

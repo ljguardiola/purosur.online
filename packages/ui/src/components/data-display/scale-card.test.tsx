@@ -45,3 +45,10 @@ test("draws a card with a reading on the warning surface and one without on the 
     tokenRgb("surface"),
   );
 });
+
+test("draws its Balanza title in the warning color", async () => {
+  const screen = await render(<ScaleCard reading={{ value: "0,172 kg", settled: true }} />);
+
+  expect(getComputedStyle(screen.getByText("Balanza").element()).color).toBe(tokenRgb("warning"));
+  await expectNoAccessibilityViolations(screen.container);
+});

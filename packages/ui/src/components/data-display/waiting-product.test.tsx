@@ -1,6 +1,7 @@
 import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { Button } from "../forms/button";
 import { WaitingProduct } from "./waiting-product";
 
 const waiting = {
@@ -52,4 +53,18 @@ test("shows nothing about other waiting products when it is given no text", asyn
   const screen = await render(<WaitingProduct {...waiting} />);
 
   expect(screen.container.textContent).not.toContain("más");
+});
+
+test("draws the discard button at the large size", async () => {
+  const screen = await render(
+    <>
+      <WaitingProduct {...waiting} />
+      <Button size="large">Large reference</Button>
+    </>,
+  );
+  const discard = screen.getByRole("button", { name: "Descartar", exact: true }).element();
+  const reference = screen.getByRole("button", { name: "Large reference" }).element();
+
+  expect(discard.getBoundingClientRect().height).toBe(reference.getBoundingClientRect().height);
+  expect(discard.getBoundingClientRect().height).toBeCloseTo(56, 0);
 });

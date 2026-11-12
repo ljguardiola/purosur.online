@@ -17,7 +17,7 @@ test("fills a stable badge with the success color and marks it with a check", as
   const screen = await render(<ScaleStatusBadge status="stable" />);
   const badge = screen.container.firstElementChild as HTMLElement;
 
-  expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("success-strong"));
+  expect(getComputedStyle(badge).backgroundColor).toBe(tokenRgb("success"));
   expect(getComputedStyle(badge).color).toBe(tokenRgb("text-inverse"));
   expect(badge.querySelector("svg")).not.toBeNull();
 });
