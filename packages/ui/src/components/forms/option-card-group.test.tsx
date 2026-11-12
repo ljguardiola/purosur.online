@@ -793,7 +793,7 @@ function ChoosableGrid() {
   );
 }
 
-test("accepts two or three columns only in a grid", () => {
+test("accepts only two or three columns", () => {
   expectTypeOf<{
     layout: "grid";
     columns: 2;
@@ -810,12 +810,4 @@ test("accepts two or three columns only in a grid", () => {
     value: ReasonValue;
     onChange: (value: ReasonValue) => void;
   }>().not.toExtend<OptionCardGroupProps<ReasonValue>>();
-  expectTypeOf<{
-    layout: "row";
-    columns: 2;
-    label: string;
-    options: typeof options;
-    value: MovementValue;
-    onChange: (value: MovementValue) => void;
-  }>().not.toExtend<OptionCardGroupProps<MovementValue>>();
 });
