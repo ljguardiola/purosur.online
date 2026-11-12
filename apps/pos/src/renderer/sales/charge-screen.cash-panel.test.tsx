@@ -106,6 +106,20 @@ it("shows the sale screen's search field above the locked lines, disabled and em
   await expect.element(search).toHaveValue("");
 });
 
+it("shows the balanza card beside the search field, with no reading", async () => {
+  const { screen } = await renderScreen();
+  await chooseCash(screen);
+
+  const search = screen.getByRole("searchbox", { name: "Producto" });
+  const label = screen.getByText("Balanza", { exact: true });
+  await expect.element(label).toBeVisible();
+  expect(label.element().parentElement?.textContent).toBe("Balanza");
+  const fieldBox = search.element().getBoundingClientRect();
+  const cardBox = label.element().getBoundingClientRect();
+  expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+  expect(cardBox.top).toBeLessThan(fieldBox.bottom);
+});
+
 it("stays on the cash charge, and shows the completed sale, when Esc is pressed while the charge is pending", async () => {
   let complete: ((outcome: ChargeSaleInCashOutcome) => void) | undefined;
   const { screen } = await renderScreen({

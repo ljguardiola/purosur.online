@@ -1,4 +1,4 @@
-import type { ScanProductOutcome } from "@purosur/contracts";
+import type { FindProductByCodeOutcome, ScanProductOutcome } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import type { SaleScreenProps } from "./sale-screen";
 import {
@@ -195,7 +195,7 @@ describe("SaleScreen reading a barcode reader's codes", () => {
       await expect.poll(() => scanProduct.mock.calls).toEqual([["7790001"]]);
     });
 
-    it("does not scan the code while the weight of a product is asked", async () => {
+    it("hands the code to the weighing's waiting list instead of scanning it while the weight of a product is asked", async () => {
       const scanProduct = vi.fn(
         async (): Promise<ScanProductOutcome> => ({
           kind: "weight_needed",
@@ -203,13 +203,19 @@ describe("SaleScreen reading a barcode reader's codes", () => {
           product_name: "Queso cremoso",
         }),
       );
-      const { screen, field, readBarcode } = await renderScreen({ scanProduct });
+      const findProductByCode = vi.fn(
+        async (): Promise<FindProductByCodeOutcome> => ({
+          kind: "unknown_code",
+        }),
+      );
+      const { screen, field, readBarcode } = await renderScreen({ scanProduct, findProductByCode });
       await scan(field, "7790009");
       await expect.element(screen.getByRole("dialog")).toBeVisible();
 
       readBarcode("7790001");
 
-      await expect.element(screen.getByText(NOT_ADDED_TITLE)).toBeVisible();
+      await expect.poll(() => findProductByCode.mock.calls).toEqual([["7790009"], ["7790001"]]);
+      await expect.element(screen.getByText(NOT_ADDED_TITLE)).not.toBeInTheDocument();
       expect(scanProduct.mock.calls).toEqual([["7790009"]]);
     });
   });

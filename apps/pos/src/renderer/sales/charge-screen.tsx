@@ -28,6 +28,7 @@ import {
   LoadingPlaceholder,
   OptionCardGroup,
   plural,
+  ScaleCard,
   ScreenHeader,
   SearchField,
 } from "@purosur/ui";
@@ -327,14 +328,19 @@ export function ChargeScreen({
         ) : null}
         {sale !== undefined && (step.name === "cash" || step.name === "completed") ? (
           <>
-            <SearchField
-              label="Producto"
-              disabled
-              placeholder="Escaneá o escribí el nombre"
-              icon={<ScanBarcode />}
-              value=""
-              onChange={() => {}}
-            />
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <SearchField
+                  label="Producto"
+                  disabled
+                  placeholder="Escaneá o escribí el nombre"
+                  icon={<ScanBarcode />}
+                  value=""
+                  onChange={() => {}}
+                />
+              </div>
+              <ScaleCard />
+            </div>
             {step.name === "cash" ? (
               <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
             ) : (
