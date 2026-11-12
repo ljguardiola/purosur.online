@@ -226,7 +226,7 @@ describe("PaymentPanel", () => {
   it("says the discount on the total is not applied while the sale has none", async () => {
     const screen = await renderPanel();
 
-    await expect.element(screen.getByText("Descuento sobre el total")).toBeVisible();
+    await expect.element(screen.getByText("Descuento al total")).toBeVisible();
     await expect.element(screen.getByText("Sin aplicar")).toBeVisible();
   });
 
@@ -234,7 +234,7 @@ describe("PaymentPanel", () => {
     const screen = await renderPanel({ saleStatus: "loading" });
 
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
-    await expect.element(screen.getByText("Descuento sobre el total")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Descuento al total")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
   });
 
@@ -248,7 +248,7 @@ describe("PaymentPanel", () => {
   it("says nothing of the discount on the total once the sale cannot be read", async () => {
     const screen = await renderPanel({ saleStatus: "failed" });
 
-    await expect.element(screen.getByText("Descuento sobre el total")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Descuento al total")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
   });
 
@@ -257,7 +257,7 @@ describe("PaymentPanel", () => {
       saleDiscount: { kind: "PERCENT", value: 5, amount: 24_000 },
     });
 
-    await expect.element(screen.getByText("Descuento sobre el total · 5 %")).toBeVisible();
+    await expect.element(screen.getByText("Descuento al total · 5 %")).toBeVisible();
     await expect.element(screen.getByText("− $ 240,00")).toBeVisible();
     await expect.element(screen.getByText("Sin aplicar")).not.toBeInTheDocument();
   });
@@ -267,7 +267,7 @@ describe("PaymentPanel", () => {
       saleDiscount: { kind: "AMOUNT", value: 24_000, amount: 24_000 },
     });
 
-    await expect.element(screen.getByText("Descuento sobre el total")).toBeVisible();
+    await expect.element(screen.getByText("Descuento al total")).toBeVisible();
     await expect.element(screen.getByText("− $ 240,00")).toBeVisible();
   });
 

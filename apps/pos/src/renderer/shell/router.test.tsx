@@ -2783,11 +2783,9 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
-    await userEvent.click(screen.getByRole("button", { name: "Vaciar carrito" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
 
-    await userEvent.click(
-      screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }),
-    );
+    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }));
 
     await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);
   });

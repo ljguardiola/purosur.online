@@ -3524,7 +3524,7 @@ describe("App", () => {
     describe("cancelling its open sale", () => {
       async function cancelFromLocked(
         cashDrawer: Parameters<typeof identifyFromLocked>[0],
-        action = "Vaciar carrito",
+        action = "Vaciar venta",
       ) {
         const identified = await identifyFromLocked({
           sessionOpenSale: async () => ({
