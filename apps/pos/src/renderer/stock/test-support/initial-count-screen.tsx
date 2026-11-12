@@ -7,9 +7,11 @@ import type {
   WeighCountedProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
-import { onTestFinished, vi } from "vitest";
+import { expect, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { BarcodeReadings } from "../../shell/barcode-readings";
+import type { RegisterStatusData } from "../../shell/register-status-context";
+import { RegisterStatusProvider } from "../../shell/register-status-context";
 import { RegisterWindow } from "../../shell/test-support/register-window";
 import { render } from "../../shell/test-support/render-with-router";
 import type { InitialCountScreenProps } from "../initial-count-screen";
@@ -34,6 +36,27 @@ export const YERBA_LINE: InitialCountLine = {
   expires_on: null,
 };
 
+export const ALMENDRAS_LINE: InitialCountLine = {
+  movement_id: "m3",
+  product_id: "p3",
+  product_name: "Almendras peladas",
+  sale_unit: "KG",
+  counted: 4500,
+  expires_on: null,
+};
+const AVENA_LINE: InitialCountLine = {
+  movement_id: "m4",
+  product_id: "p4",
+  product_name: "Avena arrollada",
+  sale_unit: "KG",
+  counted: 12_000,
+  expires_on: null,
+};
+
+export function legendOf() {
+  return Array.from(document.querySelectorAll("main ul li"), (item) => item.textContent);
+}
+
 export const YERBA_PRODUCT = {
   product_id: "p2",
   name: "Yerba mate 1 kg",
@@ -47,6 +70,25 @@ const PERSON: InitialCountScreenProps["person"] = {
   user_id: "u1",
   first_name: "Ada",
   abilities: ["record_initial_inventory"],
+};
+
+const REGISTER_STATUS: RegisterStatusData = {
+  person: PERSON,
+  registerName: "Caja 1",
+  cashSession: { status: "none" },
+  status: {
+    status: "loaded",
+    value: {
+      conditions: [],
+      cloud: "reachable",
+      serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
+      contingency: null,
+    },
+    refreshing: false,
+  },
+  backupTickets: { status: "loading" },
+  onDiscardBackupTickets: () => {},
 };
 
 export function readOf(lines: InitialCountLine[], offered = true): ReadInitialCountOutcome {
@@ -90,26 +132,28 @@ export async function renderScreen(overrides: Overrides = {}) {
   const readers = new Set<(code: string) => void>();
   const screen = await render(
     <RegisterWindow>
-      <BarcodeReadings
-        onBarcodeRead={(listener) => {
-          readers.add(listener);
-          return () => {
-            readers.delete(listener);
-          };
-        }}
-      >
-        <InitialCountScreen
-          person={overrides.person ?? PERSON}
-          signOut={() => {}}
-          readInitialCount={readInitialCount}
-          recordInitialCountLine={recordInitialCountLine}
-          withdrawInitialCountLine={withdrawInitialCountLine}
-          findCountableProduct={findCountableProduct}
-          searchCountableProducts={searchCountableProducts}
-          weighCountedProduct={weighCountedProduct}
-          onSessionInvalid={onSessionInvalid}
-        />
-      </BarcodeReadings>
+      <RegisterStatusProvider value={REGISTER_STATUS}>
+        <BarcodeReadings
+          onBarcodeRead={(listener) => {
+            readers.add(listener);
+            return () => {
+              readers.delete(listener);
+            };
+          }}
+        >
+          <InitialCountScreen
+            person={overrides.person ?? PERSON}
+            signOut={() => {}}
+            readInitialCount={readInitialCount}
+            recordInitialCountLine={recordInitialCountLine}
+            withdrawInitialCountLine={withdrawInitialCountLine}
+            findCountableProduct={findCountableProduct}
+            searchCountableProducts={searchCountableProducts}
+            weighCountedProduct={weighCountedProduct}
+            onSessionInvalid={onSessionInvalid}
+          />
+        </BarcodeReadings>
+      </RegisterStatusProvider>
     </RegisterWindow>,
   );
   return {
@@ -131,4 +175,19 @@ export async function renderScreen(overrides: Overrides = {}) {
 export async function scan(field: ReturnType<typeof page.getByRole>, code: string) {
   await field.fill(code);
   await userEvent.keyboard("{Enter}");
+}
+
+export const FOUR_LINES = [ALMENDRAS_LINE, AVENA_LINE, YERBA_LINE, QUESO_LINE];
+
+export function withdrawing(outcome: WithdrawInitialCountLineOutcome = { kind: "withdrawn" }) {
+  return vi.fn(async (_movementId: string) => outcome);
+}
+
+export async function renderLines(overrides: Parameters<typeof renderScreen>[0] = {}) {
+  const rendered = await renderScreen({
+    readInitialCount: vi.fn(async () => readOf(FOUR_LINES)),
+    ...overrides,
+  });
+  await expect.element(rendered.screen.getByRole("row")).toHaveLength(5);
+  return rendered;
 }
