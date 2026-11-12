@@ -155,8 +155,8 @@ test("names its close button by the label it shows beside the Esc keycap", async
 
   const close = screen.getByRole("button", { name: "Cambiar de medio" });
   await expect.element(close).toBeVisible();
-  await expect.element(close).toHaveTextContent("Esc");
-  await expect.element(close).toHaveTextContent("Cambiar de medio");
+  await expect.element(close).toMatchTextContent("Esc");
+  await expect.element(close).toMatchTextContent("Cambiar de medio");
   await expect
     .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
     .not.toBeInTheDocument();

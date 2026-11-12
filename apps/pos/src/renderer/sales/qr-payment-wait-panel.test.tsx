@@ -770,7 +770,7 @@ describe("QrPaymentWaitPanel", () => {
       await expect.element(screen.getByText("Pago aprobado")).not.toBeInTheDocument();
       await expect
         .element(screen.getByRole("button", { name: "Cambiar de medio" }).last())
-        .toHaveTextContent("Enter");
+        .toMatchTextContent("Enter");
       await expectNoAccessibilityViolations(screen.container);
     });
 
@@ -848,10 +848,10 @@ describe("QrPaymentWaitPanel", () => {
         .element(screen.getByText("Se puede volver a generar el QR o cobrar con otro medio."))
         .not.toBeInTheDocument();
       const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
-      expect(keys.toSorted()).toEqual(["Enter", "Esc", "F2"]);
+      expect(keys.sort()).toEqual(["Enter", "Esc", "F2"]);
       await expect
         .element(screen.getByRole("button", { name: "Volver a generar el QR" }))
-        .toHaveTextContent("F2");
+        .toMatchTextContent("F2");
       await expectNoAccessibilityViolations(screen.container);
     });
 
@@ -884,7 +884,7 @@ describe("QrPaymentWaitPanel", () => {
       await expect.element(screen.getByText("La orden QR ya estaba cerrada")).toBeVisible();
 
       expect(
-        [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent).toSorted(),
+        [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent).sort(),
       ).toEqual(["Enter", "Esc"]);
       await userEvent.keyboard("{F2}");
       await userEvent.keyboard("{Enter}");

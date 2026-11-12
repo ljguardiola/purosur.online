@@ -95,7 +95,7 @@ describe("QrChargePanel", () => {
     expect(keys).not.toContain("Tab");
     await expect
       .element(screen.getByRole("button", { name: "Cambiar de medio" }))
-      .toHaveTextContent("Esc");
+      .toMatchTextContent("Esc");
   });
 
   it("creates the order with Enter", async () => {
@@ -270,7 +270,7 @@ describe("QrChargePanel", () => {
     await expect.element(create).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Cambiar de medio" }).last())
-      .toHaveTextContent("Enter");
+      .toMatchTextContent("Enter");
   });
 
   it("clears a refusal and offers Crear orden again when the amount is edited", async () => {
