@@ -358,7 +358,7 @@ function AbandonFailedNotice() {
   return (
     <InlineNotice
       tone="error"
-      icon={<TriangleAlert />}
+      icon={<CircleX />}
       title="No se pudo cancelar la orden QR. Volvé a intentarlo en unos segundos."
     />
   );
