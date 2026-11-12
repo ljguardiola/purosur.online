@@ -108,6 +108,7 @@ describe("ChargeScreen", () => {
         rebuilt_paid_order: null,
         mercado_pago_charge_in_progress: null,
         refunds_on_cancel: [],
+        refund_now_on_cancel: 0,
         cancel_authorization_required: false,
         adjust_authorization_required: false,
         sale_discount_authorization_required: false,
