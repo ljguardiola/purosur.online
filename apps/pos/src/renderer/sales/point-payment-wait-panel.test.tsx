@@ -104,8 +104,8 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("Tarjeta, en la terminal")).not.toBeInTheDocument();
       await expect.element(screen.getByText("Pago aprobado")).toBeVisible();
       await expect
-        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }))
-        .toHaveTextContent("2:41");
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("2:41"))
+        .toBeVisible();
       await expect.element(screen.getByText("de 3:00")).not.toBeInTheDocument();
       expect(screen.getByRole("status").elements()).toHaveLength(0);
       await expectNoAccessibilityViolations(screen.container);
@@ -125,8 +125,8 @@ describe("PointPaymentWaitPanel", () => {
       );
 
       await expect
-        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }))
-        .toHaveTextContent("0:40");
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("0:40"))
+        .toBeVisible();
     });
 
     it("offers only Cambiar de medio, in the title beside its Esc key", async () => {
@@ -329,8 +329,8 @@ describe("PointPaymentWaitPanel", () => {
 
       await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
       await expect
-        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }))
-        .toHaveTextContent("0:00");
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("0:00"))
+        .toBeVisible();
     });
 
     it("tells the order expired and nothing was charged when Mercado Pago then expires it", async () => {
@@ -362,8 +362,8 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("A COBRAR")).toBeVisible();
       await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
       await expect
-        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }))
-        .toHaveTextContent("0:00");
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("0:00"))
+        .toBeVisible();
       await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
       await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
       await expect.element(screen.getByText("Con error")).toBeInTheDocument();
@@ -547,7 +547,8 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("Completado")).toBeInTheDocument();
       await expect.element(screen.getByText("Falta cobrar")).not.toBeInTheDocument();
       expect(callbacks.onCompleted).not.toHaveBeenCalled();
-      expect(buttonLabels(screen)).toEqual(["Continuar"]);
+      expect(screen.getByRole("button").elements()).toHaveLength(1);
+      await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
 
       await userEvent.keyboard("{Enter}");
@@ -574,9 +575,7 @@ describe("PointPaymentWaitPanel", () => {
       }));
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
-      await expect
-        .element(screen.getByText("Pagado en la terminal"))
-        .toBeVisible();
+      await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       expect(callbacks.onCompleted.mock.calls).toEqual([[{ ...COMPLETED, amount: 3_000_000 }]]);

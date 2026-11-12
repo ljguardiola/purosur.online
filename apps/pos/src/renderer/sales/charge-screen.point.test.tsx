@@ -206,15 +206,11 @@ describe("ChargeScreen · Point", () => {
         }),
       });
 
-      await expect
-        .element(screen.getByText("Pagado en la terminal"))
-        .toBeVisible();
+      await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect
-        .element(screen.getByText("Pagado en la terminal"))
-        .toBeVisible();
+      await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
@@ -234,7 +230,7 @@ describe("ChargeScreen · Point", () => {
       await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
     });
 
-    it("shows the whole wait as the total while the sale is read again", async () => {
+    it("keeps counting the time left while the sale is read again", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(
           saleWithChargeInProgress(DEBIT_CHARGE, 120),
@@ -246,17 +242,21 @@ describe("ChargeScreen · Point", () => {
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+      await expect
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("1:30"))
+        .toBeVisible();
     });
 
-    it("shows the whole wait as the total of a charge reopened after its wait", async () => {
+    it("shows the time as run out for a charge reopened after its wait", async () => {
       const { screen } = await renderScreen({
         currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 0)),
         followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
       });
 
       await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
-      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+      await expect
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("0:00"))
+        .toBeVisible();
     });
 
     it("tells the order expired and goes back to the methods from Cambiar de medio", async () => {
