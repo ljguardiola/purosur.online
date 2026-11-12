@@ -52,8 +52,9 @@ coordinator's answer of any id that had one, which the fix follows.
    tests under `.github/scripts/`.
    Never run the whole suite. When you touched `packages/domain` or
    `packages/contracts`, also run
-   `mise exec node@$(cat .node-version) -- pnpm mutation --mutate <each touched source file>`
-   and leave no surviving mutant in them.
+   `mise exec node@$(cat .node-version) -- pnpm mutation --mutate <touched source files>`,
+   passing every touched source file to one `--mutate` as a comma-separated
+   list (`--mutate a.ts,b.ts`), and leave no surviving mutant in them.
 6. A fix may change whatever the finding needs, inside the issue's scope. A
    fix you cannot make, or another problem a fix reveals, is reported under
    the finding, not made.
