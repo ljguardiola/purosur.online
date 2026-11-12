@@ -27,5 +27,5 @@ export const PartlyElapsed: Story = {
 };
 
 export const Over: Story = {
-  args: { remainingSeconds: 0, tone: "danger" },
+  args: { remainingSeconds: 0, tone: "error" },
 };

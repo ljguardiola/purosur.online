@@ -71,13 +71,13 @@ test("tints the card with the info surface and shows the time in bold", async ()
   expect(time.color).toBe(tokenRgb("info-strong"));
 });
 
-test("shows the danger tone with the error colors", async () => {
+test("shows the error tone with the error colors", async () => {
   const screen = await render(
     <CountdownCard
       remainingSeconds={0}
       totalSeconds={180}
       label="Tiempo para pagar"
-      tone="danger"
+      tone="error"
     />,
   );
   const timer = screen.getByRole("timer").element();
@@ -112,7 +112,7 @@ test("has no accessibility violations", async () => {
       remainingSeconds={9}
       totalSeconds={180}
       label="Tiempo para pagar"
-      tone="danger"
+      tone="error"
     />,
   );
 
@@ -123,5 +123,15 @@ test("does not accept a countdown card without a label", () => {
   expectTypeOf<{
     remainingSeconds: number;
     totalSeconds: number;
+  }>().not.toExtend<CountdownCardProps>();
+});
+
+test("takes only the info and error tones", () => {
+  expectTypeOf<NonNullable<CountdownCardProps["tone"]>>().toEqualTypeOf<"info" | "error">();
+  expectTypeOf<{
+    remainingSeconds: number;
+    totalSeconds: number;
+    label: string;
+    tone: "danger";
   }>().not.toExtend<CountdownCardProps>();
 });
