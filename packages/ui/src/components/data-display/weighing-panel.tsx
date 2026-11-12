@@ -52,7 +52,7 @@ export function WeighingPanel({
         {children}
       </div>
       {waiting === undefined ? null : (
-        <div className="border-t border-dashed border-warning-soft bg-surface">{waiting}</div>
+        <div className="border-t border-dotted border-warning-soft bg-surface">{waiting}</div>
       )}
     </section>
   );
