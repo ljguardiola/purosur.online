@@ -1,6 +1,4 @@
 import { useContext } from "react";
-import { Button as AriaButton } from "react-aria-components";
-import { Keycap } from "../data-display/keycap";
 import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
 import { toneClassName } from "../shared/tone";
@@ -14,10 +12,6 @@ export type SidePanelTitleProps = {
   closeDisabled?: boolean;
   closeLabel?: string;
 };
-
-const labelledCloseClassName =
-  "flex h-control-lg shrink-0 items-center gap-2 rounded-lg px-1 text-body font-semibold " +
-  "text-text-accent outline-none data-focus-visible:focus-ring";
 
 export function SidePanelTitle({
   icon,
@@ -38,15 +32,8 @@ export function SidePanelTitle({
         <span className={iconSlotClassName.lg}>{icon}</span>
       </span>
       <h2 className="flex-1 text-subheading font-bold text-text">{title}</h2>
-      {onClose === undefined ? null : closeLabel === undefined ? (
-        <CloseButton escapeKeycap disabled={closeDisabled} onPress={onClose} />
-      ) : (
-        <AriaButton onPress={onClose} isDisabled={closeDisabled} className={labelledCloseClassName}>
-          <span aria-hidden="true" className="flex">
-            <Keycap keyName="Escape" />
-          </span>
-          {closeLabel}
-        </AriaButton>
+      {onClose === undefined ? null : (
+        <CloseButton escapeKeycap label={closeLabel} disabled={closeDisabled} onPress={onClose} />
       )}
     </div>
   );
