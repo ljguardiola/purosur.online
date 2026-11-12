@@ -2,7 +2,7 @@ import type { ReceiptCopyShown } from "@purosur/contracts";
 import type { SaleDetail, SaleDetailCreditNote } from "../shell/sale-receipt-text";
 import { creditNotePrintButton } from "./credit-note-text";
 
-export type PrintableCreditNote = SaleDetailCreditNote & { next_copy: ReceiptCopyShown };
+type PrintableCreditNote = SaleDetailCreditNote & { next_copy: ReceiptCopyShown };
 
 export type SaleAction =
   | { kind: "print_original_receipt" }
