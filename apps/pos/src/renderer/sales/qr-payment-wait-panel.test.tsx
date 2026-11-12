@@ -38,7 +38,7 @@ function answering(...outcomes: FollowMercadoPagoChargeOutcome[]): Follow {
 
 type Abandon = (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
 
-async function renderModal(
+async function renderPanel(
   follow: Follow = answering(WAITING),
   order: ShownQrOrder = ORDER,
   abandon: Abandon = async () => ({ kind: "cancelled" }),
@@ -74,7 +74,7 @@ function arcShare(container: Element): number {
 
 describe("QrPaymentWaitPanel", () => {
   it("waits for the customer's payment showing what is owed, the order's steps and the time left", async () => {
-    const { screen } = await renderModal();
+    const { screen } = await renderPanel();
 
     await expect.element(screen.getByRole("complementary", { name: "Cobro con QR" })).toBeVisible();
     await expect.element(screen.getByRole("heading", { level: 2, name: "QR" })).toBeVisible();
@@ -99,13 +99,13 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows the whole wait the order was shown with until the core answers", async () => {
-    const { screen } = await renderModal(() => new Promise(() => {}));
+    const { screen } = await renderPanel(() => new Promise(() => {}));
 
     await expect.element(screen.getByText("3:00").first()).toBeVisible();
   });
 
   it("counts the time left out of the whole wait the order was shown with", async () => {
-    const { screen } = await renderModal(answering(WAITING), {
+    const { screen } = await renderPanel(answering(WAITING), {
       ...ORDER,
       remaining_seconds: 188,
       wait_seconds: 190,
@@ -116,7 +116,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows the whole wait as the total of a charge reopened part way through it", async () => {
-    const { screen } = await renderModal(answering({ kind: "waiting", remaining_seconds: 40 }), {
+    const { screen } = await renderPanel(answering({ kind: "waiting", remaining_seconds: 40 }), {
       ...ORDER,
       remaining_seconds: 40,
       wait_seconds: 190,
@@ -127,7 +127,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("offers only Esc Cambiar de medio while waiting, with no footer button and no key beyond Esc", async () => {
-    const { screen } = await renderModal();
+    const { screen } = await renderPanel();
 
     await expect.element(screen.getByText("2:41")).toBeVisible();
     expect(
@@ -141,7 +141,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("keeps asking the core about the payment while it waits", async () => {
-    const { followCharge } = await renderModal();
+    const { followCharge } = await renderPanel();
 
     await expect
       .poll(() => followCharge.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
@@ -150,7 +150,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows the customer paid, with the amount, and advances only from Continuar once the payment is approved", async () => {
-    const { screen, callbacks } = await renderModal(answering(WAITING, COMPLETED));
+    const { screen, callbacks } = await renderPanel(answering(WAITING, COMPLETED));
 
     await expect
       .element(screen.getByText("Pagado con QR"), {
@@ -170,7 +170,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("offers only Continuar once the payment is approved", async () => {
-    const { screen } = await renderModal(answering(COMPLETED));
+    const { screen } = await renderPanel(answering(COMPLETED));
 
     await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeVisible();
     expect(
@@ -182,7 +182,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows what is still to be charged and goes back to the methods only from Continuar when the approved payment pays part of the sale", async () => {
-    const { screen, callbacks } = await renderModal(answering(PARTIALLY_PAID));
+    const { screen, callbacks } = await renderPanel(answering(PARTIALLY_PAID));
 
     await expect.element(screen.getByText("Pagado con QR")).toBeVisible();
     await expect.element(screen.getByText("Pagado con QR")).toBeVisible();
@@ -197,7 +197,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("says the core could not tell how the payment goes and asks again from Reintentar", async () => {
-    const { screen, followCharge, callbacks } = await renderModal(
+    const { screen, followCharge, callbacks } = await renderPanel(
       answering({ kind: "unavailable" }, WAITING),
     );
 
@@ -212,7 +212,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("offers Reintentar and Esc Cambiar de medio when the core cannot tell how the payment goes", async () => {
-    const { screen } = await renderModal(answering({ kind: "unavailable" }));
+    const { screen } = await renderPanel(answering({ kind: "unavailable" }));
 
     await expect.element(screen.getByText("No se pudo consultar el pago del QR")).toBeVisible();
 
@@ -225,7 +225,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("abandons the order from Cambiar de medio when the core cannot tell how the payment goes", async () => {
-    const { screen, abandonCharge, callbacks } = await renderModal(
+    const { screen, abandonCharge, callbacks } = await renderPanel(
       answering({ kind: "unavailable" }),
     );
 
@@ -244,7 +244,7 @@ describe("QrPaymentWaitPanel", () => {
         answerAgain = resolve;
       }),
     ];
-    const { screen } = await renderModal(() => answers.shift() ?? Promise.resolve(WAITING));
+    const { screen } = await renderPanel(() => answers.shift() ?? Promise.resolve(WAITING));
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -258,7 +258,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("says Mercado Pago declined the payment and goes back to the methods from Cambiar de medio", async () => {
-    const { screen, callbacks } = await renderModal(answering({ kind: "declined" }));
+    const { screen, callbacks } = await renderPanel(answering({ kind: "declined" }));
 
     await expect.element(screen.getByText("Mercado Pago rechazó el pago")).toBeVisible();
     await expect
@@ -272,7 +272,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows the countdown over and keeps waiting for Mercado Pago to say the order expired", async () => {
-    const { screen, followCharge } = await renderModal(
+    const { screen, followCharge } = await renderPanel(
       answering({ kind: "waiting", remaining_seconds: 0 }),
     );
 
@@ -287,7 +287,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("says Mercado Pago no longer accepts the order once it answers expired, and goes back to the methods without cancelling anything", async () => {
-    const { screen, abandonCharge, callbacks } = await renderModal(
+    const { screen, abandonCharge, callbacks } = await renderPanel(
       answering({ kind: "wait_over" }),
     );
 
@@ -309,7 +309,7 @@ describe("QrPaymentWaitPanel", () => {
     const UNCONFIRMED: FollowMercadoPagoChargeOutcome = { kind: "expiry_unconfirmed" };
 
     async function renderUnconfirmed(abandon?: Abandon, follow: Follow = answering(UNCONFIRMED)) {
-      const rendered = await renderModal(follow, ORDER, abandon);
+      const rendered = await renderPanel(follow, ORDER, abandon);
       await expect
         .element(rendered.screen.getByText("No se pudo confirmar el vencimiento del QR"))
         .toBeVisible();
@@ -448,7 +448,7 @@ describe("QrPaymentWaitPanel", () => {
   ] as const)(
     "leaves the charge when the sale can no longer be charged ($kind)",
     async (outcome) => {
-      const { callbacks } = await renderModal(answering(outcome));
+      const { callbacks } = await renderPanel(answering(outcome));
 
       await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBe(1);
     },
@@ -457,14 +457,14 @@ describe("QrPaymentWaitPanel", () => {
   it.each([{ kind: "not_signed_in" }, { kind: "no_open_session" }] as const)(
     "leaves the charge when the session is no longer valid ($kind)",
     async (outcome) => {
-      const { callbacks } = await renderModal(answering(outcome));
+      const { callbacks } = await renderPanel(answering(outcome));
 
       await expect.poll(() => callbacks.onSessionInvalid.mock.calls.length).toBe(1);
     },
   );
 
-  it("abandons the order from Cobrar con otro medio and leaves the charge once it is cancelled", async () => {
-    const { screen, abandonCharge, callbacks } = await renderModal();
+  it("abandons the order from Cambiar de medio and leaves the charge once it is cancelled", async () => {
+    const { screen, abandonCharge, callbacks } = await renderPanel();
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
@@ -473,9 +473,9 @@ describe("QrPaymentWaitPanel", () => {
     expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
   });
 
-  it("disables Cobrar con otro medio while the core abandons the order, and stops asking about the payment", async () => {
+  it("disables Cambiar de medio while the core abandons the order, and stops asking about the payment", async () => {
     let answer: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
-    const { screen, followCharge, abandonCharge } = await renderModal(
+    const { screen, followCharge, abandonCharge } = await renderPanel(
       answering(WAITING),
       ORDER,
       () =>
@@ -498,7 +498,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("does not abandon anything from the Cambiar de medio of a declined order", async () => {
-    const { screen, abandonCharge, callbacks } = await renderModal(answering({ kind: "declined" }));
+    const { screen, abandonCharge, callbacks } = await renderPanel(answering({ kind: "declined" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
 
@@ -507,7 +507,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows the customer paid when the cancellation finds the order paid, and reports the completed sale only from Continuar", async () => {
-    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+    const { screen, callbacks } = await renderPanel(answering(WAITING), ORDER, async () => ({
       kind: "already_paid",
       settlement: COMPLETED,
     }));
@@ -525,7 +525,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("shows the customer paid when the cancellation finds the order paid part of the sale, and goes back to the methods only from Continuar", async () => {
-    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+    const { screen, callbacks } = await renderPanel(answering(WAITING), ORDER, async () => ({
       kind: "already_paid",
       settlement: PARTIALLY_PAID,
     }));
@@ -551,7 +551,7 @@ describe("QrPaymentWaitPanel", () => {
   ] as const)(
     "goes back to the methods to read the sale again when the order is %s",
     async (_name, outcome) => {
-      const { screen, callbacks } = await renderModal(
+      const { screen, callbacks } = await renderPanel(
         answering(WAITING),
         ORDER,
         async () => outcome,
@@ -574,7 +574,7 @@ describe("QrPaymentWaitPanel", () => {
     async (_name, outcome) => {
       let settleFollow: (outcome: FollowMercadoPagoChargeOutcome) => void = () => undefined;
       let answerAbandon: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
-      const { screen, abandonCharge, callbacks } = await renderModal(
+      const { screen, abandonCharge, callbacks } = await renderPanel(
         () =>
           new Promise((resolve) => {
             settleFollow = resolve;
@@ -601,7 +601,7 @@ describe("QrPaymentWaitPanel", () => {
   );
 
   it("says the order was already closed and nothing was charged, and goes back to the methods", async () => {
-    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+    const { screen, callbacks } = await renderPanel(answering(WAITING), ORDER, async () => ({
       kind: "closed",
     }));
 
@@ -619,7 +619,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("warns that the cancellation could not be confirmed and that a late payment opens a refund task", async () => {
-    const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+    const { screen, callbacks } = await renderPanel(answering(WAITING), ORDER, async () => ({
       kind: "replaced",
     }));
 
@@ -652,7 +652,7 @@ describe("QrPaymentWaitPanel", () => {
   ] as const)(
     "leaves the charge when abandoning finds the sale can no longer be charged ($kind)",
     async (outcome) => {
-      const { screen, callbacks } = await renderModal(
+      const { screen, callbacks } = await renderPanel(
         answering(WAITING),
         ORDER,
         async () => outcome,
@@ -667,7 +667,7 @@ describe("QrPaymentWaitPanel", () => {
   it.each([{ kind: "not_signed_in" }, { kind: "no_open_session" }] as const)(
     "leaves the charge when abandoning finds the session is no longer valid ($kind)",
     async (outcome) => {
-      const { screen, callbacks } = await renderModal(
+      const { screen, callbacks } = await renderPanel(
         answering(WAITING),
         ORDER,
         async () => outcome,
@@ -684,7 +684,7 @@ describe("QrPaymentWaitPanel", () => {
       { kind: "unavailable" },
       { kind: "cancelled" },
     ];
-    const { screen, abandonCharge, callbacks } = await renderModal(
+    const { screen, abandonCharge, callbacks } = await renderPanel(
       answering(WAITING),
       ORDER,
       async () => answers.shift() ?? { kind: "cancelled" },
@@ -707,7 +707,7 @@ describe("QrPaymentWaitPanel", () => {
     expect(abandonCharge).toHaveBeenCalledTimes(2);
   });
   it("abandons the order with Esc while waiting", async () => {
-    const { screen, abandonCharge, callbacks } = await renderModal();
+    const { screen, abandonCharge, callbacks } = await renderPanel();
     await expect.element(screen.getByText("2:41")).toBeVisible();
 
     await userEvent.keyboard("{Escape}");
@@ -717,7 +717,7 @@ describe("QrPaymentWaitPanel", () => {
   });
 
   it("abandons the order once, not again, with Esc while it is being abandoned", async () => {
-    const { screen, abandonCharge } = await renderModal(
+    const { screen, abandonCharge } = await renderPanel(
       answering(WAITING),
       ORDER,
       () => new Promise(() => {}),
@@ -736,7 +736,7 @@ describe("QrPaymentWaitPanel", () => {
         { kind: "unavailable" },
         { kind: "cancelled" },
       ];
-      const rendered = await renderModal(
+      const rendered = await renderPanel(
         answering(WAITING),
         ORDER,
         async () => answers.shift() ?? { kind: "cancelled" },
@@ -787,7 +787,7 @@ describe("QrPaymentWaitPanel", () => {
 
   describe("paid", () => {
     it("shows the QR panel with what was charged and Continuar with Enter, without Esc", async () => {
-      const { screen, callbacks } = await renderModal(answering(COMPLETED));
+      const { screen, callbacks } = await renderPanel(answering(COMPLETED));
 
       await expect.element(screen.getByRole("heading", { level: 2, name: "QR" })).toBeVisible();
       await expect.element(screen.getByText("COBRADO")).toBeVisible();
@@ -801,7 +801,7 @@ describe("QrPaymentWaitPanel", () => {
     });
 
     it("goes back to the methods with Enter when only part of the sale was paid", async () => {
-      const { screen, callbacks } = await renderModal(answering(PARTIALLY_PAID));
+      const { screen, callbacks } = await renderPanel(answering(PARTIALLY_PAID));
       await expect.element(screen.getByText("Falta cobrar")).toBeVisible();
 
       await userEvent.keyboard("{Enter}");
@@ -825,7 +825,7 @@ describe("QrPaymentWaitPanel", () => {
     },
   ] as const)("when the order is $name", ({ follow, title, description }) => {
     async function renderEnded() {
-      const rendered = await renderModal(answering(follow));
+      const rendered = await renderPanel(answering(follow));
       await expect.element(rendered.screen.getByText(title)).toBeVisible();
       return rendered;
     }
@@ -869,7 +869,7 @@ describe("QrPaymentWaitPanel", () => {
 
   describe("when the order is closed, replaced or not confirmed to have expired", () => {
     it("closed: informs nothing was charged, with no regenerate and Cambiar de medio on Enter and Esc", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+      const { screen, callbacks } = await renderPanel(answering(WAITING), ORDER, async () => ({
         kind: "closed",
       }));
       await userEvent.keyboard("{Escape}");
@@ -886,7 +886,7 @@ describe("QrPaymentWaitPanel", () => {
     });
 
     it("replaced: offers Cobrar con otro medio on Enter and Cambiar de medio on Esc, with no regenerate", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAITING), ORDER, async () => ({
+      const { screen, callbacks } = await renderPanel(answering(WAITING), ORDER, async () => ({
         kind: "replaced",
       }));
       await userEvent.keyboard("{Escape}");
@@ -905,7 +905,7 @@ describe("QrPaymentWaitPanel", () => {
     });
 
     it("not confirmed to have expired: cancels the order with Esc and with Enter, with no regenerate", async () => {
-      const { screen, abandonCharge, callbacks } = await renderModal(
+      const { screen, abandonCharge, callbacks } = await renderPanel(
         answering({ kind: "expiry_unconfirmed" }),
       );
       await expect

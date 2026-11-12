@@ -1,4 +1,7 @@
-import type { PaymentMethodAvailability } from "@purosur/contracts";
+import type {
+  AbandonMercadoPagoChargeOutcome,
+  PaymentMethodAvailability,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -365,6 +368,41 @@ describe("ChargeScreen · QR", () => {
     expect(startMercadoPagoCharge.mock.calls[1]).toEqual(["sale-1", { method: "QR" }, 300_000]);
   });
 
+  it("stays on the paid QR charge when Esc is pressed, until Continuar completes the sale", async () => {
+    const { screen } = await renderScreen({
+      method: "QR",
+      followMercadoPagoCharge: async () => ({
+        kind: "completed",
+        sale_id: "sale-1",
+        total: 476_000,
+      }),
+    });
+    await userEvent.keyboard("{Enter}");
+    await expect.element(screen.getByText("Pagado con QR")).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    expect(screen.router.state.location.pathname).toBe("/");
+  });
+
+  it("offers the methods when the QR is regenerated with F2 while the availability cannot be read", async () => {
+    const { screen } = await renderScreen({
+      currentSale: readsInTurn(saleWithChargeInProgress({ method: "QR" }, 120), SALE_OF_ONE_LINE),
+      paymentMethodAvailability: async () => null,
+      followMercadoPagoCharge: async () => ({ kind: "declined" }),
+    });
+    await expect.element(screen.getByText("Mercado Pago rechazó el pago")).toBeVisible();
+
+    await userEvent.keyboard("{F2}");
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+  });
+
   describe("abandoning the order to charge another way", () => {
     async function waitForOrder(
       overrides: Parameters<typeof renderScreen>[0] = {},
@@ -514,6 +552,42 @@ describe("ChargeScreen · QR", () => {
         .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
         .not.toBeInTheDocument();
     });
+
+    it.each<[string, string | undefined, () => Promise<unknown>]>([
+      ["waiting for the payment", undefined, () => userEvent.keyboard("{Escape}")],
+      [
+        "unsure the order expired",
+        "No se pudo confirmar el vencimiento del QR",
+        () => userEvent.keyboard("{Enter}"),
+      ],
+    ])(
+      "stays on the charge when Esc is pressed again while the order %s is being abandoned",
+      async (_state, shown, leave) => {
+        let answer: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
+        const { screen, abandonMercadoPagoCharge } = await waitForOrder(
+          {
+            ...(shown === undefined
+              ? {}
+              : { followMercadoPagoCharge: async () => ({ kind: "expiry_unconfirmed" }) }),
+            abandonMercadoPagoCharge: () =>
+              new Promise((resolve) => {
+                answer = resolve;
+              }),
+          },
+          shown,
+        );
+
+        await leave();
+        await expect.poll(() => abandonMercadoPagoCharge.mock.calls.length).toBe(1);
+        await userEvent.keyboard("{Escape}");
+        answer({ kind: "cancelled" });
+
+        await expect
+          .element(screen.getByRole("status").getByText("Se canceló la orden QR."))
+          .toBeVisible();
+        expect(screen.router.state.location.pathname).toBe("/");
+      },
+    );
 
     it("goes back to the methods to read the sale again when the order is not pending", async () => {
       const { screen, currentSale } = await waitForOrder({
