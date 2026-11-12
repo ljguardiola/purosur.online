@@ -123,18 +123,13 @@ function reprintNextCopy(
   }
 }
 
-function panelShown(
-  open: OpenPanel | undefined,
-  shown: SaleDetail | undefined,
-): OpenPanel | undefined {
-  if (open === undefined || shown === undefined) {
-    return undefined;
+function panelOffered(open: OpenPanel, shown: SaleDetail | undefined): boolean {
+  if (shown === undefined) {
+    return false;
   }
-  const stillOffered =
-    open.kind === "void"
-      ? shown.voidability.kind === "voidable"
-      : reprintNextCopy(open, shown)?.kind === "duplicate";
-  return stillOffered ? open : undefined;
+  return open.kind === "void"
+    ? shown.voidability.kind === "voidable"
+    : reprintNextCopy(open, shown)?.kind === "duplicate";
 }
 
 function emptyStateOf(
@@ -225,7 +220,10 @@ export function SalesHistoryScreen({
   const sale =
     detail.status === "loaded" && detail.value.kind === "found" ? detail.value.detail : undefined;
   const actions = sale === undefined ? undefined : saleActionsOf(sale);
-  const shownPanel = panelShown(panel, sale);
+  const shownPanel = panel !== undefined && panelOffered(panel, sale) ? panel : undefined;
+  if (panel !== undefined && shownPanel === undefined) {
+    setPanel(undefined);
+  }
 
   useEffect(() => {
     if (selectedId !== undefined) {
