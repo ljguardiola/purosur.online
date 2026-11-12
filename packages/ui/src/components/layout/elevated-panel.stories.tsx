@@ -37,3 +37,11 @@ export const WithEscapeKey: Story = {
     escapeKey: { name: "Volver con Esc", onPress: () => {} },
   },
 };
+
+export const WithoutEyebrow: Story = {
+  render: ({ title, icon, children }) => (
+    <ElevatedPanel title={title} icon={icon}>
+      {children}
+    </ElevatedPanel>
+  ),
+};
