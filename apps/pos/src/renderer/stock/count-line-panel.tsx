@@ -351,7 +351,13 @@ export function CountLinePanel({
           ) : null}
         </div>
         <form.AppField name="expiresOn" listeners={{ onChange: clearNotices }}>
-          {(expiresOn) => <expiresOn.DateField label="Vencimiento" disabled={submitting} />}
+          {(expiresOn) => (
+            <expiresOn.DateField
+              label="Vencimiento"
+              placeholder="Sin vencimiento"
+              disabled={submitting}
+            />
+          )}
         </form.AppField>
         {shownNotice === undefined ? null : (
           <InlineNotice

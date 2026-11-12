@@ -27,6 +27,8 @@ import {
   dialogClassName,
   emptySeparatorClassName,
   inputBaseClassName,
+  placeholderClassName,
+  placeholderHiddenInputClassName,
   popoverClassName,
   registerFrameClassName,
   registerValueClassName,
@@ -61,6 +63,7 @@ type DateFieldCommonProps = {
   description?: string;
   disabled?: boolean;
   required?: boolean;
+  placeholder?: string;
 };
 
 type DateFieldRangeProps =
@@ -73,7 +76,16 @@ export type DateFieldProps = DateFieldCommonProps & FieldErrorProps & DateFieldR
 const LOCALE: Locale = "es-AR";
 
 export function DateField(props: DateFieldProps) {
-  const { name, label, value, onChange, description, disabled = false, required = false } = props;
+  const {
+    name,
+    label,
+    value,
+    onChange,
+    description,
+    disabled = false,
+    required = false,
+    placeholder,
+  } = props;
   const size = useFieldSize();
   const { errorMessage, errorMessageId } = fieldError(props);
   // react-aria-components' Dialog defaults to the field's own label for its aria-labelledby;
@@ -94,6 +106,7 @@ export function DateField(props: DateFieldProps) {
     size === "backoffice" ? backofficeFieldBoxClassName : registerFrameClassName;
   const valueClassName =
     size === "backoffice" ? backofficeFieldValueClassName : registerValueClassName;
+  const showsPlaceholder = placeholder !== undefined && value === null;
 
   return (
     <I18nProvider locale={LOCALE}>
@@ -117,10 +130,12 @@ export function DateField(props: DateFieldProps) {
           {label}
         </AriaLabel>
         <AriaGroup
-          className={`${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
+          className={`group ${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
         >
           {size === "register" && <CalendarToggleButton label={label} disabled={disabled} />}
-          <AriaDateInput className={`${inputBaseClassName} ${valueClassName}`}>
+          <AriaDateInput
+            className={`${inputBaseClassName} ${valueClassName} ${showsPlaceholder ? placeholderHiddenInputClassName : ""}`}
+          >
             {(segment) => (
               <AriaDateSegment
                 segment={segment}
@@ -132,6 +147,11 @@ export function DateField(props: DateFieldProps) {
               />
             )}
           </AriaDateInput>
+          {showsPlaceholder ? (
+            <span aria-hidden="true" className={placeholderClassName}>
+              {placeholder}
+            </span>
+          ) : null}
           {size === "backoffice" && <CalendarToggleButton label={label} disabled={disabled} />}
         </AriaGroup>
         {shownError !== undefined ? (
