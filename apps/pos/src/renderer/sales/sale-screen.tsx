@@ -981,18 +981,6 @@ export function SaleScreen({
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
   const lockedReason = linesLock === null ? undefined : LOCKED_REASONS[linesLock];
-  const scanFieldLocked = lockedReason !== undefined;
-  useEffect(() => {
-    const input = field.current?.querySelector("input");
-    if (
-      scanFieldLocked &&
-      input !== null &&
-      input !== undefined &&
-      document.activeElement === input
-    ) {
-      input.blur();
-    }
-  }, [scanFieldLocked]);
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
 
   async function askToCancelSale() {
