@@ -117,15 +117,16 @@ describe("PointPaymentWaitPanel", () => {
       await expect.element(screen.getByText("3:00").first()).toBeVisible();
     });
 
-    it("shows the whole wait as the total of a charge reopened part way through it", async () => {
+    it("shows the time left of a charge reopened part way through it", async () => {
       const { screen } = await renderPanel(
         answering({ kind: "waiting", remaining_seconds: 40 }),
         undefined,
         { ...ORDER, remaining_seconds: 40 },
       );
 
-      await expect.element(screen.getByText("0:40")).toBeVisible();
-      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+      await expect
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }))
+        .toHaveTextContent("0:40");
     });
 
     it("offers only Cambiar de medio, in the title beside its Esc key", async () => {
