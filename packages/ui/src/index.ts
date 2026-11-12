@@ -63,6 +63,8 @@ export type { TextPreviewProps } from "./components/data-display/text-preview";
 export { TextPreview } from "./components/data-display/text-preview";
 export type { CountdownBarProps } from "./components/feedback/countdown-bar";
 export { CountdownBar } from "./components/feedback/countdown-bar";
+export type { CountdownCardProps } from "./components/feedback/countdown-card";
+export { CountdownCard } from "./components/feedback/countdown-card";
 export type { CountdownRingProps } from "./components/feedback/countdown-ring";
 export { CountdownRing } from "./components/feedback/countdown-ring";
 export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
