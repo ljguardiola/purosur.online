@@ -61,6 +61,8 @@ export interface SaleHistoryDetail {
   operationNumber: number | null;
   servedByFirstName: string;
   lineCount: number;
+  lines: SaleHistoryRecord["lines"];
+  cashRounding: number;
   payments: SaleHistoryRecord["payments"];
   standing: SaleStanding;
   voidability: SaleVoidability;

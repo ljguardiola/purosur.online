@@ -1,14 +1,17 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
   FISCAL_AUTHORIZATIONS,
+  mayBeCashRounding,
   PAYMENT_METHODS,
   PLANNED_REFUND_STATES,
   POINT_CARD_TYPES,
   SALE_STANDINGS,
+  SALE_UNITS,
   SALE_VOID_REFUSALS,
 } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
+import { shownLineQuantitySchema } from "./sale.js";
 import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 export const receiptCopySchema = z.discriminatedUnion("kind", [
@@ -87,6 +90,15 @@ const saleHistoryDetailSchema = z.object({
   operation_number: operationNumberSchema,
   served_by_first_name: z.string(),
   line_count: z.int().nonnegative(),
+  lines: z.array(
+    z.object({
+      product_name: z.string(),
+      sale_unit: z.enum(SALE_UNITS),
+      quantity: shownLineQuantitySchema,
+      line_total: z.int(),
+    }),
+  ),
+  cash_rounding: z.int().refine(mayBeCashRounding),
   payments: z.array(
     z.object({
       method: z.enum(PAYMENT_METHODS),

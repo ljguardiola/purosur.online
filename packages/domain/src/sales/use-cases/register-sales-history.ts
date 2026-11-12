@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type { CreditNoteOrigin, SaleInvoice, VoidCreditNoteStanding } from "../../fiscal/index.js";
 import type { PointCardType } from "../../payments/index.js";
 import type { CompletedSalePayment } from "../model/completed-sale.js";
@@ -32,12 +33,21 @@ export interface SaleHistoryCreditNote {
   standing: VoidCreditNoteStanding;
 }
 
+export interface SaleHistoryLine {
+  productName: string;
+  saleUnit: SaleUnit;
+  quantity: number;
+  lineTotal: number;
+}
+
 export interface SaleHistoryRecord {
   saleId: string;
   occurredAt: Date;
   operationNumber: number | null;
   servedByFirstName: string;
   lineCount: number;
+  lines: SaleHistoryLine[];
+  cashRounding: number;
   total: number;
   payments: { method: PaymentMethod; amount: number; cardType: PointCardType | null }[];
   fiscal: SaleFiscalFacts;

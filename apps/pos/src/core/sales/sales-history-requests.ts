@@ -134,6 +134,13 @@ export async function saleHistoryDetailFor(
       operation_number: detail.operationNumber,
       served_by_first_name: detail.servedByFirstName,
       line_count: detail.lineCount,
+      lines: detail.lines.map(({ productName, saleUnit, quantity, lineTotal }) => ({
+        product_name: productName,
+        sale_unit: saleUnit,
+        quantity,
+        line_total: lineTotal,
+      })),
+      cash_rounding: detail.cashRounding,
       payments: detail.payments.map(({ cardType, ...payment }) => ({
         ...payment,
         card_type: cardType,

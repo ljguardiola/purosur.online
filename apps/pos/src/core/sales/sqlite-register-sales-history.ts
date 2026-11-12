@@ -10,10 +10,12 @@ import {
   type SaleFiscalFacts,
   type SaleStanding,
   type SaleStandingDefinition,
+  type SaleUnit,
   saleFiscalDocumentAmong,
 } from "@purosur/domain";
 import type {
   RegisterSalesHistory,
+  SaleHistoryLine,
   SaleHistoryRecord,
   SalesHistoryEntry,
   SalesHistoryFilter,
@@ -38,6 +40,14 @@ interface DetailRow extends SaleRow {
   line_count: number;
   in_open_session: 0 | 1;
   deferred_short_code: string | null;
+  cash_rounding: number;
+}
+
+interface LineRow {
+  product_name: string;
+  sale_unit: SaleUnit;
+  quantity: number;
+  line_total: number;
 }
 
 interface FiscalDocumentRow {
@@ -139,6 +149,7 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       .prepare<[string], DetailRow>(
         `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
                 sales.operation_number AS operation_number, users.first_name AS first_name,
+                sales.cash_rounding AS cash_rounding,
                 ${VOIDED} AS voided, (${IN_THE_OPEN_SESSION}) AS in_open_session,
                 (SELECT count(*) FROM sale_lines WHERE sale_lines.sale_id = sales.id) AS line_count,
                 (SELECT short_code FROM deferred_sales WHERE deferred_sales.sale_id = sales.id)
@@ -156,6 +167,8 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       operationNumber: sale.operation_number,
       servedByFirstName: sale.first_name,
       lineCount: sale.line_count,
+      lines: this.linesOf(sale.id),
+      cashRounding: sale.cash_rounding,
       total: this.totalOf(sale.id),
       payments: readSalePayments(this.database, sale.id).map((payment) => ({
         method: payment.method,
@@ -214,6 +227,21 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       fiscal: this.fiscalFactsOfSale(row.id),
       voided: row.voided === 1,
     };
+  }
+
+  private linesOf(saleId: string): SaleHistoryLine[] {
+    return this.database
+      .prepare<[string], LineRow>(
+        `SELECT product_name, sale_unit, quantity, line_total FROM sale_lines
+         WHERE sale_id = ? ORDER BY position`,
+      )
+      .all(saleId)
+      .map(({ product_name, sale_unit, quantity, line_total }) => ({
+        productName: product_name,
+        saleUnit: sale_unit,
+        quantity,
+        lineTotal: line_total,
+      }));
   }
 
   private hasReturn(saleId: string): boolean {

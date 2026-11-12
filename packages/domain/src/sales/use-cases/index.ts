@@ -264,6 +264,7 @@ export type { RegisterRestoration } from "./register-restoration.js";
 export type {
   RegisterSalesHistory,
   SaleHistoryCreditNote,
+  SaleHistoryLine,
   SaleHistoryRecord,
   SalesHistoryEntry,
   SalesHistoryFilter,
