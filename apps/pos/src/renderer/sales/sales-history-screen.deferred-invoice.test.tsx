@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import type { SaleDetail } from "../shell/sale-receipt-text";
-import { DETAIL, detailPanel, renderScreen } from "./test-support/sales-history-screen";
+import {
+  DETAIL,
+  detailPanel,
+  FISCAL_ROW,
+  legendOf,
+  pageOf,
+  renderScreen,
+  searchField,
+} from "./test-support/sales-history-screen";
 
 const DEFERRED: SaleDetail = {
   ...DETAIL,
@@ -129,5 +137,34 @@ describe("SalesHistoryScreen invoice of a deferred sale", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
+  });
+
+  it("prints the invoice of a deferred sale found by its number with Enter, once the core issued it unprinted", async () => {
+    const { screen, salesHistory, printDeferredSaleInvoice } = await renderScreen({
+      salesHistory: async () => pageOf([FISCAL_ROW]),
+      saleHistoryDetail: async () => ({
+        kind: "found",
+        detail: {
+          ...DETAIL,
+          voidability: { kind: "not_voidable", refusal: "not_completed" },
+          deferred_invoice_next_copy: { kind: "original" },
+        },
+      }),
+    });
+
+    await userEvent.type(searchField(screen), "0003-00001248");
+    await expect
+      .poll(() => salesHistory.mock.calls.at(-1)?.[0].document)
+      .toEqual({ pointOfSale: 3, number: 1248 });
+    await expect
+      .element(detailPanel(screen).getByRole("button", { name: "Imprimir factura" }))
+      .toBeVisible();
+    await expect
+      .poll(() => legendOf(screen))
+      .toEqual(["↑↓Ventas", "F2Buscar", "EnterImprimir factura"]);
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(printDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith("sale-1");
   });
 });

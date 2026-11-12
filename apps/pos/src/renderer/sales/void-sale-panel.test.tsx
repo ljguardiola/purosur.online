@@ -1,5 +1,5 @@
 import type { Authorization, SignInUser, VoidSaleOutcome } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { RegisterFrame } from "../shell/register-frame";
@@ -166,6 +166,12 @@ describe("VoidSalePanel", () => {
 
     await expect.element(panel.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
     await expect.element(panel.getByText("Pide autorización")).toBeInTheDocument();
+    const badge = getComputedStyle(
+      panel.getByRole("heading", { name: /Anular venta/ }).element()
+        .previousElementSibling as Element,
+    );
+    expect(badge.backgroundColor).toBe(tokenRgb("error-subtle"));
+    expect(badge.color).toBe(tokenRgb("error-strong"));
   });
 
   it("shows no lock when nobody else must authorize", async () => {

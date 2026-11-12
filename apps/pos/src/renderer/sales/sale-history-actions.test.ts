@@ -193,6 +193,24 @@ describe("saleActionsOf a voided sale", () => {
     ]);
   });
 
+  it("reprints the ticket, not a factura, of a voided sale that has no fiscal document", () => {
+    const { entries } = saleActionsOf({
+      ...VOIDED,
+      comprobante: { kind: "none" },
+      credit_notes: [],
+    });
+
+    expect(entries).toEqual([
+      {
+        key: "F6",
+        legend: "Ticket",
+        label: "Reimprimir ticket",
+        primary: false,
+        action: { kind: "reprint_receipt" },
+      },
+    ]);
+  });
+
   it("offers no F5 when its credit note cannot be printed", () => {
     const { entries } = saleActionsOf({ ...VOIDED, credit_notes: [] });
 
@@ -207,6 +225,23 @@ describe("saleActionsOf a deferred sale", () => {
       state: "deferred",
       comprobante: { kind: "deferred_non_fiscal" },
       next_copy: { kind: "original" },
+    });
+
+    expect(entries).toEqual([
+      {
+        key: "Enter",
+        legend: "Imprimir factura",
+        label: "Imprimir factura",
+        primary: true,
+        action: { kind: "print_deferred_invoice" },
+      },
+    ]);
+  });
+
+  it("prints the invoice the core issued but never printed with Enter, offering no other print", () => {
+    const { entries } = saleActionsOf({
+      ...DETAIL,
+      deferred_invoice_next_copy: { kind: "original" },
     });
 
     expect(entries).toEqual([

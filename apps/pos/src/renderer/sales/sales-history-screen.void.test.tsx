@@ -165,6 +165,33 @@ describe("SalesHistoryScreen voiding a sale", () => {
     await expect.poll(() => saleHistoryDetail.mock.calls.length).toBe(2);
   });
 
+  it("gives the list back when the core refuses to void and the sale it reads again can no longer be voided", async () => {
+    let refused = false;
+    const { screen, saleHistoryDetail } = await openVoidPanel({
+      voidSale: async () => {
+        refused = true;
+        return { kind: "session_closed" };
+      },
+      saleHistoryDetail: async () => ({
+        kind: "found",
+        detail: refused
+          ? { ...DETAIL, voidability: { kind: "not_voidable", refusal: "session_closed" } }
+          : DETAIL,
+      }),
+    });
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(voidPanel(screen)).not.toBeInTheDocument();
+    await expect.poll(() => legendOf(screen)).toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir"]);
+    await expect.element(searchField(screen)).toBeEnabled();
+    await expect
+      .element(table(screen).getByRole("row", { name: /10:20/ }))
+      .not.toHaveAttribute("aria-disabled");
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => saleHistoryDetail.mock.calls.at(-1)).toEqual(["sale-2"]);
+  });
+
   it("closes the panel when the core cannot find the sale", async () => {
     const { screen } = await openVoidPanel({ voidSale: async () => ({ kind: "not_found" }) });
 
