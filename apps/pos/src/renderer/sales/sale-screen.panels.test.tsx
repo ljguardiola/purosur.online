@@ -80,7 +80,7 @@ describe("SaleScreen opening the panels with F6, F7 and F8", () => {
 
   it("opens the cancellation on F8 when the sale has payments", async () => {
     const { screen } = await renderScreen({ currentSale: async () => PAID_SALE });
-    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    await userEvent.click(screen.getByText("Yerba mate 1 kg"));
 
     await userEvent.keyboard("{F8}");
 
