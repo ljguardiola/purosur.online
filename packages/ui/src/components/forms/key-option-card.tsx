@@ -30,11 +30,11 @@ export function KeyOptionCard({
     >
       <span
         aria-hidden="true"
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-soft text-text"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-action-subtle text-text-accent"
       >
-        <span className={iconSlotClassName.lg}>{icon}</span>
+        <span className={iconSlotClassName.md}>{icon}</span>
       </span>
-      <span className="min-w-0 flex-1 truncate text-subheading font-bold text-text">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-body font-bold text-text">{label}</span>
       <span aria-hidden="true" className="flex">
         <Keycap keyName={keyName} />
       </span>
