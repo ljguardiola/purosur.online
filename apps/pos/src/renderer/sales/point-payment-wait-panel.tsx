@@ -5,7 +5,7 @@ import type {
 import type { PointCardType } from "@purosur/domain";
 import {
   Button,
-  CountdownRing,
+  CountdownCard,
   FigureStat,
   formatCents,
   InlineNotice,
@@ -17,8 +17,8 @@ import {
 import { ArrowRight, CircleX, CreditCard, RefreshCw, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useKeys } from "../platform/key-layer";
-import { pointCardName, pointCardTitle } from "../platform/payment-method-names";
-import { MercadoPagoPaidModal } from "./mercado-pago-paid-modal";
+import { pointCardTitle } from "../platform/payment-method-names";
+import { MercadoPagoPaidPanel } from "./mercado-pago-paid-panel";
 import type { ShownPointOrder } from "./point-charge-panel";
 import type { FollowedQrCharge } from "./sales-queries";
 import { useAbandonQrChargeMutation, useQrChargeQuery } from "./sales-queries";
@@ -62,7 +62,6 @@ export function PointPaymentWaitPanel({
   onSessionInvalid,
 }: PointPaymentWaitPanelProps) {
   const name = pointCardTitle(cardType);
-  const context = pointCardName(cardType).toUpperCase();
   const abandonment = useAbandonQrChargeMutation(abandon);
   const answer = abandonment.data;
   const unanswered =
@@ -225,10 +224,10 @@ export function PointPaymentWaitPanel({
 
   if (paidCharge !== undefined) {
     return (
-      <MercadoPagoPaidModal
-        context={context}
-        title="El cliente pagó en la terminal"
-        paidLabel="Pagado con la Point"
+      <MercadoPagoPaidPanel
+        icon={<CreditCard />}
+        title={name}
+        paidLabel="Pagado con Point"
         amount={order.amount}
         pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
         onContinue={() =>
@@ -236,7 +235,9 @@ export function PointPaymentWaitPanel({
             ? onCompleted({ ...paidCharge, amount: order.amount })
             : void onPartiallyPaid()
         }
-      />
+      >
+        <ProgressSteps steps={[{ id: "paid", label: "Pagado en la terminal", state: "done" }]} />
+      </MercadoPagoPaidPanel>
     );
   }
 
@@ -312,7 +313,11 @@ export function PointPaymentWaitPanel({
       ) : null}
       {view === "waiting" ? (
         <>
-          <WaitCountdown remainingSeconds={remainingSeconds} totalSeconds={order.wait_seconds} />
+          <CountdownCard
+            label="TIEMPO PARA PAGAR"
+            remainingSeconds={remainingSeconds}
+            totalSeconds={order.wait_seconds}
+          />
           <ProgressSteps
             steps={[
               SENT_STEP,
@@ -325,7 +330,12 @@ export function PointPaymentWaitPanel({
       ) : null}
       {view === "wait-over" ? (
         <>
-          <WaitCountdown remainingSeconds={0} totalSeconds={order.wait_seconds} />
+          <CountdownCard
+            label="TIEMPO PARA PAGAR"
+            remainingSeconds={0}
+            totalSeconds={order.wait_seconds}
+            tone="error"
+          />
           <ProgressSteps
             steps={[
               SENT_STEP,
@@ -348,22 +358,6 @@ export function PointPaymentWaitPanel({
 }
 
 type PanelView = "waiting" | "wait-over" | "ended" | "abandon-failed" | "follow-failed";
-
-function WaitCountdown({
-  remainingSeconds,
-  totalSeconds,
-}: {
-  remainingSeconds: number;
-  totalSeconds: number;
-}) {
-  return (
-    <CountdownRing
-      remainingSeconds={remainingSeconds}
-      totalSeconds={totalSeconds}
-      label="Tiempo para pagar"
-    />
-  );
-}
 
 function NoCloudConnectionNotice() {
   return (
