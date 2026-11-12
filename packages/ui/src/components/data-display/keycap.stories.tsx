@@ -67,3 +67,7 @@ export const OnPrimary: Story = {
     ),
   ],
 };
+
+export const Tab: Story = {
+  args: { keyName: "Tab" },
+};

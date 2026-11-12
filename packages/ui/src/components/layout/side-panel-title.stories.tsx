@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Banknote, Undo2, Wallet } from "lucide-react";
+import { Ban, Banknote, Undo2, Wallet } from "lucide-react";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -35,4 +35,17 @@ export const Warning: Story = {
 
 export const WithEscape: Story = {
   args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
+};
+
+export const ErrorTone: Story = {
+  args: { icon: <Ban />, title: "¿Cancelar la venta?", tone: "error", onClose: () => undefined },
+};
+
+export const WithLock: Story = {
+  args: {
+    icon: <Wallet />,
+    title: "Precio de la línea",
+    lockLabel: "Precio bloqueado",
+    onClose: () => undefined,
+  },
 };

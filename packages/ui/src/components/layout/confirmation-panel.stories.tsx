@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { LogOut, Undo2 } from "lucide-react";
+import { Ban, LogOut, Undo2 } from "lucide-react";
 import { ConfirmationPanel } from "./confirmation-panel";
 
 const meta: Meta<typeof ConfirmationPanel> = {
@@ -51,3 +51,19 @@ export const WithNotice: Story = {
 };
 
 export const Busy: Story = { args: { ...refundArgs, busy: true } };
+
+export const Destructive: Story = {
+  args: {
+    title: "¿Cancelar la venta?",
+    icon: <Ban />,
+    tone: "error",
+    fieldLabel: "Venta",
+    value: "$ 9.200,00",
+    actionLabel: "Cancelar venta",
+    actionIcon: <Ban />,
+  },
+};
+
+export const WithLock: Story = {
+  args: { ...refundArgs, lockLabel: "Bloqueado" },
+};

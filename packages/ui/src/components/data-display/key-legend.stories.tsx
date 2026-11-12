@@ -52,3 +52,13 @@ export const WithQuantityKeys: Story = {
     ],
   },
 };
+
+export const WithFieldAndOptionKeys: Story = {
+  args: {
+    items: [
+      { keyName: "Tab", label: "Campo" },
+      { keyName: "ArrowLeftRight", label: "Opción" },
+      { keyName: "Enter", label: "Confirmar" },
+    ],
+  },
+};

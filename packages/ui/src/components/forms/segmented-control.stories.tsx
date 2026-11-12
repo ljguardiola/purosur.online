@@ -67,3 +67,14 @@ export const FocusVisible: Story = {
     (canvasElement) => segmentRoot(canvasElement, "Descuento"),
   ),
 };
+
+export const FullWidth: Story = {
+  args: { fullWidth: true },
+  decorators: [
+    (Story) => (
+      <div className="w-96">
+        <Story />
+      </div>
+    ),
+  ],
+};
