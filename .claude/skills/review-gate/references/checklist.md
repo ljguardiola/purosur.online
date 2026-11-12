@@ -164,12 +164,14 @@ how a new one is judged.
   own request is out, so a second press sends it again, a navigation that
   changes one part of the location and drops the rest, a screen-wide key
   taken ahead of the focused control that answers the same key, or a key an
-  open panel stops answering while its request is out falling through to
-  the frame's own binding, such as a notice's dismissal that clears history
+  open panel or popup stops answering, while its request is out or once
+  focus leaves the field its key is scoped to, falling through to the
+  frame's own binding, such as a notice's dismissal that clears history
   state with no `search`, closing the open panel and dropping the list's
   filters, Enter on a focused "Volver con Esc" button submitting the
-  enrollment code instead of going back, or Esc during a refund's conversion
-  navigating to the sale screen.
+  enrollment code instead of going back, Esc during a refund's conversion
+  navigating to the sale screen, or Esc with a search's results still open
+  after a click elsewhere leaving the screen instead of closing them.
 
 ### User-facing text
 
