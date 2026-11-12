@@ -19,11 +19,63 @@ function line(movement: string, product: string, expiresOn: string | null): Init
 
 async function renderPanel(state: CoreData<InitialCountLine[]>, onFinish = vi.fn()) {
   await page.viewport(1280, 720);
-  const screen = await render(<InitialCountSummaryPanel state={state} onFinish={onFinish} />);
-  return { screen, onFinish };
+  const onClose = vi.fn();
+  const screen = await render(
+    <div style={{ height: 600, display: "flex", justifyContent: "flex-end" }}>
+      <InitialCountSummaryPanel state={state} onFinish={onFinish} onClose={onClose} />
+    </div>,
+  );
+  return { screen, onFinish, onClose };
+}
+
+function rowsOf(screen: Awaited<ReturnType<typeof renderPanel>>["screen"]) {
+  return ["Productos distintos", "Con vencimiento", "Sin vencimiento"].map((label) => [
+    label,
+    screen.getByText(label, { exact: true }).element().nextElementSibling?.textContent,
+  ]);
 }
 
 describe("InitialCountSummaryPanel", () => {
+  it("titles the panel Inventario inicial with the Esc keycap at its right, which closes the screen", async () => {
+    const { screen, onClose } = await renderPanel({
+      status: "loaded",
+      refreshing: false,
+      value: [],
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { level: 2, name: "Inventario inicial" }))
+      .toBeVisible();
+    const close = screen.getByRole("button", { name: "Cerrar con Esc" });
+    expect(close.element().querySelector("kbd")?.textContent).toBe("Esc");
+    await userEvent.click(close);
+
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("shows the finish button with its F12 keycap and the check icon before its text", async () => {
+    const { screen } = await renderPanel({ status: "loaded", refreshing: false, value: [] });
+
+    const finish = screen.getByRole("button", { name: "Terminar la carga" }).element();
+    expect(finish.querySelector("kbd")?.textContent).toBe("F12");
+    expect(
+      finish
+        .querySelector("svg")
+        ?.compareDocumentPosition(finish.querySelector("span.truncate") as Node),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it("shows nothing but zeros while no line is counted", async () => {
+    const { screen } = await renderPanel({ status: "loaded", refreshing: false, value: [] });
+
+    await expect.element(screen.getByText("0 líneas", { exact: true })).toBeVisible();
+    expect(rowsOf(screen)).toEqual([
+      ["Productos distintos", "0"],
+      ["Con vencimiento", "0"],
+      ["Sin vencimiento", "0"],
+    ]);
+  });
+
   it("totals the lines and tells how many products and how many lines have an expiry", async () => {
     const { screen } = await renderPanel({
       status: "loaded",
@@ -41,11 +93,11 @@ describe("InitialCountSummaryPanel", () => {
       .element(screen.getByRole("complementary", { name: "Resumen del inventario" }))
       .toBeVisible();
     await expect.element(screen.getByText("4 líneas", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Productos distintos")).toBeVisible();
-    await expect.element(screen.getByText("Con vencimiento")).toBeVisible();
-    await expect.element(screen.getByText("3 líneas", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Sin vencimiento")).toBeVisible();
-    await expect.element(screen.getByText("1 línea", { exact: true })).toBeVisible();
+    expect(rowsOf(screen)).toEqual([
+      ["Productos distintos", "3"],
+      ["Con vencimiento", "3"],
+      ["Sin vencimiento", "1"],
+    ]);
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -56,7 +108,16 @@ describe("InitialCountSummaryPanel", () => {
       value: Array.from({ length: 1200 }, (_, index) => line(`m${index}`, `p${index}`, null)),
     });
 
-    await expect.element(screen.getByText("1.200", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("1.200", { exact: true }).first()).toBeVisible();
+  });
+
+  it("draws the number of lines as the panel's largest figure", async () => {
+    const { screen } = await renderPanel({ status: "loaded", refreshing: false, value: [] });
+
+    const figure = getComputedStyle(screen.getByText("0 líneas", { exact: true }).element());
+    const row = getComputedStyle(screen.getByText("Con vencimiento", { exact: true }).element());
+    expect(Number.parseFloat(figure.fontSize)).toBeGreaterThanOrEqual(48);
+    expect(Number.parseFloat(row.fontSize)).toBeLessThan(20);
   });
 
   it("adds no note under the totals", async () => {

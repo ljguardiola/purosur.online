@@ -59,7 +59,7 @@ describe("RegisterFrame", () => {
 
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }))
-      .toMatchTextContent(/^CAJA 1•Ada•Sin sesión abierta•Antes de empezar/);
+      .toMatchTextContent(/^CAJA 1•Ada•Antes de empezar/);
   });
 
   it("shows the header above the content, between the rail and the panel", async () => {
