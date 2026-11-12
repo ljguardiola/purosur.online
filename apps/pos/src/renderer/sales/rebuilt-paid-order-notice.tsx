@@ -3,7 +3,7 @@ import { Button, formatCents, HighlightedNotice, InlineNotice } from "@purosur/u
 import { CreditCard, QrCode, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
-import type { CompletedPaidOrder } from "./charge-completed-modal";
+import type { CompletedPaidOrder } from "./charge-completed-panel";
 
 const FAILED_MESSAGE = "No se pudo cobrar con el pago de Mercado Pago. Probá de nuevo.";
 const RESTORING_MESSAGE = "La caja se está restaurando. Esperá a que termine.";

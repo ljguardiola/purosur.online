@@ -193,3 +193,22 @@ export function LockedSaleLines({ lines, label }: { lines: OpenSale["lines"]; la
   const table = useTableModel({ items: lines, id: (line) => line.id, columns: dataColumns });
   return <Table table={table} aria-label="Líneas de la venta" fill locked={{ label }} />;
 }
+
+export function EmptySaleLines() {
+  return (
+    <SaleLines
+      lines={[]}
+      selectedLineId={undefined}
+      legend={[]}
+      failed={false}
+      actions={{
+        busy: false,
+        editable: false,
+        onChangeWeight: () => {},
+        onAdjust: () => {},
+        onRemove: () => {},
+      }}
+      onSelect={() => {}}
+    />
+  );
+}

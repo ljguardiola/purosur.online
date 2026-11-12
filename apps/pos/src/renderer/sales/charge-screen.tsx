@@ -39,8 +39,8 @@ import { OpenSessionRail } from "../shell/open-session-rail";
 import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashChargePanel } from "./cash-charge-panel";
-import type { CompletedPayment } from "./charge-completed-modal";
-import { ChargeCompletedModal } from "./charge-completed-modal";
+import type { CompletedPayment } from "./charge-completed-panel";
+import { ChargeCompletedPanel } from "./charge-completed-panel";
 import type { ChargeMethod } from "./charge-method-options";
 import { chargeMethodOptions } from "./charge-method-options";
 import { ChargePaymentPanel } from "./charge-payment-panel";
@@ -51,7 +51,7 @@ import type { ShownQrOrder } from "./qr-charge-modal";
 import { QrChargeModal } from "./qr-charge-modal";
 import { QrPaymentWaitModal } from "./qr-payment-wait-modal";
 import { RebuiltPaidOrderNotice } from "./rebuilt-paid-order-notice";
-import { LockedSaleLines } from "./sale-lines";
+import { EmptySaleLines, LockedSaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
   usePaymentMethodAvailabilityQuery,
@@ -257,7 +257,18 @@ export function ChargeScreen({
       background="subtle"
       rail={<OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />}
       aside={
-        sale === undefined ? null : step.name === "cash" ? (
+        sale === undefined ? null : step.name === "completed" ? (
+          <ChargeCompletedPanel
+            saleId={step.sale.id}
+            payment={step.payment}
+            readReceiptStatus={receiptPrintStatus}
+            answerReceiptQuestion={answerReceiptQuestion}
+            readBackupTicket={contingencyBackupTicketOfSale}
+            readBackupTickets={contingencyBackupTickets}
+            mayChangePrinter={mayChangePrinter}
+            onNewSale={backToSale}
+          />
+        ) : step.name === "cash" ? (
           <CashChargePanel
             saleId={sale.id}
             total={sale.total}
@@ -297,9 +308,9 @@ export function ChargeScreen({
         ) : (
           <ChargePaymentPanel
             total={sale.total}
-            paid={step.name === "completed" ? step.sale.total : sale.paid}
-            pending={step.name === "completed" ? 0 : sale.pending}
-            {...(step.name === "completed" ? {} : { onBackToSale: backToSale })}
+            paid={sale.paid}
+            pending={sale.pending}
+            onBackToSale={backToSale}
           />
         )
       }
@@ -314,7 +325,7 @@ export function ChargeScreen({
             onRetry={current.retry}
           />
         ) : null}
-        {sale !== undefined && step.name === "cash" ? (
+        {sale !== undefined && (step.name === "cash" || step.name === "completed") ? (
           <>
             <SearchField
               label="Producto"
@@ -324,10 +335,14 @@ export function ChargeScreen({
               value=""
               onChange={() => {}}
             />
-            <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
+            {step.name === "cash" ? (
+              <LockedSaleLines lines={sale.lines} label="Líneas bloqueadas" />
+            ) : (
+              <EmptySaleLines />
+            )}
           </>
         ) : null}
-        {sale === undefined || step.name === "cash" ? null : (
+        {sale === undefined || step.name === "cash" || step.name === "completed" ? null : (
           <>
             <ScreenHeader
               eyebrow={`COBRO · VENTA DE ${formatNumber(lineCount)} ${lines}`}
@@ -476,18 +491,6 @@ export function ChargeScreen({
           onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}
           onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
-      {step.name === "completed" ? (
-        <ChargeCompletedModal
-          saleId={step.sale.id}
-          payment={step.payment}
-          readReceiptStatus={receiptPrintStatus}
-          answerReceiptQuestion={answerReceiptQuestion}
-          readBackupTicket={contingencyBackupTicketOfSale}
-          readBackupTickets={contingencyBackupTickets}
-          mayChangePrinter={mayChangePrinter}
-          onNewSale={backToSale}
         />
       ) : null}
     </RegisterFrame>
