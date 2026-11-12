@@ -238,6 +238,30 @@ describe("ChargeScreen", () => {
       .not.toBeInTheDocument();
   });
 
+  it.each([
+    ["while its ticket is being prepared", "preparing"],
+    ["while its printer is out of paper", "paper_out"],
+    ["once its ticket is printed", "printed"],
+  ] as const)("keeps the completed sale on screen on Esc %s", async (_, standing) => {
+    const { screen } = await renderScreen({
+      receiptPrintStatus: async () => ({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: standing === "printed",
+        standing,
+        comprobante: { kind: "none" },
+        offer: null,
+      }),
+    });
+
+    await chargeInCash(screen, "5000,00");
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.router.state.location.pathname).toBe("/");
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
+  });
+
   it("offers to change the printer on a failed print to a person who may configure it", async () => {
     const { screen } = await renderScreen({
       person: { ...PERSON, abilities: ["open_cash_session", "configure_receipt_printer"] },

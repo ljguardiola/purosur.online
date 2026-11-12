@@ -366,6 +366,35 @@ describe("SaleCompletedPanel asking whether to print the customer's ticket", () 
     await expectAlertText(screen, "No se pudo enviar la respuesta. Probá de nuevo.");
   });
 
+  it.each<[string, () => Promise<AnswerReceiptQuestionOutcome>]>([
+    ["came back unavailable", async () => ({ kind: "unavailable" })],
+    [
+      "failed",
+      async () => {
+        throw new Error("port closed");
+      },
+    ],
+  ])(
+    "starts a new sale without printing when the core lapses the offer after an answer that %s",
+    async (_, answerReceiptQuestion) => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      let status = found("awaiting_answer");
+      const { screen, onNewSale } = await renderPanel(CASH, {
+        readReceiptStatus: async () => status,
+        answerReceiptQuestion,
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Sí" }));
+      await expectAlertText(screen, "No se pudo enviar la respuesta. Probá de nuevo.");
+      expect(onNewSale).not.toHaveBeenCalled();
+
+      status = found("declined");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      await expect.poll(() => onNewSale.mock.calls.length).toBe(1);
+    },
+  );
+
   it.each([
     ["not decided yet", () => found(null)],
     ["printing", () => found("printing")],
