@@ -3,6 +3,7 @@ import type {
   CashChargeAmountsAnswer,
   CashChargeAnswer,
   CurrentSaleAnswer,
+  FindProductByCodeOutcome,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
   OpenSale,
@@ -26,7 +27,9 @@ import {
   useCashChargeAmountsQuery,
   useCashChargeQuery,
   useCurrentSaleQuery,
+  useFindProductByCode,
   usePaymentMethodAvailabilityQuery,
+  useProductByCodeQuery,
   useQrChargeQuery,
   useReadCurrentSale,
   useReceiptPrintStatusQuery,
@@ -368,6 +371,87 @@ describe("product search", () => {
     await userEvent.click(screen.getByRole("button", { name: "search" }));
 
     await expect.poll(() => document.title).toBe("unavailable");
+  });
+});
+
+const ACEITE_FOUND: FindProductByCodeOutcome = {
+  kind: "found",
+  product: {
+    product_id: "p-aceite",
+    name: "Aceite de oliva extra virgen 500 ml",
+    sale_unit: "UNIT",
+    unit_price: 940_000,
+  },
+};
+
+function FindByCodeProbe({ read }: { read: (code: string) => Promise<FindProductByCodeOutcome> }) {
+  const find = useFindProductByCode(read);
+  return (
+    <button
+      type="button"
+      onClick={() => void find("7790002").then((outcome) => (document.title = outcome.kind))}
+    >
+      find
+    </button>
+  );
+}
+
+describe("finding a product by its code", () => {
+  it("answers what the core found for the code", async () => {
+    const read = vi.fn(async () => ACEITE_FOUND);
+    const screen = await renderWithClient(<FindByCodeProbe read={read} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "find" }));
+
+    await expect.poll(() => document.title).toBe("found");
+    expect(read).toHaveBeenCalledWith("7790002");
+  });
+
+  it("answers unavailable when the read is rejected", async () => {
+    const screen = await renderWithClient(
+      <FindByCodeProbe read={() => Promise.reject(new Error("the connection was replaced"))} />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "find" }));
+
+    await expect.poll(() => document.title).toBe("unavailable");
+  });
+});
+
+function ProductByCodeProbe({
+  code,
+  read,
+}: {
+  code: string | undefined;
+  read: (code: string) => Promise<FindProductByCodeOutcome>;
+}) {
+  const product = useProductByCodeQuery({ code, read });
+  return <p>{product.status === "loaded" ? product.value.kind : product.status}</p>;
+}
+
+describe("product by code query", () => {
+  it("holds what the core found for the code", async () => {
+    const read = vi.fn(async () => ACEITE_FOUND);
+    const screen = await renderWithClient(<ProductByCodeProbe code="7790002" read={read} />);
+
+    await expect.element(screen.getByText("found")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith("7790002");
+  });
+
+  it("reads nothing while it has no code", async () => {
+    const read = vi.fn(async () => ACEITE_FOUND);
+    const screen = await renderWithClient(<ProductByCodeProbe code={undefined} read={read} />);
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("fails when the core cannot answer", async () => {
+    const screen = await renderWithClient(
+      <ProductByCodeProbe code="7790002" read={async () => ({ kind: "unavailable" })} />,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
   });
 });
 

@@ -9,6 +9,7 @@ import type {
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   CurrentSaleAnswer,
+  FindProductByCodeOutcome,
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
@@ -27,9 +28,11 @@ import type {
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   EmptyState,
+  formatWeight,
   InlineNotice,
   LoadingPlaceholder,
   localAlertText,
+  ScaleCard,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
@@ -58,7 +61,9 @@ import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
+  useFindProductByCode,
   usePaymentMethodAvailabilityQuery,
+  useProductByCodeQuery,
   useReadCurrentSale,
   useRefreshPaymentMethodAvailability,
   useResetCurrentSale,
@@ -67,7 +72,8 @@ import {
 } from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { messageFor, ScanProblemMessage } from "./scan-problem-message";
-import { WeighProductModal } from "./weigh-product-modal";
+import type { ScaleReading, WaitingEntry } from "./weighing-card";
+import { WeighingCard } from "./weighing-card";
 
 export type SaleScreenProps = {
   sessionId: string;
@@ -76,6 +82,7 @@ export type SaleScreenProps = {
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  findProductByCode: (code: string) => Promise<FindProductByCodeOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
     productId: string,
@@ -136,8 +143,16 @@ type SaleEditOutcome =
 
 type SaleLine = OpenSale["lines"][number];
 
+type Priced = "by_code" | { unitPrice: number | null } | undefined;
+
 type Weighing =
-  | { kind: "add"; productId: string; productName: string; submitted: string }
+  | {
+      kind: "add";
+      productId: string;
+      productName: string;
+      submitted: string;
+      priced: Priced;
+    }
   | { kind: "change"; line: SaleLine };
 
 type TakenOutcome =
@@ -203,6 +218,7 @@ export function SaleScreen({
   currentSale,
   scanProduct,
   searchProducts,
+  findProductByCode,
   addProduct,
   addWeighedProduct,
   weighProduct,
@@ -241,6 +257,7 @@ export function SaleScreen({
   const resetCurrentSale = useResetCurrentSale(sessionId, person.user_id);
   const readCurrentSale = useReadCurrentSale(sessionId, person.user_id, currentSale);
   const search = useSearchProducts(searchProducts);
+  const findByCode = useFindProductByCode(findProductByCode);
   const [selectedLineId, setSelectedLineId] = useState<string>();
   const [code, setCode] = useState("");
   const [problem, setProblem] = useState<ScanProblem>();
@@ -252,11 +269,15 @@ export function SaleScreen({
   const [confirmingPaidCancel, setConfirmingPaidCancel] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
   const [weighing, setWeighing] = useState<Weighing>();
+  const [waiting, setWaitingState] = useState<WaitingEntry[]>([]);
+  const [scaleReading, setScaleReading] = useState<ScaleReading>();
   const [adjusting, setAdjusting] = useState<SaleLine>();
   const [discounting, setDiscounting] = useState(false);
   const editInFlight = useRef(false);
   const confirmingCancelNow = useRef(false);
   const weighingNow = useRef<Weighing>(undefined);
+  const waitingNow = useRef<WaitingEntry[]>([]);
+  const advancingWaiting = useRef(false);
   const adjustingNow = useRef(false);
   const discountingNow = useRef(false);
   const listboxId = useId();
@@ -327,12 +348,41 @@ export function SaleScreen({
   function askForWeight(asking: Weighing | undefined) {
     weighingNow.current = asking;
     setWeighing(asking);
+    if (asking !== undefined) {
+      setCode("");
+    }
+  }
+
+  function setWaiting(next: WaitingEntry[]) {
+    waitingNow.current = next;
+    setWaitingState(next);
+  }
+
+  function enqueue(product: FoundProduct) {
+    setWaiting([
+      ...waitingNow.current,
+      {
+        productId: product.product_id,
+        name: product.name,
+        saleUnit: product.sale_unit,
+        unitPrice: product.unit_price,
+      },
+    ]);
+  }
+
+  function discardFirstWaiting() {
+    setWaiting(waitingNow.current.slice(1));
+  }
+
+  function weighingOrWaiting() {
+    return weighingNow.current !== undefined || advancingWaiting.current;
   }
 
   async function take(
     submitted: string,
     outcome: TakenOutcome,
     failure: { kind: "scan_failed" } | { kind: "add_failed" },
+    priced?: Priced,
   ) {
     switch (outcome.kind) {
       case "added": {
@@ -366,11 +416,15 @@ export function SaleScreen({
         refuse(submitted, outcome);
         break;
       case "weight_needed":
+        if (field.current?.querySelector("input")?.value.trim() === submitted) {
+          setDismissed(true);
+        }
         askForWeight({
           kind: "add",
           productId: outcome.product_id,
           productName: outcome.product_name,
           submitted,
+          priced,
         });
         break;
       case "sale_has_payments":
@@ -382,6 +436,56 @@ export function SaleScreen({
         refuse(submitted, failure);
         break;
     }
+  }
+
+  async function advanceWaiting(): Promise<void> {
+    if (advancingWaiting.current) {
+      return;
+    }
+    advancingWaiting.current = true;
+    while (weighingNow.current === undefined && waitingNow.current[0] !== undefined) {
+      const next = waitingNow.current[0];
+      setWaiting(waitingNow.current.slice(1));
+      const outcome = await addProduct(next.productId).catch(
+        (): AddProductOutcome => ({ kind: "unavailable" }),
+      );
+      await take("", outcome, { kind: "add_failed" }, { unitPrice: next.unitPrice });
+    }
+    advancingWaiting.current = false;
+  }
+
+  function closeWeighing() {
+    askForWeight(undefined);
+    void advanceWaiting();
+  }
+
+  async function queueByCode(submitted: string) {
+    const outcome = await findByCode(submitted);
+    switch (outcome.kind) {
+      case "found":
+        enqueue({
+          product_id: outcome.product.product_id,
+          name: outcome.product.name,
+          sale_unit: outcome.product.sale_unit,
+          unit_price: outcome.product.unit_price,
+          matches: [],
+        });
+        setCode((typed) => (typed.trim() === submitted ? "" : typed));
+        break;
+      case "not_signed_in":
+      case "no_open_session":
+        onSessionInvalid();
+        break;
+      case "unknown_code":
+      case "not_permitted":
+      case "restoration_in_progress":
+        refuse(submitted, outcome);
+        break;
+      case "unavailable":
+        refuse(submitted, { kind: "scan_failed" });
+        break;
+    }
+    await advanceWaiting();
   }
 
   async function addWithWeight(
@@ -396,10 +500,11 @@ export function SaleScreen({
     }
     askForWeight(undefined);
     if (outcome.kind === "not_sold_by_weight") {
-      refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+      refuse("", { kind: "not_sold_by_weight", product_name: asked.productName });
     } else {
-      await take(asked.submitted, outcome, { kind: "add_failed" });
+      await take("", outcome, { kind: "add_failed" });
     }
+    await advanceWaiting();
     return "done";
   }
 
@@ -425,7 +530,7 @@ export function SaleScreen({
       };
     }
     if (outcome.kind === "added") {
-      await take(asked.submitted, outcome, { kind: "add_failed" });
+      await take("", outcome, { kind: "add_failed" });
       const line = outcome.sale.lines.at(-1);
       return line === undefined
         ? { kind: "closed" }
@@ -437,19 +542,26 @@ export function SaleScreen({
     }
     if (outcome.kind === "not_sold_by_weight") {
       if (stillAsked) {
-        refuse(asked.submitted, { kind: "not_sold_by_weight", product_name: asked.productName });
+        refuse("", { kind: "not_sold_by_weight", product_name: asked.productName });
       }
     } else if (stillAsked || reportsCoreState(outcome)) {
-      await take(asked.submitted, outcome, { kind: "add_failed" });
+      await take("", outcome, { kind: "add_failed" });
+    }
+    if (stillAsked) {
+      void advanceWaiting();
     }
     return { kind: "closed" };
   }
 
   async function scan(submitted: string) {
+    if (weighingOrWaiting()) {
+      await queueByCode(submitted);
+      return;
+    }
     const outcome = await scanProduct(submitted).catch(
       (): ScanProductOutcome => ({ kind: "unavailable" }),
     );
-    await take(submitted, outcome, { kind: "scan_failed" });
+    await take(submitted, outcome, { kind: "scan_failed" }, "by_code");
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -474,10 +586,15 @@ export function SaleScreen({
 
   async function add(product: FoundProduct) {
     const submitted = code.trim();
+    if (weighingOrWaiting()) {
+      enqueue(product);
+      setCode((typed) => (typed.trim() === submitted ? "" : typed));
+      return;
+    }
     const outcome = await addProduct(product.product_id).catch(
       (): AddProductOutcome => ({ kind: "unavailable" }),
     );
-    await take(submitted, outcome, { kind: "add_failed" });
+    await take(submitted, outcome, { kind: "add_failed" }, { unitPrice: product.unit_price });
   }
 
   function askToAdjust(line: SaleLine | undefined) {
@@ -617,6 +734,7 @@ export function SaleScreen({
       return "invalid_weight";
     }
     askForWeight(undefined);
+    await advanceWaiting();
     return "done";
   }
 
@@ -652,6 +770,7 @@ export function SaleScreen({
     }
     if (stillAsked) {
       askForWeight(undefined);
+      void advanceWaiting();
     }
     return changed === undefined
       ? { kind: "closed" }
@@ -678,6 +797,15 @@ export function SaleScreen({
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
 
+  const priceByCode = useProductByCodeQuery({
+    code:
+      weighing?.kind === "add" && weighing.priced === "by_code" ? weighing.submitted : undefined,
+    read: findProductByCode,
+  });
+  const codeUnitPrice =
+    priceByCode.status === "loaded" && priceByCode.value.kind === "found"
+      ? priceByCode.value.product.unit_price
+      : undefined;
   const answer = current.status === "loaded" ? current.value : undefined;
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const linesLock = sale?.lines_lock ?? null;
@@ -721,6 +849,7 @@ export function SaleScreen({
     availability.status === "loaded" && availability.value.qr === "below_minimum";
   const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
   const searchEmpty = code === "";
+  const canChargeNow = canCharge && weighing === undefined;
 
   function moveSelection(pressed: string) {
     const index = saleLines.findIndex(({ id }) => id === selectedLine?.id);
@@ -775,7 +904,16 @@ export function SaleScreen({
         },
         enabled: choosing,
       },
-      { key: "Enter", run: chargePaidOrder, enabled: canChargePaidOrder && searchEmpty },
+      {
+        key: "Enter",
+        run: () => field.current?.requestSubmit(),
+        enabled: weighing !== undefined && code.trim() !== "",
+      },
+      {
+        key: "Enter",
+        run: chargePaidOrder,
+        enabled: canChargePaidOrder && searchEmpty && weighing === undefined,
+      },
     ],
     { within: field },
   );
@@ -795,6 +933,16 @@ export function SaleScreen({
       enabled: answer !== undefined && answer !== "not_permitted",
     },
     {
+      key: "F3",
+      label: "Pesar",
+      run: () => {
+        if (selectedLine !== undefined) {
+          askForWeight({ kind: "change", line: selectedLine });
+        }
+      },
+      enabled: selectedLine?.sale_unit === "KG" && editable && !editing && weighing === undefined,
+    },
+    {
       key: "Delete",
       label: "Quitar",
       run: () => {
@@ -802,7 +950,7 @@ export function SaleScreen({
           void edit(() => removeSaleLine(selectedLine.id), { kind: "remove_failed" });
         }
       },
-      enabled: selectedLine !== undefined && editable && !editing,
+      enabled: selectedLine !== undefined && editable && !editing && weighing === undefined,
     },
     {
       key: "NumpadAddSubtract",
@@ -823,11 +971,11 @@ export function SaleScreen({
       },
       enabled: current.status === "failed" && searchEmpty,
     },
-    { key: "F12", run: () => charge("CASH"), enabled: canCharge },
-    { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canCharge && !pointBelowMinimum },
-    { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canCharge && !pointBelowMinimum },
-    { key: "F11", run: () => charge("QR"), enabled: canCharge && !qrBelowMinimum },
-    { key: "F1", run: () => charge(undefined), enabled: canCharge },
+    { key: "F12", run: () => charge("CASH"), enabled: canChargeNow },
+    { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canChargeNow && !pointBelowMinimum },
+    { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canChargeNow && !pointBelowMinimum },
+    { key: "F11", run: () => charge("QR"), enabled: canChargeNow && !qrBelowMinimum },
+    { key: "F1", run: () => charge(undefined), enabled: canChargeNow },
   ]);
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
@@ -870,8 +1018,8 @@ export function SaleScreen({
           chargeRefusal={sale?.charge_refusal ?? null}
           paidOrderToApply={paidOrderToApply ?? undefined}
           availability={availability.status === "loaded" ? availability.value : undefined}
-          canCharge={canCharge}
-          canCancel={sale !== null && !editing}
+          canCharge={canChargeNow}
+          canCancel={sale !== null && !editing && weighing === undefined}
           canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
           onDiscount={() => askToDiscount(true)}
           onCharge={charge}
@@ -889,41 +1037,53 @@ export function SaleScreen({
             description={localAlertText(diskFull).meaning}
           />
         )}
-        <form ref={field} noValidate className="relative" onSubmit={submit}>
-          <SearchField
-            label="Producto"
-            {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
-            placeholder="Escaneá o escribí el nombre"
-            icon={LETTER.test(code) ? <Search /> : <ScanBarcode />}
-            invalid={shownProblem?.kind === "unknown_code"}
-            {...(found === undefined
-              ? {}
-              : {
-                  action: {
-                    label: "Cerrar",
-                    keyName: "Escape" as const,
-                    onPress: () => {
-                      setDismissed(true);
-                      focusScanField(field.current);
+        <div className="flex items-start gap-4">
+          <form ref={field} noValidate className="relative min-w-0 flex-1" onSubmit={submit}>
+            <SearchField
+              label="Producto"
+              {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
+              placeholder="Escaneá o escribí el nombre"
+              icon={LETTER.test(code) ? <Search /> : <ScanBarcode />}
+              invalid={shownProblem?.kind === "unknown_code"}
+              {...(found === undefined
+                ? {}
+                : {
+                    action: {
+                      label: "Cerrar",
+                      keyName: "Escape" as const,
+                      onPress: () => {
+                        setDismissed(true);
+                        focusScanField(field.current);
+                      },
                     },
-                  },
-                })}
-            value={code}
-            onChange={type}
-            combobox={{
-              expanded: choosing,
-              listboxId,
-              activeOptionId: choosing ? searchOptionId(listboxId, activeIndex) : undefined,
-            }}
+                  })}
+              value={code}
+              onChange={type}
+              combobox={{
+                expanded: choosing,
+                listboxId,
+                activeOptionId: choosing ? searchOptionId(listboxId, activeIndex) : undefined,
+              }}
+            />
+            <ProductSearchResults
+              listboxId={listboxId}
+              search={found}
+              activeIndex={activeIndex}
+              onChoose={(product) => void add(product)}
+            />
+            <ScanProblemMessage problem={shownProblem} />
+          </form>
+          <ScaleCard
+            reading={
+              scaleReading === undefined
+                ? undefined
+                : {
+                    value: formatWeight(scaleReading.weightThousandths),
+                    settled: scaleReading.settled,
+                  }
+            }
           />
-          <ProductSearchResults
-            listboxId={listboxId}
-            search={found}
-            activeIndex={activeIndex}
-            onChoose={(product) => void add(product)}
-          />
-          <ScanProblemMessage problem={shownProblem} />
-        </form>
+        </div>
         {batteryCritical === undefined ? null : (
           <InlineNotice
             tone="error"
@@ -932,6 +1092,37 @@ export function SaleScreen({
             description={localAlertText(batteryCritical).meaning}
           />
         )}
+        {weighing?.kind === "add" ? (
+          <WeighingCard
+            productName={weighing.productName}
+            unitPrice={weighing.priced === "by_code" ? codeUnitPrice : weighing.priced?.unitPrice}
+            weigh={(confirmedWeightThousandths) =>
+              weighOnScale(weighing, confirmedWeightThousandths)
+            }
+            typedWeight={(weight) => addWithWeight(weighing, weight)}
+            waiting={waiting}
+            onDiscardWaiting={discardFirstWaiting}
+            onReading={setScaleReading}
+            onBarcodeRead={(reading) => void takeReading(reading)}
+            onClose={closeWeighing}
+          />
+        ) : null}
+        {weighing?.kind === "change" ? (
+          <WeighingCard
+            productName={weighing.line.product_name}
+            unitPrice={weighing.line.list_unit_price}
+            currentWeight={weighing.line.quantity}
+            weigh={(confirmedWeightThousandths) =>
+              weighLineOnScale(weighing, confirmedWeightThousandths)
+            }
+            typedWeight={(weight) => changeWeight(weighing.line, weight)}
+            waiting={waiting}
+            onDiscardWaiting={discardFirstWaiting}
+            onReading={setScaleReading}
+            onBarcodeRead={(reading) => void takeReading(reading)}
+            onClose={closeWeighing}
+          />
+        ) : null}
         {current.status === "loading" ? <LoadingPlaceholder variant="list" items={4} /> : null}
         {answer === "not_permitted" ? (
           <EmptyState
@@ -949,6 +1140,7 @@ export function SaleScreen({
             failed={current.status === "failed"}
             actions={{
               busy: editing,
+              weighing: weighing !== undefined,
               editable,
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
               onAdjust: askToAdjust,
@@ -967,25 +1159,6 @@ export function SaleScreen({
         onClose={() => askToCancel(false)}
         onCancelSale={() => void edit(cancelSale, { kind: "empty_failed" })}
       />
-      {weighing?.kind === "add" ? (
-        <WeighProductModal
-          productName={weighing.productName}
-          weigh={(confirmedWeightThousandths) => weighOnScale(weighing, confirmedWeightThousandths)}
-          typedWeight={(weight) => addWithWeight(weighing, weight)}
-          onClose={() => askForWeight(undefined)}
-        />
-      ) : null}
-      {weighing?.kind === "change" ? (
-        <WeighProductModal
-          productName={weighing.line.product_name}
-          currentWeight={weighing.line.quantity}
-          weigh={(confirmedWeightThousandths) =>
-            weighLineOnScale(weighing, confirmedWeightThousandths)
-          }
-          typedWeight={(weight) => changeWeight(weighing.line, weight)}
-          onClose={() => askForWeight(undefined)}
-        />
-      ) : null}
       {adjusting !== undefined && sale !== null ? (
         <AdjustLineModal
           lineId={adjusting.id}

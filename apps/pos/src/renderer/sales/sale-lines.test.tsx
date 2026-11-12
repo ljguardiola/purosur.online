@@ -61,7 +61,15 @@ async function renderLines({
       legend={LEGEND}
       failed={failed}
       onSelect={onSelect}
-      actions={{ busy: false, editable: true, onChangeWeight, onAdjust, onRemove, ...actions }}
+      actions={{
+        busy: false,
+        weighing: false,
+        editable: true,
+        onChangeWeight,
+        onAdjust,
+        onRemove,
+        ...actions,
+      }}
     />,
   );
   return { screen, onChangeWeight, onAdjust, onRemove, onSelect };
@@ -223,6 +231,24 @@ describe("SaleLines", () => {
       "Quitar Queso cremoso",
     ]) {
       await expect.element(screen.getByRole("button", { name })).toBeDisabled();
+    }
+  });
+
+  it("disables changing the weight and removing a line while a weighing is in progress, leaving the change of price", async () => {
+    const { screen } = await renderLines({ actions: { weighing: true }, lines: [YERBA, QUESO] });
+
+    for (const name of [
+      "Quitar Yerba mate 1 kg",
+      "Cambiar el peso de Queso cremoso",
+      "Quitar Queso cremoso",
+    ]) {
+      await expect.element(screen.getByRole("button", { name })).toBeDisabled();
+    }
+    for (const name of [
+      "Cambiar el precio de Yerba mate 1 kg",
+      "Cambiar el precio de Queso cremoso",
+    ]) {
+      await expect.element(screen.getByRole("button", { name })).toBeEnabled();
     }
   });
 

@@ -24,8 +24,14 @@ function fakeCore() {
   };
 }
 
-function Taker({ take }: { take: ((code: string) => void) | undefined }) {
-  useBarcodeReadings(take);
+function Taker({
+  take,
+  whileDialogOpen = false,
+}: {
+  take: ((code: string) => void) | undefined;
+  whileDialogOpen?: boolean;
+}) {
+  useBarcodeReadings(take, { whileDialogOpen });
   return null;
 }
 
@@ -37,10 +43,19 @@ async function renderReadings(takers: React.ReactNode) {
   return { core, screen };
 }
 
-function WithWindow({ open, take }: { open: boolean; take: (code: string) => void }) {
+function WithWindow({
+  open,
+  take,
+  dialogTake,
+}: {
+  open: boolean;
+  take: (code: string) => void;
+  dialogTake?: (code: string) => void;
+}) {
   return (
     <>
       <Taker take={take} />
+      {dialogTake === undefined ? null : <Taker take={dialogTake} whileDialogOpen />}
       <Modal
         open={open}
         onOpenChange={() => {}}
@@ -169,6 +184,55 @@ describe("BarcodeReadings", () => {
       expect(take).not.toHaveBeenCalled();
     });
 
+    it("hands a reading to the taker that declared it takes readings while a window is open, with no notice", async () => {
+      const take = vi.fn();
+      const dialogTake = vi.fn();
+      const { core, screen } = await renderReadings(
+        <WithWindow open take={take} dialogTake={dialogTake} />,
+      );
+      await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
+
+      core.read("7790001234567");
+
+      expect(dialogTake).toHaveBeenCalledExactlyOnceWith("7790001234567");
+      expect(take).not.toHaveBeenCalled();
+      await expect.element(screen.getByText(NOTICE_TITLE)).not.toBeInTheDocument();
+    });
+
+    it("hands a reading to the latest taker that declared it, over one that registered before it", async () => {
+      const first = vi.fn();
+      const second = vi.fn();
+      const { core, screen } = await renderReadings(
+        <>
+          <Taker take={first} whileDialogOpen />
+          <WithWindow open take={vi.fn()} dialogTake={second} />
+        </>,
+      );
+      await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
+
+      core.read("111");
+
+      expect(second).toHaveBeenCalledExactlyOnceWith("111");
+      expect(first).not.toHaveBeenCalled();
+    });
+
+    it("warns that the product was not added when the taker that declared it stops taking", async () => {
+      const take = vi.fn();
+      const { core, screen } = await renderReadings(
+        <>
+          <Taker take={take} />
+          <Taker take={undefined} whileDialogOpen />
+          <WithWindow open take={take} />
+        </>,
+      );
+      await expect.element(screen.getByRole("dialog", { name: "Una ventana" })).toBeVisible();
+
+      core.read("7790001234567");
+
+      await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+      expect(take).not.toHaveBeenCalled();
+    });
+
     it("hands readings to the taker again once the window is closed", async () => {
       const take = vi.fn();
       const { core, screen } = await renderReadings(<WithWindow open take={take} />);
@@ -210,6 +274,37 @@ describe("BarcodeReadings", () => {
 
       expect(take).toHaveBeenCalledExactlyOnceWith("7790001234567");
     });
+  });
+
+  it("hands a reading to the screen's taker when no window is open, even if a taker that declared it registered before", async () => {
+    const screenTake = vi.fn();
+    const dialogTake = vi.fn();
+    const { core } = await renderReadings(
+      <>
+        <Taker take={dialogTake} whileDialogOpen />
+        <Taker take={screenTake} />
+      </>,
+    );
+
+    core.read("7790001234567");
+
+    expect(screenTake).toHaveBeenCalledExactlyOnceWith("7790001234567");
+    expect(dialogTake).not.toHaveBeenCalled();
+  });
+
+  it("does not hand a reading to a taker that declared it while a part of the screen refuses readings", async () => {
+    const dialogTake = vi.fn();
+    const { core, screen } = await renderReadings(
+      <>
+        <WithRefusal refusing take={vi.fn()} />
+        <Taker take={dialogTake} whileDialogOpen />
+      </>,
+    );
+
+    core.read("7790001234567");
+
+    await expect.element(screen.getByText(NOTICE_TITLE)).toBeVisible();
+    expect(dialogTake).not.toHaveBeenCalled();
   });
 
   it("stops listening to the core once it is gone", async () => {
