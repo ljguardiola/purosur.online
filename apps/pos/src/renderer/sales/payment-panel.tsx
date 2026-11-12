@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import type { KeyedChargeMethod } from "./charge-method-options";
+import type { KeyedChargeMethod } from "./charge-method-availability";
 import { PaidOrderNotice } from "./rebuilt-paid-order-notice";
 import { saleDiscountLabel } from "./sale-discount-text";
 

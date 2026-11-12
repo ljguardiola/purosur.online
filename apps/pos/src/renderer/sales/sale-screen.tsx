@@ -53,7 +53,7 @@ import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelPaidSalePanel } from "./cancel-paid-sale-panel";
 import { changedLineId } from "./changed-line";
-import type { KeyedChargeMethod } from "./charge-method-options";
+import type { KeyedChargeMethod } from "./charge-method-availability";
 import { EmptySalePanel } from "./empty-sale-panel";
 import { LinePricePanel } from "./line-price-panel";
 import { PaymentPanel } from "./payment-panel";

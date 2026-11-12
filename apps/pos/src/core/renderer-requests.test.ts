@@ -26,6 +26,7 @@ import type {
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpeningFloatSuggestion,
@@ -541,6 +542,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         chargeReads.push(request);
         return null;
       },
+      nonCashCharge: async (): Promise<NonCashChargeAnswer> => null,
       closeCashSession: async (
         sessionId: string,
         countedCash: number,
@@ -2604,6 +2606,67 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-charge-unavailable", request_id: "r45" });
     expect(failing.failures).toEqual([{ context: "reading what a tendered amount needs", error }]);
+  });
+
+  it("reads what an amount charged by another method needs for the sale as sent, and answers the charge", async () => {
+    const charge = { kind: "partial", applied: 1000, pending: 2000 } as const;
+    const reads: unknown[] = [];
+
+    expect(
+      await answerRendererRequest(
+        deps(true, {
+          nonCashCharge: async (request) => {
+            reads.push(request);
+            return charge;
+          },
+        }).deps,
+        { type: "non-cash-charge-request", request_id: "r47", sale_id: "s1", amount: 1000 },
+      ),
+    ).toEqual({ type: "non-cash-charge", request_id: "r47", charge });
+    expect(reads).toEqual([{ saleId: "s1", amount: 1000 }]);
+  });
+
+  it("answers that the person signed in may not sell when asked for a non-cash charge", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { nonCashCharge: async () => "not_permitted" }).deps, {
+        type: "non-cash-charge-request",
+        request_id: "r48",
+        sale_id: "s1",
+        amount: 1000,
+      }),
+    ).toEqual({ type: "non-cash-charge-not-permitted", request_id: "r48" });
+  });
+
+  it("answers that the non-cash charge cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { nonCashCharge: undefined }).deps, {
+        type: "non-cash-charge-request",
+        request_id: "r49",
+        sale_id: "s1",
+        amount: 1000,
+      }),
+    ).toEqual({ type: "non-cash-charge-unavailable", request_id: "r49" });
+  });
+
+  it("answers that the non-cash charge cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      nonCashCharge: async () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "non-cash-charge-request",
+        request_id: "r50",
+        sale_id: "s1",
+        amount: 1000,
+      }),
+    ).toEqual({ type: "non-cash-charge-unavailable", request_id: "r50" });
+    expect(failing.failures).toEqual([
+      { context: "reading what an amount charged by another method needs", error },
+    ]);
   });
 
   it("closes a cash session with the session and the count as sent, and answers the outcome", async () => {

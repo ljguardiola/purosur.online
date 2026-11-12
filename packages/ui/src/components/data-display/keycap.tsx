@@ -32,8 +32,8 @@ export type KeyName =
   | "Escape"
   | "Enter"
   | "Delete"
-  | "Space"
   | "Tab"
+  | "Space"
   | `F${FunctionKeyNumber}`
   | "ArrowUp"
   | "ArrowDown"

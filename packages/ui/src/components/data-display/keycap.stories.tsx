@@ -41,6 +41,10 @@ export const Digits: Story = {
   args: { keyName: "Digits" },
 };
 
+export const Tab: Story = {
+  args: { keyName: "Tab" },
+};
+
 export const KeypadPlus: Story = {
   args: { keyName: "NumpadAdd" },
 };
@@ -66,8 +70,4 @@ export const OnPrimary: Story = {
       </div>
     ),
   ],
-};
-
-export const Tab: Story = {
-  args: { keyName: "Tab" },
 };

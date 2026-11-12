@@ -1759,6 +1759,51 @@ describe("createCoreClient", () => {
     expect(await asked).toBe("not_permitted");
   });
 
+  it.each([
+    [{ kind: "covered", applied: 3000 }],
+    [{ kind: "partial", applied: 1000, pending: 2000 }],
+    [{ kind: "exceeds_pending", pending: 3000 }],
+    [{ kind: "invalid_amount" }],
+    [null],
+  ])(
+    "asks the core what the sale needs for an amount charged by another method and resolves with %j",
+    async (charge) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.nonCashCharge("s1", 1000);
+      port.answer({ type: "non-cash-charge", request_id: "request-1", charge });
+
+      expect(await asked).toEqual(charge);
+      expect(port.posted).toEqual([
+        { type: "non-cash-charge-request", request_id: "request-1", sale_id: "s1", amount: 1000 },
+      ]);
+    },
+  );
+
+  it("rejects when the core cannot say what the sale needs for an amount charged by another method", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.nonCashCharge("s1", 1000);
+    port.answer({ type: "non-cash-charge-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
+  });
+
+  it("resolves that the person signed in may not sell when the core says so for a non-cash charge", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.nonCashCharge("s1", 1000);
+    port.answer({ type: "non-cash-charge-not-permitted", request_id: "request-1" });
+
+    expect(await asked).toBe("not_permitted");
+  });
+
   it.each([[KINDS], [null]])(
     "asks the core which cash movements can be recorded and resolves with %j",
     async (kinds) => {

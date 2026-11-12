@@ -16,6 +16,12 @@ updates:
       sentry:
         patterns:
           - "@sentry/*"
+      # react-dom throws on load unless react is its exact same version, so a
+      # bump of one alone leaves every screen blank.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
     commit-message:
       prefix: "chore(deps)"
     ignore:

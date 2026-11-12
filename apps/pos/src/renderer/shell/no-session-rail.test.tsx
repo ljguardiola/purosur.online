@@ -2,6 +2,7 @@ import type { RegisterAbility } from "@purosur/domain";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { useKeys } from "../platform/key-layer";
 import { NoSessionRail } from "./no-session-rail";
 import { RegisterFrame } from "./register-frame";
 import type { SignedInPerson } from "./signed-in-person";
@@ -32,6 +33,15 @@ function renderInFrame(rail: ReactNode) {
       </RegisterFrame>
     </div>,
   );
+}
+
+function ScreenKeys({ run }: { run: (pressed: string) => void }) {
+  useKeys([
+    { key: "Delete", run },
+    { key: "ArrowUpDown", run },
+    { key: "F12", run },
+  ]);
+  return null;
 }
 
 function railItems(screen: Awaited<ReturnType<typeof render>>) {
@@ -205,7 +215,7 @@ describe("NoSessionRail", () => {
       expect(signOut).not.toHaveBeenCalled();
     });
 
-    it("leaves Enter to a field of the screen behind the panel", async () => {
+    it("does not leave on Enter pressed in a field of the screen behind the panel", async () => {
       const signOut = vi.fn();
       const screen = await openConfirmation(signOut);
       await userEvent.click(screen.getByRole("textbox", { name: "Buscar" }));
@@ -233,6 +243,26 @@ describe("NoSessionRail", () => {
       await expect
         .element(screen.getByRole("navigation").getByRole("button", { name: "Salir" }))
         .not.toHaveAttribute("aria-current");
+    });
+
+    it("keeps the keys of the screen behind it from acting while it is open", async () => {
+      const screenKey = vi.fn();
+      const screen = await renderInFrame(
+        <>
+          <ScreenKeys run={screenKey} />
+          <NoSessionRail person={personWith([])} signOut={vi.fn()} />
+        </>,
+      );
+      await userEvent.click(screen.getByRole("navigation").getByRole("button", { name: "Salir" }));
+      await expect
+        .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
+        .toBeVisible();
+
+      await userEvent.keyboard("{Delete}{ArrowDown}{F12}");
+      await userEvent.click(screen.getByRole("textbox", { name: "Buscar" }));
+      await userEvent.keyboard("{Delete}{ArrowDown}{F12}");
+
+      expect(screenKey).not.toHaveBeenCalled();
     });
 
     it("closes when the Esc key is pressed with the pointer, without leaving", async () => {
