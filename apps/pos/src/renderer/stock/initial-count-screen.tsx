@@ -8,7 +8,7 @@ import type {
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
 import type { KeyLegendItem } from "@purosur/ui";
-import { ElevatedNotice, FloatingNotification, InlineNotice, SearchField } from "@purosur/ui";
+import { ElevatedNotice, InlineNotice, SearchField, ToastStack } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, Lock, ScanBarcode, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
@@ -435,7 +435,20 @@ export function InitialCountScreen({
             }
           />
         </form>
-        <div className="relative flex min-h-0 flex-1 flex-col">
+        <ToastStack
+          toasts={
+            withdrawNotice === undefined
+              ? []
+              : [
+                  {
+                    id: withdrawNotice,
+                    tone: "error",
+                    ...WITHDRAW_NOTICES[withdrawNotice],
+                    onDismiss: () => setWithdrawNotice(undefined),
+                  },
+                ]
+          }
+        >
           <InitialCountLines
             state={lines}
             selectedLineId={selectedLine?.movement_id}
@@ -443,14 +456,7 @@ export function InitialCountScreen({
             onSelect={(line) => setSelectedLineId(line.movement_id)}
             {...(unavailable === undefined ? {} : { unavailable })}
           />
-        </div>
-        {withdrawNotice === undefined ? null : (
-          <FloatingNotification
-            tone="error"
-            {...WITHDRAW_NOTICES[withdrawNotice]}
-            onDismiss={() => setWithdrawNotice(undefined)}
-          />
-        )}
+        </ToastStack>
       </main>
     </RegisterFrame>
   );
