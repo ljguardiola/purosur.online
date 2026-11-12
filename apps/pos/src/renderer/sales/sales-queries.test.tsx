@@ -837,13 +837,15 @@ const HISTORY_FOUND: SalesHistoryOutcome = { kind: "found", rows: [], total: 0, 
 function SalesHistoryProbe({
   page = 1,
   state = "all",
+  document,
   read,
 }: {
   page?: number;
   state?: "all" | "completed";
+  document?: SalesHistoryQuery["document"];
   read: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
 }) {
-  const history = useSalesHistoryQuery({ session: "open", state, page, read });
+  const history = useSalesHistoryQuery({ session: "open", state, page, document, read });
   const refresh = useRefreshSalesHistory();
   return (
     <>
@@ -961,6 +963,43 @@ describe("sales history query", () => {
 
     await expect.element(screen.getByText("found")).toBeVisible();
     expect(read).toHaveBeenCalledWith({ session: "open", state: "completed", page: 2 });
+  });
+
+  it("reads the sales with the document number it is given", async () => {
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await renderWithClient(
+      <SalesHistoryProbe document={{ pointOfSale: null, number: 187 }} read={read} />,
+    );
+
+    await expect.element(screen.getByText("found")).toBeVisible();
+    expect(read).toHaveBeenCalledWith({
+      session: "open",
+      state: "all",
+      page: 1,
+      document: { pointOfSale: null, number: 187 },
+    });
+  });
+
+  it("reads again when the document number changes instead of showing the previous search", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <SalesHistoryProbe document={{ pointOfSale: null, number: 187 }} read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("found")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <SalesHistoryProbe
+          document={{ pointOfSale: 3, number: 187 }}
+          read={() => new Promise(() => {})}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
   });
 
   it("holds a refusal to show the history as an answer, not a failure", async () => {

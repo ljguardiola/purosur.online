@@ -17,7 +17,7 @@ import {
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
-const ASK = { session: "all", state: "all", page: 1 } as const;
+const ASK = { session: "all", state: "all", page: 1, document: null } as const;
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -288,6 +288,85 @@ describe("the sales history", () => {
       "sale-1",
     ]);
     expect(answer.kind === "found" && answer.total).toBe(51);
+  });
+});
+
+describe("searching the sales history by document number", () => {
+  it("answers the sales whose invoice has the number in any point of sale", async () => {
+    addSale({
+      id: "wanted",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 1,
+      authorizedDocumentNumber: 187,
+    });
+    addSale({
+      id: "other",
+      occurredAt: "2026-10-08T10:00:00.000Z",
+      operationNumber: 2,
+      authorizedDocumentNumber: 188,
+    });
+
+    const answer = await salesHistoryFor(deps(), {
+      ...ASK,
+      document: { pointOfSale: null, number: 187 },
+    });
+
+    expect(answer).toMatchObject({ kind: "found", total: 1, page_size: 50 });
+    expect(answer.kind === "found" && answer.rows.map(({ sale_id }) => sale_id)).toEqual([
+      "wanted",
+    ]);
+  });
+
+  it("answers nothing when the point of sale typed is not the invoice's", async () => {
+    addSale({
+      id: "wanted",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 1,
+      authorizedDocumentNumber: 187,
+    });
+
+    const answer = await salesHistoryFor(deps(), {
+      ...ASK,
+      document: { pointOfSale: 4, number: 187 },
+    });
+
+    expect(answer).toEqual({ kind: "found", rows: [], total: 0, page_size: 50 });
+  });
+
+  it("combines the search with the session asked", async () => {
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state, closed_at)
+       VALUES ('s0', 'r1', 'device-1', 'clerk', '2026-10-07T08:00:00.000Z', 0, 'CLOSED', '2026-10-07T20:00:00.000Z');`,
+    );
+    addSale({
+      id: "today",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 2,
+      authorizedDocumentNumber: 187,
+    });
+    addSale({
+      id: "yesterday",
+      occurredAt: "2026-10-07T09:00:00.000Z",
+      operationNumber: 1,
+      authorizedDocumentNumber: 187,
+    });
+    database.exec("UPDATE sales SET session_id = 's0' WHERE id = 'yesterday'");
+
+    const open = await salesHistoryFor(deps(), {
+      ...ASK,
+      session: "open",
+      document: { pointOfSale: null, number: 187 },
+    });
+
+    expect(open.kind === "found" && open.rows.map(({ sale_id }) => sale_id)).toEqual(["today"]);
+  });
+
+  it("still requires the permission to view the sales history", async () => {
+    signedInPerson.set("cashier");
+
+    expect(
+      await salesHistoryFor(deps(), { ...ASK, document: { pointOfSale: null, number: 187 } }),
+    ).toEqual({ kind: "lacks_permission" });
   });
 });
 

@@ -9,6 +9,7 @@ import {
   type SaleFiscalFacts,
   saleComprobanteOf,
   saleFiscalDocumentAmong,
+  saleHasDocumentNumber,
   saleStandingOf,
 } from "./sale-history.js";
 
@@ -190,5 +191,57 @@ describe("isDeferralPending", () => {
 
   it("is not pending for a sale that was never deferred", () => {
     expect(isDeferralPending(null)).toBe(false);
+  });
+});
+
+describe("saleHasDocumentNumber", () => {
+  const authorized = (overrides: Partial<SaleFiscalDocument> = {}): SaleFiscalFacts => ({
+    deferred: false,
+    fiscalDocument: { ...document("AUTHORIZED"), ...overrides },
+  });
+
+  it("holds for a sale whose authorized document has the point of sale and the number", () => {
+    expect(saleHasDocumentNumber(authorized(), { pointOfSale: 3, number: 1204 })).toBe(true);
+  });
+
+  it("holds for any point of sale when none is asked", () => {
+    expect(saleHasDocumentNumber(authorized(), { pointOfSale: null, number: 1204 })).toBe(true);
+  });
+
+  it("holds for a document issued under an offline code", () => {
+    expect(
+      saleHasDocumentNumber(authorized({ authorization: "offline_code" }), {
+        pointOfSale: 3,
+        number: 1204,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not hold for another number or another point of sale", () => {
+    expect(saleHasDocumentNumber(authorized(), { pointOfSale: 3, number: 1205 })).toBe(false);
+    expect(saleHasDocumentNumber(authorized(), { pointOfSale: 4, number: 1204 })).toBe(false);
+    expect(saleHasDocumentNumber(authorized(), { pointOfSale: null, number: 1205 })).toBe(false);
+  });
+
+  it.each(["REQUESTING", "REJECTED", "RELEASED", "UNKNOWN", "CONFLICTING"] as const)(
+    "does not hold for a document that is %s, which the sale does not have",
+    (state) => {
+      expect(
+        saleHasDocumentNumber(
+          { deferred: false, fiscalDocument: document(state) },
+          { pointOfSale: 3, number: 1204 },
+        ),
+      ).toBe(false);
+    },
+  );
+
+  it("does not hold for a sale without a document, deferred or not", () => {
+    expect(saleHasDocumentNumber(NO_DOCUMENT, { pointOfSale: null, number: 1204 })).toBe(false);
+    expect(
+      saleHasDocumentNumber(
+        { deferred: true, fiscalDocument: null },
+        { pointOfSale: null, number: 1204 },
+      ),
+    ).toBe(false);
   });
 });

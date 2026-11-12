@@ -512,6 +512,154 @@ describe("SqliteRegisterSalesHistory", () => {
     });
   });
 
+  describe("the candidates for a document number", () => {
+    const ids = (entries: { saleId: string }[]) => entries.map(({ saleId }) => saleId);
+
+    it("lists the sales with a document of that number, most recent first", () => {
+      addSale({
+        id: "older",
+        occurredAt: "2026-10-08T10:00:00.000Z",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 187 },
+      });
+      addSale({
+        id: "newer",
+        occurredAt: "2026-10-08T11:00:00.000Z",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 187 },
+      });
+      addSale({ id: "other", fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 188 } });
+
+      expect(ids(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 187 }))).toEqual([
+        "newer",
+        "older",
+      ]);
+    });
+
+    it("narrows by the point of sale when one is typed", () => {
+      addSale({ id: "here", fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 187 } });
+      addSale({ id: "there", fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 187 } });
+
+      expect(ids(history.salesOfRegisterWithDocument({ pointOfSale: 7, number: 187 }))).toEqual([
+        "there",
+      ]);
+    });
+
+    it("includes a sale invoiced under an offline code", () => {
+      addSale({ id: "offline", offlineDocument: { pointOfSale: 31, number: 8 } });
+
+      expect(ids(history.salesOfRegisterWithDocument({ pointOfSale: 31, number: 8 }))).toEqual([
+        "offline",
+      ]);
+      expect(history.salesOfRegisterWithDocument({ pointOfSale: 3, number: 8 })).toEqual([]);
+    });
+
+    it("includes a deferred sale whose invoice was issued but not yet printed", () => {
+      addSale({ id: "late", deferred: true });
+      invoiceDeferredSaleAfterItsAttemptWasReleased("late", 187);
+
+      const [entry] = history.salesOfRegisterWithDocument({ pointOfSale: 7, number: 187 });
+
+      expect(entry).toMatchObject({
+        saleId: "late",
+        fiscal: { deferred: false, fiscalDocument: { state: "AUTHORIZED", number: 187 } },
+      });
+    });
+
+    it("hands the domain the sale's document, not the other attempt that matched", () => {
+      addSale({
+        id: "sale-1",
+        fiscal: { state: "RELEASED", pointOfSale: 7, number: 55 },
+        offlineDocument: { pointOfSale: 31, number: 8 },
+      });
+
+      const [entry] = history.salesOfRegisterWithDocument({ pointOfSale: 7, number: 55 });
+
+      expect(entry?.fiscal.fiscalDocument).toMatchObject({
+        authorization: "offline_code",
+        number: 8,
+      });
+    });
+
+    it("does not look at the number of a credit note", () => {
+      addSale({ id: "sale-1", fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 1204 } });
+      addCreditNote("sale-1", {
+        state: "AUTHORIZED",
+        point_of_sale: 3,
+        number: 41,
+        issued_on: "2026-10-08",
+      });
+
+      expect(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 41 })).toEqual([]);
+    });
+
+    it("limits the open-session search to the open session", () => {
+      addSale({
+        id: "today",
+        session: "open-session",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 187 },
+      });
+      addSale({
+        id: "yesterday",
+        session: "old-session",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 187 },
+      });
+
+      expect(
+        ids(history.salesOfOpenSessionWithDocument({ pointOfSale: null, number: 187 })),
+      ).toEqual(["today"]);
+      expect(
+        ids(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 187 })),
+      ).toHaveLength(2);
+    });
+
+    it("lists only completed and voided sales of this register", () => {
+      const fiscal = { state: "AUTHORIZED", pointOfSale: 3, number: 187 } as const;
+      addSale({ id: "done", fiscal });
+      addSale({ id: "gone", state: "VOIDED", fiscal: { ...fiscal } });
+      addSale({ id: "open", state: "OPEN", fiscal: { ...fiscal } });
+      addSale({ id: "other-register", register: "r2", fiscal: { ...fiscal } });
+
+      expect(
+        ids(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 187 })).sort(),
+      ).toEqual(["done", "gone"]);
+    });
+
+    it("shows each sale as the listing does, with its total, methods and standing facts", () => {
+      addSale({
+        id: "sale-1",
+        occurredAt: "2026-10-08T12:34:00.000Z",
+        operationNumber: 482,
+        lines: [1500, 2500],
+        payments: [
+          { method: "CASH", amount: 1000 },
+          { method: "TRANSFER", amount: 3000 },
+        ],
+        fiscal: { state: "AUTHORIZED", pointOfSale: 3, number: 187 },
+        state: "VOIDED",
+      });
+
+      expect(history.salesOfRegisterWithDocument({ pointOfSale: null, number: 187 })).toEqual([
+        {
+          saleId: "sale-1",
+          occurredAt: new Date("2026-10-08T12:34:00.000Z"),
+          operationNumber: 482,
+          paymentMethods: ["CASH", "TRANSFER"],
+          total: 4000,
+          fiscal: {
+            deferred: false,
+            fiscalDocument: {
+              state: "AUTHORIZED",
+              documentType: "factura_c",
+              authorization: "real_time",
+              pointOfSale: 3,
+              number: 187,
+            },
+          },
+          voided: true,
+        },
+      ]);
+    });
+  });
+
   describe("filtering by standing", () => {
     beforeEach(() => {
       addSale({ id: "no-document", occurredAt: "2026-10-08T10:00:00.000Z" });

@@ -2063,6 +2063,7 @@ describe("asking for the register's sales history", () => {
     session: "open",
     state: "all",
     page: 1,
+    document: null,
   };
 
   it("accepts a request naming the session, the state and the page", () => {
@@ -2091,7 +2092,34 @@ describe("asking for the register's sales history", () => {
     expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, ...override }).success).toBe(false);
   });
 
-  it.each(["request_id", "session", "state", "page"])(
+  it.each([
+    { point_of_sale: 3, number: 187 },
+    { point_of_sale: null, number: 187 },
+  ])("accepts the document number %j", (document) => {
+    expect(salesRendererToCoreMessageSchema.parse({ ...ask, document })).toEqual({
+      ...ask,
+      document,
+    });
+  });
+
+  it.each([
+    { point_of_sale: 0, number: 187 },
+    { point_of_sale: -3, number: 187 },
+    { point_of_sale: 1.5, number: 187 },
+    { point_of_sale: "3", number: 187 },
+    { number: 187 },
+    { point_of_sale: 3, number: 0 },
+    { point_of_sale: 3, number: -1 },
+    { point_of_sale: 3, number: 1.5 },
+    { point_of_sale: 3, number: null },
+    { point_of_sale: 3 },
+    "0003-00000187",
+    187,
+  ])("rejects the document number %j", (document) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, document }).success).toBe(false);
+  });
+
+  it.each(["request_id", "session", "state", "page", "document"])(
     "rejects a request missing its %s",
     (field) => {
       const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));

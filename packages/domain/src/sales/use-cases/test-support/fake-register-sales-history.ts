@@ -1,4 +1,8 @@
-import { type SaleFiscalFacts, saleStandingOf } from "../../model/sale-history.js";
+import {
+  type SaleDocumentNumber,
+  type SaleFiscalFacts,
+  saleStandingOf,
+} from "../../model/sale-history.js";
 import type {
   RegisterSalesHistory,
   SaleHistoryRecord,
@@ -14,6 +18,10 @@ export interface FakeHistorySale {
 }
 
 export class FakeRegisterSalesHistory implements RegisterSalesHistory {
+  readonly documentSearches: {
+    scope: "open_session" | "register";
+    document: SaleDocumentNumber;
+  }[] = [];
   readonly filters: { scope: "open_session" | "register"; filter: SalesHistoryFilter }[] = [];
   private readonly sales: FakeHistorySale[];
 
@@ -34,6 +42,19 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
     return this.pageOf(this.sales, filter);
   }
 
+  salesOfOpenSessionWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[] {
+    this.documentSearches.push({ scope: "open_session", document });
+    return this.candidatesOf(
+      this.sales.filter(({ inOpenSession }) => inOpenSession),
+      document,
+    );
+  }
+
+  salesOfRegisterWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[] {
+    this.documentSearches.push({ scope: "register", document });
+    return this.candidatesOf(this.sales, document);
+  }
+
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {
     return this.sales.find(({ entry }) => entry.saleId === saleId)?.record;
   }
@@ -45,6 +66,12 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
         fiscalDocument: null,
       }
     );
+  }
+
+  private candidatesOf(sales: FakeHistorySale[], { number }: SaleDocumentNumber) {
+    return sales
+      .filter(({ entry }) => entry.fiscal.fiscalDocument?.number === number)
+      .map(({ entry }) => entry);
   }
 
   private pageOf(sales: FakeHistorySale[], { standing, offset, limit }: SalesHistoryFilter) {
