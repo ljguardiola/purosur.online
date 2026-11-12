@@ -76,6 +76,15 @@ test("draws a 440px white card over the dimmed backdrop, with no footer bar", as
   expect(getComputedStyle(overlay).position).toBe("fixed");
 });
 
+test("sets the title 16px after the icon badge", async () => {
+  await render(<CardModal {...props()} />);
+
+  const dialog = page.getByRole("dialog").element() as HTMLElement;
+  const badge = dialog.querySelector("svg")?.parentElement?.parentElement as HTMLElement;
+  const heading = page.getByRole("heading", { name: "Autorizar" }).element();
+  expect(heading.getBoundingClientRect().left - badge.getBoundingClientRect().right).toBe(16);
+});
+
 test("closes on Escape", async () => {
   const onOpenChange = vi.fn();
   await render(<CardModal {...props({ onOpenChange })} />);

@@ -57,6 +57,7 @@ function renderHeader(
     status?: CoreData<RegisterStatus>;
     backupTickets?: CoreData<ContingencyBackupTicketsAnswer>;
     onDiscardBackupTickets?: () => void;
+    crumb?: string;
   } = {},
 ) {
   return render(
@@ -67,6 +68,7 @@ function renderHeader(
       status={props.status ?? loaded()}
       backupTickets={props.backupTickets ?? loadedTickets()}
       onDiscardBackupTickets={props.onDiscardBackupTickets ?? (() => {})}
+      crumb={props.crumb}
     />,
   );
 }
@@ -113,6 +115,12 @@ describe("RegisterHeader", () => {
     const screen = await renderHeader({ cashSession: NO_SESSION });
 
     expect(headerText(screen)).toBe("CAJA 1•Ada•Sin sesión abierta");
+  });
+
+  it("ends with the crumb of the screen shown, after the person", async () => {
+    const screen = await renderHeader({ cashSession: OPEN_SESSION, crumb: "Antes de empezar" });
+
+    expect(headerText(screen)).toBe("CAJA 1•Ada•Antes de empezar");
   });
 
   it("draws the register as a bold eyebrow and the other crumbs as plain text after a quiet dot", async () => {

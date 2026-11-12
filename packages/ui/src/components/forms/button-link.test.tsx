@@ -149,3 +149,19 @@ test("takes the text variant at its drawn sizes and no class of the caller's", (
 test("does not accept a link without text, since it would have no accessible name", () => {
   expectTypeOf<{ variant: "text"; href: string }>().not.toExtend<ButtonLinkProps>();
 });
+
+test("shows its keycap after the label, hidden from assistive technology, keeping the label as its name", async () => {
+  const screen = await render(
+    <ButtonLink variant="text" href="/first-sign-in" icon={<ArrowLeft />} keycap="F2">
+      Primer ingreso
+    </ButtonLink>,
+  );
+
+  const link = screen.getByRole("link", { name: "Primer ingreso" }).element() as HTMLAnchorElement;
+  const keycap = link.querySelector("kbd") as HTMLElement;
+  expect(keycap.textContent).toBe("F2");
+  expect(keycap.closest("[aria-hidden='true']")).not.toBeNull();
+  const labelRect = (link.querySelector("span.truncate") as HTMLElement).getBoundingClientRect();
+  expect(keycap.getBoundingClientRect().left).toBeGreaterThanOrEqual(labelRect.right);
+  await expectNoAccessibilityViolations(screen.container);
+});

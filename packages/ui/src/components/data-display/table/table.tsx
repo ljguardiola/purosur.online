@@ -49,6 +49,7 @@ export function Table<T extends RowData>({
   footer,
   legend,
   fill = false,
+  locked,
 }: TableProps<T>): ReactElement {
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
@@ -73,9 +74,16 @@ export function Table<T extends RowData>({
       >
         <TableColumnWidths table={table} variant={variant} />
         <thead>
-          <TableHeaderRows table={table} variant={variant} />
+          <TableHeaderRows
+            table={table}
+            variant={variant}
+            {...(locked === undefined ? {} : { locked })}
+          />
         </thead>
-        <tbody aria-hidden={showingPlaceholders ? true : undefined}>
+        <tbody
+          aria-hidden={showingPlaceholders ? true : undefined}
+          className={locked === undefined ? "" : "opacity-disabled"}
+        >
           {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
           {failure !== undefined && (
             <tr>
@@ -103,13 +111,18 @@ export function Table<T extends RowData>({
                     className={[
                       rowBoxShadowClassName(state, last && !hasDetail),
                       rowStateClassName(state, variant),
-                      ...(onRowPress === undefined ? [] : [pressableRowClassName(state)]),
+                      ...(onRowPress === undefined || locked !== undefined
+                        ? []
+                        : [pressableRowClassName(state)]),
                     ].join(" ")}
+                    aria-disabled={locked === undefined ? undefined : true}
                     aria-current={
-                      onRowPress !== undefined && state === "selected" ? "true" : undefined
+                      onRowPress !== undefined && locked === undefined && state === "selected"
+                        ? "true"
+                        : undefined
                     }
                     onClick={
-                      onRowPress === undefined
+                      onRowPress === undefined || locked !== undefined
                         ? undefined
                         : (event) => {
                             if (
@@ -171,7 +184,7 @@ export function Table<T extends RowData>({
           ) : (
             tableElement
           ))}
-        {legend === undefined ? null : (
+        {legend === undefined || locked !== undefined ? null : (
           <div className="shrink-0 border-t border-border bg-surface-subtle px-4 py-3">
             <KeyLegend items={legend} />
           </div>

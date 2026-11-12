@@ -7,7 +7,7 @@ import type {
   RegisterStatus,
   StartupPending,
 } from "@purosur/contracts";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { notifyManager, QueryClientProvider } from "@tanstack/react-query";
 import {
   createRootRouteWithContext,
   createRoute,
@@ -19,6 +19,7 @@ import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render as renderInPage } from "vitest-browser-react";
+import { KeyLayerProvider } from "../platform/key-layer";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
 import { registerStatusQueryOptions } from "../register/register-queries";
@@ -80,8 +81,7 @@ const REVOKED_TITLE = "Esta notebook dejó de ser una caja";
 const REVOKED: Enrollment = "revoked";
 const COMPLETED: Restoration = { kind: "completed" };
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
-const SIGN_IN_TITLE = "¿Quién abre la caja?";
-const STARTUP_PENDING_TITLE = "Hay cosas para resolver";
+const SIGN_IN_USER_SELECT = /USUARIO/;
 const NOTHING_PENDING: StartupPending = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
@@ -169,7 +169,7 @@ const screenFor: Record<
   (screen: RenderedScreen) => ReturnType<RenderedScreen["getByText"]>
 > = {
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
-  "/sign-in": (screen) => screen.getByRole("heading", { name: SIGN_IN_TITLE }),
+  "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
@@ -184,7 +184,7 @@ const screenFor: Record<
     screen.getByRole("heading", { level: 1, name: "Balanza y lector" }),
   "/initial-count": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
-  "/startup-pending": (screen) => screen.getByRole("heading", { name: STARTUP_PENDING_TITLE }),
+  "/startup-pending": (screen) => screen.getByRole("table", { name: "Pendientes" }),
   "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
@@ -246,7 +246,10 @@ function contextWith(
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
     registerVersion: async () => null,
-    signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
+    signInUsers: async () => ({
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: null,
+    }),
     authorizers: async () => [{ id: "u2", first_name: "Grace" }],
     lockedClosers: async () => [],
     signIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
@@ -260,6 +263,7 @@ function contextWith(
     firstSignIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
     currentSale: async () => null,
     cashCharge: async () => ({ kind: "invalid_amount" }),
+    cashChargeAmounts: async () => null,
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
     chargeSaleInCashWithChangeDiscount: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
@@ -357,7 +361,9 @@ const screenFailure = new Error("screen failed to render");
 function render(ui: ReactNode) {
   return renderInPage(ui, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <KeyLayerProvider>{children}</KeyLayerProvider>
+      </QueryClientProvider>
     ),
   });
 }
@@ -397,6 +403,15 @@ function GuardedScreen() {
 
 function FailingScreen(): ReactNode {
   throw screenFailure;
+}
+
+function freezeTimersKeepingQueriesAnswered() {
+  notifyManager.setScheduler(queueMicrotask);
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+  onTestFinished(() => {
+    vi.useRealTimers();
+    notifyManager.setScheduler((callback) => setTimeout(callback, 0));
+  });
 }
 
 describe("routeFor", () => {
@@ -1424,8 +1439,8 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
+    await expect.element(screen.getByLabelText("PIN")).toBeVisible();
   });
 
   it("keeps its frame within the window's width beside a vertical scrollbar", async () => {
@@ -1435,7 +1450,9 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .toBeInTheDocument();
     expect(windowOverflow().horizontal).toBe(0);
   });
 
@@ -2012,12 +2029,10 @@ describe("the register's router", () => {
       const screen = await render(<RouterProvider router={router} />);
 
       await expect.element(screenFor["/startup-pending"](screen)).toBeVisible();
-      await expect
-        .element(screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
     });
 
-    it("passes the order to refund through the core and goes on to the sale by itself once its notice is dismissed", async () => {
+    it("passes the order to refund through the core and goes on to the sale by itself once its notice has gone", async () => {
       let answer = BLOCKED_BY_PAID_ORDER;
       const convertPaidOrderIntoRefund = vi.fn<RouterContext["convertPaidOrderIntoRefund"]>(
         async () => {
@@ -2036,19 +2051,19 @@ describe("the register's router", () => {
         "/session",
       );
       const screen = await render(<RouterProvider router={router} />);
-      await userEvent.click(
-        screen.getByRole("button", { name: "Pasar a reembolso el cobro de las 15:30" }),
-      );
-      await userEvent.click(
-        screen
-          .getByRole("dialog", { name: "¿Pasar el cobro a reembolso?" })
-          .getByRole("button", { name: "Pasar a reembolso" }),
-      );
+      await expect.element(screen.getByText("Cobro con QR pagado sin venta")).toBeVisible();
+      await userEvent.keyboard("r");
+      const confirmation = screen.getByRole("complementary", {
+        name: "¿Pasar el cobro a reembolso?",
+      });
+      await expect.element(confirmation).toBeVisible();
+      freezeTimersKeepingQueriesAnswered();
+      await userEvent.click(confirmation.getByRole("button", { name: "Pasar a reembolso" }));
 
       expect(convertPaidOrderIntoRefund).toHaveBeenCalledExactlyOnceWith("tx-1");
       await expect.element(screen.getByText("El cobro quedó como reembolso")).toBeVisible();
       expect(router.state.location.pathname).toBe("/startup-pending");
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+      await vi.advanceTimersByTimeAsync(5000);
 
       await expect.element(screenFor["/session"](screen)).toBeVisible();
       expect(router.state.location.pathname).toBe("/session");
@@ -2224,6 +2239,14 @@ describe("the register's router", () => {
           change: 0,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          kind: "amounts",
+          amount_due: 238_000,
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return {
@@ -2241,11 +2264,8 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2380,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
@@ -2298,6 +2318,14 @@ describe("the register's router", () => {
           change: 0,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          kind: "amounts",
+          amount_due: 238_000,
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
         refreshCashSession: refreshed,
       },
@@ -2306,11 +2334,8 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2380,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2380,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
     await expect.poll(() => refreshed.mock.calls.length).toBe(1);
   });
@@ -2511,16 +2536,19 @@ describe("the register's router", () => {
   });
 
   it.each([
-    ["/sign-in", "enrolled"],
-    ["/enroll", "not_enrolled"],
-    ["/re-enroll", REVOKED],
+    ["/sign-in", "enrolled", COMPLETED],
+    ["/enroll", "not_enrolled", COMPLETED],
+    ["/re-enroll", REVOKED, COMPLETED],
+    ["/revoked", REVOKED, COMPLETED],
+    ["/restore-required", "enrolled", { kind: "in_progress", step: "enroll", origin: "copy" }],
+    ["/restoring", "enrolled", { kind: "in_progress", step: "restore", origin: "copy" }],
   ] as const)(
     "reads the running version on %s before any PIN or code",
-    async (route, enrollment) => {
+    async (route, enrollment, restoration) => {
       const router = createRegisterRouter(
         routeTree,
         {
-          ...contextWith("up", enrollment, null),
+          ...contextWith("up", enrollment, null, undefined, undefined, undefined, restoration),
           registerVersion: async () => "1.0.1539",
         },
         route,
@@ -2604,21 +2632,6 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
   });
 
-  it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
-    const router = createRegisterRouter(
-      routeTree,
-      {
-        ...contextWith("up", "enrolled", null),
-        registerName: () => Promise.reject(new Error("the core connection was replaced")),
-      },
-      "/sign-in",
-    );
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screen.getByText("Sin sesión abierta", { exact: true })).toBeVisible();
-  });
-
   it("shows the core-down notice without waiting for the register's name", async () => {
     const router = createRegisterRouter(
       routeTree,
@@ -2643,13 +2656,11 @@ describe("the register's router", () => {
     const router = routerAt("/sign-in", "up", "enrolled", null);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(
-      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
     await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("reaches the PIN code redemption screen from the locked register and comes back", async () => {
@@ -2794,7 +2805,7 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
 
     expect(redeemed).toEqual(["K7QM2XPA3DTR4HWN/482915"]);
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("asks for the PIN digits the context's policy names on the PIN redemption screen", async () => {
@@ -2927,7 +2938,7 @@ describe("the register's router", () => {
     const router = routerAt("/sign-in", "up", "enrolled", null);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("link", { name: "Ingresar por primera vez" }));
+    await userEvent.click(screen.getByRole("link", { name: "Primer ingreso" }));
     await expect.element(screenFor["/first-sign-in"](screen)).toBeVisible();
     await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 

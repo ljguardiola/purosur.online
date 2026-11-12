@@ -85,6 +85,8 @@ type TableLoadProps =
   | { loading?: TableLoadingState; failure?: never }
   | { loading?: false; failure: LoadFailureProps | CenteredLoadFailureProps };
 
+export type TableLock = { label: string };
+
 export type TableProps<T extends RowData> = {
   table: TableModel<T>;
   "aria-label": string;
@@ -96,4 +98,5 @@ export type TableProps<T extends RowData> = {
   footer?: ReactNode;
   legend?: readonly KeyLegendItem[];
   fill?: boolean;
+  locked?: TableLock;
 } & TableLoadProps;

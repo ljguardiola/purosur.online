@@ -1,36 +1,15 @@
-import type { SignInOutcome, SignInUser } from "@purosur/contracts";
+import type { SignInOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { SignInScreen } from "./sign-in-screen";
-
-const USERS: SignInUser[] = [
-  { id: "u2", first_name: "Bruno" },
-  { id: "u1", first_name: "Ada" },
-];
-
-type Screen = Awaited<ReturnType<typeof render>>;
+import { choose, enter, renderSignIn, userSelect } from "./test-support/sign-in-screen";
 
 afterEach(() => {
   vi.useRealTimers();
 });
 
-async function renderScreen(outcome: SignInOutcome) {
-  return render(
-    <SignInScreen
-      loadUsers={async () => USERS}
-      signIn={async () => outcome}
-      registerName={null}
-      version={null}
-    />,
-  );
-}
-
-async function enter(screen: Screen, firstName: string, pin: string) {
-  await userEvent.click(screen.getByRole("radio", { name: firstName }), { force: true });
-  await userEvent.type(screen.getByLabelText("PIN"), pin);
-  await userEvent.click(screen.getByRole("button", { name: /^Entrar/ }));
+function renderScreen(outcome: SignInOutcome) {
+  return renderSignIn({ signIn: async () => outcome });
 }
 
 const WAITING_NOTICE_ENDING = "Quedan 6 intentos antes de que el usuario se bloquee.";
@@ -93,7 +72,7 @@ describe("SignInScreen after a wrong PIN", () => {
       .toBeVisible();
     await userEvent.type(screen.getByLabelText("PIN"), "1");
     await expect.element(screen.getByRole("button", { name: "Entrar en 2 s" })).toBeDisabled();
-    await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
+    await expect.element(screen.getByText("Todavía no se puede volver a intentar")).toBeVisible();
 
     await vi.advanceTimersByTimeAsync(1000);
     await expect
@@ -143,9 +122,11 @@ describe("SignInScreen after a wrong PIN", () => {
     await enter(screen, "Ada", "1234");
     await expect.element(screen.getByRole("button", { name: "Entrar en 20 s" })).toBeVisible();
 
-    await userEvent.click(screen.getByRole("radio", { name: "Bruno" }), { force: true });
+    await choose(screen, "Bruno");
 
-    await expect.element(screen.getByText("PIN incorrecto")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Todavía no se puede volver a intentar"))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeVisible();
   });
 
@@ -213,7 +194,7 @@ describe("SignInScreen when the user is locked", () => {
         ),
       )
       .toBeVisible();
-    await expect.element(screen.getByRole("radiogroup")).not.toBeInTheDocument();
+    await expect.element(userSelect(screen)).not.toBeInTheDocument();
     await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién abre la caja?" }))
@@ -232,20 +213,42 @@ describe("SignInScreen when the user is locked", () => {
     );
   });
 
-  it("goes back to the list of users with nobody chosen, no PIN and no notice", async () => {
+  it("shows Esc at the top right and F3 on the primary action, with no links to other screens", async () => {
     const screen = await renderScreen({ kind: "locked", consecutive_failures: 8 });
     await enter(screen, "Ada", "1234");
 
-    await userEvent.click(screen.getByRole("button", { name: "Volver a la lista de usuarios" }));
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Tengo un código" })).toBeVisible();
+    await expect.element(screen.getByText("F3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("link")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Volver a la lista de usuarios" }))
+      .not.toBeInTheDocument();
+  });
 
-    const heading = screen.getByRole("heading", { name: "¿Quién abre la caja?" });
-    await expect.element(heading).toBeVisible();
-    await expect.element(heading).toHaveFocus();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).not.toBeChecked();
+  it("goes to the code redemption with F3", async () => {
+    const screen = await renderScreen({ kind: "locked", consecutive_failures: 8 });
+    await enter(screen, "Ada", "1234");
+
+    await userEvent.keyboard("{F3}");
+
+    await vi.waitFor(() =>
+      expect(screen.router.state.location.pathname).toBe("/pin-code-redemption"),
+    );
+  });
+
+  it("goes back to the list of users with Esc, with an empty PIN and no notice", async () => {
+    const screen = await renderScreen({ kind: "locked", consecutive_failures: 8 });
+    await enter(screen, "Ada", "1234");
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(userSelect(screen)).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toHaveValue("");
-    await expect.element(screen.getByLabelText("PIN")).toBeDisabled();
+    await expect.element(screen.getByLabelText("PIN")).toHaveFocus();
     await expect
       .element(screen.getByText("Se vuelve a entrar con un código"))
       .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("link", { name: "Primer ingreso" })).toBeVisible();
   });
 });

@@ -1,10 +1,11 @@
-import type { SignInUser } from "@purosur/contracts";
 import { decodePinSalt } from "@purosur/contracts";
 import type { RoleAccess } from "@purosur/domain";
 import type {
   PinHolder,
   PinSignInFailures,
   PinSignInStore,
+  RememberedPeople,
+  RememberedPerson,
   SignablePerson,
 } from "@purosur/domain/sessions/use-cases";
 import { SqlitePinReplacementStore } from "../credentials/sqlite-pin-replacement-store";
@@ -23,9 +24,7 @@ export interface ActivePerson {
   access: RoleAccess;
 }
 
-export interface SignInStore extends PinSignInStore<PinCredential> {
-  signableUsers(): SignInUser[];
-  remember(userId: string): void;
+export interface SignInStore extends PinSignInStore<PinCredential>, RememberedPeople {
   firstNameOf(userId: string): string | undefined;
   signInRecord(userId: string): SignInRecord | undefined;
   signablePeople(): SignablePerson[];
@@ -60,16 +59,37 @@ export class SqliteSignInStore implements SignInStore {
     this.pinReplacement = new SqlitePinReplacementStore(database);
   }
 
-  signableUsers(): SignInUser[] {
+  signInCandidates(): RememberedPerson[] {
     return this.database
-      .prepare<[], SignInUser>(
-        `SELECT users.id AS id, users.first_name AS first_name
+      .prepare<[], { id: string; first_name: string; last_active: number }>(
+        `SELECT users.id AS id, users.first_name AS first_name,
+                remembered_users.last_active AS last_active
          FROM users
          JOIN pin_verifiers ON pin_verifiers.user_id = users.id
          JOIN remembered_users ON remembered_users.user_id = users.id
          WHERE users.active = 1 AND users.removed = 0 AND users.salt IS NOT NULL`,
       )
-      .all();
+      .all()
+      .map((row) => ({ id: row.id, firstName: row.first_name, lastActive: row.last_active === 1 }));
+  }
+
+  markLastActive(userId: string): void {
+    this.database.transaction(() => {
+      if (
+        this.database.prepare("SELECT 1 FROM remembered_users WHERE user_id = ?").get(userId) ===
+        undefined
+      ) {
+        return;
+      }
+      this.database
+        .prepare(
+          "UPDATE remembered_users SET last_active = 0 WHERE last_active = 1 AND user_id <> ?",
+        )
+        .run(userId);
+      this.database
+        .prepare("UPDATE remembered_users SET last_active = 1 WHERE user_id = ?")
+        .run(userId);
+    })();
   }
 
   remember(userId: string): void {
@@ -87,7 +107,7 @@ export class SqliteSignInStore implements SignInStore {
   }
 
   signablePeople(): SignablePerson[] {
-    return this.signableUsers().flatMap(({ id }) => {
+    return this.signInCandidates().flatMap(({ id }) => {
       const record = this.signInRecord(id);
       return record === undefined
         ? []

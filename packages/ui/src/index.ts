@@ -47,6 +47,7 @@ export type {
   TableColumn,
   TableColumnAlign,
   TableLoadingState,
+  TableLock,
   TableModel,
   TableProps,
   TableRowState,
@@ -100,6 +101,10 @@ export type { StatusPillProps, StatusPillTone } from "./components/feedback/stat
 export { StatusPill } from "./components/feedback/status-pill";
 export type { StatusPillButtonProps } from "./components/feedback/status-pill-button";
 export { StatusPillButton } from "./components/feedback/status-pill-button";
+export type { ToastProps } from "./components/feedback/toast";
+export { Toast } from "./components/feedback/toast";
+export type { ToastStackProps } from "./components/feedback/toast-stack";
+export { ToastStack } from "./components/feedback/toast-stack";
 export type { AvatarOptionCardGroupProps } from "./components/forms/avatar-option-card-group";
 export { AvatarOptionCardGroup } from "./components/forms/avatar-option-card-group";
 export type {
@@ -145,10 +150,14 @@ export { MenuButton } from "./components/forms/menu-button";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";
 export type { OptionCardGroupProps } from "./components/forms/option-card-group";
 export { OptionCardGroup } from "./components/forms/option-card-group";
+export type { OtherAmountFieldProps } from "./components/forms/other-amount-field";
+export { OtherAmountField } from "./components/forms/other-amount-field";
 export type { PinDotsFieldProps } from "./components/forms/pin-dots-field";
 export { PinDotsField } from "./components/forms/pin-dots-field";
 export type { QuantityUnitFieldProps } from "./components/forms/quantity-unit-field";
 export { QuantityUnitField } from "./components/forms/quantity-unit-field";
+export type { QuickAmountButtonProps } from "./components/forms/quick-amount-button";
+export { QuickAmountButton } from "./components/forms/quick-amount-button";
 export type { RadioGroupProps } from "./components/forms/radio-group";
 export { RadioGroup } from "./components/forms/radio-group";
 export type { RequestSubmission } from "./components/forms/request-form/request-form";
@@ -186,6 +195,8 @@ export type { UserSelectProps } from "./components/forms/user-select";
 export { UserSelect } from "./components/forms/user-select";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
+export type { CardPanelProps } from "./components/layout/card-panel";
+export { CardPanel } from "./components/layout/card-panel";
 export type { ConfirmationPanelProps } from "./components/layout/confirmation-panel";
 export { ConfirmationPanel } from "./components/layout/confirmation-panel";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
@@ -206,6 +217,8 @@ export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
 export type { SidePanelTitleProps } from "./components/layout/side-panel-title";
 export { SidePanelTitle } from "./components/layout/side-panel-title";
+export type { WarningBlockProps } from "./components/layout/warning-block";
+export { WarningBlock } from "./components/layout/warning-block";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
 export { AreaNavButton } from "./components/navigation/area-nav-button";
 export type { AreaNavItemProps } from "./components/navigation/area-nav-item";

@@ -212,6 +212,66 @@ describe("the register's local migrations", () => {
     }
   });
 
+  it("mark none of the remembered users a register already holds as the last active one", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.slice(0, 97);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      for (const id of ["u1", "u2"]) {
+        before
+          .prepare(
+            "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ada', 'role', 'salt', 1, 3)",
+          )
+          .run(id);
+        before.prepare("INSERT INTO remembered_users (user_id) VALUES (?)").run(id);
+      }
+      before.close();
+
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+
+      expect(
+        after.prepare("SELECT user_id, last_active FROM remembered_users ORDER BY user_id").all(),
+      ).toEqual([
+        { user_id: "u1", last_active: 0 },
+        { user_id: "u2", last_active: 0 },
+      ]);
+      after.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("refuse a second remembered user marked as the last active one", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const database = openLocalDatabase(
+        join(folder, "register.sqlite"),
+        LOCAL_MIGRATIONS,
+        migrationClock,
+      );
+      for (const id of ["u1", "u2"]) {
+        database
+          .prepare(
+            "INSERT INTO users (id, first_name, role_id, salt, active, version) VALUES (?, 'Ada', 'role', 'salt', 1, 3)",
+          )
+          .run(id);
+        database.prepare("INSERT INTO remembered_users (user_id) VALUES (?)").run(id);
+      }
+      database.prepare("UPDATE remembered_users SET last_active = 1 WHERE user_id = 'u1'").run();
+
+      expect(() =>
+        database.prepare("UPDATE remembered_users SET last_active = 1 WHERE user_id = 'u2'").run(),
+      ).toThrow(/UNIQUE/);
+      expect(() =>
+        database.prepare("UPDATE remembered_users SET last_active = 2 WHERE user_id = 'u2'").run(),
+      ).toThrow(/CHECK/);
+      database.close();
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it("add cash sessions, cash movements and the outbox over the sync state a register already holds", () => {
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
     try {
@@ -957,6 +1017,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1080,6 +1141,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1198,6 +1260,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1315,6 +1378,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1461,6 +1525,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1597,6 +1662,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1737,6 +1803,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1885,6 +1952,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -2000,6 +2068,7 @@ describe("the register's local migrations", () => {
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
+        "0101_last_active_remembered_user",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
