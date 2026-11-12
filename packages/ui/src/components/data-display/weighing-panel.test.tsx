@@ -57,23 +57,23 @@ test("draws on the warning surface", async () => {
   );
 });
 
-test("shows what waits below a dashed line on the plain surface", async () => {
+test("shows what waits below a dotted line on the plain surface", async () => {
   const screen = await render(<WeighingPanel {...weighing} waiting={<p>Aceite</p>} />);
 
   const waiting = screen.getByText("Aceite").element().parentElement as HTMLElement;
   await expect.element(screen.getByText("Aceite")).toBeVisible();
-  expect(getComputedStyle(waiting).borderTopStyle).toBe("dashed");
+  expect(getComputedStyle(waiting).borderTopStyle).toBe("dotted");
   expect(getComputedStyle(waiting).backgroundColor).toBe(tokenRgb("surface"));
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("draws no dashed line when nothing waits", async () => {
+test("draws no dotted line when nothing waits", async () => {
   const screen = await render(<WeighingPanel {...weighing} />);
 
-  const dashed = Array.from(screen.container.querySelectorAll("*")).filter(
-    (element) => getComputedStyle(element).borderTopStyle === "dashed",
+  const dotted = Array.from(screen.container.querySelectorAll("*")).filter(
+    (element) => getComputedStyle(element).borderTopStyle === "dotted",
   );
-  expect(dashed).toEqual([]);
+  expect(dotted).toEqual([]);
 });
 
 test("keeps its whole content in view beside a sibling that fills a short column", async () => {
