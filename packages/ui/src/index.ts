@@ -200,6 +200,8 @@ export type { UserSelectProps } from "./components/forms/user-select";
 export { UserSelect } from "./components/forms/user-select";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
+export type { CardPanelProps } from "./components/layout/card-panel";
+export { CardPanel } from "./components/layout/card-panel";
 export type { ConfirmationPanelProps } from "./components/layout/confirmation-panel";
 export { ConfirmationPanel } from "./components/layout/confirmation-panel";
 export type { DetailPanelProps } from "./components/layout/detail-panel";

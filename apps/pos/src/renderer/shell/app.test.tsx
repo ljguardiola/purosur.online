@@ -23,7 +23,7 @@ import { render } from "vitest-browser-react";
 import type { CoreClient } from "../platform/core-client";
 import { App } from "./app";
 
-const SIGN_IN_TITLE = "¿Quién abre la caja?";
+const SIGN_IN_USER_SELECT = /USUARIO/;
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
 const LOCKED_TITLE = "Caja bloqueada";
 const BRAND_LOGO_ALT = "Puro Sur";
@@ -191,7 +191,7 @@ function coreAnswering(
     },
     async signInUsers() {
       usersLoads += 1;
-      return [{ id: "u1", first_name: "Ada" }];
+      return { users: [{ id: "u1", first_name: "Ada" }], last_active_user_id: null };
     },
     async lockedClosers() {
       return cashDrawer.lockedClosers === undefined ? [] : cashDrawer.lockedClosers();
@@ -661,7 +661,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
   });
@@ -669,13 +669,13 @@ describe("App", () => {
   it("leaves the register for the brand panel when a core that was up starts again", async () => {
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     postCoreStatus("starting");
 
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
   });
@@ -696,7 +696,7 @@ describe("App", () => {
 
     await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -713,7 +713,7 @@ describe("App", () => {
 
     await expect.element(screen.getByText(RESTORING_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -779,7 +779,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -798,7 +798,7 @@ describe("App", () => {
     standing = { kind: "completed" };
     changeRestorationStanding();
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("asks a revoked installation to be enrolled again instead of signing in", async () => {
@@ -810,7 +810,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("heading", { name: REVOKED_TITLE })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -827,7 +827,7 @@ describe("App", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("moves to the revoked installation screen when the core says the installation was revoked", async () => {
@@ -836,7 +836,7 @@ describe("App", () => {
     core.enrollmentStatus = async () => standing;
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     standing = { kind: "revoked" };
     changeEnrollmentStanding();
@@ -928,7 +928,7 @@ describe("App", () => {
     await expect.poll(() => asked).toContain("register-service");
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).not.toBeInTheDocument();
   });
@@ -938,31 +938,19 @@ describe("App", () => {
 
     postCoreStatus("up");
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
-  });
-
-  it("names the register in the sign-in screen's eyebrow once a pull saves its name", async () => {
-    const { core, finishPull } = coreAnswering(true);
-    const screen = await render(<App core={core} />);
-    postCoreStatus("up");
-    await expect.element(screen.getByText("Sin sesión abierta", { exact: true })).toBeVisible();
-
-    finishPull("Caja 1");
-
-    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
   });
 
   it("shows the register header once someone is signed in, and not on the sign-in screen", async () => {
     const screen = await render(<App core={coreAnswering(true).core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }))
       .not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -976,7 +964,6 @@ describe("App", () => {
     const { core, statusAsks, finishPull } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -999,7 +986,6 @@ describe("App", () => {
       .mockResolvedValue({ kind: "read", offered: false, lines: [] });
     const screen = await render(<App core={{ ...answering.core, readInitialCount }} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.element(screen.getByRole("table", { name: "Para empezar" })).toBeVisible();
@@ -1015,7 +1001,6 @@ describe("App", () => {
     const { core, statusAsks, changeSerialDevices } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1030,7 +1015,6 @@ describe("App", () => {
     const { core, statusAsks, changeStorageStanding } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1045,7 +1029,6 @@ describe("App", () => {
     const { core, statusAsks, changeBatteryStanding } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1060,7 +1043,6 @@ describe("App", () => {
     const { core, statusAsks, changeFiscalMode } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await expect.poll(() => statusAsks.length).toBeGreaterThan(0);
@@ -1075,7 +1057,7 @@ describe("App", () => {
     const { core, readBarcode } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     readBarcode("7790001234567");
 
@@ -1086,7 +1068,6 @@ describe("App", () => {
     async function signInAsConfigurer(core: CoreClient) {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
       return screen;
@@ -1132,9 +1113,7 @@ describe("App", () => {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
 
-      await userEvent.click(
-        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-      );
+      await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
@@ -1228,9 +1207,8 @@ describe("App", () => {
           .getByRole("complementary", { name: "¿Salir de la caja?" })
           .getByRole("button", { name: "Salir" }),
       );
-      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1242,15 +1220,18 @@ describe("App", () => {
     const { core, finishPull, usersLoads } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     await userEvent.type(screen.getByLabelText("PIN"), "12");
 
     finishPull("Caja 1");
 
-    await expect.element(screen.getByText("Caja 1 · Sin sesión abierta")).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeChecked();
-    await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
     await expect.poll(usersLoads).toBe(2);
+    await expect
+      .element(
+        screen.getByRole("button", { name: SIGN_IN_USER_SELECT }).getByText("Ada", { exact: true }),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByLabelText("PIN")).toHaveValue("12");
   });
 
   it("replaces the whole screen with the core-down notice once the core reports it is down", async () => {
@@ -1260,7 +1241,7 @@ describe("App", () => {
 
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1271,7 +1252,7 @@ describe("App", () => {
 
     await expect.element(screen.getByText("Actualizando la caja")).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1304,7 +1285,7 @@ describe("App", () => {
 
     postCoreStatus("up");
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
   });
 
@@ -1315,7 +1296,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("heading", { name: ENROLLMENT_TITLE })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1329,14 +1310,13 @@ describe("App", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Dar de alta" }));
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("opens the register for the person who signs in", async () => {
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1345,7 +1325,7 @@ describe("App", () => {
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Ada"))
       .toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1353,7 +1333,6 @@ describe("App", () => {
     const { core, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
 
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
@@ -1465,7 +1444,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("link", { name: "Ingresar por primera vez" }));
+    await userEvent.click(screen.getByRole("link", { name: "Primer ingreso" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Correo" }), "ada@example.com");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
@@ -1482,7 +1461,6 @@ describe("App", () => {
     onTestFinished(() => page.viewport(414, 896));
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1493,7 +1471,7 @@ describe("App", () => {
         .getByRole("button", { name: "Salir" }),
     );
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
       .not.toBeInTheDocument();
@@ -1518,7 +1496,6 @@ describe("App", () => {
     );
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1529,7 +1506,7 @@ describe("App", () => {
         .getByRole("button", { name: "Salir" }),
     );
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     expect(asked).toContain("sign-out");
   });
 
@@ -1539,7 +1516,6 @@ describe("App", () => {
     const { core, asked } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1559,7 +1535,6 @@ describe("App", () => {
     async (status) => {
       const screen = await render(<App core={enrolledCore} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
@@ -1570,7 +1545,7 @@ describe("App", () => {
         .not.toBeInTheDocument();
       postCoreStatus("up");
 
-      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
       await expect
         .element(screen.getByRole("heading", { name: SIGNED_IN_TITLE }))
         .not.toBeInTheDocument();
@@ -1582,7 +1557,6 @@ describe("App", () => {
     onTestFinished(() => page.viewport(414, 896));
     const screen = await render(<App core={enrolledCore} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.click(screen.getByRole("button", { name: "Salir" }));
@@ -1594,7 +1568,7 @@ describe("App", () => {
       .element(screen.getByRole("complementary", { name: "¿Salir de la caja?" }))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1607,7 +1581,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1622,7 +1595,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1648,7 +1620,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1676,7 +1647,6 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
 
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -1703,15 +1673,15 @@ describe("App", () => {
     const { core, asked } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     postCoreStatus("starting");
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     await expect.poll(() => asked.filter((q) => q === "enrollment-status").length).toBe(2);
   });
 
@@ -1719,7 +1689,7 @@ describe("App", () => {
     const { core, asked, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     const cashSessionAsksBeforeRestart = cashSessionAsks.length;
 
     core.registerService = () => {
@@ -1728,7 +1698,7 @@ describe("App", () => {
     };
     postCoreStatus("starting");
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
@@ -1737,7 +1707,7 @@ describe("App", () => {
     expect(cashSessionAsks).toHaveLength(cashSessionAsksBeforeRestart);
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1745,18 +1715,18 @@ describe("App", () => {
     const { core } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     core.registerService = async () => "out_of_service";
     postCoreStatus("starting");
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
     await expect.element(screen.getByText(OUT_OF_SERVICE_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1770,7 +1740,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -1797,7 +1767,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
@@ -2313,7 +2283,6 @@ describe("App", () => {
     };
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -2941,18 +2910,18 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     postCoreStatus("starting");
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
     await expect.poll(() => cashSessionAsks.length).toBe(2);
     await expect.element(screen.getByRole("img", { name: BRAND_LOGO_ALT })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -2966,7 +2935,7 @@ describe("App", () => {
 
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -2984,7 +2953,7 @@ describe("App", () => {
     await expect.element(screen.getByText(CORE_DOWN_TITLE)).not.toBeInTheDocument();
     postCoreStatus("up");
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("keeps asking for the cash session while the core stays up, until it can read it", async () => {
@@ -3007,7 +2976,7 @@ describe("App", () => {
       })
       .toBe(3);
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("shows the open cash session locked once a failed read of it succeeds while the core stays up", async () => {
@@ -3030,7 +2999,7 @@ describe("App", () => {
     const { core, cashSessionAsks } = coreAnswering(true);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
 
@@ -3044,18 +3013,18 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
 
     open = true;
     postCoreStatus("starting");
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
   });
 
@@ -3063,7 +3032,6 @@ describe("App", () => {
     const { core, opened } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS);
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3087,7 +3055,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3108,7 +3075,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3130,7 +3096,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
@@ -3154,7 +3119,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3172,7 +3136,6 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3193,14 +3156,13 @@ describe("App", () => {
     });
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
-    await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   describe("closing the cash session", () => {
@@ -3380,7 +3342,7 @@ describe("App", () => {
         .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
         .toBeVisible();
       await expect
-        .element(screen.getByRole("heading", { name: SIGN_IN_TITLE }))
+        .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
         .not.toBeInTheDocument();
       await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
       expect(closed).toEqual([["s1", 4_580_000]]);
@@ -3504,7 +3466,7 @@ describe("App", () => {
         }),
       });
 
-      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
       expect(closedLocked).toEqual([["s1", 4_580_000, { user_id: "u3", pin: "1234" }]]);
       expect(asked).not.toContain("sign-out");
     });
@@ -3522,7 +3484,9 @@ describe("App", () => {
         });
 
         await expect.poll(() => asks).toBe(2);
-        await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+        await expect
+          .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+          .toBeVisible();
       },
     );
 
@@ -3619,7 +3583,9 @@ describe("App", () => {
           });
 
           await expect.poll(() => asks).toBe(2);
-          await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+          await expect
+            .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+            .toBeVisible();
         },
       );
     });
@@ -3635,7 +3601,7 @@ describe("App", () => {
       });
 
       await expect.poll(() => asks).toBe(2);
-      await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
     });
 
     it("stays on the locked register's close when reading the cash session again finds it still locked", async () => {
@@ -3697,7 +3663,6 @@ describe("App", () => {
       );
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -3731,7 +3696,6 @@ describe("App", () => {
       const { core } = coreAnswering(true, { kind: "enrolled" }, ADA_SELLS);
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("radio", { name: "Ada" }), { force: true });
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 

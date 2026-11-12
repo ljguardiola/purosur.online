@@ -30,11 +30,18 @@ export const EightTyped: Story = {
   args: { value: "12345678" },
 };
 
-function FieldWithMessageElsewhere() {
+function FieldWithMessageElsewhere({ focused = false }: { focused?: boolean }) {
   const messageId = useId();
   return (
     <>
-      <PinDotsField label="PIN" value="1234" onChange={() => {}} errorMessageId={messageId} />
+      <PinDotsField
+        label="PIN"
+        value="1234"
+        onChange={() => {}}
+        errorMessageId={messageId}
+        autoFocus={focused}
+        errorRingWhileFocused={focused}
+      />
       <p id={messageId} className={fieldErrorClassName}>
         PIN incorrecto
       </p>
@@ -44,6 +51,10 @@ function FieldWithMessageElsewhere() {
 
 export const Invalid: Story = {
   render: () => <FieldWithMessageElsewhere />,
+};
+
+export const InvalidKeepingErrorRingWhileFocused: Story = {
+  render: () => <FieldWithMessageElsewhere focused />,
 };
 
 export const Disabled: Story = {

@@ -91,7 +91,7 @@ describe("sessionsRendererToCoreMessageSchema", () => {
 });
 
 describe("sign-in answers", () => {
-  it("accepts the users who can sign in, by id and first name", () => {
+  it("accepts the users who can sign in, by id and first name, and the last active one", () => {
     const message = {
       type: "sign-in-users",
       request_id: REQUEST_ID,
@@ -99,9 +99,31 @@ describe("sign-in answers", () => {
         { id: "u1", first_name: "Ada" },
         { id: "u2", first_name: "Bruno" },
       ],
+      last_active_user_id: "u2",
     };
 
     expect(sessionsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that no user is the last active one", () => {
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: null,
+    };
+
+    expect(sessionsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects the users who can sign in without saying who the last active one is", () => {
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [{ id: "u1", first_name: "Ada" }],
+    };
+
+    expect(sessionsCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 
   it("accepts that the users cannot be read", () => {
@@ -111,7 +133,12 @@ describe("sign-in answers", () => {
   });
 
   it("accepts an empty list of users", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [] };
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [],
+      last_active_user_id: null,
+    };
 
     expect(sessionsCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
@@ -121,6 +148,7 @@ describe("sign-in answers", () => {
       type: "sign-in-users",
       request_id: REQUEST_ID,
       users: [{ id: "u1", first_name: "Ada", salt: "s" }],
+      last_active_user_id: "u1",
     };
 
     expect(sessionsCoreToRendererMessageSchema.parse(message)).toEqual({
@@ -130,7 +158,12 @@ describe("sign-in answers", () => {
   });
 
   it("rejects a listed user without its first name", () => {
-    const message = { type: "sign-in-users", request_id: REQUEST_ID, users: [{ id: "u1" }] };
+    const message = {
+      type: "sign-in-users",
+      request_id: REQUEST_ID,
+      users: [{ id: "u1" }],
+      last_active_user_id: null,
+    };
 
     expect(sessionsCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });

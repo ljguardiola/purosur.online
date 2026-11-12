@@ -86,6 +86,7 @@ export const sessionsCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     type: z.literal("sign-in-users"),
     request_id: requestId,
     users: z.array(signInUserSchema),
+    last_active_user_id: z.string().nullable(),
   }),
   z.object({ type: z.literal("sign-in-users-unavailable"), request_id: requestId }),
   z.object({

@@ -1,4 +1,4 @@
-import type { Icon } from "@purosur/ui";
+import type { Icon, KeyName } from "@purosur/ui";
 import { ButtonLink } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 
@@ -8,12 +8,18 @@ export type ScreenLinkProps = {
   to: "/sign-in" | "/pin-code-redemption" | "/first-sign-in" | "/locked" | "/locked-close";
   icon: Icon;
   label: string;
+  keycap?: KeyName;
 };
 
-export function ScreenLink({ to, icon, label }: ScreenLinkProps) {
+export function ScreenLink({ to, icon, label, keycap }: ScreenLinkProps) {
   return (
     <div className="self-start">
-      <RouterButtonLink to={to} variant="text" icon={icon}>
+      <RouterButtonLink
+        to={to}
+        variant="text"
+        icon={icon}
+        {...(keycap === undefined ? {} : { keycap })}
+      >
         {label}
       </RouterButtonLink>
     </div>
