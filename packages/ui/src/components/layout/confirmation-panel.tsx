@@ -16,7 +16,8 @@ export type ConfirmationPanelProps = {
   value: string;
   actionLabel: string;
   actionIcon: Icon;
-  tone?: "neutral" | "warning";
+  tone?: "neutral" | "warning" | "error";
+  lockLabel?: string;
   details?: readonly [ConfirmationDetail, ...ConfirmationDetail[]];
   notice?: string;
   busy?: boolean;
@@ -32,6 +33,7 @@ export function ConfirmationPanel({
   actionLabel,
   actionIcon,
   tone = "neutral",
+  lockLabel,
   details,
   notice,
   busy = false,
@@ -46,6 +48,7 @@ export function ConfirmationPanel({
           title={title}
           icon={icon}
           tone={tone}
+          lockLabel={lockLabel}
           onClose={onClose}
           closeDisabled={busy}
         />
@@ -55,6 +58,7 @@ export function ConfirmationPanel({
           size="large"
           fullWidth
           icon={actionIcon}
+          destructive={tone === "error"}
           iconPosition="start"
           keycap="Enter"
           disabled={busy}
