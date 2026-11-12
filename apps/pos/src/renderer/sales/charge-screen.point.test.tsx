@@ -7,6 +7,7 @@ import {
   POINT_ORDER_SHOWN,
   POINT_PAYMENT_ID,
   readsInTurn,
+  renderCombinedPayment,
   renderScreen,
   SALE_OF_ONE_LINE,
   SALE_OF_TWO_LINES,
@@ -17,29 +18,29 @@ const NEXT_ASK_TIMEOUT_MS = 5_000;
 const DEBIT_CHARGE = { method: "POINT", cardType: "DEBIT" } as const;
 
 describe("ChargeScreen · Point", () => {
-  it("offers the terminal after cash and before the QR when the core answers it is available", async () => {
-    const { screen } = await renderScreen();
+  it("offers the terminal by debit and by credit in the combined payment when the core answers it is available", async () => {
+    const { screen } = await renderCombinedPayment();
 
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeEnabled();
-    await expect.element(screen.getByRole("radio", { name: "Point crédito" })).toBeEnabled();
-    expect(screen.getByText("Tarjeta en la terminal · requiere internet").elements()).toHaveLength(
-      2,
-    );
-    const methods = screen.getByRole("radiogroup", { name: "Medio de pago" }).element();
-    expect(methods.textContent).toMatch(/Efectivo.*Point débito.*Point crédito.*QR/s);
+    await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeEnabled();
     await expectNoAccessibilityViolations(screen.container);
   });
 
   it("shows the terminal and the QR as unavailable without a connection, and opens neither", async () => {
-    const { screen, startMercadoPagoCharge } = await renderScreen({
+    const { screen, startMercadoPagoCharge } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "offline", point: "offline" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point crédito" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeDisabled();
-    expect(screen.getByText("No disponible sin conexión").elements()).toHaveLength(3);
-    await userEvent.click(screen.getByText("Point crédito", { exact: true }), { force: true });
+    await expect
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "QR" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await userEvent.keyboard("{F9}{F10}{F11}");
     await expect
       .element(screen.getByRole("heading", { name: "Point débito" }))
       .not.toBeInTheDocument();
@@ -48,15 +49,18 @@ describe("ChargeScreen · Point", () => {
   });
 
   it("shows the terminal as not configured on the register and cannot be chosen", async () => {
-    const { screen, startMercadoPagoCharge } = await renderScreen({
+    const { screen, startMercadoPagoCharge } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "not_configured" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "Point débito" })).toBeDisabled();
-    await expect.element(screen.getByRole("radio", { name: "Point crédito" })).toBeDisabled();
-    expect(screen.getByText("No configurada en esta caja").elements()).toHaveLength(2);
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
-    await userEvent.click(screen.getByText("Point débito", { exact: true }), { force: true });
+    await expect
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
+    await userEvent.keyboard("{F9}{F10}");
     await expect
       .element(screen.getByRole("heading", { name: "Point débito" }))
       .not.toBeInTheDocument();
@@ -64,23 +68,25 @@ describe("ChargeScreen · Point", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("offers no terminal below its minimum and says why, keeping the QR available", async () => {
-    const { screen } = await renderScreen({
+  it("locks the terminal below its minimum and says why on its tile, keeping the QR available", async () => {
+    const { screen } = await renderCombinedPayment({
       paymentMethodAvailability: async () => ({ ...AVAILABLE, point: "below_minimum" }),
     });
 
-    await expect.element(screen.getByRole("radio", { name: "QR" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
     await expect
-      .element(screen.getByRole("radio", { name: "Point débito" }))
-      .not.toBeInTheDocument();
+      .element(screen.getByRole("button", { name: "Point débito" }))
+      .toHaveAttribute("aria-disabled", "true");
     await expect
-      .element(screen.getByRole("radio", { name: "Point crédito" }))
-      .not.toBeInTheDocument();
+      .element(screen.getByRole("button", { name: "Point crédito" }))
+      .toHaveAttribute("aria-disabled", "true");
+    const tile = screen.getByRole("button", { name: "Point débito" });
+    await userEvent.hover(tile);
+    await userEvent.unhover(tile);
+    await userEvent.hover(tile);
     await expect
-      .element(
-        screen.getByRole("status").getByText("Point: no se ofrece para cobrar menos de $ 15,00"),
-      )
-      .toBeVisible();
+      .element(screen.getByRole("tooltip"))
+      .toHaveTextContent("No se ofrece para cobrar menos de $ 15,00");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -142,15 +148,17 @@ describe("ChargeScreen · Point", () => {
         pending: 16_000,
       }),
     });
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await choosePoint(screen);
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .toBeVisible();
     const readsBefore = paymentMethodAvailability.mock.calls.length;
 
-    await choosePoint(screen);
     await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }), {
+      .element(screen.getByText("FALTA"), {
         timeout: NEXT_ASK_TIMEOUT_MS,
       })
       .toBeVisible();
@@ -164,9 +172,7 @@ describe("ChargeScreen · Point", () => {
     await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-      .toBeVisible();
+    await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: "Point débito" }))
       .not.toBeInTheDocument();
@@ -368,9 +374,7 @@ describe("ChargeScreen · Point", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       expect(abandonMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(POINT_PAYMENT_ID);
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
@@ -383,9 +387,7 @@ describe("ChargeScreen · Point", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 
@@ -407,9 +409,7 @@ describe("ChargeScreen · Point", () => {
         .toBeEnabled();
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
     });
 
     it("goes back to the methods from Cambiar de medio once the terminal declines the payment", async () => {
@@ -421,9 +421,7 @@ describe("ChargeScreen · Point", () => {
       await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 
@@ -461,9 +459,7 @@ describe("ChargeScreen · Point", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("FALTA")).toBeVisible();
       await expect.element(screen.getByText("$ 1.760,00").first()).toBeVisible();
     });
 

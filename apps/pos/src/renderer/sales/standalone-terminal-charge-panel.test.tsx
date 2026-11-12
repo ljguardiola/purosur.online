@@ -3,8 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { StandaloneTerminalChargeModal } from "./standalone-terminal-charge-modal";
-import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
+import { StandaloneTerminalChargePanel } from "./standalone-terminal-charge-panel";
 
 const TOTAL = 476_000;
 const COMPLETED: ChargeSaleOnStandaloneTerminalOutcome = {
@@ -13,34 +12,30 @@ const COMPLETED: ChargeSaleOnStandaloneTerminalOutcome = {
   total: TOTAL,
 };
 
-const AMOUNT_FIELD = "Importe a cobrar con este medio";
-const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
+const AMOUNT_FIELD = "IMPORTE";
 
 type Charge = (amount: number) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
 
-async function renderModal(
-  charge: Charge = async () => COMPLETED,
-  sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
-) {
+async function renderPanel(charge: Charge = async () => COMPLETED, pending: number = TOTAL) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const chargeSale = vi.fn(charge);
   const callbacks = {
-    onChooseAnotherMethod: vi.fn(),
+    onBack: vi.fn(),
     onCompleted: vi.fn(),
     onPartiallyPaid: vi.fn(),
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
   const screen = await render(
-    <StandaloneTerminalChargeModal {...sale} charge={chargeSale} {...callbacks} />,
+    <StandaloneTerminalChargePanel pending={pending} charge={chargeSale} {...callbacks} />,
   );
   return {
     screen,
     chargeSale,
     callbacks,
     field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
-    register: screen.getByRole("button", { name: "Registrar pago aprobado" }),
+    register: screen.getByRole("button", { name: "Registrar pago" }),
   };
 }
 
@@ -52,63 +47,71 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe("StandaloneTerminalChargeModal", () => {
-  it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
-    const { screen } = await renderModal();
+describe("StandaloneTerminalChargePanel", () => {
+  it("shows what is to be charged, the terminal title and its keys", async () => {
+    const { screen } = await renderPanel();
 
-    await expectChargeSummaryInColumns(screen, ["Total de la venta", "Pagado", "A cobrar ahora"]);
-  });
-
-  it("asks for the result of the second terminal and shows what is owed", async () => {
-    const { screen } = await renderModal();
-
-    await expect.element(screen.getByText("TERMINAL INDEPENDIENTE")).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "Cargá el resultado de la segunda Point" }))
+      .element(screen.getByRole("heading", { name: "Terminal independiente" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-    await expect.element(screen.getByText("Pagado")).toBeVisible();
-    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
-    await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
-    expect(screen.getByText("$ 4.760,00").elements()).toHaveLength(2);
+    await expect.element(screen.getByText("A COBRAR")).toBeVisible();
+    await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Registrar pago" })).toBeVisible();
+    const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
+    expect(keys).toEqual(expect.arrayContaining(["Esc", "Enter"]));
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("tells the cashier to charge on the second terminal and enter what it shows, before the amount", async () => {
-    const { screen, field } = await renderModal();
-    const text =
-      "Cobrá en la segunda Point, que funciona sin la caja, y cargá acá lo que muestra la terminal.";
-    const instruction = screen.getByText(text).first();
+  it("shows no summary, instruction, field description or remainder, and no way to change the method", async () => {
+    const { screen, field } = await renderPanel();
 
-    await expect.element(instruction).toBeVisible();
-    await expect.element(screen.getByRole("status")).toHaveTextContent(text);
-    expect(
-      instruction.element().compareDocumentPosition(field.element()) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    await userEvent.fill(field, "1000,00");
+
+    await expect.element(screen.getByText("A cobrar ahora")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(/Hasta el saldo pendiente/)).not.toBeInTheDocument();
+    await expect.element(screen.getByText("QUEDA")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Cambiar de medio" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("has the amount focused as soon as it opens", async () => {
+    const { field } = await renderPanel();
+
+    await expect.element(field).toHaveFocus();
+  });
+
+  it("registers the payment with Enter, for the amount shown", async () => {
+    const { chargeSale, callbacks } = await renderPanel();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .poll(() => callbacks.onCompleted.mock.calls)
+      .toEqual([[{ ...COMPLETED, amount: TOTAL }]]);
+    expect(chargeSale).toHaveBeenCalledExactlyOnceWith(TOTAL);
+  });
+
+  it("goes back with Esc and from its close button without charging", async () => {
+    const { screen, chargeSale, callbacks } = await renderPanel();
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+    await expect.poll(() => callbacks.onBack.mock.calls.length).toBe(2);
+    expect(chargeSale).not.toHaveBeenCalled();
   });
 
   it("asks for the amount to charge with this method, filled with the whole pending balance", async () => {
-    const { field } = await renderModal();
+    const { field } = await renderPanel();
 
     await expect.element(field).toHaveValue("4.760,00");
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
   });
 
-  it("fills the amount with the pending balance, and shows what is paid and what is to be charged now, when part of the sale is already paid", async () => {
-    const { screen, field } = await renderModal(undefined, {
-      total: TOTAL,
-      paid: 100_000,
-      pending: 376_000,
-    });
-
-    await expect.element(field).toHaveValue("3.760,00");
-    await expect.element(screen.getByText("$ 1.000,00")).toBeVisible();
-    await expect.element(screen.getByText("$ 3.760,00").first()).toBeVisible();
-  });
-
   it("charges the amount the cashier typed", async () => {
-    const { field, register, chargeSale } = await renderModal();
+    const { field, register, chargeSale } = await renderPanel();
 
     await userEvent.fill(field, "2000,50");
     await userEvent.click(register);
@@ -117,7 +120,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("goes back to the methods when the core registers it as a partial payment", async () => {
-    const { field, register, callbacks } = await renderModal(async () => ({
+    const { field, register, callbacks } = await renderPanel(async () => ({
       kind: "partially_paid",
       sale_id: "sale-1",
       total: TOTAL,
@@ -134,7 +137,7 @@ describe("StandaloneTerminalChargeModal", () => {
 
   it("stays charging until the screen has gone back to the methods with the new balance", async () => {
     const backToMethods = deferred<void>();
-    const { field, register, chargeSale, callbacks } = await renderModal(async () => ({
+    const { field, register, chargeSale, callbacks } = await renderPanel(async () => ({
       kind: "partially_paid",
       sale_id: "sale-1",
       total: TOTAL,
@@ -154,9 +157,9 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("says the amount cannot exceed the pending balance the core answers", async () => {
-    const { screen, field, register, callbacks } = await renderModal(
+    const { screen, field, register, callbacks } = await renderPanel(
       async () => ({ kind: "exceeds_pending", pending: 376_000 }),
-      { total: TOTAL, paid: 100_000, pending: 376_000 },
+      376_000,
     );
 
     await userEvent.fill(field, "5000,00");
@@ -169,7 +172,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("says the amount is invalid when the core refuses it", async () => {
-    const { screen, field, register } = await renderModal(async () => ({ kind: "invalid_amount" }));
+    const { screen, field, register } = await renderPanel(async () => ({ kind: "invalid_amount" }));
 
     await userEvent.fill(field, "0");
     await userEvent.click(register);
@@ -180,7 +183,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("does not charge what is not an amount, and says so", async () => {
-    const { screen, field, register, chargeSale } = await renderModal();
+    const { screen, field, register, chargeSale } = await renderPanel();
 
     await userEvent.clear(field);
     await userEvent.keyboard("5,");
@@ -193,33 +196,13 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("shows no error before charging", async () => {
-    const { screen } = await renderModal();
+    const { screen } = await renderPanel();
 
     await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("says up to which amount can be charged and that the rest stays pending", async () => {
-    const { screen } = await renderModal();
-
-    await expect
-      .element(
-        screen.getByText(
-          "Hasta el saldo pendiente, $ 4.760,00. Si cobrás menos, el resto queda pendiente para otro medio.",
-        ),
-      )
-      .toBeVisible();
-  });
-
-  it("does not warn about the customer's screen", async () => {
-    const { screen } = await renderModal();
-
-    await expect
-      .element(screen.getByText("No confirmes con la pantalla del cliente"))
-      .not.toBeInTheDocument();
-  });
-
-  it("charges the sale on the standalone terminal once from Registrar pago aprobado and reports the completed sale", async () => {
-    const { register, chargeSale, callbacks } = await renderModal();
+  it("charges the sale on the standalone terminal once from Registrar pago and reports the completed sale", async () => {
+    const { register, chargeSale, callbacks } = await renderPanel();
 
     await userEvent.click(register);
 
@@ -229,15 +212,15 @@ describe("StandaloneTerminalChargeModal", () => {
     expect(chargeSale).toHaveBeenCalledExactlyOnceWith(TOTAL);
   });
 
-  it("charges nothing until Registrar pago aprobado is pressed", async () => {
-    const { chargeSale } = await renderModal();
+  it("charges nothing until Registrar pago is pressed", async () => {
+    const { chargeSale } = await renderPanel();
 
     expect(chargeSale).not.toHaveBeenCalled();
   });
 
   it("cannot be charged twice while the charge is pending", async () => {
     const pending = deferred<ChargeSaleOnStandaloneTerminalOutcome>();
-    const { register, chargeSale } = await renderModal(() => pending.promise);
+    const { register, chargeSale } = await renderPanel(() => pending.promise);
 
     await userEvent.click(register);
 
@@ -247,29 +230,11 @@ describe("StandaloneTerminalChargeModal", () => {
     pending.resolve(COMPLETED);
   });
 
-  it("goes back to the payment methods from Cambiar de medio without charging", async () => {
-    const { screen, chargeSale, callbacks } = await renderModal();
-
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
-
-    expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
-    expect(chargeSale).not.toHaveBeenCalled();
-  });
-
-  it("goes back to the payment methods when it is closed without charging", async () => {
-    const { chargeSale, callbacks } = await renderModal();
-
-    await userEvent.keyboard("{Escape}");
-
-    await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
-    expect(chargeSale).not.toHaveBeenCalled();
-  });
-
   it.each([
     { kind: "reaches_buyer_identification_threshold", threshold: 476_000 },
     { kind: "no_buyer_identification_threshold" },
   ] as const)("leaves the charge for the sale screen when the core answers %j", async (outcome) => {
-    const { register, callbacks } = await renderModal(async () => outcome);
+    const { register, callbacks } = await renderPanel(async () => outcome);
 
     await userEvent.click(register);
 
@@ -280,7 +245,7 @@ describe("StandaloneTerminalChargeModal", () => {
   it.each([["empty_sale"], ["zero_total"], ["no_open_sale"], ["not_permitted"]] as const)(
     "leaves the charge for the sale screen when the core answers %s",
     async (kind) => {
-      const { register, callbacks } = await renderModal(async () => ({ kind }));
+      const { register, callbacks } = await renderPanel(async () => ({ kind }));
 
       await userEvent.click(register);
 
@@ -292,7 +257,7 @@ describe("StandaloneTerminalChargeModal", () => {
   it.each([["not_signed_in"], ["no_open_session"]] as const)(
     "reports an invalid session when the core answers %s",
     async (kind) => {
-      const { register, callbacks } = await renderModal(async () => ({ kind }));
+      const { register, callbacks } = await renderPanel(async () => ({ kind }));
 
       await userEvent.click(register);
 
@@ -302,7 +267,7 @@ describe("StandaloneTerminalChargeModal", () => {
 
   it("says the sale could not be charged when the core is unavailable, and lets the cashier try again", async () => {
     const answers: ChargeSaleOnStandaloneTerminalOutcome[] = [{ kind: "unavailable" }, COMPLETED];
-    const { screen, register, callbacks } = await renderModal(async () => {
+    const { screen, register, callbacks } = await renderPanel(async () => {
       const answer = answers.shift();
       if (answer === undefined) {
         throw new Error("no answer left");
@@ -323,7 +288,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("says a Mercado Pago charge of the sale is still in progress", async () => {
-    const { screen, register, callbacks } = await renderModal(async () => ({
+    const { screen, register, callbacks } = await renderPanel(async () => ({
       kind: "mercado_pago_charge_in_progress",
     }));
 
@@ -336,7 +301,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("says the paid order of the sale must be applied first", async () => {
-    const { screen, register, callbacks } = await renderModal(async () => ({
+    const { screen, register, callbacks } = await renderPanel(async () => ({
       kind: "paid_order_not_applied",
     }));
 
@@ -349,7 +314,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("treats a failed request as the core being unavailable", async () => {
-    const { screen, register } = await renderModal(() =>
+    const { screen, register } = await renderPanel(() =>
       Promise.reject(new Error("the core connection was replaced")),
     );
 
@@ -361,7 +326,7 @@ describe("StandaloneTerminalChargeModal", () => {
   });
 
   it("groups thousands and takes a typed dot as the decimal comma", async () => {
-    const { field } = await renderModal();
+    const { field } = await renderPanel();
     await userEvent.clear(field);
     await userEvent.type(field, "1234.5");
 

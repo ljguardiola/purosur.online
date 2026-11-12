@@ -203,13 +203,14 @@ describe("scanning products into a sale on the register", () => {
     await page.getByRole("button", { name: "Registrar pago parcial" }).click();
 
     const panel = page.getByRole("complementary", { name: "Panel de cobro" });
-    await page.getByRole("heading", { name: "Elegí el medio de pago" }).waitFor();
+    await page.getByText("FALTA").waitFor();
     await panel.getByText("$ 1.000,00").waitFor();
     await panel.getByText("$ 1.380,00").waitFor();
 
-    await page.getByText("Transferencia", { exact: true }).click();
-    await page.getByLabel("Importe a cobrar con este medio").waitFor();
-    await page.getByRole("button", { name: "Vi el ingreso" }).click();
+    await page.getByRole("button", { name: "Otros medios" }).click();
+    await page.getByRole("button", { name: "Transferencia" }).click();
+    await page.getByLabel("IMPORTE").waitFor();
+    await page.getByRole("button", { name: "Registrar transferencia" }).click();
 
     await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
     await page.getByText("La impresora no está configurada", { exact: true }).waitFor();

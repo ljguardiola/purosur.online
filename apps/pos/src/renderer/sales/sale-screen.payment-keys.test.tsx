@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
   AVAILABLE,
+  PLACEHOLDER,
   renderScreen,
   SALE_OF_FOUR_LINES,
   SALE_OF_YERBA,
@@ -35,6 +36,16 @@ describe("SaleScreen charging by keys", () => {
 
   it("opens the charge screen on F1 with no method chosen", async () => {
     const { screen } = await chargeable();
+
+    await userEvent.keyboard("{F1}");
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/charge");
+    expect(searchOf(screen).method).toBeUndefined();
+  });
+
+  it("opens the charge screen on F1 while the product search is focused", async () => {
+    const { screen } = await chargeable();
+    screen.getByPlaceholder(PLACEHOLDER).element().focus();
 
     await userEvent.keyboard("{F1}");
 
