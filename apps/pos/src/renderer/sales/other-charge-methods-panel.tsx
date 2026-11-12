@@ -3,7 +3,7 @@ import { Calculator, Ellipsis, Landmark } from "lucide-react";
 import type { ReactNode } from "react";
 import { useKeys } from "../platform/key-layer";
 
-export type OtherChargeMethod = "TRANSFER" | "STANDALONE_TERMINAL";
+type OtherChargeMethod = "TRANSFER" | "STANDALONE_TERMINAL";
 
 export type OtherChargeMethodsPanelProps = {
   pending: number;
