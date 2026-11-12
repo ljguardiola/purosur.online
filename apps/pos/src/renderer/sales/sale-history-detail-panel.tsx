@@ -67,42 +67,59 @@ function Buttons({ buttons }: { buttons: readonly SaleButton[] }) {
   if (buttons.length === 0) {
     return null;
   }
-  return buttons.map(({ key, label, primary, onPress }) => (
-    <Button
-      key={label}
-      variant={primary ? "primary" : "secondary"}
-      size="large"
-      fullWidth
-      icon={<Printer />}
-      {...(primary ? { iconPosition: "start" as const } : {})}
-      {...(key === undefined ? {} : { keycap: key })}
-      onPress={onPress}
-    >
-      {label}
-    </Button>
-  ));
+  return buttons.map(({ key, label, primary, onPress }) =>
+    primary ? (
+      <Button
+        key={label}
+        size="large"
+        fullWidth
+        icon={<Printer />}
+        iconPosition="start"
+        {...(key === undefined ? {} : { keycap: key })}
+        onPress={onPress}
+      >
+        {label}
+      </Button>
+    ) : (
+      <Button
+        key={label}
+        variant="secondary"
+        size="large"
+        fullWidth
+        icon={<Printer />}
+        {...(key === undefined ? {} : { keycap: key })}
+        onPress={onPress}
+      >
+        {label}
+      </Button>
+    ),
+  );
 }
 
-function Header({ escape }: { escape: boolean }) {
+function Header({ withEscape }: { withEscape: boolean }) {
   return (
     <div className="flex items-center justify-between px-8 pt-8">
       <Eyebrow text="DETALLE DE LA VENTA" />
-      {escape ? <Keycap keyName="Escape" /> : null}
+      {withEscape ? <Keycap keyName="Escape" /> : null}
     </div>
   );
 }
 
 function Message({
   children,
-  escape = false,
+  withEscape = false,
   footer,
 }: {
   children: ReactNode;
-  escape?: boolean;
+  withEscape?: boolean;
   footer?: ReactNode;
 }) {
   return (
-    <SidePanel label="Detalle de la venta" header={<Header escape={escape} />} footer={footer}>
+    <SidePanel
+      label="Detalle de la venta"
+      header={<Header withEscape={withEscape} />}
+      footer={footer}
+    >
       {children}
     </SidePanel>
   );
@@ -236,11 +253,11 @@ export function SaleHistoryDetailPanel({
   detail,
   withDate,
   buttons,
-  escape,
+  escape: withEscape,
 }: SaleHistoryDetailPanelProps) {
   if (detail === undefined) {
     return (
-      <Message escape={escape}>
+      <Message withEscape={withEscape}>
         <EmptyState
           variant="blank"
           icon={<ReceiptText />}

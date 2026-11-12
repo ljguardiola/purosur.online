@@ -951,6 +951,7 @@ const historyRoute = createRoute({
       voidSale,
       printCreditNote,
       reprintCreditNote,
+      printDeferredSaleInvoice,
       reprintDeferredSaleInvoice,
       authorizers,
       refreshCashSession,
@@ -967,6 +968,7 @@ const historyRoute = createRoute({
         voidSale={voidSale}
         printCreditNote={printCreditNote}
         reprintCreditNote={reprintCreditNote}
+        printDeferredSaleInvoice={printDeferredSaleInvoice}
         reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}

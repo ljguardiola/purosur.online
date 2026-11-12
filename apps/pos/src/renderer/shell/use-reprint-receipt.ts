@@ -144,5 +144,12 @@ export function useReprintReceipt({
     void submit();
   }
 
-  return { form, submitting, notice, clearNotice: () => setNotice(undefined), authorization, handleSubmit };
+  return {
+    form,
+    submitting,
+    notice,
+    clearNotice: () => setNotice(undefined),
+    authorization,
+    handleSubmit,
+  };
 }

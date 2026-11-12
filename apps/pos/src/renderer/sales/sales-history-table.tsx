@@ -12,11 +12,7 @@ import {
 import { TriangleAlert } from "lucide-react";
 import type { LegendItem } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
-import {
-  comprobanteLine,
-  paymentMethodsText,
-  saleStatePresentation,
-} from "./sale-history-text";
+import { comprobanteLine, paymentMethodsText, saleStatePresentation } from "./sale-history-text";
 import type { ShownSalesHistory } from "./sales-queries";
 
 type Row = Extract<ShownSalesHistory, { kind: "found" }>["rows"][number];

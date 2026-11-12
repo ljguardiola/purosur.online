@@ -98,9 +98,7 @@ export function ReprintSalePanel({
       label: "Venta",
       value: withDate ? formatDayMonthAndTime(sale.occurred_at) : formatClockTime(sale.occurred_at),
     },
-    ...(comprobante === undefined
-      ? []
-      : [{ label: "Comprobante", value: comprobante }]),
+    ...(comprobante === undefined ? [] : [{ label: "Comprobante", value: comprobante }]),
   ]);
 
   return (
