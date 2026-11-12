@@ -183,6 +183,18 @@ describe("InitialCountScreen counting a product in the side panel", () => {
         .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
         .toBeVisible();
     });
+
+    it("cancels the count with one Esc pressed in the panel", async () => {
+      const { screen } = await renderCountingWithResults();
+      await userEvent.click(screen.getByRole("textbox", { name: "Cantidad contada" }));
+
+      await userEvent.keyboard("{Escape}");
+
+      await expect
+        .element(screen.getByRole("complementary", { name: "Yerba mate 1 kg" }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByText("Cargado hasta ahora")).toBeVisible();
+    });
   });
 
   it("does not open a second count for a code the reader reads while counting", async () => {
