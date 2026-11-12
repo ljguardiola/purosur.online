@@ -52,7 +52,7 @@ import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
 import { changedLineId } from "./changed-line";
-import type { KeyedChargeMethod } from "./charge-method-options";
+import type { KeyedChargeMethod } from "./charge-method-availability";
 import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
 import {

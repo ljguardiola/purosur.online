@@ -905,6 +905,8 @@ export type {
   CurrentSaleAnswer,
   FoundProduct,
   ManualAdjustmentRequest,
+  NonCashCharge,
+  NonCashChargeAnswer,
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,

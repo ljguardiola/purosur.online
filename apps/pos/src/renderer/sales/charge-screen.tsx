@@ -11,6 +11,7 @@ import type {
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
+  NonCashChargeAnswer,
   OpenSale,
   PaymentMethodAvailability,
   ReadContingencyBackupTicketOfSaleOutcome,
@@ -31,8 +32,8 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashChargePanel } from "./cash-charge-panel";
 import type { CompletedPayment } from "./charge-completed-modal";
 import { ChargeCompletedModal } from "./charge-completed-modal";
-import type { ChargeMethod, KeyedChargeMethod } from "./charge-method-options";
-import { chargeMethodAvailability } from "./charge-method-options";
+import type { ChargeMethod, KeyedChargeMethod } from "./charge-method-availability";
+import { chargeMethodAvailability } from "./charge-method-availability";
 import { ChargePaymentPanel } from "./charge-payment-panel";
 import { CombinedPaymentPanel } from "./combined-payment-panel";
 import { OtherChargeMethodsPanel } from "./other-charge-methods-panel";
@@ -123,6 +124,7 @@ export type ChargeScreenProps = {
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
+  nonCashCharge: (saleId: string, amount: number) => Promise<NonCashChargeAnswer>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal: (
     saleId: string,
@@ -161,6 +163,7 @@ export function ChargeScreen({
   chargeSaleInCash,
   chargeSaleInCashWithChangeDiscount,
   loadAuthorizers,
+  nonCashCharge,
   chargeSaleByTransfer,
   chargeSaleOnStandaloneTerminal,
   chargeSaleWithPaidOrder,
@@ -226,12 +229,12 @@ export function ChargeScreen({
   const sale = saleKept ? step.sale : chargeable;
   const paidOrder = sale?.rebuilt_paid_order;
   const paidOrderToApply = paidOrder?.applied === false ? paidOrder : undefined;
-  const { enabled, belowMinimum } = chargeMethodAvailability(availability);
+  const methods = chargeMethodAvailability(availability);
   const qrMinimum = availability.status === "loaded" ? availability.value.qr_minimum : undefined;
   const pointMinimum =
     availability.status === "loaded" ? availability.value.point_minimum : undefined;
-  const preselectedEnabled = preselected !== undefined && enabled.has(preselected);
-  const waitingForAvailability = !preselectedEnabled && availability.status === "loading";
+  const preselectedOffered = preselected !== undefined && methods[preselected]?.kind === "offered";
+  const waitingForAvailability = !preselectedOffered && availability.status === "loading";
   if (preselected !== undefined && chargeable !== undefined && !waitingForAvailability) {
     setPreselected(undefined);
     const noChargeInProgress = chargeInProgress === undefined || chargeInProgress === null;
@@ -240,7 +243,7 @@ export function ChargeScreen({
       noChargeInProgress &&
       paidOrderToApply === undefined &&
       preselected !== undefined &&
-      preselectedEnabled
+      preselectedOffered
     ) {
       setStep(stepOf(preselected));
     }
@@ -311,8 +314,7 @@ export function ChargeScreen({
             total={sale.total}
             paid={sale.paid}
             pending={sale.pending}
-            enabled={enabled}
-            belowMinimum={belowMinimum}
+            methods={methods}
             cancelledNotice={notice?.kind === "cancelled"}
             paidOrderNotice={paidOrderNotice}
             onChoose={(method: KeyedChargeMethod) => {
@@ -333,7 +335,9 @@ export function ChargeScreen({
           />
         ) : step.name === "transfer" ? (
           <TransferChargePanel
+            saleId={sale.id}
             pending={sale.pending}
+            readCharge={(amount) => nonCashCharge(sale.id, amount)}
             charge={(amount) => chargeSaleByTransfer(sale.id, amount)}
             onBack={() => setStep({ name: "other-methods", origin: step.origin })}
             onCompleted={(charge) =>

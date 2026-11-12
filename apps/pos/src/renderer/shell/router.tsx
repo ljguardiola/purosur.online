@@ -38,6 +38,7 @@ import type {
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   ManualAdjustmentRequest,
+  NonCashChargeAnswer,
   OpenCashSessionOutcome,
   OpeningFloatSuggestion,
   PaymentMethodAvailability,
@@ -138,7 +139,7 @@ import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ReturnScreen } from "../returns/return-screen";
-import { KEYED_CHARGE_METHODS } from "../sales/charge-method-options";
+import { KEYED_CHARGE_METHODS } from "../sales/charge-method-availability";
 import { ChargeScreen } from "../sales/charge-screen";
 import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
 import { SaleScreen } from "../sales/sale-screen";
@@ -221,6 +222,7 @@ export interface RouterContext {
     saleId: string,
     saleDiscount?: number,
   ) => Promise<CashChargeAmountsAnswer | null>;
+  nonCashCharge: (saleId: string, amount: number) => Promise<NonCashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount: (
     saleId: string,
@@ -889,6 +891,7 @@ const chargeRoute = createRoute({
       currentSale,
       cashCharge,
       cashChargeAmounts,
+      nonCashCharge,
       chargeSaleInCash,
       chargeSaleInCashWithChangeDiscount,
       authorizers,
@@ -915,6 +918,7 @@ const chargeRoute = createRoute({
         currentSale={currentSale}
         cashCharge={cashCharge}
         cashChargeAmounts={cashChargeAmounts}
+        nonCashCharge={nonCashCharge}
         chargeSaleInCash={chargeSaleInCash}
         chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
         loadAuthorizers={authorizers}
@@ -1443,6 +1447,7 @@ export function createAppRouter(
     | "scanProduct"
     | "cashCharge"
     | "cashChargeAmounts"
+    | "nonCashCharge"
     | "chargeSaleInCash"
     | "chargeSaleInCashWithChangeDiscount"
     | "chargeSaleByTransfer"

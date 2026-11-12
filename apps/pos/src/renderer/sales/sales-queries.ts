@@ -8,6 +8,7 @@ import type {
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
+  NonCashChargeAnswer,
   OpenSale,
   PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
@@ -41,6 +42,8 @@ export const salesKeys = {
     [...salesKey, "cash-charge", saleId, pending, tendered ?? null, saleDiscount ?? null] as const,
   cashChargeAmounts: (saleId: string, pending: number, saleDiscount?: number) =>
     [...salesKey, "cash-charge-amounts", saleId, pending, saleDiscount ?? null] as const,
+  nonCashCharge: (saleId: string, pending: number, amount: number | undefined) =>
+    [...salesKey, "non-cash-charge", saleId, pending, amount ?? null] as const,
   adjustmentPreview: (lineId: string, quantity: number, adjustment: ManualAdjustmentRequest) =>
     [
       ...salesKey,
@@ -336,6 +339,24 @@ export function useCashChargeQuery({
           ? read(tendered)
           : read(tendered, saleDiscount),
     enabled: tendered !== undefined,
+  });
+}
+
+export function useNonCashChargeQuery({
+  saleId,
+  pending,
+  amount,
+  read,
+}: {
+  saleId: string;
+  pending: number;
+  amount: number | undefined;
+  read: (amount: number) => Promise<NonCashChargeAnswer>;
+}): CoreData<NonCashChargeAnswer> {
+  return useCoreQuery({
+    queryKey: salesKeys.nonCashCharge(saleId, pending, amount),
+    read: async () => (amount === undefined ? "unavailable" : read(amount)),
+    enabled: amount !== undefined,
   });
 }
 

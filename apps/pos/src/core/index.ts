@@ -197,6 +197,7 @@ import {
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
+  nonCashChargeFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
   rebuildSaleAgainstPaidOrderFor,
@@ -1662,6 +1663,20 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (request) =>
           cashChargeFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+            },
+            request,
+          ),
+  nonCashCharge:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          nonCashChargeFor(
             {
               zoneRules,
               database: localDatabase,

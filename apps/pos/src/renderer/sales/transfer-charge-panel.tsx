@@ -1,4 +1,4 @@
-import type { ChargeSaleByTransferOutcome } from "@purosur/contracts";
+import type { ChargeSaleByTransferOutcome, NonCashChargeAnswer } from "@purosur/contracts";
 import {
   Button,
   Card,
@@ -22,6 +22,7 @@ import {
   CHARGE_IN_PROGRESS_MESSAGE,
   PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
+import { useNonCashChargeQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
@@ -34,7 +35,9 @@ export type CompletedTransfer = Extract<ChargeSaleByTransferOutcome, { kind: "co
 };
 
 export type TransferChargePanelProps = {
+  saleId: string;
   pending: number;
+  readCharge: (amount: number) => Promise<NonCashChargeAnswer>;
   charge: (amount: number) => Promise<ChargeSaleByTransferOutcome>;
   onBack: () => void;
   onCompleted: (charge: CompletedTransfer) => void;
@@ -44,7 +47,9 @@ export type TransferChargePanelProps = {
 };
 
 export function TransferChargePanel({
+  saleId,
   pending,
+  readCharge,
   charge,
   onBack,
   onCompleted,
@@ -101,9 +106,15 @@ export function TransferChargePanel({
     },
   });
 
-  const typed = parseAmountCents(values.amount);
+  const preview = useNonCashChargeQuery({
+    saleId,
+    pending,
+    amount: parseAmountCents(values.amount),
+    read: readCharge,
+  });
+  const answered = preview.status === "loaded" ? preview.value : undefined;
   const remaining =
-    typed !== undefined && typed > 0 && typed < pending ? pending - typed : undefined;
+    typeof answered === "object" && answered?.kind === "partial" ? answered.pending : undefined;
 
   useEffect(() => {
     amountBox.current?.querySelector("input")?.focus();

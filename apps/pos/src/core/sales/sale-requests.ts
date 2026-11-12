@@ -19,6 +19,7 @@ import type {
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   ManualAdjustmentRequest,
+  NonCashChargeAnswer,
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
@@ -39,6 +40,7 @@ import {
   grossSaleSubtotal,
   type ManualAdjustmentValue,
   type MercadoPagoChargeInProgress,
+  nonCashCharge,
   type PaidOrderDiscoveryState,
   type PlannedRefund,
   promotionSavings,
@@ -134,6 +136,11 @@ export interface ChargeSaleByTransferRequest {
 }
 
 export interface ChargeSaleOnStandaloneTerminalRequest {
+  saleId: string;
+  amount: number;
+}
+
+export interface NonCashChargeReadRequest {
   saleId: string;
   amount: number;
 }
@@ -729,6 +736,20 @@ export async function cashChargeFor(
     default:
       return null;
   }
+}
+
+export async function nonCashChargeFor(
+  deps: Pick<SaleRequestDeps, "database" | "gate" | "now" | "zoneRules" | "restoration">,
+  { saleId, amount }: NonCashChargeReadRequest,
+): Promise<NonCashChargeAnswer> {
+  const sale = await currentSaleFor(deps);
+  if (sale === "not_permitted") {
+    return sale;
+  }
+  if (sale === null || sale.id !== saleId) {
+    return null;
+  }
+  return nonCashCharge(sale.pending, amount);
 }
 
 export async function changeLineQuantityFor(
