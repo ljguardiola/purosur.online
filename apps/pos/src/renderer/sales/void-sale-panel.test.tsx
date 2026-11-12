@@ -224,7 +224,7 @@ describe("VoidSalePanel", () => {
     await userEvent.keyboard("{Enter}");
     expect(send).not.toHaveBeenCalled();
 
-    await userEvent.click(panel.getByText("Confirmo"));
+    await userEvent.click(panel.getByText(/Confirmo/));
     await userEvent.click(panel.getByRole("button", { name: VOID }));
 
     expect(send).toHaveBeenCalledExactlyOnceWith("sale-1", true, undefined);
@@ -234,7 +234,7 @@ describe("VoidSalePanel", () => {
     const reported = vi.spyOn(console, "error");
     onTestFinished(() => reported.mockRestore());
     const { panel, send } = await renderPanel({ refunds: [TRANSFER_REFUND, TRANSFER_REFUND] });
-    const [first, second] = panel.getByText("Confirmo").elements();
+    const [first, second] = panel.getByText(/Confirmo/).elements();
 
     await userEvent.click(first as Element);
     await expect.element(panel.getByRole("button", { name: VOID })).toBeDisabled();

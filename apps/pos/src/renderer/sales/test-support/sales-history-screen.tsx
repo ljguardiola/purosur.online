@@ -12,11 +12,13 @@ import type {
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SalesHistoryQuery } from "../../platform/core-client";
-import type { SaleDetail } from "../../shell/sale-receipt-text";
 import { RegisterWindow } from "../../shell/test-support/register-window";
 import { render } from "../../shell/test-support/render-with-router";
 import type { SalesHistoryScreenProps } from "../sales-history-screen";
 import { SalesHistoryScreen } from "../sales-history-screen";
+import { DETAIL } from "./sale-history-detail";
+
+export { DETAIL };
 
 type Found = Extract<SalesHistoryOutcome, { kind: "found" }>;
 type Row = Found["rows"][number];
@@ -64,48 +66,6 @@ const OPEN_ROW: Row = {
 export function pageOf(rows: Row[], total = rows.length): SalesHistoryOutcome {
   return { kind: "found", rows, total, page_size: 50 };
 }
-
-export const DETAIL: SaleDetail = {
-  sale_id: "sale-1",
-  occurred_at: "2026-10-09T11:42:00.000-03:00",
-  total: 5_070_000,
-  comprobante: {
-    kind: "fiscal",
-    document_type: "factura_c",
-    authorization: "real_time",
-    point_of_sale: 3,
-    number: 1248,
-  },
-  operation_number: 482,
-  served_by_first_name: "Tomás",
-  line_count: 8,
-  lines: [
-    { product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 614_250 },
-  ],
-  cash_rounding: 0,
-  payments: [{ method: "CASH", card_type: null, amount: 5_070_000 }],
-  state: "completed",
-  voidability: {
-    kind: "voidable",
-    refunds: [
-      {
-        method: "CASH",
-        card_type: null,
-        amount: 5_070_000,
-        state: "APPROVED",
-        sent_by_cloud: false,
-      },
-    ],
-    credit_note_corrects: { point_of_sale: 3, number: 1248 },
-  },
-  void_authorization_required: false,
-  reprint_authorization_required: false,
-  reprint: { kind: "available" },
-  next_copy: { kind: "duplicate", order_number: 1 },
-  credit_notes: [],
-  deferred_invoice_next_copy: null,
-  short_code: null,
-};
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
 

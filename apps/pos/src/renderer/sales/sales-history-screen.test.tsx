@@ -194,7 +194,7 @@ describe("SalesHistoryScreen", () => {
       const { screen, salesHistory } = await renderScreen();
       await expect.element(table(screen).getByText("11:42", { exact: true })).toBeVisible();
 
-      await userEvent.click(screen.getByRole("radio", { name: "Todas" }));
+      await userEvent.click(screen.getByText("Todas", { exact: true }));
 
       await vi.waitFor(() =>
         expect(salesHistory).toHaveBeenLastCalledWith(

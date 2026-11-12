@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import { saleActionsOf } from "./sale-history-actions";
-import { DETAIL } from "./test-support/sales-history-screen";
+import { DETAIL } from "./test-support/sale-history-detail";
 
 const AUTHORIZED_CREDIT_NOTE = {
   kind: "authorized",

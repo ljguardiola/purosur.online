@@ -77,8 +77,8 @@ describe("SalesHistoryScreen invoice of a deferred sale", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByText("Todavía no se puede facturar")).toBeVisible();
-    await expect.element(screen.getByText(description, { exact: false })).toBeVisible();
+    await expect.element(screen.getByText("Todavía no se puede facturar").first()).toBeVisible();
+    await expect.element(screen.getByText(new RegExp(description)).first()).toBeVisible();
   });
 
   it.each([

@@ -169,13 +169,18 @@ describe("ReprintSalePanel", () => {
     );
   });
 
-  it("asks the reason again when it is blank", async () => {
-    const { panel, send } = await renderPanel();
+  it("shows the limit the core states on the reason field and stays open", async () => {
+    const { panel, onReprinted } = await renderPanel({
+      reprint: async () => ({ kind: "invalid_reason", max_length: 200 }),
+    });
+    await userEvent.fill(panel.getByRole("textbox", { name: REASON }), "Otra copia");
 
     await userEvent.click(panel.getByRole("button", { name: REPRINT }));
 
-    await expect.element(panel.getByText("Escribí el motivo de la reimpresión.")).toBeVisible();
-    expect(send).not.toHaveBeenCalled();
+    await expect
+      .element(panel.getByText("Escribí el motivo (hasta 200 caracteres)."))
+      .toBeVisible();
+    expect(onReprinted).not.toHaveBeenCalled();
   });
 
   it("closes without asking the core on Esc", async () => {
@@ -231,7 +236,7 @@ describe("ReprintSalePanel", () => {
 
     await userEvent.click(panel.getByRole("button", { name: REPRINT }));
 
-    await expect.element(panel.getByText(message)).toBeVisible();
+    await expect.element(panel.getByText(message).first()).toBeVisible();
     expect(onReprinted).not.toHaveBeenCalled();
   });
 
