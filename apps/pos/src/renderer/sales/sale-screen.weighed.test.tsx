@@ -111,20 +111,20 @@ describe("SaleScreen adding a product sold by weight", () => {
     await expect.element(field).toHaveValue("");
   });
 
-  it("adds nothing and leaves the screen as it was when the weight is cancelled", async () => {
+  it("adds nothing when the weight is cancelled, leaving the search field empty", async () => {
     const addWeighedProduct = vi.fn(
       async (): Promise<AddWeighedProductOutcome> => ({ kind: "unavailable" }),
     );
     const { screen, field } = await scanning({ addWeighedProduct });
 
     await scan(field, "7790001");
-    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
 
     await expect
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
       .not.toBeInTheDocument();
     expect(addWeighedProduct).not.toHaveBeenCalled();
-    await expect.element(field).toHaveValue("7790001");
+    await expect.element(field).toHaveValue("");
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
   });
 
@@ -217,8 +217,8 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
 
-    const dialog = screen.getByRole("dialog");
-    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
+    await expect.element(dialog.getByText("Moviéndose")).toBeVisible();
     await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 0,00")).toBeVisible();
     expect(weighProduct).toHaveBeenCalledWith("p-queso", null);
@@ -241,11 +241,11 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
 
-    const dialog = screen.getByRole("dialog");
-    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
+    await expect.element(dialog.getByText("Moviéndose")).toBeVisible();
     await expect.element(dialog.getByText("0,140 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 1.750,00")).toBeVisible();
-    await expect.element(dialog.getByText("Lectura estable")).not.toBeInTheDocument();
+    await expect.element(dialog.getByText("Estable")).not.toBeInTheDocument();
     expect(addWeighedProduct).not.toHaveBeenCalled();
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
   });
@@ -261,11 +261,11 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
 
-    const dialog = screen.getByRole("dialog");
-    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
+    await expect.element(dialog.getByText("Moviéndose")).toBeVisible();
     await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
     await vi.waitFor(() => expect(weighProduct.mock.calls.length).toBeGreaterThan(1));
-    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("Moviéndose")).toBeVisible();
     expect(addWeighedProduct).not.toHaveBeenCalled();
   });
 
@@ -292,18 +292,18 @@ describe("SaleScreen weighing a product on the scale", () => {
 
     await scan(field, "7790001");
 
-    const dialog = screen.getByRole("dialog");
-    await expect.element(dialog.getByText("Lectura estable")).toBeVisible();
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
+    await expect.element(dialog.getByText("Estable")).toBeVisible();
     await expect.element(dialog.getByText("1,250 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 15.625,00")).toBeVisible();
     await expect.element(lines).toHaveLength(2);
 
-    await screen.getByRole("button", { name: "Confirmar peso" }).click();
+    await screen.getByRole("button", { name: "Confirmar" }).click();
 
     await expect.element(lines).toHaveLength(3);
     await expect.element(lines.last()).toHaveAttribute("aria-current", "true");
     await expect
-      .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
+      .element(screen.getByRole("heading", { name: "Queso cremoso" }))
       .not.toBeInTheDocument();
     await expect.element(field).toHaveValue("");
     expect(weighProduct).toHaveBeenCalledWith("p-queso", 1250);
@@ -320,14 +320,12 @@ describe("SaleScreen weighing a product on the scale", () => {
     });
 
     await scan(field, "7790001");
-    await screen.getByRole("button", { name: "Confirmar peso" }).click();
+    await screen.getByRole("button", { name: "Confirmar" }).click();
 
     await expect
       .element(screen.getByText("Poné el producto en la balanza o tipeá el peso.").first())
       .toBeVisible();
-    await expect
-      .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Queso cremoso" })).toBeVisible();
   });
 
   it("adds the typed weight when the cashier types instead of weighing", async () => {
@@ -345,12 +343,12 @@ describe("SaleScreen weighing a product on the scale", () => {
     });
 
     await scan(field, "7790001");
-    await screen.getByRole("button", { name: "Tipear peso" }).click();
+    await screen.getByRole("button", { name: "Escribir peso" }).click();
     await typeWeight(screen, "1,25");
 
     expect(addWeighedProduct).toHaveBeenCalledExactlyOnceWith("p-queso", 1250);
     await expect
-      .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
+      .element(screen.getByRole("heading", { name: "Queso cremoso" }))
       .not.toBeInTheDocument();
   });
 
@@ -387,7 +385,7 @@ describe("SaleScreen weighing a product on the scale", () => {
 
       await expect.element(screen.getByText(title)).toBeVisible();
       await expect
-        .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
+        .element(screen.getByRole("heading", { name: "Queso cremoso" }))
         .not.toBeInTheDocument();
     },
   );
@@ -415,7 +413,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     answer.resolve({ kind: "not_sold_by_weight" });
     await field.click();
 
-    await expect.element(field).toHaveValue("7790001");
+    await expect.element(field).toHaveValue("");
     await expect
       .element(screen.getByText("Queso cremoso ya no se vende por kilo"))
       .not.toBeInTheDocument();
@@ -451,9 +449,9 @@ describe("SaleScreen weighing a product on the scale", () => {
     await scan(field, "7790001");
     await screen.getByRole("button", { name: "Cancelar" }).click();
     await scan(field, "7790002");
-    await expect.element(screen.getByRole("heading", { name: "Peso de Salame" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Salame" })).toBeVisible();
     answer.resolve({ kind: "not_sold_by_weight" });
-    await screen.getByRole("button", { name: "Tipear peso" }).click();
+    await screen.getByRole("button", { name: "Escribir peso" }).click();
     await typeWeight(screen, "0,3");
 
     expect(addWeighedProduct).toHaveBeenCalledExactlyOnceWith("p-salame", 300);
@@ -522,12 +520,12 @@ describe("SaleScreen weighing a product on the scale", () => {
     await scan(field, "7790001");
     await screen.getByRole("button", { name: "Cancelar" }).click();
     await scan(field, "7790002");
-    await expect.element(screen.getByRole("heading", { name: "Peso de Salame" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Salame" })).toBeVisible();
     const readsBefore = currentSale.mock.calls.length;
     answer.resolve({ kind: "sale_has_payments" });
 
     await expect.poll(() => currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
-    await expect.element(screen.getByRole("heading", { name: "Peso de Salame" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Salame" })).toBeVisible();
   });
 
   it.each(["not_signed_in", "no_open_session"] as const)(
@@ -630,7 +628,7 @@ describe("SaleScreen changing the weight of a line", () => {
     );
     const { screen } = await renderWithQueso(changeLineWeight);
 
-    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
 
     expect(changeLineWeight).not.toHaveBeenCalled();
     await expect.element(screen.getByText("1,250 kg")).toBeVisible();
@@ -676,13 +674,15 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
           : STABLE_800,
     );
     const { screen } = await renderWithQueso({ weighLine });
-    const dialog = screen.getByRole("dialog");
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
 
-    await expect.element(dialog.getByText("Lectura estable")).toBeVisible();
+    await expect.element(dialog.getByText("Estable")).toBeVisible();
     await expect.element(dialog.getByText("0,800 kg")).toBeVisible();
-    await screen.getByRole("button", { name: "Confirmar peso" }).click();
+    await screen.getByRole("button", { name: "Confirmar" }).click();
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("region", { name: "Queso cremoso" }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByText("0,800 kg")).toBeVisible();
     expect(weighLine).toHaveBeenCalledWith("line-3", 1250, null);
     expect(weighLine).toHaveBeenCalledWith("line-3", 1250, 800);
@@ -702,12 +702,12 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
         }),
       ),
     });
-    const dialog = screen.getByRole("dialog");
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
 
-    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("Moviéndose")).toBeVisible();
     await expect.element(dialog.getByText("0,800 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 10.000,00")).toBeVisible();
-    await expect.element(dialog.getByText("Lectura estable")).not.toBeInTheDocument();
+    await expect.element(dialog.getByText("Estable")).not.toBeInTheDocument();
     expect(changeLineWeight).not.toHaveBeenCalled();
   });
 
@@ -719,10 +719,10 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
       async (): Promise<WeighLineOutcome> => ({ kind: "unsteady_out_of_range" }),
     );
     const { screen } = await renderWithQueso({ changeLineWeight, weighLine });
-    const dialog = screen.getByRole("dialog");
+    const dialog = screen.getByRole("region", { name: "Queso cremoso" });
 
     await vi.waitFor(() => expect(weighLine.mock.calls.length).toBeGreaterThan(1));
-    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("Moviéndose")).toBeVisible();
     await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
     expect(changeLineWeight).not.toHaveBeenCalled();
   });
@@ -736,7 +736,7 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
       weighLine: vi.fn(async (): Promise<WeighLineOutcome> => ({ kind: "weighing" })),
     });
 
-    await screen.getByRole("button", { name: "Tipear peso" }).click();
+    await screen.getByRole("button", { name: "Escribir peso" }).click();
     const input = screen.getByRole("textbox", { name: "Peso en kg" });
     await expect.element(input).toHaveValue("1,250");
     await input.fill("0,8");
@@ -763,7 +763,9 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
       });
 
       await expect.poll(() => currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("region", { name: "Queso cremoso" }))
+        .not.toBeInTheDocument();
     },
   );
 
@@ -778,9 +780,9 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
 
     await screen.getByRole("button", { name: "Cancelar" }).click();
     await screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect.element(screen.getByRole("region", { name: "Queso cremoso" })).toBeVisible();
     answer.resolve({ kind: "unavailable" });
-    await screen.getByRole("button", { name: "Tipear peso" }).click();
+    await screen.getByRole("button", { name: "Escribir peso" }).click();
 
     await expect.element(screen.getByRole("textbox", { name: "Peso en kg" })).toBeVisible();
     await expect.element(screen.getByText("No se pudo cambiar el peso")).not.toBeInTheDocument();

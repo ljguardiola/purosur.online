@@ -32,6 +32,7 @@ import type {
   EnrollmentStandingAnswer,
   FindCountableProductOutcome,
   FindDeferredSaleOutcome,
+  FindProductByCodeOutcome,
   FindSaleForReturnOutcome,
   FirstPinCodeRequestOutcome,
   FollowMercadoPagoChargeOutcome,
@@ -246,6 +247,7 @@ export interface RouterContext {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  findProductByCode: (code: string) => Promise<FindProductByCodeOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
     productId: string,
@@ -747,6 +749,7 @@ const openSessionRoute = createRoute({
       currentSale,
       scanProduct,
       searchProducts,
+      findProductByCode,
       addProduct,
       addWeighedProduct,
       weighProduct,
@@ -773,6 +776,7 @@ const openSessionRoute = createRoute({
         currentSale={currentSale}
         scanProduct={scanProduct}
         searchProducts={searchProducts}
+        findProductByCode={findProductByCode}
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
@@ -1452,6 +1456,7 @@ export function createAppRouter(
     | "followMercadoPagoCharge"
     | "abandonMercadoPagoCharge"
     | "searchProducts"
+    | "findProductByCode"
     | "addProduct"
     | "addWeighedProduct"
     | "weighProduct"

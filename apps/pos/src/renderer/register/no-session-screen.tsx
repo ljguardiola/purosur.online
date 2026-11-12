@@ -1,5 +1,5 @@
 import type { OpenCashSessionOutcome, OpeningFloatSuggestion } from "@purosur/contracts";
-import { IconCard, SearchField } from "@purosur/ui";
+import { IconCard, ScaleCard, SearchField } from "@purosur/ui";
 import { Lock, ScanBarcode } from "lucide-react";
 import type { ReactNode } from "react";
 import { NoSessionRail } from "../shell/no-session-rail";
@@ -18,14 +18,19 @@ export type NoSessionScreenProps = {
 function LockedRegister() {
   return (
     <div className="hidden min-h-0 flex-1 flex-col gap-4 peer-empty:flex">
-      <SearchField
-        label="Producto"
-        placeholder="Escaneá o escribí el nombre"
-        icon={<ScanBarcode />}
-        value=""
-        onChange={() => {}}
-        disabled
-      />
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <SearchField
+            label="Producto"
+            placeholder="Escaneá o escribí el nombre"
+            icon={<ScanBarcode />}
+            value=""
+            onChange={() => {}}
+            disabled
+          />
+        </div>
+        <ScaleCard />
+      </div>
       <IconCard icon={<Lock />} label="Caja sin sesión abierta" />
     </div>
   );

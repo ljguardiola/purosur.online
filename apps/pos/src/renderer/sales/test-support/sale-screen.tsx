@@ -7,6 +7,7 @@ import type {
   CancelSaleOutcome,
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
+  FindProductByCodeOutcome,
   OpenSale,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
@@ -150,6 +151,9 @@ export async function renderScreen(overrides: Overrides = {}) {
     vi.fn(
       async (): Promise<SearchProductsOutcome> => ({ kind: "results", products: [], more: false }),
     );
+  const findProductByCode =
+    overrides.findProductByCode ??
+    vi.fn(async (): Promise<FindProductByCodeOutcome> => ({ kind: "unknown_code" }));
   const addProduct =
     overrides.addProduct ??
     vi.fn(async (): Promise<AddProductOutcome> => ({ kind: "product_unavailable" }));
@@ -209,6 +213,7 @@ export async function renderScreen(overrides: Overrides = {}) {
         currentSale={currentSale}
         scanProduct={scanProduct}
         searchProducts={searchProducts}
+        findProductByCode={findProductByCode}
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
