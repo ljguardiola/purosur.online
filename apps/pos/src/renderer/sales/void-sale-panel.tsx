@@ -164,7 +164,7 @@ export function VoidSalePanel({
             <SidePanelTitle
               title="Anular venta"
               icon={<CircleX />}
-              tone="danger"
+              tone="error"
               locked={authorizationRequired}
               onClose={onClose}
               closeDisabled={submitting}
