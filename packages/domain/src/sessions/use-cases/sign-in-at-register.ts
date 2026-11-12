@@ -7,6 +7,7 @@ import {
 import { pinSignInAttemptsLeft } from "../model/pin-sign-in-failures.js";
 import { checkPin, type PinRefusal } from "./check-pin.js";
 import type { PinCheckPorts } from "./pin-sign-in-store.js";
+import type { RememberedPeople } from "./remembered-people.js";
 
 export interface SignInAtRegisterPorts<Credential, Session> extends PinCheckPorts<Credential> {
   signedInPerson: { clear(): void; set(userId: string): void };
@@ -14,7 +15,7 @@ export interface SignInAtRegisterPorts<Credential, Session> extends PinCheckPort
     openSession(): { openedBy: string } | undefined;
     sessionToResume(userId: string): Session;
   };
-  rememberedPeople: { remember(userId: string): void };
+  rememberedPeople: Pick<RememberedPeople, "markLastActive" | "remember">;
 }
 
 export interface SignInAtRegisterInput {
@@ -61,6 +62,7 @@ export async function signInAtRegister<Credential, Session>(
   if (remember) {
     rememberedPeople.remember(userId);
   }
+  rememberedPeople.markLastActive(userId);
   signedInPerson.set(userId);
   return {
     kind: "signed_in",

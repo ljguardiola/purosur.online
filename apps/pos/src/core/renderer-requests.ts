@@ -72,6 +72,7 @@ import type {
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService, ReturnDraftLine } from "@purosur/domain";
+import type { SignInUsers } from "@purosur/domain/sessions/use-cases";
 import {
   answerContingencyBackupTicketRequest,
   type ContingencyBackupTicketRequests,
@@ -121,7 +122,7 @@ export interface RendererRequestDeps {
   pinPolicy: () => PinPolicy;
   checkEnrollmentCode: (typedCode: string) => "code"[];
   checkPinCodeRedemption: (typedCode: string, newPin: string) => ("reset_code" | "new_pin")[];
-  signInUsers: (() => SignInUser[]) | undefined;
+  signInUsers: (() => SignInUsers) | undefined;
   signIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   firstSignIn: ((userId: string, pin: string) => Promise<SignInOutcome>) | undefined;
   signInLookup: ((email: string) => Promise<SignInLookupOutcome>) | undefined;
@@ -290,7 +291,7 @@ export interface RendererRequestDeps {
   reportFailure: (context: string, error: unknown) => void;
 }
 
-function readSignInUsers(deps: RendererRequestDeps): SignInUser[] | undefined {
+function readSignInUsers(deps: RendererRequestDeps): SignInUsers | undefined {
   try {
     return deps.signInUsers?.();
   } catch (error) {
@@ -831,10 +832,15 @@ export async function answerRendererRequest(
         outcome: await deps.redeemPinCode(message.reset_code, message.new_pin),
       };
     case "sign-in-users": {
-      const users = readSignInUsers(deps);
-      return users === undefined
+      const signInUsers = readSignInUsers(deps);
+      return signInUsers === undefined
         ? { type: "sign-in-users-unavailable", request_id: message.request_id }
-        : { type: "sign-in-users", request_id: message.request_id, users };
+        : {
+            type: "sign-in-users",
+            request_id: message.request_id,
+            users: signInUsers.users.map(({ id, firstName }) => ({ id, first_name: firstName })),
+            last_active_user_id: signInUsers.lastActiveUserId,
+          };
     }
     case "sign-in":
       return {

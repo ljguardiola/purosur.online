@@ -37,12 +37,16 @@ interface Options extends Partial<Omit<SignInDeps, "store">> {
 
 function deps({ holder = PIN_HOLDER, failures, ...overrides }: Options = {}) {
   const remembered: string[] = [];
+  const markedLastActive: string[] = [];
   const signedIn = createSignedInPerson();
   const built: SignInDeps = {
     signedInPerson: signedIn,
     store: {
       remember: (userId) => {
         remembered.push(userId);
+      },
+      markLastActive: (userId) => {
+        markedLastActive.push(userId);
       },
       pinHolder: () => holder,
       pinSignInFailures: () => failures,
@@ -60,7 +64,7 @@ function deps({ holder = PIN_HOLDER, failures, ...overrides }: Options = {}) {
     cashSession: () => null,
     ...overrides,
   };
-  return { built, signedIn, remembered };
+  return { built, signedIn, remembered, markedLastActive };
 }
 
 describe("signing in", () => {
@@ -150,6 +154,22 @@ describe("signing in", () => {
     expect(await signIn(built, "u1", "1234")).toEqual({ kind: "cash_session_opened_by_another" });
   });
 
+  it("marks the person who signed in as the last active one", async () => {
+    const { built, markedLastActive } = deps();
+
+    await signIn(built, "u1", "1234");
+
+    expect(markedLastActive).toEqual(["u1"]);
+  });
+
+  it("marks nobody as the last active one when the PIN is wrong", async () => {
+    const { built, markedLastActive } = deps();
+
+    await signIn(built, "u1", "9999");
+
+    expect(markedLastActive).toEqual([]);
+  });
+
   it("remembers nobody", async () => {
     const { built, remembered } = deps();
 
@@ -178,6 +198,14 @@ describe("signing in for the first time on a register", () => {
 
     expect((await firstSignIn(built, "u1", "1234")).kind).toBe("signed_in");
     expect(remembered).toEqual(["u1"]);
+  });
+
+  it("marks the person who signed in as the last active one", async () => {
+    const { built, markedLastActive } = deps();
+
+    await firstSignIn(built, "u1", "1234");
+
+    expect(markedLastActive).toEqual(["u1"]);
   });
 
   it("remembers nobody who is refused", async () => {

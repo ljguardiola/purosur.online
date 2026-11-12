@@ -81,7 +81,7 @@ const REVOKED_TITLE = "Esta notebook dejó de ser una caja";
 const REVOKED: Enrollment = "revoked";
 const COMPLETED: Restoration = { kind: "completed" };
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
-const SIGN_IN_TITLE = "¿Quién abre la caja?";
+const SIGN_IN_USER_SELECT = /USUARIO/;
 const NOTHING_PENDING: StartupPending = {
   sales_to_print: [],
   unknown_fiscal_documents: [],
@@ -169,7 +169,7 @@ const screenFor: Record<
   (screen: RenderedScreen) => ReturnType<RenderedScreen["getByText"]>
 > = {
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
-  "/sign-in": (screen) => screen.getByRole("heading", { name: SIGN_IN_TITLE }),
+  "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
@@ -246,7 +246,10 @@ function contextWith(
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
     registerVersion: async () => null,
-    signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
+    signInUsers: async () => ({
+      users: [{ id: "u1", first_name: "Ada" }],
+      last_active_user_id: null,
+    }),
     authorizers: async () => [{ id: "u2", first_name: "Grace" }],
     lockedClosers: async () => [],
     signIn: async () => ({ kind: "signed_in", person: PERSON, cash_session: null }),
@@ -1436,8 +1439,8 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
+    await expect.element(screen.getByLabelText("PIN")).toBeVisible();
   });
 
   it("keeps its frame within the window's width beside a vertical scrollbar", async () => {
@@ -1447,7 +1450,9 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .toBeInTheDocument();
     expect(windowOverflow().horizontal).toBe(0);
   });
 
@@ -2627,21 +2632,6 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("CAJA 1", { exact: true })).toBeVisible();
   });
 
-  it("leaves the register's name out of the sign-in screen's eyebrow when reading it fails", async () => {
-    const router = createRegisterRouter(
-      routeTree,
-      {
-        ...contextWith("up", "enrolled", null),
-        registerName: () => Promise.reject(new Error("the core connection was replaced")),
-      },
-      "/sign-in",
-    );
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screen.getByText("Sin sesión abierta", { exact: true })).toBeVisible();
-  });
-
   it("shows the core-down notice without waiting for the register's name", async () => {
     const router = createRegisterRouter(
       routeTree,
@@ -2666,13 +2656,11 @@ describe("the register's router", () => {
     const router = routerAt("/sign-in", "up", "enrolled", null);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(
-      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
     await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("reaches the PIN code redemption screen from the locked register and comes back", async () => {
@@ -2817,7 +2805,7 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
 
     expect(redeemed).toEqual(["K7QM2XPA3DTR4HWN/482915"]);
-    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
 
   it("asks for the PIN digits the context's policy names on the PIN redemption screen", async () => {
@@ -2950,7 +2938,7 @@ describe("the register's router", () => {
     const router = routerAt("/sign-in", "up", "enrolled", null);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("link", { name: "Ingresar por primera vez" }));
+    await userEvent.click(screen.getByRole("link", { name: "Primer ingreso" }));
     await expect.element(screenFor["/first-sign-in"](screen)).toBeVisible();
     await userEvent.click(screen.getByRole("link", { name: "Volver" }));
 
