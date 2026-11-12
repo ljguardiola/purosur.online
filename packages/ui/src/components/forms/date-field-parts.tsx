@@ -10,9 +10,13 @@ export const inputBaseClassName = "flex min-w-0 flex-1 outline-none";
 
 export const placeholderHiddenInputClassName =
   "max-w-0 flex-none overflow-hidden opacity-0 " +
-  "group-data-focus-within:max-w-none group-data-focus-within:flex-1 group-data-focus-within:opacity-100";
+  "group-data-focus-within:max-w-none group-data-focus-within:flex-1 group-data-focus-within:opacity-100 " +
+  "group-has-[[role=spinbutton]:not([data-placeholder])]:max-w-none " +
+  "group-has-[[role=spinbutton]:not([data-placeholder])]:flex-1 " +
+  "group-has-[[role=spinbutton]:not([data-placeholder])]:opacity-100";
 export const placeholderClassName =
-  "min-w-0 flex-1 cursor-text truncate text-text-subtle group-data-focus-within:hidden";
+  "min-w-0 flex-1 cursor-text truncate text-text-subtle group-data-focus-within:hidden " +
+  "group-has-[[role=spinbutton]:not([data-placeholder])]:hidden";
 
 // The focused segment gets its own fill because the box's focus shadow doesn't move with the
 // active segment and this field draws no caret, so nothing else marks which segment is next.
