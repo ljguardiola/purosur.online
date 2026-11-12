@@ -38,9 +38,12 @@ jobs:
           node-version-file: .node-version
 
       - name: Install age
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends age
+        timeout-minutes: 20
+        run: >-
+          node .github/scripts/retry-command.mjs
+          --title "Install age"
+          --failure "age could not be installed, so the dump was not checked"
+          -- sh -c "sudo apt-get update && sudo apt-get install --yes --no-install-recommends age"
 
       - name: Sign in to ghcr.io and pull the Postgres image
         env:

@@ -2801,7 +2801,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
       .element(screen.getByRole("heading", { name: "Venta completada" }), {

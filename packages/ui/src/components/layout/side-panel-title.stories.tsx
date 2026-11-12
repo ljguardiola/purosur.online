@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Banknote, Undo2, Wallet } from "lucide-react";
+import { Banknote, QrCode, Undo2, Wallet } from "lucide-react";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle } from "./side-panel-title";
 
@@ -35,4 +35,8 @@ export const Warning: Story = {
 
 export const WithEscape: Story = {
   args: { icon: <Banknote />, title: "Efectivo", onClose: () => {} },
+};
+
+export const WithCloseLabel: Story = {
+  args: { icon: <QrCode />, title: "QR", onClose: () => {}, closeLabel: "Cambiar de medio" },
 };
