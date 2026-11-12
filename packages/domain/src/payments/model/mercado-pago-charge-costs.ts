@@ -2,7 +2,6 @@ import {
   argentinaCalendarDay,
   compareCodeUnits,
   compareSpanishText,
-  type ReportPeriod,
   type ZoneRules,
 } from "../../shared/index.js";
 import {
@@ -10,14 +9,7 @@ import {
   chargeCostOf,
   type SettlementMovement,
 } from "./mercado-pago-settlement.js";
-import type { MercadoPagoPaymentMethod } from "./payment.js";
-
-export const CHARGE_COST_METHODS = ["QR", "POINT", "OTHER"] as const satisfies readonly (
-  | MercadoPagoPaymentMethod
-  | "OTHER"
-)[];
-
-export type ChargeCostMethod = (typeof CHARGE_COST_METHODS)[number];
+import { MERCADO_PAGO_PAYMENT_METHODS, type MercadoPagoPaymentMethod } from "./payment.js";
 
 export interface OwnChargeInput {
   paymentTransactionId: string;
@@ -27,11 +19,6 @@ export interface OwnChargeInput {
   registerName: string;
   amount: number;
   chargedAt: Date;
-  movements: SettlementMovement[];
-}
-
-export interface OtherChargeInput {
-  sourceId: string;
   movements: SettlementMovement[];
 }
 
@@ -58,11 +45,8 @@ interface ChargeCostLine {
 
 type ChargeCostsOfDay = { day: string } & ChargeCostEntry;
 type ChargeCostsOfMonth = { month: string } & ChargeCostEntry;
-type ChargeCostsOfMethod = { method: ChargeCostMethod } & ChargeCostEntry;
-type ChargeCostsOfRegister = {
-  registerId: string | null;
-  registerName: string | null;
-} & ChargeCostEntry;
+type ChargeCostsOfMethod = { method: MercadoPagoPaymentMethod } & ChargeCostEntry;
+type ChargeCostsOfRegister = { registerId: string; registerName: string } & ChargeCostEntry;
 
 export interface ChargeCostsSummary {
   charges: ChargeCostLine[];
@@ -75,7 +59,7 @@ export interface ChargeCostsSummary {
 
 interface Counted {
   day: string;
-  method: ChargeCostMethod;
+  method: MercadoPagoPaymentMethod;
   cost: ChargeCost | null;
 }
 
@@ -118,22 +102,11 @@ function groupBy<Key extends string>(
   return groups;
 }
 
-function earliestDate(movements: readonly SettlementMovement[]): Date | null {
-  if (movements.length === 0) {
-    return null;
-  }
-  return new Date(Math.min(...movements.map((movement) => movement.transactionDate.getTime())));
-}
-
 export function summarizeChargeCosts({
   charges,
-  otherCharges,
-  period,
   rules,
 }: {
   charges: readonly OwnChargeInput[];
-  otherCharges: readonly OtherChargeInput[];
-  period: ReportPeriod;
   rules: ZoneRules;
 }): ChargeCostsSummary {
   const lines: ChargeCostLine[] = charges.map((charge) => ({
@@ -146,35 +119,16 @@ export function summarizeChargeCosts({
     chargedAt: charge.chargedAt,
     cost: charge.movements.length === 0 ? null : chargeCostOf(charge.movements),
   }));
-  const counted: Counted[] = lines.map((line) => ({
+  const counted: readonly Counted[] = lines.map((line) => ({
     day: argentinaCalendarDay(line.chargedAt, rules),
     method: line.method,
     cost: line.cost,
   }));
-  for (const other of otherCharges) {
-    const first = earliestDate(other.movements);
-    if (first === null) {
-      continue;
-    }
-    const day = argentinaCalendarDay(first, rules);
-    if (day < period.from || day > period.to) {
-      continue;
-    }
-    counted.push({
-      day,
-      method: "OTHER",
-      cost: chargeCostOf(other.movements),
-    });
-  }
-
   const totals = emptyEntry();
   for (const item of counted) {
     add(totals, item.cost);
   }
-  const byRegister = new Map<
-    string,
-    { registerId: string; registerName: string } & ChargeCostEntry
-  >();
+  const byRegister = new Map<string, ChargeCostsOfRegister>();
   for (const line of lines) {
     const group = byRegister.get(line.registerId) ?? {
       registerId: line.registerId,
@@ -184,10 +138,6 @@ export function summarizeChargeCosts({
     add(group, line.cost);
     byRegister.set(line.registerId, group);
   }
-  const otherChargesGroup = groupBy(
-    counted.filter((item) => item.method === "OTHER"),
-    () => "other",
-  ).get("other");
   const byMethod = groupBy(counted, (item) => item.method);
 
   return {
@@ -198,18 +148,13 @@ export function summarizeChargeCosts({
     months: [...groupBy(counted, (item) => item.day.slice(0, 7))]
       .sort(([a], [b]) => compareCodeUnits(a, b))
       .map(([month, entry]) => ({ month, ...entry })),
-    methods: CHARGE_COST_METHODS.flatMap((method) => {
+    methods: MERCADO_PAGO_PAYMENT_METHODS.flatMap((method) => {
       const entry = byMethod.get(method);
       return entry === undefined ? [] : [{ method, ...entry }];
     }),
-    registers: [
-      ...[...byRegister.values()].sort((a, b) =>
-        compareSpanishText(a.registerName, b.registerName),
-      ),
-      ...(otherChargesGroup === undefined
-        ? []
-        : [{ registerId: null, registerName: null, ...otherChargesGroup }]),
-    ],
+    registers: [...byRegister.values()].sort((a, b) =>
+      compareSpanishText(a.registerName, b.registerName),
+    ),
     totals,
   };
 }
