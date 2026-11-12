@@ -146,3 +146,46 @@ test("closes the panel from its Esc button beside the title", async () => {
   expect(onClose).toHaveBeenCalledOnce();
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("names its close button by the label it shows beside the Esc keycap", async () => {
+  const onClose = vi.fn();
+  const screen = await render(
+    <SidePanelTitle icon={<Wallet />} title="QR" onClose={onClose} closeLabel="Cambiar de medio" />,
+  );
+
+  const close = screen.getByRole("button", { name: "Cambiar de medio" });
+  await expect.element(close).toBeVisible();
+  await expect.element(close).toHaveTextContent("Esc");
+  await expect.element(close).toHaveTextContent("Cambiar de medio");
+  await expect
+    .element(screen.getByRole("button", { name: "Cerrar con Esc" }))
+    .not.toBeInTheDocument();
+
+  await userEvent.click(close);
+
+  expect(onClose).toHaveBeenCalledOnce();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps its labelled close button disabled while closing is not allowed", async () => {
+  const onClose = vi.fn();
+  const screen = await render(
+    <SidePanelTitle
+      icon={<Wallet />}
+      title="QR"
+      onClose={onClose}
+      closeLabel="Cambiar de medio"
+      closeDisabled
+    />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Cambiar de medio" })).toBeDisabled();
+});
+
+test("draws no close button for a label without a way to close", async () => {
+  const screen = await render(
+    <SidePanelTitle icon={<Wallet />} title="QR" closeLabel="Cambiar de medio" />,
+  );
+
+  await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
+});
