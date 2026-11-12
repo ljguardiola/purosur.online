@@ -5,18 +5,21 @@ import type {
 import type { Icon } from "@purosur/ui";
 import {
   Button,
-  CountdownRing,
+  CountdownCard,
+  FigureStat,
   formatCents,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
-  Modal,
   ProgressSteps,
-  SummaryRowGroup,
+  SidePanel,
+  SidePanelTitle,
 } from "@purosur/ui";
-import { ArrowRight, CircleX, Info, Lock, QrCode, TimerOff, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleX, Lock, QrCode, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { MercadoPagoPaidModal } from "./mercado-pago-paid-modal";
+import { useKeys } from "../platform/key-layer";
+import { MercadoPagoPaidPanel } from "./mercado-pago-paid-panel";
 import type { ShownQrOrder } from "./qr-charge-panel";
 import type { FollowedQrCharge } from "./sales-queries";
 import { useAbandonQrChargeMutation, useQrChargeQuery } from "./sales-queries";
@@ -28,28 +31,26 @@ export type CompletedQrPayment = Extract<FollowMercadoPagoChargeOutcome, { kind:
 type PaidQrCharge = Extract<FollowedQrCharge, { kind: "completed" | "partially_paid" }>;
 
 export type QrPaymentWaitPanelProps = {
-  total: number;
-  paid: number;
   order: ShownQrOrder;
   follow: (paymentTransactionId: string) => Promise<FollowMercadoPagoChargeOutcome>;
   abandon: (paymentTransactionId: string) => Promise<AbandonMercadoPagoChargeOutcome>;
   onCancelled: () => void;
   onChooseAnotherMethod: () => void;
   onCompleted: (payment: CompletedQrPayment) => void;
+  onRegenerate: (amount: number) => void;
   onPartiallyPaid: () => Promise<void>;
   onSaleUnavailable: () => void;
   onSessionInvalid: () => void;
 };
 
 export function QrPaymentWaitPanel({
-  total,
-  paid,
   order,
   follow,
   abandon,
   onCancelled,
   onChooseAnotherMethod,
   onCompleted,
+  onRegenerate,
   onPartiallyPaid,
   onSaleUnavailable,
   onSessionInvalid,
@@ -154,43 +155,47 @@ export function QrPaymentWaitPanel({
     }
   }, [abandonment.data]);
 
+  const amount = order.amount;
+  const regenerate = () => onRegenerate(amount);
+
   if (abandoned?.kind === "closed") {
     return (
-      <EndedModal
+      <EndedPanel
+        amount={amount}
         tone="info"
         icon={<Lock />}
         title="La orden QR ya estaba cerrada"
-        lines={["No se cobró nada con el QR. Elegí otro medio."]}
-        onChooseAnotherMethod={onChooseAnotherMethod}
+        description="No se cobró nada con el QR. Elegí otro medio."
+        buttonLabel="Cambiar de medio"
+        onLeave={onChooseAnotherMethod}
       />
     );
   }
   if (abandoned?.kind === "replaced") {
     return (
-      <EndedModal
+      <EndedPanel
+        amount={amount}
         tone="warning"
         icon={<TriangleAlert />}
         title="No se pudo confirmar la cancelación del QR"
-        lines={[
-          "Podés cobrar con otro medio y completar la venta.",
-          "Si el cliente paga el QR después, se crea una tarea de reembolso para confirmar.",
-        ]}
-        onChooseAnotherMethod={onChooseAnotherMethod}
+        description="Podés cobrar con otro medio y completar la venta. Si el cliente paga el QR después, se crea una tarea de reembolso para confirmar."
+        buttonLabel="Cobrar con otro medio"
+        onLeave={onChooseAnotherMethod}
       />
     );
   }
 
   if (paidCharge !== undefined) {
     return (
-      <MercadoPagoPaidModal
-        context="QR DE MERCADO PAGO"
-        title="El cliente pagó el QR"
+      <MercadoPagoPaidPanel
+        icon={<QrCode />}
+        title="QR"
         paidLabel="Pagado con QR"
-        amount={order.amount}
+        amount={amount}
         pending={paidCharge.kind === "partially_paid" ? paidCharge.pending : undefined}
         onContinue={() =>
           paidCharge.kind === "completed"
-            ? onCompleted({ ...paidCharge, amount: order.amount })
+            ? onCompleted({ ...paidCharge, amount })
             : void onPartiallyPaid()
         }
       />
@@ -199,41 +204,43 @@ export function QrPaymentWaitPanel({
 
   if (outcome?.kind === "declined") {
     return (
-      <EndedModal
+      <EndedPanel
+        amount={amount}
         tone="error"
         icon={<CircleX />}
         title="Mercado Pago rechazó el pago"
-        lines={[
-          "El pago del QR no se aprobó, así que no se cobró nada.",
-          "Se puede volver a generar el QR o cobrar con otro medio.",
-        ]}
-        onChooseAnotherMethod={onChooseAnotherMethod}
+        description="El pago del QR no se aprobó, así que no se cobró nada."
+        buttonLabel="Cambiar de medio"
+        onRegenerate={regenerate}
+        onLeave={onChooseAnotherMethod}
       />
     );
   }
   if (outcome?.kind === "wait_over") {
     return (
-      <EndedModal
+      <EndedPanel
+        amount={amount}
         tone="warning"
-        icon={<TimerOff />}
+        icon={<TriangleAlert />}
         title="Venció la espera del QR"
-        lines={["El cliente no pagó a tiempo y Mercado Pago ya no acepta pagos de esta orden."]}
-        onChooseAnotherMethod={onChooseAnotherMethod}
+        description="El cliente ya no puede pagar esta orden."
+        buttonLabel="Cambiar de medio"
+        onRegenerate={regenerate}
+        onLeave={onChooseAnotherMethod}
       />
     );
   }
   if (outcome?.kind === "expiry_unconfirmed") {
     return (
-      <EndedModal
+      <EndedPanel
+        amount={amount}
         tone="warning"
         icon={<TriangleAlert />}
         title="No se pudo confirmar el vencimiento del QR"
-        lines={[
-          "No se pudo leer la orden en Mercado Pago, así que no se sabe si el cliente pagó.",
-          "Al elegir otro medio, primero se cancela la orden QR.",
-        ]}
-        onChooseAnotherMethod={abandonOrder}
-        abandoning={abandonment.isPending}
+        description="No se pudo leer la orden en Mercado Pago, así que no se sabe si el cliente pagó. Al elegir otro medio, primero se cancela la orden QR."
+        buttonLabel="Cambiar de medio"
+        onLeave={abandonOrder}
+        leaving={abandonment.isPending}
         abandonFailed={abandonFailed}
       />
     );
@@ -243,86 +250,91 @@ export function QrPaymentWaitPanel({
     outcome?.kind === "waiting" ? outcome.remaining_seconds : order.remaining_seconds;
 
   return (
-    <Modal
-      open
-      onOpenChange={() => undefined}
-      width="standard"
-      tone="info"
-      icon={<QrCode />}
-      context="QR DE MERCADO PAGO"
-      contextTone="info"
-      title="Esperando el pago del cliente"
-      closable={false}
+    <QrPanel
+      header={
+        <SidePanelTitle
+          icon={<QrCode />}
+          title="QR"
+          closeLabel="Cambiar de medio"
+          closeDisabled={abandonment.isPending}
+          onClose={abandonOrder}
+        />
+      }
       footer={
-        <Button
-          size="large"
-          variant="secondary"
-          fullWidth
-          icon={<ArrowRight />}
-          dataStatus={abandonment.isPending ? "loading" : "loaded"}
-          onPress={abandonOrder}
-        >
-          Cobrar con otro medio
-        </Button>
+        abandonFailed ? (
+          <LeaveButton
+            label="Cambiar de medio"
+            loading={abandonment.isPending}
+            onPress={abandonOrder}
+          />
+        ) : undefined
       }
     >
-      <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          rows={[
-            { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(paid) },
-            { label: "A cobrar ahora", value: formatCents(order.amount) },
-          ]}
+      <WaitKeys
+        abandonFailed={abandonFailed}
+        abandoning={abandonment.isPending}
+        onAbandon={abandonOrder}
+      />
+      <FigureStat size="hero" label="A COBRAR" value={formatCents(amount)} />
+      {abandonFailed ? (
+        <AbandonFailedNotice />
+      ) : charge.status === "failed" ? (
+        <LoadFailure
+          icon={<TriangleAlert />}
+          title="No se pudo consultar el pago del QR"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={() => {
+            setRetried(true);
+            charge.retry();
+          }}
         />
-        {charge.status === "failed" ? (
-          <LoadFailure
-            icon={<TriangleAlert />}
-            title="No se pudo consultar el pago del QR"
-            description="Volvé a intentarlo en unos segundos."
-            onRetry={() => {
-              setRetried(true);
-              charge.retry();
-            }}
+      ) : charge.status === "loading" && retried ? (
+        <LoadingPlaceholder variant="card" lines={2} />
+      ) : (
+        <>
+          <CountdownCard
+            remainingSeconds={remainingSeconds}
+            totalSeconds={order.wait_seconds}
+            label="TIEMPO PARA PAGAR"
           />
-        ) : charge.status === "loading" && retried ? (
-          <LoadingPlaceholder variant="card" lines={2} />
-        ) : (
-          <div className="flex items-center gap-6">
-            <CountdownRing
-              remainingSeconds={remainingSeconds}
-              totalSeconds={order.wait_seconds}
-              label="Tiempo para pagar"
-            />
-            <ProgressSteps
-              steps={[
-                {
-                  id: "order-created",
-                  label: `Orden creada por ${formatCents(order.amount)}`,
-                  state: "done",
-                },
-                {
-                  id: "customer-paying",
-                  label: "Esperando que el cliente pague",
-                  detail:
-                    remainingSeconds === 0
-                      ? "Confirmando con Mercado Pago que la orden venció"
-                      : "Escanea el QR del mostrador con su app",
-                  state: "current",
-                },
-                { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
-              ]}
-            />
-          </div>
-        )}
-        {abandonFailed ? <AbandonFailedNotice /> : null}
-        <InlineNotice
-          tone="info"
-          icon={<Info />}
-          title="Al llegar a cero, la orden vence y el cliente ya no puede pagarla."
-        />
-      </div>
-    </Modal>
+          <ProgressSteps
+            steps={[
+              {
+                id: "order-created",
+                label: `Orden creada por ${formatCents(amount)}`,
+                state: "done",
+              },
+              {
+                id: "customer-paying",
+                label: "Esperando que el cliente pague",
+                ...(remainingSeconds === 0
+                  ? { detail: "Confirmando con Mercado Pago que la orden venció" }
+                  : {}),
+                state: "current",
+              },
+              { id: "payment-approved", label: "Pago aprobado", state: "upcoming" },
+            ]}
+          />
+        </>
+      )}
+    </QrPanel>
   );
+}
+
+function WaitKeys({
+  abandonFailed,
+  abandoning,
+  onAbandon,
+}: {
+  abandonFailed: boolean;
+  abandoning: boolean;
+  onAbandon: () => void;
+}) {
+  useKeys([{ key: "Escape", run: onAbandon, enabled: !abandoning }]);
+  useKeys([{ key: "Enter", run: onAbandon, enabled: abandonFailed && !abandoning }], {
+    fallback: true,
+  });
+  return null;
 }
 
 function AbandonFailedNotice() {
@@ -335,55 +347,98 @@ function AbandonFailedNotice() {
   );
 }
 
-function EndedModal({
+function QrPanel({
+  header,
+  footer,
+  children,
+}: {
+  header: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <SidePanel label="Cobro con QR" width="wide" header={header} footer={footer}>
+      {children}
+    </SidePanel>
+  );
+}
+
+function LeaveButton({
+  label,
+  loading,
+  onPress,
+}: {
+  label: string;
+  loading: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      size="large"
+      fullWidth
+      icon={<ArrowRight />}
+      iconPosition="start"
+      keycap="Enter"
+      dataStatus={loading ? "loading" : "loaded"}
+      onPress={onPress}
+    >
+      {label}
+    </Button>
+  );
+}
+
+function EndedPanel({
+  amount,
   tone,
   icon,
   title,
-  lines,
-  onChooseAnotherMethod,
-  abandoning = false,
+  description,
+  buttonLabel,
+  onRegenerate,
+  onLeave,
+  leaving = false,
   abandonFailed = false,
 }: {
+  amount: number;
   tone: "error" | "warning" | "info";
   icon: Icon;
   title: string;
-  lines: readonly [string] | readonly [string, string];
-  onChooseAnotherMethod: () => void;
-  abandoning?: boolean;
+  description: string;
+  buttonLabel: string;
+  onRegenerate?: () => void;
+  onLeave: () => void;
+  leaving?: boolean;
   abandonFailed?: boolean;
 }) {
+  useKeys([
+    { key: "Escape", run: onLeave, enabled: !leaving },
+    ...(onRegenerate === undefined ? [] : [{ key: "F2" as const, run: onRegenerate }]),
+  ]);
+  useKeys([{ key: "Enter", run: onLeave, enabled: !leaving }], { fallback: true });
+
   return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next && !abandoning) {
-          onChooseAnotherMethod();
-        }
-      }}
-      width="standard"
-      tone={tone}
-      icon={icon}
-      context="QR DE MERCADO PAGO"
-      contextTone={tone}
-      title={title}
-      closable={false}
-      footer={
-        <Button
-          size="large"
-          fullWidth
-          icon={<ArrowRight />}
-          dataStatus={abandoning ? "loading" : "loaded"}
-          onPress={onChooseAnotherMethod}
-        >
-          Elegir otro medio
-        </Button>
+    <QrPanel
+      header={
+        <SidePanelTitle
+          icon={<QrCode />}
+          title="QR"
+          closeLabel="Cambiar de medio"
+          closeDisabled={leaving}
+          onClose={onLeave}
+        />
       }
+      footer={<LeaveButton label={buttonLabel} loading={leaving} onPress={onLeave} />}
     >
-      <div className="flex flex-col gap-3">
-        <p className="text-body text-text">{lines[0]}</p>
-        {lines[1] === undefined ? null : <p className="text-detail text-text-subtle">{lines[1]}</p>}
-        {abandonFailed ? <AbandonFailedNotice /> : null}
-      </div>
-    </Modal>
+      <FigureStat size="hero" label="A COBRAR" value={formatCents(amount)} />
+      <InlineNotice tone={tone} icon={icon} title={title} description={description} />
+      {onRegenerate === undefined ? null : (
+        <div className="flex">
+          <Button variant="text" keycap="F2" onPress={onRegenerate}>
+            Volver a generar el QR
+          </Button>
+        </div>
+      )}
+      {abandonFailed ? <AbandonFailedNotice /> : null}
+    </QrPanel>
   );
 }
