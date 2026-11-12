@@ -140,6 +140,56 @@ describe("sale requests", () => {
     expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
+  it("accepts finding a product by its code", () => {
+    const message = { type: "find-product-by-code", request_id: REQUEST_ID, code: "7790001" };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("leaves a code longer than any barcode to the core when finding a product", () => {
+    const message = { type: "find-product-by-code", request_id: REQUEST_ID, code: "7".repeat(65) };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("does not take who is selling from finding a product by its code", () => {
+    const message = { type: "find-product-by-code", request_id: REQUEST_ID, code: "1" };
+
+    expect(salesRendererToCoreMessageSchema.parse({ ...message, user_id: "u9" })).toEqual(message);
+  });
+
+  it.each([
+    { type: "find-product-by-code", code: "1" },
+    { type: "find-product-by-code", request_id: REQUEST_ID },
+    { type: "find-product-by-code", request_id: REQUEST_ID, code: "" },
+  ])("rejects finding a product by its code that is not well formed: %j", (message) => {
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([
+    {
+      kind: "found",
+      product: { product_id: "p1", name: "Yerba", sale_unit: "UNIT", unit_price: 2500 },
+    },
+    { kind: "unknown_code" },
+    { kind: "not_permitted" },
+    { kind: "unavailable" },
+  ])("accepts the find-product-by-code result $kind", (outcome) => {
+    const message = { type: "find-product-by-code-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a find-product-by-code result it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "find-product-by-code-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+
   it("accepts adding a product by its id", () => {
     const message = { type: "add-product", request_id: REQUEST_ID, product_id: "p1" };
 

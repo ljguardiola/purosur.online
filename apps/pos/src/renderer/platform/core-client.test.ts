@@ -1535,6 +1535,31 @@ describe("createCoreClient", () => {
   );
 
   it.each([
+    {
+      kind: "found",
+      product: { product_id: "p1", name: "Yerba", sale_unit: "UNIT", unit_price: 2500 },
+    },
+    { kind: "unknown_code" },
+    { kind: "no_open_session" },
+    { kind: "unavailable" },
+  ])(
+    "asks the core to find a product by its code and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const found = client.findProductByCode("7790001");
+      port.answer({ type: "find-product-by-code-result", request_id: "request-1", outcome });
+
+      expect(await found).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "find-product-by-code", request_id: "request-1", code: "7790001" },
+      ]);
+    },
+  );
+
+  it.each([
     { kind: "product_unavailable" },
     { kind: "no_price", product_name: "Yerba" },
     { kind: "unavailable" },

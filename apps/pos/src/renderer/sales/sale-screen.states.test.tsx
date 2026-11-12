@@ -84,7 +84,7 @@ describe("SaleScreen with a code that has no product", () => {
 
     await expect.element(screen.getByRole("row")).toHaveLength(5);
     await expect.element(screen.getByText("$ 25.192,50").first()).toBeVisible();
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F3Pesar", "SuprQuitar"]);
   });
 
   it("takes the red away when the text changes", async () => {
@@ -184,7 +184,7 @@ describe("SaleScreen with the critical battery alert", () => {
     for (const name of PAYMENT_KEYS) {
       await expect.element(screen.getByRole("button", { name })).toBeEnabled();
     }
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F3Pesar", "SuprQuitar"]);
   });
 
   it("draws the notice with a battery", async () => {
