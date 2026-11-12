@@ -1245,8 +1245,9 @@ describe("the sale in progress", () => {
 
   it("lists the approved payments with their method and amount, in the order they were approved", async () => {
     const saleId = await sellTwoForPayments();
-    await chargeSaleByTransferFor(deps(), { saleId, amount: 1000 });
-    await chargeSaleInCashFor(deps(), { saleId, tendered: 500 });
+    const ids = idsStartingWith("payment");
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 1000 });
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 500 });
 
     expect(await currentSaleFor(deps())).toMatchObject({
       paid: 1500,
