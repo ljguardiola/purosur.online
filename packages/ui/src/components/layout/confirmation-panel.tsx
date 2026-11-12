@@ -5,7 +5,7 @@ import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
 import { Eyebrow } from "./eyebrow";
 import { SidePanel } from "./side-panel";
-import { SidePanelTitle } from "./side-panel-title";
+import { SidePanelTitle, type SidePanelTitleTone } from "./side-panel-title";
 
 type ConfirmationDetail = { label: string; value: string };
 
@@ -16,7 +16,7 @@ export type ConfirmationPanelProps = {
   value: string;
   actionLabel: string;
   actionIcon: Icon;
-  tone?: "neutral" | "warning" | "danger";
+  tone?: SidePanelTitleTone;
   locked?: boolean;
   details?: readonly [ConfirmationDetail, ...ConfirmationDetail[]];
   notice?: string;
@@ -60,7 +60,7 @@ export function ConfirmationPanel({
           icon={actionIcon}
           iconPosition="start"
           keycap="Enter"
-          destructive={tone === "danger"}
+          destructive={tone === "error"}
           disabled={busy}
           onPress={onConfirm}
         >

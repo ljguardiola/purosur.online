@@ -2,13 +2,15 @@ import { Lock } from "lucide-react";
 import { useContext } from "react";
 import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
-import { toneClassName } from "../shared/tone";
+import { type Tone, toneClassName } from "../shared/tone";
 import { SidePanelInsetContext } from "./side-panel-inset";
+
+export type SidePanelTitleTone = Extract<Tone, "neutral" | "warning" | "error">;
 
 export type SidePanelTitleProps = {
   icon: Icon;
   title: string;
-  tone?: "neutral" | "warning" | "danger";
+  tone?: SidePanelTitleTone;
   onClose?: (() => void) | undefined;
   closeDisabled?: boolean;
   locked?: boolean;
@@ -17,8 +19,8 @@ export type SidePanelTitleProps = {
 const badgeToneClassName = {
   neutral: "bg-surface-soft text-text",
   warning: toneClassName.warning.surface,
-  danger: toneClassName.error.surface,
-};
+  error: toneClassName.error.surface,
+} satisfies Record<SidePanelTitleTone, string>;
 
 export function SidePanelTitle({
   icon,
