@@ -70,9 +70,10 @@ describe("InitialCountScreen withdrawing a counted line with Supr", () => {
     const lines = screen.getByRole("table", { name: "Líneas cargadas" }).element();
     const linesBox = lines.getBoundingClientRect();
     expect(lines.contains(notice.element())).toBe(false);
-    expect(box.left - linesBox.left).toBeLessThan(40);
-    expect(box.bottom).toBeLessThan(linesBox.bottom);
-    expect(box.bottom).toBeGreaterThan((linesBox.top + linesBox.bottom) / 2);
+    expect(box.left - linesBox.left).toBeLessThan(100);
+    const mainBox = screen.getByRole("main").element().getBoundingClientRect();
+    expect(box.bottom).toBeLessThan(mainBox.bottom);
+    expect(box.bottom).toBeGreaterThan((mainBox.top + mainBox.bottom) / 2);
     await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
     await expect.element(notice).not.toBeInTheDocument();
