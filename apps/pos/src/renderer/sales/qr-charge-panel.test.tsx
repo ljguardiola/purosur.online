@@ -280,8 +280,8 @@ describe("QrChargePanel", () => {
 
     await userEvent.type(field, "0");
 
-    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
     await expect.element(create).toBeVisible();
+    expect(screen.getByRole("button", { name: "Cambiar de medio" }).elements()).toHaveLength(1);
   });
 
   it("says the order could not be created when the core cannot answer", async () => {

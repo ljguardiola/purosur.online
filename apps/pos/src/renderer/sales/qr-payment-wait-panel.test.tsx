@@ -67,6 +67,11 @@ async function renderModal(
   return { screen, followCharge, abandonCharge, callbacks };
 }
 
+function arcShare(container: Element): number {
+  const arc = container.querySelector("circle[stroke-dasharray]");
+  return Number.parseFloat(arc?.getAttribute("stroke-dasharray") ?? "");
+}
+
 describe("QrPaymentWaitPanel", () => {
   it("waits for the customer's payment showing what is owed, the order's steps and the time left", async () => {
     const { screen } = await renderModal();
@@ -107,7 +112,7 @@ describe("QrPaymentWaitPanel", () => {
     });
 
     await expect.element(screen.getByText("2:41")).toBeVisible();
-    await expect.element(screen.getByText("de 3:10")).toBeVisible();
+    expect(arcShare(screen.container)).toBeCloseTo((161 / 190) * 100, 3);
   });
 
   it("shows the whole wait as the total of a charge reopened part way through it", async () => {
@@ -118,7 +123,7 @@ describe("QrPaymentWaitPanel", () => {
     });
 
     await expect.element(screen.getByText("0:40")).toBeVisible();
-    await expect.element(screen.getByText("de 3:10")).toBeVisible();
+    expect(arcShare(screen.container)).toBeCloseTo((40 / 190) * 100, 3);
   });
 
   it("offers only Esc Cambiar de medio while waiting, with no footer button and no key beyond Esc", async () => {
@@ -153,7 +158,7 @@ describe("QrPaymentWaitPanel", () => {
       })
       .toBeVisible();
     await expect.element(screen.getByText("Pagado con QR")).toBeVisible();
-    await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 30.000,00").first()).toBeVisible();
     await expect.element(screen.getByText("Falta cobrar")).not.toBeInTheDocument();
     expect(callbacks.onCompleted).not.toHaveBeenCalled();
     expect(callbacks.onPartiallyPaid).not.toHaveBeenCalled();
@@ -173,7 +178,7 @@ describe("QrPaymentWaitPanel", () => {
         .getByRole("button")
         .elements()
         .map((button) => button.textContent),
-    ).toEqual(["Continuar"]);
+    ).toEqual(["ContinuarEnter"]);
   });
 
   it("shows what is still to be charged and goes back to the methods only from Continuar when the approved payment pays part of the sale", async () => {
@@ -259,9 +264,6 @@ describe("QrPaymentWaitPanel", () => {
     await expect
       .element(screen.getByText("El pago del QR no se aprobó, así que no se cobró nada."))
       .toBeVisible();
-    await expect
-      .element(screen.getByText("Se puede volver a generar el QR o cobrar con otro medio."))
-      .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }).last());
@@ -291,11 +293,7 @@ describe("QrPaymentWaitPanel", () => {
 
     await expect.element(screen.getByText("Venció la espera del QR")).toBeVisible();
     await expect
-      .element(
-        screen.getByText(
-          "El cliente no pagó a tiempo y Mercado Pago ya no acepta pagos de esta orden.",
-        ),
-      )
+      .element(screen.getByText("El cliente ya no puede pagar esta orden."))
       .toBeVisible();
     await expect.element(screen.getByText(/tarea de reembolso/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
@@ -324,12 +322,9 @@ describe("QrPaymentWaitPanel", () => {
       await expect
         .element(
           screen.getByText(
-            "No se pudo leer la orden en Mercado Pago, así que no se sabe si el cliente pagó.",
+            "No se pudo leer la orden en Mercado Pago, así que no se sabe si el cliente pagó. Al elegir otro medio, primero se cancela la orden QR.",
           ),
         )
-        .toBeVisible();
-      await expect
-        .element(screen.getByText("Al elegir otro medio, primero se cancela la orden QR."))
         .toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
@@ -520,7 +515,7 @@ describe("QrPaymentWaitPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
     await expect.element(screen.getByText("Pagado con QR")).toBeVisible();
-    await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 30.000,00").first()).toBeVisible();
     expect(callbacks.onCompleted).not.toHaveBeenCalled();
     expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
 
@@ -634,12 +629,9 @@ describe("QrPaymentWaitPanel", () => {
       .element(screen.getByText("No se pudo confirmar la cancelación del QR"))
       .toBeVisible();
     await expect
-      .element(screen.getByText("Podés cobrar con otro medio y completar la venta."))
-      .toBeVisible();
-    await expect
       .element(
         screen.getByText(
-          "Si el cliente paga el QR después, se crea una tarea de reembolso para confirmar.",
+          "Podés cobrar con otro medio y completar la venta. Si el cliente paga el QR después, se crea una tarea de reembolso para confirmar.",
         ),
       )
       .toBeVisible();

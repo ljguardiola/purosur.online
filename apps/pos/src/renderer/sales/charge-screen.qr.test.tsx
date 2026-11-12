@@ -123,7 +123,11 @@ describe("ChargeScreen · QR", () => {
       });
 
       await expect.element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" })).toBeVisible();
-      await expect.element(screen.getByText("de 3:10")).toBeVisible();
+      const arc = screen.container.querySelector("circle[stroke-dasharray]");
+      expect(Number.parseFloat(arc?.getAttribute("stroke-dasharray") ?? "")).toBeCloseTo(
+        (40 / 190) * 100,
+        3,
+      );
     });
 
     it("keeps the declined notice after the sale stops showing the charge", async () => {
