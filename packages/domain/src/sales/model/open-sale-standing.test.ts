@@ -189,6 +189,10 @@ describe("openSaleStanding", () => {
   it("plans a pending refund for an approved QR payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, QR_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
+      approvedPayments: [
+        { method: "CASH", cardType: null, amount: 2000 },
+        { method: "QR", cardType: null, amount: 2000 },
+      ],
       linesLock: "approved_payment",
       cancellable: false,
       cancelRefusal: null,
@@ -215,6 +219,10 @@ describe("openSaleStanding", () => {
   it("plans a pending refund for an approved integrated terminal payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, POINT_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
+      approvedPayments: [
+        { method: "CASH", cardType: null, amount: 2000 },
+        { method: "POINT", cardType: null, amount: 2000 },
+      ],
       linesLock: "approved_payment",
       cancellable: false,
       cancelRefusal: null,
@@ -241,6 +249,10 @@ describe("openSaleStanding", () => {
   it("plans a pending refund for an approved standalone terminal payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, STANDALONE_TERMINAL_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
+      approvedPayments: [
+        { method: "CASH", cardType: null, amount: 2000 },
+        { method: "STANDALONE_TERMINAL", cardType: null, amount: 2000 },
+      ],
       linesLock: "approved_payment",
       cancellable: false,
       cancelRefusal: null,
