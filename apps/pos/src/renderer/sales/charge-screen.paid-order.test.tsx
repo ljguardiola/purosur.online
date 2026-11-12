@@ -93,7 +93,13 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
         {
           ...saleRebuiltAgainstPaidOrder(
             { ...QR_ORDER, applied: true },
-            { ...SALE_OF_ONE_LINE, total: 900_000, paid: 500_000, pending: 400_000 },
+            {
+              ...SALE_OF_ONE_LINE,
+              total: 900_000,
+              paid: 500_000,
+              pending: 400_000,
+              payments: [{ method: "QR", card_type: null, amount: 500_000 }],
+            },
           ),
         },
       ),
@@ -111,7 +117,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 5.000,00");
+    await expect.poll(() => valueBeside(screen, "QR")).toBe("– $ 5.000,00");
     await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();
     await expect.element(screen.getByText(/por cobrar con otro medio/)).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(1);

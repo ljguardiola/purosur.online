@@ -82,7 +82,12 @@ describe("ChargeScreen · Otros medios by keys", () => {
   it("registers a partial transfer with Enter and shows what is missing in the combined payment", async () => {
     const reads: CurrentSaleAnswer[] = [
       SALE_OF_ONE_LINE,
-      { ...SALE_OF_ONE_LINE, paid: 200_000, pending: 276_000 },
+      {
+        ...SALE_OF_ONE_LINE,
+        paid: 200_000,
+        pending: 276_000,
+        payments: [{ method: "TRANSFER", card_type: null, amount: 200_000 }],
+      },
     ];
     const { screen, chargeSaleByTransfer, nonCashCharge } = await renderScreen({
       currentSale: async () => reads.shift() ?? SALE_WITH_PART_PAID,
@@ -105,7 +110,7 @@ describe("ChargeScreen · Otros medios by keys", () => {
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("FALTA")).toBeVisible();
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
-    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 2.000,00");
+    await expect.poll(() => valueBeside(screen, "Transferencia")).toBe("– $ 2.000,00");
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });
 
