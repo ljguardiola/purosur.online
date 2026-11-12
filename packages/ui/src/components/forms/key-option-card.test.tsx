@@ -59,13 +59,14 @@ test("fills the width, with the icon on the left, the label after it and the key
   expect(button.right - key.right).toBeLessThan(24);
 });
 
-test("draws the icon inside a round soft badge", async () => {
+test("draws the icon in the accent colour inside a round action badge", async () => {
   const screen = await render(card());
 
   const badge = (screen.container.querySelector("svg") as SVGElement).parentElement
     ?.parentElement as HTMLElement;
   const style = getComputedStyle(badge);
-  expect(style.backgroundColor).toBe(tokenRgb("surface-soft"));
+  expect(style.backgroundColor).toBe(tokenRgb("action-subtle"));
+  expect(style.color).toBe(tokenRgb("text-accent"));
   expect(badge.getBoundingClientRect().width).toBe(badge.getBoundingClientRect().height);
   expect(Number.parseFloat(style.borderTopLeftRadius)).toBeGreaterThanOrEqual(
     badge.getBoundingClientRect().width / 2,
