@@ -61,6 +61,8 @@ export type { TagProps } from "./components/data-display/tag";
 export { Tag } from "./components/data-display/tag";
 export type { TextPreviewProps } from "./components/data-display/text-preview";
 export { TextPreview } from "./components/data-display/text-preview";
+export type { CountdownCardProps } from "./components/feedback/countdown-card";
+export { CountdownCard } from "./components/feedback/countdown-card";
 export type { CountdownRingProps } from "./components/feedback/countdown-ring";
 export { CountdownRing } from "./components/feedback/countdown-ring";
 export type { ElevatedNoticeProps } from "./components/feedback/elevated-notice";
