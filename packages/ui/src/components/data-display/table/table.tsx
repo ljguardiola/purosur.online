@@ -50,6 +50,7 @@ export function Table<T extends RowData>({
   legend,
   fill = false,
   locked,
+  inactive = false,
 }: TableProps<T>): ReactElement {
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
@@ -59,6 +60,7 @@ export function Table<T extends RowData>({
     rows.length,
     empty !== undefined,
   );
+  const rowsDisabled = locked !== undefined || inactive;
   const showEmptyState = displayMode === "empty";
   const showingPlaceholders = displayMode === "placeholders";
   const messageOnly = fill && (displayMode === "failure" || displayMode === "empty");
@@ -82,7 +84,7 @@ export function Table<T extends RowData>({
         </thead>
         <tbody
           aria-hidden={showingPlaceholders ? true : undefined}
-          className={locked === undefined ? "" : "opacity-disabled"}
+          className={rowsDisabled ? "opacity-disabled" : ""}
         >
           {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
           {failure !== undefined && (
@@ -111,18 +113,18 @@ export function Table<T extends RowData>({
                     className={[
                       rowBoxShadowClassName(state, last && !hasDetail),
                       rowStateClassName(state, variant),
-                      ...(onRowPress === undefined || locked !== undefined
+                      ...(onRowPress === undefined || rowsDisabled
                         ? []
                         : [pressableRowClassName(state)]),
                     ].join(" ")}
-                    aria-disabled={locked === undefined ? undefined : true}
+                    aria-disabled={rowsDisabled ? true : undefined}
                     aria-current={
-                      onRowPress !== undefined && locked === undefined && state === "selected"
+                      onRowPress !== undefined && !rowsDisabled && state === "selected"
                         ? "true"
                         : undefined
                     }
                     onClick={
-                      onRowPress === undefined || locked !== undefined
+                      onRowPress === undefined || rowsDisabled
                         ? undefined
                         : (event) => {
                             if (

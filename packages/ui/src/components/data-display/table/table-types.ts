@@ -99,4 +99,5 @@ export type TableProps<T extends RowData> = {
   legend?: readonly KeyLegendItem[];
   fill?: boolean;
   locked?: TableLock;
+  inactive?: boolean;
 } & TableLoadProps;
