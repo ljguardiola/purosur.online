@@ -1,10 +1,15 @@
-import { type cashCharge, MAX_CASH_AMOUNT_CENTS, MAX_UNIT_PRICE_CENTS } from "@purosur/domain";
+import {
+  type cashCharge,
+  MAX_CASH_AMOUNT_CENTS,
+  MAX_UNIT_PRICE_CENTS,
+  type nonCashCharge,
+} from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   salesCoreToRendererMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./core-messages.js";
-import type { CashCharge } from "./sale.js";
+import type { CashCharge, NonCashCharge } from "./sale.js";
 
 const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
 
@@ -2538,5 +2543,70 @@ describe("the notice that the barcode reader read a code", () => {
     ["a code that is not text", { type: "barcode-read", code: 7790001234567 }],
   ])("rejects %s", (_name, message) => {
     expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+  });
+});
+
+describe("non-cash charge request", () => {
+  const message = {
+    type: "non-cash-charge-request",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    amount: 1000,
+  };
+
+  it("accepts a request for what a sale needs when an amount in cents is charged by another method", () => {
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    ["without its request id", { ...message, request_id: undefined }],
+    ["without the sale", { ...message, sale_id: undefined }],
+    ["with an amount that is not whole cents", { ...message, amount: 10.5 }],
+  ])("rejects a request %s", (_case, invalid) => {
+    expect(salesRendererToCoreMessageSchema.safeParse(invalid).success).toBe(false);
+  });
+});
+
+describe("non-cash charge answers", () => {
+  it.each([
+    [{ kind: "invalid_amount" }],
+    [{ kind: "exceeds_pending", pending: 2000 }],
+    [{ kind: "partial", applied: 1000, pending: 2000 }],
+    [{ kind: "covered", applied: 3000 }],
+    [null],
+  ])("accepts the answer %j", (charge) => {
+    const message = { type: "non-cash-charge", request_id: REQUEST_ID, charge };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    [{ kind: "exceeds_pending" }],
+    [{ kind: "partial", applied: 1000 }],
+    [{ kind: "partial", applied: "1000", pending: 2000 }],
+    [{ kind: "covered" }],
+    [{ kind: "unknown" }],
+  ])("rejects the answer %j", (charge) => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "non-cash-charge",
+        request_id: REQUEST_ID,
+        charge,
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(["non-cash-charge-unavailable", "non-cash-charge-not-permitted"])(
+    "accepts %s and rejects it without its request id",
+    (type) => {
+      const message = { type, request_id: REQUEST_ID };
+
+      expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+      expect(salesCoreToRendererMessageSchema.safeParse({ type }).success).toBe(false);
+    },
+  );
+
+  it("describes a charge as the domain does", () => {
+    expectTypeOf<NonCashCharge>().toEqualTypeOf<ReturnType<typeof nonCashCharge>>();
   });
 });

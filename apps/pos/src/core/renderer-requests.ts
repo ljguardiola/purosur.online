@@ -34,6 +34,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpeningFloatSuggestion,
@@ -103,6 +104,7 @@ import type {
   ChargeSaleInCashRequest,
   ChargeSaleInCashWithChangeDiscountRequest,
   ChargeSaleOnStandaloneTerminalRequest,
+  NonCashChargeReadRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
@@ -196,6 +198,7 @@ export interface RendererRequestDeps {
   contingencyBackupTickets: ContingencyBackupTicketRequests | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
   cashCharge: ((request: CashChargeReadRequest) => Promise<CashChargeAnswer>) | undefined;
+  nonCashCharge: ((request: NonCashChargeReadRequest) => Promise<NonCashChargeAnswer>) | undefined;
   chargeSaleInCashWithChangeDiscount:
     | ((
         request: ChargeSaleInCashWithChangeDiscountRequest,
@@ -786,6 +789,18 @@ async function readCashCharge(
     return await deps.cashCharge?.(request);
   } catch (error) {
     deps.reportFailure("reading what a tendered amount needs", error);
+    return undefined;
+  }
+}
+
+async function readNonCashCharge(
+  deps: RendererRequestDeps,
+  request: NonCashChargeReadRequest,
+): Promise<NonCashChargeAnswer | undefined> {
+  try {
+    return await deps.nonCashCharge?.(request);
+  } catch (error) {
+    deps.reportFailure("reading what an amount charged by another method needs", error);
     return undefined;
   }
 }
@@ -1561,6 +1576,18 @@ export async function answerRendererRequest(
       return charge === undefined
         ? { type: "cash-charge-unavailable", request_id: message.request_id }
         : { type: "cash-charge", request_id: message.request_id, charge };
+    }
+    case "non-cash-charge-request": {
+      const charge = await readNonCashCharge(deps, {
+        saleId: message.sale_id,
+        amount: message.amount,
+      });
+      if (charge === "not_permitted") {
+        return { type: "non-cash-charge-not-permitted", request_id: message.request_id };
+      }
+      return charge === undefined
+        ? { type: "non-cash-charge-unavailable", request_id: message.request_id }
+        : { type: "non-cash-charge", request_id: message.request_id, charge };
     }
     case "close-cash-session":
       return {

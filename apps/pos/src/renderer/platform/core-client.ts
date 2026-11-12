@@ -47,6 +47,7 @@ import type {
   InstallationRendererToCoreMessage,
   ListedCashMovement,
   ManualAdjustmentRequest,
+  NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
   OpeningFloatSuggestion,
@@ -361,6 +362,7 @@ export interface CoreClient {
   registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
   cashCharge(saleId: string, tendered: number, saleDiscount?: number): Promise<CashChargeAnswer>;
   cashChargeAmounts(saleId: string, saleDiscount?: number): Promise<CashChargeAmountsAnswer | null>;
+  nonCashCharge(saleId: string, amount: number): Promise<NonCashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
   chargeSaleInCashWithChangeDiscount(
     saleId: string,
@@ -1190,6 +1192,25 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "not_permitted";
           }
           return answer.type === "cash-charge" ? answer.charge : undefined;
+        },
+      );
+    },
+    nonCashCharge(saleId, amount) {
+      return ask(
+        {
+          type: "non-cash-charge-request",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          amount,
+        },
+        (answer) => {
+          if (answer.type === "non-cash-charge-unavailable") {
+            throw new Error("the core could not say what the sale needs for this amount");
+          }
+          if (answer.type === "non-cash-charge-not-permitted") {
+            return "not_permitted";
+          }
+          return answer.type === "non-cash-charge" ? answer.charge : undefined;
         },
       );
     },
