@@ -154,9 +154,14 @@ describe("SalesHistoryTable", () => {
       ],
     });
 
-    await expect.element(screen.getByRole("listitem").first()).toHaveTextContent(/Ventas/);
-    await expect.element(screen.getByRole("listitem").nth(1)).toHaveTextContent(/F2/);
-    await expect.element(screen.getByRole("listitem").nth(1)).toHaveTextContent(/Buscar/);
+    await expect
+      .poll(() =>
+        screen
+          .getByRole("listitem")
+          .elements()
+          .map((item) => item.textContent.trim()),
+      )
+      .toEqual(["↑↓Ventas", "F2Buscar"]);
   });
 
   it("shows no legend bar when it has no keys", async () => {
