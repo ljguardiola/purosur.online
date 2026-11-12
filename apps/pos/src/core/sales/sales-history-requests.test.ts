@@ -59,7 +59,6 @@ interface SaleSeed {
   deferred?: boolean;
   authorizedDocumentNumber?: number;
   pointOfSale?: number;
-  pointOfSale?: number;
   state?: "COMPLETED" | "VOIDED";
   session?: string;
   pointCardType?: "DEBIT" | "CREDIT";
@@ -352,7 +351,6 @@ describe("searching the sales history by document number", () => {
       occurredAt: "2026-10-07T09:00:00.000Z",
       operationNumber: 1,
       authorizedDocumentNumber: 187,
-      pointOfSale: 4,
       pointOfSale: 4,
     });
     database.exec("UPDATE sales SET session_id = 's0' WHERE id = 'yesterday'");
