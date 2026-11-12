@@ -40,12 +40,3 @@ export const WithEscape: Story = {
 export const ErrorTone: Story = {
   args: { icon: <Ban />, title: "¿Cancelar la venta?", tone: "error", onClose: () => undefined },
 };
-
-export const WithLock: Story = {
-  args: {
-    icon: <Wallet />,
-    title: "Precio de la línea",
-    lockLabel: "Precio bloqueado",
-    onClose: () => undefined,
-  },
-};

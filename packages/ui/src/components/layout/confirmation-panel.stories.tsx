@@ -63,7 +63,3 @@ export const Destructive: Story = {
     actionIcon: <Ban />,
   },
 };
-
-export const WithLock: Story = {
-  args: { ...refundArgs, lockLabel: "Bloqueado" },
-};

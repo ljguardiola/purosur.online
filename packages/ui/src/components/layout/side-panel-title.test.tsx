@@ -80,14 +80,6 @@ test("takes nothing else to draw beside its title", () => {
   expectTypeOf<SidePanelTitleProps>().not.toHaveProperty("children");
 });
 
-test("takes a lock label a caller may not have", () => {
-  expectTypeOf<{
-    icon: SidePanelTitleProps["icon"];
-    title: string;
-    lockLabel: string | undefined;
-  }>().toExtend<SidePanelTitleProps>();
-});
-
 test("colors the icon badge by its tone", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "480px", justifyContent: "flex-end" }}>
@@ -165,26 +157,4 @@ test("paints the icon badge red on light red in the error tone", async () => {
   const style = getComputedStyle(badge as Element);
   expect(style.backgroundColor).toBe(tokenRgb("error-subtle"));
   expect(style.color).toBe(tokenRgb("error-strong"));
-});
-
-test("shows a named lock right after the title when given a lock label", async () => {
-  const screen = await render(
-    <SidePanelTitle icon={<Wallet />} title="Precio de la línea" lockLabel="Precio bloqueado" />,
-  );
-  const lock = screen.getByRole("img", { name: "Precio bloqueado" });
-  const title = screen.getByRole("heading", { name: "Precio de la línea" }).element();
-
-  await expect.element(lock).toBeVisible();
-  const text = document.createRange();
-  text.selectNodeContents(title);
-  const lockBox = lock.element().getBoundingClientRect();
-  expect(lockBox.left).toBeGreaterThanOrEqual(text.getBoundingClientRect().right);
-  expect(lockBox.left - text.getBoundingClientRect().right).toBeLessThan(16);
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("shows no lock when it has no lock label", async () => {
-  const screen = await render(<SidePanelTitle icon={<Wallet />} title="Precio de la línea" />);
-
-  await expect.element(screen.getByRole("img")).not.toBeInTheDocument();
 });

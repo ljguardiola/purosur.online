@@ -170,9 +170,3 @@ test("keeps the action in the primary color outside the error tone", async () =>
 
   expect(getComputedStyle(action).backgroundColor).not.toBe(tokenRgb("error"));
 });
-
-test("shows a named lock after the title when given a lock label", async () => {
-  const screen = await render(panel({ lockLabel: "Bloqueado" }));
-
-  await expect.element(screen.getByRole("img", { name: "Bloqueado" })).toBeVisible();
-});
