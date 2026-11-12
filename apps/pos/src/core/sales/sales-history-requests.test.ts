@@ -434,6 +434,7 @@ describe("the detail of a sale of the history", () => {
           credit_note_corrects: { point_of_sale: 3, number: 1204 },
         },
         void_authorization_required: true,
+        reprint_authorization_required: true,
         credit_notes: [],
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
@@ -523,6 +524,21 @@ describe("the detail of a sale of the history", () => {
     const answer = await saleHistoryDetailFor(deps(), "sale-1");
 
     expect(answer.kind === "found" && answer.detail.void_authorization_required).toBe(false);
+  });
+
+  it("answers that reprinting needs another person's authorization to a person who may not reprint", async () => {
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.reprint_authorization_required).toBe(true);
+  });
+
+  it("answers that reprinting needs no other person's authorization to a person who may reprint", async () => {
+    addPerson("supervisor", "Grace", ["view_sales_history", "reprint_receipt"]);
+    signedInPerson.set("supervisor");
+
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.reprint_authorization_required).toBe(false);
   });
 
   it("answers that a sale of a closed session cannot be voided", async () => {

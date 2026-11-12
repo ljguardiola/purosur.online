@@ -27,6 +27,7 @@ const detail = {
     credit_note_corrects: null,
   },
   void_authorization_required: false,
+  reprint_authorization_required: false,
   credit_notes: [],
   reprint: { kind: "available" },
   next_copy: { kind: "original" },
@@ -141,6 +142,24 @@ describe("saleHistoryDetailOutcomeSchema", () => {
       expect(accepts({ cash_rounding: -1 })).toBe(false);
       expect(accepts({ cash_rounding: 10000 })).toBe(false);
       expect(accepts({ cash_rounding: 92.5 })).toBe(false);
+    });
+  });
+
+  describe("whether reprinting needs authorization", () => {
+    it.each([true, false])("accepts %s", (required) => {
+      expect(
+        saleHistoryDetailOutcomeSchema.safeParse(
+          outcome({ reprint_authorization_required: required }),
+        ).success,
+      ).toBe(true);
+    });
+
+    it.each([undefined, "true", null, 1])("refuses %j", (required) => {
+      expect(
+        saleHistoryDetailOutcomeSchema.safeParse(
+          outcome({ reprint_authorization_required: required }),
+        ).success,
+      ).toBe(false);
     });
   });
 

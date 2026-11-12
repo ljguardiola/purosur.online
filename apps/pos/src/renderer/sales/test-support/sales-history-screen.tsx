@@ -98,6 +98,7 @@ export const DETAIL: SaleDetail = {
     credit_note_corrects: { point_of_sale: 3, number: 1248 },
   },
   void_authorization_required: false,
+  reprint_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_notes: [],

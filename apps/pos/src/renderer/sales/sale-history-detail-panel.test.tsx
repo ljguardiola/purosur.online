@@ -56,6 +56,7 @@ const FISCAL_SALE: SaleDetail = {
     credit_note_corrects: null,
   },
   void_authorization_required: false,
+  reprint_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
   credit_notes: [],

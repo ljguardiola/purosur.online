@@ -2241,6 +2241,7 @@ describe("asking for the detail of one sale of the history", () => {
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
     void_authorization_required: false,
+    reprint_authorization_required: false,
     credit_notes: [],
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
@@ -2261,6 +2262,7 @@ describe("asking for the detail of one sale of the history", () => {
     },
     { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
     { kind: "found", detail: { ...detail, void_authorization_required: true } },
+    { kind: "found", detail: { ...detail, reprint_authorization_required: true } },
     {
       kind: "found",
       detail: {
