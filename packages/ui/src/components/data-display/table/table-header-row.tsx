@@ -1,9 +1,10 @@
 import type { RowData } from "@tanstack/react-table";
+import { Lock } from "lucide-react";
 import { actionsContentWidth, headerColumnWidthStyle } from "./table-actions";
 import { columnActionCount, columnAlign, columnTitle, type TableColumnOf } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
-import type { TableModel, TableSortDirection, TableVariant } from "./table-types";
+import type { TableLock, TableModel, TableSortDirection, TableVariant } from "./table-types";
 
 const SORT_DIRECTIONS = { asc: "ascending", desc: "descending" } as const;
 
@@ -75,9 +76,11 @@ export function TableColumnWidths<T extends RowData>({
 export function TableHeaderRows<T extends RowData>({
   table,
   variant,
+  locked,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
+  locked?: TableLock;
 }) {
   const groupDepths = table.getHeaderGroups().slice(0, -1);
   return (
@@ -85,7 +88,11 @@ export function TableHeaderRows<T extends RowData>({
       {groupDepths.map((group) => (
         <TableGroupHeaderRow key={group.id} table={table} depth={group.depth} variant={variant} />
       ))}
-      <TableHeaderRow table={table} variant={variant} />
+      <TableHeaderRow
+        table={table}
+        variant={variant}
+        {...(locked === undefined ? {} : { locked })}
+      />
     </>
   );
 }
@@ -93,16 +100,19 @@ export function TableHeaderRows<T extends RowData>({
 function TableHeaderRow<T extends RowData>({
   table,
   variant,
+  locked,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
+  locked?: TableLock;
 }) {
   const headers = table.getHeaderGroups().at(-1)?.headers ?? [];
   return (
     <tr className={variant === "nested" ? "h-control-sm" : "h-control-xl bg-surface-subtle"}>
       {headers.map(({ id, column }, index) => {
         const actionCount = columnActionCount(column);
-        const sortable = column.getCanSort();
+        const lockedFirst = index === 0 && locked !== undefined;
+        const sortable = column.getCanSort() && !lockedFirst;
         const sorted = column.getIsSorted();
         const direction: TableSortDirection | undefined = sorted
           ? SORT_DIRECTIONS[sorted]
@@ -138,6 +148,13 @@ function TableHeaderRow<T extends RowData>({
                 first={first}
                 last={last}
               />
+            ) : lockedFirst ? (
+              <span className="flex items-center gap-4">
+                <span className="flex size-control-sm shrink-0 items-center justify-center text-text-subtle">
+                  <Lock role="img" aria-label={locked.label} className="size-icon-md" />
+                </span>
+                <span className="text-text-subtle">{columnTitle(column)}</span>
+              </span>
             ) : (
               <span className="text-text-subtle">{columnTitle(column)}</span>
             )}

@@ -6,7 +6,7 @@ import type {
   ReceiptPrintStatusOutcome,
 } from "@purosur/contracts";
 import type { PointCardType } from "@purosur/domain";
-import type { CompletedCharge } from "./cash-charge-modal";
+import type { CompletedCharge } from "./cash-charge-panel";
 import type { CompletedPointPayment } from "./point-payment-wait-modal";
 import type { CompletedQrPayment } from "./qr-payment-wait-modal";
 import { SaleCompletedModal } from "./sale-completed-modal";

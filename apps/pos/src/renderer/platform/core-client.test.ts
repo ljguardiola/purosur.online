@@ -646,6 +646,62 @@ describe("createCoreClient", () => {
     expect(await availability).toBeNull();
   });
 
+  it.each([
+    [
+      {
+        kind: "amounts",
+        amount_due: 2_519_250,
+        amount_to_charge: 2_510_000,
+        cash_rounding: 9_250,
+        quick_amounts: [2_510_000, 2_600_000],
+        change_discount_option: 10_000,
+      },
+    ],
+    [null],
+  ])("asks the core for the amounts of a cash charge and resolves with %j", async (amounts) => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashChargeAmounts("s1");
+    port.answer({ type: "cash-charge-amounts-result", request_id: "request-1", amounts });
+
+    expect(await asked).toEqual(amounts);
+    expect(port.posted).toEqual([
+      { type: "cash-charge-amounts", request_id: "request-1", sale_id: "s1" },
+    ]);
+  });
+
+  it("rejects when the core cannot read the amounts of a cash charge", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashChargeAmounts("s1");
+    port.answer({ type: "cash-charge-amounts-unavailable", request_id: "request-1" });
+
+    await expect(asked).rejects.toThrow();
+  });
+
+  it("asks for the amounts of a cash charge once the discount being typed is taken off", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashChargeAmounts("s1", 10_000);
+    port.answer({ type: "cash-charge-amounts-result", request_id: "request-1", amounts: null });
+    await asked;
+
+    expect(port.posted).toEqual([
+      {
+        type: "cash-charge-amounts",
+        request_id: "request-1",
+        sale_id: "s1",
+        sale_discount: 10_000,
+      },
+    ]);
+  });
+
   it("asks the core to abandon a Mercado Pago QR charge and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

@@ -113,6 +113,7 @@ function coreAnswering(
     currentSale?: () => Promise<OpenSale | null>;
     scanProduct?: (code: string) => Promise<ScanProductOutcome>;
     cashCharge?: CoreClient["cashCharge"];
+    cashChargeAmounts?: CoreClient["cashChargeAmounts"];
     chargeSaleInCash?: CoreClient["chargeSaleInCash"];
     chargeSaleByTransfer?: CoreClient["chargeSaleByTransfer"];
     chargeSaleOnStandaloneTerminal?: CoreClient["chargeSaleOnStandaloneTerminal"];
@@ -423,6 +424,11 @@ function coreAnswering(
       return sales.cashCharge === undefined
         ? { kind: "invalid_amount" }
         : sales.cashCharge(saleId, tendered);
+    },
+    async cashChargeAmounts(saleId, saleDiscount) {
+      return sales.cashChargeAmounts === undefined
+        ? null
+        : sales.cashChargeAmounts(saleId, saleDiscount);
     },
     async chargeSaleInCash(saleId, tendered) {
       return sales.chargeSaleInCash === undefined
@@ -2121,6 +2127,14 @@ describe("App", () => {
           change: 12_000,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          kind: "amounts",
+          amount_due: 238_000,
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
           return {
@@ -2139,11 +2153,8 @@ describe("App", () => {
     await resumeLockedRegister(screen);
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2500,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
     expect(charges).toEqual([["sale-1", 250_000]]);
@@ -2198,6 +2209,14 @@ describe("App", () => {
           change: 12_000,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          kind: "amounts",
+          amount_due: 238_000,
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           completed = true;
           return {
@@ -2235,12 +2254,9 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2500,00",
-    );
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
 
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
     await expect
@@ -2346,6 +2362,14 @@ describe("App", () => {
           change: 12_000,
           cash_rounding: 0,
         }),
+        cashChargeAmounts: async () => ({
+          kind: "amounts",
+          amount_due: 238_000,
+          amount_to_charge: 238_000,
+          cash_rounding: 0,
+          quick_amounts: [238_000],
+          change_discount_option: null,
+        }),
         chargeSaleInCash: async (saleId, tendered) => ({
           kind: "completed",
           sale_id: saleId,
@@ -2360,11 +2384,8 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2500,00",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
+    await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
@@ -3748,6 +3769,14 @@ describe("App", () => {
             change: 12_000,
             cash_rounding: 0,
           }),
+          cashChargeAmounts: async () => ({
+            kind: "amounts",
+            amount_due: 238_000,
+            amount_to_charge: 238_000,
+            cash_rounding: 0,
+            quick_amounts: [238_000],
+            change_discount_option: null,
+          }),
           chargeSaleInCash: async (saleId, tendered) => ({
             kind: "completed",
             sale_id: saleId,
@@ -3772,11 +3801,8 @@ describe("App", () => {
       postCoreStatus("up");
       await resumeLockedRegister(screen);
       await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-      await userEvent.fill(
-        screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-        "2500,00",
-      );
-      await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+      await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
+      await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
       await expect
         .element(screen.getByRole("heading", { name: "No se pudo imprimir el ticket" }))

@@ -10,6 +10,7 @@ import type {
   CancelPaidSaleOutcome,
   CancelSaleOutcome,
   CashBalance,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
   ChangeLineQuantityOutcome,
@@ -77,6 +78,7 @@ import {
   type ContingencyBackupTicketRequests,
 } from "./backups/contingency-backup-ticket-requests";
 import { answerClockGuardRequest, type ClockGuardRequests } from "./fiscal/clock-guard-answers";
+import type { CashChargeAmountsRequest } from "./payments/cash-charge-amounts-requests";
 import type { StartMercadoPagoChargeRequest } from "./payments/mercado-pago-charge-requests";
 import { isDatabaseDamage } from "./platform/database-damage";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
@@ -154,6 +156,9 @@ export interface RendererRequestDeps {
     | ((request: { paymentTransactionId: string }) => Promise<FollowMercadoPagoChargeOutcome>)
     | undefined;
   paymentMethodAvailability: (() => Promise<PaymentMethodAvailability | null>) | undefined;
+  cashChargeAmounts:
+    | ((request: CashChargeAmountsRequest) => Promise<CashChargeAmountsAnswer | null>)
+    | undefined;
   abandonMercadoPagoCharge:
     | ((request: { paymentTransactionId: string }) => Promise<AbandonMercadoPagoChargeOutcome>)
     | undefined;
@@ -627,6 +632,18 @@ async function readPaymentMethodAvailability(
   } catch (error) {
     deps.reportFailure("reading which payment methods are available", error);
     return null;
+  }
+}
+
+async function readCashChargeAmounts(
+  deps: RendererRequestDeps,
+  request: CashChargeAmountsRequest,
+): Promise<CashChargeAmountsAnswer | null | undefined> {
+  try {
+    return await deps.cashChargeAmounts?.(request);
+  } catch (error) {
+    deps.reportFailure("reading the amounts of a cash charge", error);
+    return undefined;
   }
 }
 
@@ -1417,6 +1434,15 @@ export async function answerRendererRequest(
         request_id: message.request_id,
         availability: await readPaymentMethodAvailability(deps),
       };
+    case "cash-charge-amounts": {
+      const amounts = await readCashChargeAmounts(deps, {
+        saleId: message.sale_id,
+        ...(message.sale_discount === undefined ? {} : { saleDiscount: message.sale_discount }),
+      });
+      return amounts === undefined
+        ? { type: "cash-charge-amounts-unavailable", request_id: message.request_id }
+        : { type: "cash-charge-amounts-result", request_id: message.request_id, amounts };
+    }
     case "search-products":
       return {
         type: "search-products-result",

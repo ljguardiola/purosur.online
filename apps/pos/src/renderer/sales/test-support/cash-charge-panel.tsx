@@ -1,20 +1,20 @@
 import type {
   Authorization,
+  CashChargeAmounts,
+  CashChargeAmountsAnswer,
   CashChargeAnswer,
   ChargeSaleInCashOutcome,
   ChargeSaleInCashWithChangeDiscountOutcome,
-  PreviewSaleDiscountOutcome,
-  SaleDiscountRequest,
   SignInUser,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../../shell/test-support/render-with-router";
-import type { CashChargeModalProps } from "../cash-charge-modal";
-import { CashChargeModal } from "../cash-charge-modal";
+import type { CashChargePanelProps } from "../cash-charge-panel";
+import { CashChargePanel } from "../cash-charge-panel";
 
-const AMOUNT_FIELD = "Importe entregado por el cliente";
-export const DISCOUNT_FIELD = "Descuento por falta de cambio";
+const AMOUNT_FIELD = "RECIBIDO";
+export const OTHER_DISCOUNT_FIELD = "Otro";
 
 const AUTHORIZERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
 
@@ -29,14 +29,20 @@ const COMPLETED: ChargeSaleInCashOutcome = {
 
 const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000, subtotal: 960_000 };
 
-type ModalSale = { total: number; paid: number; pending: number; subtotal: number };
+type PanelSale = { total: number; paid: number; pending: number; subtotal?: number };
 
-function previewOf(discount: number): PreviewSaleDiscountOutcome {
+export function amountsOf(
+  amountToCharge: number,
+  rest: Partial<CashChargeAmounts> = {},
+): CashChargeAmounts {
   return {
-    kind: "preview",
-    subtotal: 960_000,
-    discount_amount: discount,
-    total: 960_000 - discount,
+    kind: "amounts",
+    amount_due: amountToCharge + (rest.cash_rounding ?? 0),
+    amount_to_charge: amountToCharge,
+    cash_rounding: 0,
+    quick_amounts: [amountToCharge],
+    change_discount_option: null,
+    ...rest,
   };
 }
 
@@ -47,11 +53,12 @@ async function answerLikeTheCore(tendered: number, discount?: number): Promise<C
     : { kind: "partial", applied: tendered, pending: owed - tendered };
 }
 
-export type ModalOptions = {
-  sale?: ModalSale;
+export type PanelOptions = {
+  sale?: PanelSale;
   authorizationRequired?: boolean;
   appliedDiscountAmount?: number | null;
   discountOffered?: boolean;
+  readAmounts?: (discount?: number) => Promise<CashChargeAmountsAnswer | null>;
   readCharge?: (tendered: number, discount?: number) => Promise<CashChargeAnswer>;
   charge?: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
   chargeWithDiscount?: (
@@ -59,36 +66,39 @@ export type ModalOptions = {
     discount: number,
     authorization: Authorization | undefined,
   ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
-  previewSaleDiscount?: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
 };
 
-export async function renderCashChargeModal({
+export async function renderCashChargePanel({
   sale = SALE_OF_9600,
   authorizationRequired = false,
   appliedDiscountAmount = null,
   discountOffered = true,
+  readAmounts,
   readCharge = answerLikeTheCore,
   charge = async () => COMPLETED,
   chargeWithDiscount = async () => COMPLETED,
-  previewSaleDiscount = async (discount) => previewOf(discount.value),
-}: ModalOptions = {}) {
+}: PanelOptions = {}) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
+  let shownSale = sale;
+  const readCashChargeAmounts = vi.fn(
+    readAmounts ?? (async (discount?: number) => amountsOf(shownSale.pending - (discount ?? 0))),
+  );
   const readCashCharge = vi.fn(readCharge);
   const chargeSale = vi.fn(charge);
   const chargeSaleWithDiscount = vi.fn(chargeWithDiscount);
-  const preview = vi.fn(previewSaleDiscount);
   const requestedAuthorizers: string[] = [];
   const callbacks = {
-    onChooseAnotherMethod: vi.fn(),
+    onBack: vi.fn(),
     onCompleted: vi.fn(),
     onPartiallyPaid: vi.fn(),
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
-  const propsFor = (shown: ModalSale): CashChargeModalProps => ({
+  const propsFor = ({ subtotal, ...shown }: PanelSale): CashChargePanelProps => ({
     saleId: "sale-1",
     ...shown,
+    subtotal: subtotal ?? shown.total,
     discountOffered,
     appliedDiscountAmount,
     authorizationRequired,
@@ -96,30 +106,40 @@ export async function renderCashChargeModal({
       requestedAuthorizers.push(permission);
       return AUTHORIZERS;
     },
-    previewSaleDiscount: preview,
+    readAmounts: readCashChargeAmounts,
     readCharge: readCashCharge,
     charge: chargeSale,
     chargeWithDiscount: chargeSaleWithDiscount,
     ...callbacks,
   });
-  const screen = await render(<CashChargeModal {...propsFor(sale)} />);
+  const screen = await render(<CashChargePanel {...propsFor(sale)} />);
   return {
     screen,
+    readCashChargeAmounts,
     readCashCharge,
     chargeSale,
     chargeSaleWithDiscount,
-    preview,
     requestedAuthorizers,
     callbacks,
-    showSale: (shown: ModalSale) => screen.rerender(<CashChargeModal {...propsFor(shown)} />),
+    showSale: (shown: PanelSale) => {
+      shownSale = shown;
+      return screen.rerender(<CashChargePanel {...propsFor(shown)} />);
+    },
     field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
-    discountField: screen.getByRole("textbox", { name: DISCOUNT_FIELD }),
-    complete: screen.getByRole("button", { name: "Completar venta" }),
+    discountField: screen.getByRole("textbox", { name: OTHER_DISCOUNT_FIELD }),
+    complete: screen.getByRole("button", { name: "Cobrar" }),
   };
 }
 
-export type CashChargeModalScreen = Awaited<ReturnType<typeof renderCashChargeModal>>;
+export type CashChargePanelScreen = Awaited<ReturnType<typeof renderCashChargePanel>>;
 
-export function valueBeside(screen: CashChargeModalScreen["screen"], label: string): string | null {
+export async function typeDiscount(panel: CashChargePanelScreen, typed: string) {
+  if (panel.screen.getByRole("group", { name: "FALTA DE CAMBIO" }).query() === null) {
+    await userEvent.keyboard("{F3}");
+  }
+  await userEvent.fill(panel.discountField, typed);
+}
+
+export function valueBeside(screen: CashChargePanelScreen["screen"], label: string): string | null {
   return screen.getByText(label, { exact: true }).element().nextElementSibling?.textContent ?? null;
 }

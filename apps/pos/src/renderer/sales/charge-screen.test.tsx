@@ -147,15 +147,16 @@ describe("ChargeScreen", () => {
     expect(currentSale).toHaveBeenCalledTimes(2);
   });
 
-  it("opens the cash charge when Efectivo is chosen, and returns to the methods from Cambiar de medio", async () => {
+  it("opens the cash charge when Efectivo is chosen, and goes back to the sale with Esc", async () => {
     const { screen } = await renderScreen();
 
     await chooseCash(screen);
-    await expect.element(screen.getByText("COBRO EN EFECTIVO")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
+      .toBeVisible();
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByText("COBRO EN EFECTIVO")).not.toBeInTheDocument();
-    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).toBeVisible();
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
   });
 
   it("charges the sale in cash and shows it as completed with the change", async () => {
@@ -298,13 +299,12 @@ describe("ChargeScreen", () => {
     });
 
     await chooseCash(screen);
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "4000,00",
-    );
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
-    await expect.element(screen.getByText("COBRO EN EFECTIVO")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro en efectivo" }))
+      .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
       .toBeVisible();
@@ -335,10 +335,7 @@ describe("ChargeScreen", () => {
     });
 
     await chooseCash(screen);
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "4000,00",
-    );
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
     await expect
@@ -397,10 +394,7 @@ describe("ChargeScreen", () => {
     });
 
     await chooseCash(screen);
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "4000,00",
-    );
+    await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
