@@ -68,8 +68,8 @@ describe("ChargeScreen", () => {
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("FALTA")).toBeVisible();
     await expect.element(panel.getByText("$ 3.760,00")).toBeVisible();
-    await expect.element(panel.getByText("$ 4.760,00")).toBeVisible();
-    await expect.element(panel.getByText("– $ 1.000,00")).toBeVisible();
+    await expect.element(panel).toHaveTextContent(/Total\s*\$\s*4\.760,00/);
+    await expect.element(panel).toHaveTextContent(/Pagado\s*–\s*\$\s*1\.000,00/);
   });
 
   it("marks Venta as the current screen of the menu", async () => {
@@ -302,6 +302,7 @@ describe("ChargeScreen", () => {
   it("goes back to the methods, with the balance the core now answers, after a partial cash payment", async () => {
     const reads = [SALE_OF_ONE_LINE, { ...SALE_OF_ONE_LINE, paid: 400_000, pending: 76_000 }];
     const { screen, chargeSaleInCash } = await renderScreen({
+      method: "CASH",
       currentSale: async () => reads.shift() ?? SALE_WITH_PART_PAID,
       cashCharge: async () => ({ kind: "partial", applied: 400_000, pending: 76_000 }),
       chargeSaleInCash: async () => ({
@@ -313,7 +314,6 @@ describe("ChargeScreen", () => {
       }),
     });
 
-    await chooseCash(screen);
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
@@ -322,7 +322,7 @@ describe("ChargeScreen", () => {
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("FALTA")).toBeVisible();
-    await expect.element(panel.getByText("– $ 4.000,00")).toBeVisible();
+    await expect.element(panel).toHaveTextContent(/Pagado\s*–\s*\$\s*4\.000,00/);
     await expect.element(panel.getByText("$ 760,00")).toBeVisible();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
     expect(chargeSaleInCash).toHaveBeenCalledExactlyOnceWith("sale-1", 400_000);
@@ -331,6 +331,7 @@ describe("ChargeScreen", () => {
   it("keeps the cash charge busy, so it cannot charge again, until the core answers the new balance", async () => {
     const reads = [SALE_OF_ONE_LINE];
     const { screen, chargeSaleInCash } = await renderScreen({
+      method: "CASH",
       currentSale: () => {
         const read = reads.shift();
         return read === undefined
@@ -347,7 +348,6 @@ describe("ChargeScreen", () => {
       }),
     });
 
-    await chooseCash(screen);
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
@@ -388,6 +388,7 @@ describe("ChargeScreen", () => {
   it("says the sale could not be loaded when it cannot be read again after a partial cash payment", async () => {
     const reads = [SALE_OF_ONE_LINE];
     const { screen } = await renderScreen({
+      method: "CASH",
       currentSale: async () => {
         const read = reads.shift();
         if (read === undefined) {
@@ -405,7 +406,6 @@ describe("ChargeScreen", () => {
       }),
     });
 
-    await chooseCash(screen);
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
@@ -472,7 +472,7 @@ describe("ChargeScreen", () => {
       .element(screen.getByRole("heading", { name: "Transferencia" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.element(panel.getByText("$ 2.000,00")).toBeVisible();
+    await expect.element(panel).toHaveTextContent(/Pagado\s*–\s*\$\s*2\.000,00/);
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });

@@ -247,7 +247,7 @@ describe("ChargeScreen · QR", () => {
       })
       .toBeVisible();
     await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
-    await expect.element(screen.getByText("FALTA")).toBeVisible();
+    await expect.element(screen.getByText("Saldo pendiente")).toBeVisible();
   });
 
   it("charges only the amount of the order when it is the one completed", async () => {

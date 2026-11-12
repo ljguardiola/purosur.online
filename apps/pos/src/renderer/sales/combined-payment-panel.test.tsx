@@ -46,7 +46,7 @@ describe("CombinedPaymentPanel", () => {
     await expect.element(screen.getByText("Total")).toBeVisible();
     await expect.element(screen.getByText("$ 25.192,50")).toBeVisible();
     await expect.element(screen.getByText("Pagado")).toBeVisible();
-    await expect.element(screen.getByText("– $ 10.000,00")).toBeVisible();
+    await expect.element(screen.getByText("– $ 10.000,00").first()).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -129,14 +129,14 @@ describe("CombinedPaymentPanel", () => {
   it("shows the notice of the cancelled QR order", async () => {
     const { screen } = await renderPanel({ cancelledNotice: true });
 
-    await expect.element(screen.getByText("Se canceló la orden QR.")).toBeVisible();
+    await expect.element(screen.getByText("Se canceló la orden QR.").first()).toBeVisible();
   });
 
   it("names the minimum below which the terminal is not offered", async () => {
     const { screen } = await renderPanel({ belowMinimum: 1500 });
 
     await expect
-      .element(screen.getByText("Point: no se ofrece para cobrar menos de $ 15,00"))
+      .element(screen.getByText("Point: no se ofrece para cobrar menos de $ 15,00").first())
       .toBeVisible();
   });
 
