@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { raiseBudgetOnPullRequest, readMeasurement } from "./dependabot-budget-raise.mjs";
+import { raiseBudgetOnPullRequest } from "./dependabot-budget-raise.mjs";
 
 const BUDGET_PATH = "apps/backoffice/download-budget.json";
 const HEAD_SHA = "a".repeat(40);
 const BRANCH = "dependabot/npm_and_yarn/lucide-react-1.2.3";
+const DEFAULT_BRANCH = "main";
+const BUDGET = { entry: 100_000, total: 400_000 };
 
 const dependabotPullRequest = {
   number: 2202,
@@ -15,10 +17,11 @@ const dependabotPullRequest = {
 
 function fakeGitHub({
   pullRequests = [dependabotPullRequest],
-  budget = { entry: 100_000, total: 400_000 },
+  budgets = { [HEAD_SHA]: BUDGET, [DEFAULT_BRANCH]: BUDGET },
 } = {}) {
   const calls = [];
-  const encoded = Buffer.from(`${JSON.stringify(budget, null, 2)}\n`).toString("base64");
+  const encoded = (budget) =>
+    Buffer.from(`${JSON.stringify(budget, null, 2)}\n`).toString("base64");
   const reader = {
     pulls: {
       list: async (params) => {
@@ -29,7 +32,9 @@ function fakeGitHub({
     repos: {
       getContent: async (params) => {
         calls.push(["repos.getContent", params]);
-        return { data: { type: "file", encoding: "base64", content: encoded } };
+        return {
+          data: { type: "file", encoding: "base64", content: encoded(budgets[params.ref]) },
+        };
       },
     },
   };
@@ -68,6 +73,7 @@ async function raise({
     writer: github.writer,
     owner: "owner",
     repo: "repo",
+    baseBranch: DEFAULT_BRANCH,
     run,
     measurementText: measurementText(measured),
   });
@@ -108,12 +114,37 @@ test("raiseBudgetOnPullRequest commits the measured sizes as the budget on the p
   });
 });
 
-test("raiseBudgetOnPullRequest reads the budget the measured commit holds", async () => {
+test("raiseBudgetOnPullRequest reads the budget the measured commit and the default branch hold", async () => {
   const { calls } = await raise();
 
-  const read = calls.find(([name]) => name === "repos.getContent")[1];
-  assert.deepEqual(read, { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: HEAD_SHA });
+  const reads = calls.filter(([name]) => name === "repos.getContent").map(([, params]) => params);
+  assert.deepEqual(
+    reads.toSorted((a, b) => a.ref.localeCompare(b.ref)),
+    [
+      { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: HEAD_SHA },
+      { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: DEFAULT_BRANCH },
+    ],
+  );
 });
+
+for (const [description, defaultBranchBudget] of [
+  ["raised", { entry: 100_000, total: 401_500 }],
+  ["lowered", { entry: 100_000, total: 399_000 }],
+]) {
+  test(`raiseBudgetOnPullRequest commits nothing when the default branch ${description} the budget since the branch was cut`, async () => {
+    const github = fakeGitHub({
+      budgets: { [HEAD_SHA]: BUDGET, [DEFAULT_BRANCH]: defaultBranchBudget },
+    });
+
+    const { outcome, calls } = await raise({
+      github,
+      measured: { entry: 100_000, total: 400_105 },
+    });
+
+    assert.deepEqual(outcome, { kind: "budget-diverged", pullRequest: 2202 });
+    assert.deepEqual(writes(calls), []);
+  });
+}
 
 test("raiseBudgetOnPullRequest looks the pull request up by its branch in this repository", async () => {
   const { calls } = await raise();
@@ -178,6 +209,7 @@ test("raiseBudgetOnPullRequest commits nothing when the measurement cannot be re
     writer: github.writer,
     owner: "owner",
     repo: "repo",
+    baseBranch: DEFAULT_BRANCH,
     run,
     measurementText: "not json",
   });
@@ -185,26 +217,3 @@ test("raiseBudgetOnPullRequest commits nothing when the measurement cannot be re
   assert.equal(outcome.kind, "unreadable-measurement");
   assert.deepEqual(github.calls, []);
 });
-
-test("readMeasurement reads the sizes and the missing files", () => {
-  assert.deepEqual(readMeasurement('{"entry":1,"total":2,"missing":["a.js"]}'), {
-    entry: 1,
-    total: 2,
-    missing: ["a.js"],
-  });
-});
-
-for (const [description, text] of [
-  ["is not JSON", "{"],
-  ["lacks a size", '{"entry":1,"missing":[]}'],
-  ["holds a size that is not a whole number", '{"entry":1.5,"total":2,"missing":[]}'],
-  ["holds a size that is not positive", '{"entry":0,"total":2,"missing":[]}'],
-  ["holds a size written as text", '{"entry":"1","total":2,"missing":[]}'],
-  ["holds missing files that are not a list of names", '{"entry":1,"total":2,"missing":[3]}'],
-  ["holds another field", '{"entry":1,"total":2,"missing":[],"budget":5}'],
-  ["is a list", "[1,2]"],
-]) {
-  test(`readMeasurement refuses a measurement that ${description}`, () => {
-    assert.equal(readMeasurement(text), null);
-  });
-}
