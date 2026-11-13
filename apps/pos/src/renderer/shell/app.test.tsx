@@ -282,6 +282,9 @@ function coreAnswering(
     async weighProduct() {
       return { kind: "scale_unavailable" };
     },
+    async readScale() {
+      return { kind: "not_configured" };
+    },
     async weighLine() {
       return { kind: "scale_unavailable" };
     },
