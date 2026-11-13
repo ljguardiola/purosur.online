@@ -1,6 +1,7 @@
 import type {
   CashBalance,
   CashCountPreview,
+  CashMovementPreview,
   ListedCashMovement,
   OpenCashSession,
   OpeningFloatSuggestion,
@@ -13,6 +14,7 @@ import type {
   SignInUser,
   StartupPending,
 } from "@purosur/contracts";
+import type { CashMovementKind } from "@purosur/domain";
 import type { QueryClient } from "@tanstack/react-query";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -27,6 +29,7 @@ import {
   registerKeys,
   useCashBalanceQuery,
   useCashCountPreviewQuery,
+  useCashMovementPreviewQuery,
   useCashMovementKindsQuery,
   useCashMovementsQuery,
   useCashSessionQuery,
@@ -277,6 +280,160 @@ describe("cash count preview query", () => {
     await queryClient.invalidateQueries({ queryKey: cashKey });
 
     await expect.element(screen.getByText("difference 0")).toBeVisible();
+  });
+});
+
+type MovementPreviewRead = (movement: {
+  kind: CashMovementKind;
+  amount: number;
+}) => Promise<CashMovementPreview | null | "unavailable">;
+
+function MovementPreviewProbe({
+  read,
+  movement,
+  sessionId = "s1",
+}: {
+  read: MovementPreviewRead;
+  movement: { kind: CashMovementKind; amount: number } | undefined;
+  sessionId?: string;
+}) {
+  const preview = useCashMovementPreviewQuery(sessionId, movement, read);
+  return <p>{["preview", preview === undefined ? "none" : JSON.stringify(preview)].join(" ")}</p>;
+}
+
+describe("cash movement preview query", () => {
+  it("gives the preview the core answers for the movement", async () => {
+    const read = vi.fn<MovementPreviewRead>(async ({ amount }) => ({
+      kind: "remaining",
+      cash: amount + 1,
+    }));
+    const screen = await render(
+      previewTree(
+        createQueryClient(),
+        <MovementPreviewProbe read={read} movement={{ kind: "CASH_OUT", amount: 100 }} />,
+      ),
+    );
+
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":101}')).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith({ kind: "CASH_OUT", amount: 100 });
+  });
+
+  it("neither reads nor gives a preview while there is no movement", async () => {
+    const read = vi.fn<MovementPreviewRead>(async () => null);
+    const screen = await render(
+      previewTree(createQueryClient(), <MovementPreviewProbe read={read} movement={undefined} />),
+    );
+
+    await expect.element(screen.getByText("preview none")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("reads again for every different amount and keeps the previous preview until the next one is answered", async () => {
+    const queryClient = createQueryClient();
+    const second = pending<CashMovementPreview>();
+    const read = vi.fn<MovementPreviewRead>(({ amount }) =>
+      amount === 100 ? Promise.resolve({ kind: "remaining", cash: 5 }) : second.promise,
+    );
+    const screen = await render(
+      previewTree(
+        queryClient,
+        <MovementPreviewProbe read={read} movement={{ kind: "CASH_IN", amount: 100 }} />,
+      ),
+    );
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":5}')).toBeVisible();
+
+    await screen.rerender(
+      previewTree(
+        queryClient,
+        <MovementPreviewProbe read={read} movement={{ kind: "CASH_IN", amount: 200 }} />,
+      ),
+    );
+
+    await expect.poll(() => read.mock.calls.length).toBe(2);
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":5}')).toBeVisible();
+    second.resolve({ kind: "exceeds_expected_cash", expected: 7 });
+    await expect
+      .element(screen.getByText('preview {"kind":"exceeds_expected_cash","expected":7}'))
+      .toBeVisible();
+  });
+
+  it("gives no preview once the amount stops being valid", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn<MovementPreviewRead>(async () => ({ kind: "remaining", cash: 5 }));
+    const screen = await render(
+      previewTree(
+        queryClient,
+        <MovementPreviewProbe read={read} movement={{ kind: "CASH_IN", amount: 100 }} />,
+      ),
+    );
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":5}')).toBeVisible();
+
+    await screen.rerender(
+      previewTree(queryClient, <MovementPreviewProbe read={read} movement={undefined} />),
+    );
+
+    await expect.element(screen.getByText("preview none")).toBeVisible();
+  });
+
+  it("never shows the preview read for another session", async () => {
+    const queryClient = createQueryClient();
+    const screen = await render(
+      previewTree(
+        queryClient,
+        <MovementPreviewProbe
+          read={async () => ({ kind: "remaining", cash: 5 })}
+          movement={{ kind: "CASH_IN", amount: 100 }}
+        />,
+      ),
+    );
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":5}')).toBeVisible();
+
+    await screen.rerender(
+      previewTree(
+        queryClient,
+        <MovementPreviewProbe
+          read={() => new Promise(() => {})}
+          movement={{ kind: "CASH_IN", amount: 100 }}
+          sessionId="s2"
+        />,
+      ),
+    );
+
+    await expect.element(screen.getByText("preview none")).toBeVisible();
+  });
+
+  it.each<[string, MovementPreviewRead]>([
+    ["there is no open session", async () => null],
+    ["the core cannot answer", async () => "unavailable"],
+    ["the read fails", () => Promise.reject(new Error("the connection was replaced"))],
+  ])("gives no preview when %s", async (_name, read) => {
+    const screen = await render(
+      previewTree(
+        createQueryClient(),
+        <MovementPreviewProbe read={read} movement={{ kind: "CASH_IN", amount: 100 }} />,
+      ),
+    );
+
+    await expect.element(screen.getByText("preview none")).toBeVisible();
+  });
+
+  it("is refreshed by the cash invalidation that refreshes the balance", async () => {
+    const queryClient = createQueryClient();
+    const read = vi
+      .fn<MovementPreviewRead>()
+      .mockResolvedValueOnce({ kind: "remaining", cash: 5 })
+      .mockResolvedValueOnce({ kind: "remaining", cash: 9 });
+    const screen = await render(
+      previewTree(
+        queryClient,
+        <MovementPreviewProbe read={read} movement={{ kind: "CASH_IN", amount: 100 }} />,
+      ),
+    );
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":5}')).toBeVisible();
+
+    await queryClient.invalidateQueries({ queryKey: cashKey });
+
+    await expect.element(screen.getByText('preview {"kind":"remaining","cash":9}')).toBeVisible();
   });
 });
 

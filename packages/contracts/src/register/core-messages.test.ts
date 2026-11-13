@@ -345,6 +345,78 @@ describe("previewing a cash count", () => {
   });
 });
 
+describe("previewing a cash movement", () => {
+  it.each(["CASH_IN", "CASH_OUT", "WITHDRAWAL"])(
+    "accepts a request to preview a %s of an amount",
+    (kind) => {
+      const message = {
+        type: "cash-movement-preview-request",
+        request_id: REQUEST_ID,
+        kind,
+        amount: 18_500,
+      };
+
+      expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    { type: "cash-movement-preview-request", request_id: REQUEST_ID, amount: 100 },
+    { type: "cash-movement-preview-request", request_id: REQUEST_ID, kind: "CASH_IN" },
+    { type: "cash-movement-preview-request", request_id: REQUEST_ID, kind: "SALE", amount: 100 },
+    {
+      type: "cash-movement-preview-request",
+      request_id: REQUEST_ID,
+      kind: "CASH_IN",
+      amount: 10.5,
+    },
+    { type: "cash-movement-preview-request", kind: "CASH_IN", amount: 100 },
+  ])("rejects a malformed request to preview a movement: %j", (message) => {
+    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it("accepts the cash that would remain after the movement", () => {
+    const message = {
+      type: "cash-movement-preview",
+      request_id: REQUEST_ID,
+      preview: { kind: "remaining", cash: 125_700 },
+    };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that the movement exceeds the expected cash", () => {
+    const message = {
+      type: "cash-movement-preview",
+      request_id: REQUEST_ID,
+      preview: { kind: "exceeds_expected_cash", expected: 144_200 },
+    };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("accepts that no cash session is open to preview", () => {
+    const message = { type: "cash-movement-preview", request_id: REQUEST_ID, preview: null };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([{}, { kind: "remaining" }, { kind: "exceeds_expected_cash" }, { kind: "other" }])(
+    "rejects an incomplete preview: %j",
+    (preview) => {
+      const message = { type: "cash-movement-preview", request_id: REQUEST_ID, preview };
+
+      expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
+
+  it("accepts that the preview cannot be read", () => {
+    const message = { type: "cash-movement-preview-unavailable", request_id: REQUEST_ID };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+});
+
 describe("closing a cash session answers", () => {
   it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
     const message = {

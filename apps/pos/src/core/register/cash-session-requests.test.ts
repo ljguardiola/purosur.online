@@ -16,6 +16,7 @@ import { SqliteNoCopySyncIdentityStore } from "../sync/sqlite-no-copy-sync-ident
 import {
   cashBalanceFor,
   cashCountPreviewFor,
+  cashMovementPreviewFor,
   closeCashSessionFor,
   closeLockedCashSessionFor,
   currentCashSession,
@@ -883,6 +884,66 @@ describe("the count preview of the open session", () => {
 
     expect(cashCountPreviewFor(database, 7500)).toEqual({ difference: 500 });
   });
+});
+
+describe("the movement preview of the open session", () => {
+  function recordSessionMovements(sessionId: string): void {
+    new SqliteCashLedger(database, new SqliteSignInStore(database), CHAIN_KEY).transaction((tx) => {
+      tx.recordCashMovement({
+        id: "m-sale",
+        sessionId,
+        type: "SALE",
+        amount: 3000,
+        actorId: "u1",
+        occurredAt: NOW,
+      });
+      tx.recordCashMovement({
+        id: "m-out",
+        sessionId,
+        type: "WITHDRAWAL",
+        amount: 1000,
+        actorId: "u1",
+        occurredAt: NOW,
+      });
+    });
+  }
+
+  it("is none while no session is open", () => {
+    expect(cashMovementPreviewFor(database, { kind: "CASH_IN", amount: 500 })).toBeNull();
+  });
+
+  it("is the cash left after a cash in on top of the movements of the session", async () => {
+    recordSessionMovements(await openAs("u1", 5000));
+
+    expect(cashMovementPreviewFor(database, { kind: "CASH_IN", amount: 500 })).toEqual({
+      kind: "remaining",
+      cash: 7500,
+    });
+  });
+
+  it.each(["CASH_OUT", "WITHDRAWAL"] as const)(
+    "is the cash left after a %s taken from the movements of the session",
+    async (kind) => {
+      recordSessionMovements(await openAs("u1", 5000));
+
+      expect(cashMovementPreviewFor(database, { kind, amount: 2000 })).toEqual({
+        kind: "remaining",
+        cash: 5000,
+      });
+    },
+  );
+
+  it.each(["CASH_OUT", "WITHDRAWAL"] as const)(
+    "tells the expected cash when a %s is more than it",
+    async (kind) => {
+      recordSessionMovements(await openAs("u1", 5000));
+
+      expect(cashMovementPreviewFor(database, { kind, amount: 7001 })).toEqual({
+        kind: "exceeds_expected_cash",
+        expected: 7000,
+      });
+    },
+  );
 });
 
 describe("the open sale of the session", () => {

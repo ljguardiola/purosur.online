@@ -2014,6 +2014,43 @@ describe("createCoreClient", () => {
 
   it.each([
     null,
+    { kind: "remaining", cash: 125_700 },
+    { kind: "exceeds_expected_cash", expected: 144_200 },
+  ])(
+    "asks the core to preview a cash movement and resolves with the answer: %j",
+    async (preview) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.cashMovementPreview({ kind: "CASH_OUT", amount: 18_500 });
+      port.answer({ type: "cash-movement-preview", request_id: "request-1", preview });
+
+      expect(await asked).toEqual(preview);
+      expect(port.posted).toEqual([
+        {
+          type: "cash-movement-preview-request",
+          request_id: "request-1",
+          kind: "CASH_OUT",
+          amount: 18_500,
+        },
+      ]);
+    },
+  );
+
+  it("resolves that the movement preview is unavailable when the core cannot read it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashMovementPreview({ kind: "CASH_IN", amount: 100 });
+    port.answer({ type: "cash-movement-preview-unavailable", request_id: "request-1" });
+
+    expect(await asked).toBe("unavailable");
+  });
+
+  it.each([
+    null,
     {
       id: "sale-1",
       total: 3_434_000,
