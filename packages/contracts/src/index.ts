@@ -889,6 +889,11 @@ export { handTypedWeightsSchema } from "./sales/hand-typed-weights.js";
 export type { ManualDiscountsBody, ManualDiscountsQuery } from "./sales/manual-discounts.js";
 export { manualDiscountsQuerySchema, manualDiscountsSchema } from "./sales/manual-discounts.js";
 export type {
+  ConsultProductOutcome,
+  ProductToConsult,
+} from "./sales/product-consultation.js";
+export { consultProductMessageSchema } from "./sales/product-consultation.js";
+export type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,

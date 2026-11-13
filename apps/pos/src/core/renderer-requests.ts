@@ -24,6 +24,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
@@ -48,6 +49,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   RebuildSaleAgainstPaidOrderOutcome,
@@ -181,6 +183,7 @@ export interface RendererRequestDeps {
     | ((request: { saleId: string }) => Promise<ChargeSaleWithPaidOrderOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
+  consultProduct: ((product: ProductToConsult) => Promise<ConsultProductOutcome>) | undefined;
   findProductByCode: ((code: string) => Promise<FindProductByCodeOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   addWeighedProduct:
@@ -1213,6 +1216,18 @@ export async function answerRendererRequest(
           deps,
           "printing a sale's original receipt",
           printOriginalReceipt && (() => printOriginalReceipt(message.sale_id)),
+        ),
+      };
+    }
+    case "consult-product": {
+      const { consultProduct } = deps;
+      return {
+        type: "consult-product-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "consulting a product",
+          consultProduct && (() => consultProduct(message.product)),
         ),
       };
     }

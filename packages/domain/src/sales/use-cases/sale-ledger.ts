@@ -119,6 +119,7 @@ export interface SaleLedgerTransaction {
   markMercadoPagoPaymentReplaced(paymentTransactionId: string, waitEndsAt: Date): void;
   recordCashMovement(movement: CashMovement): void;
   recordSaleStockMovement(movement: SaleStockMovement): void;
+  stockBalance(productId: string): number | undefined;
   addToStockBalance(productId: string, delta: number): void;
   takeOperationNumber(): number;
   recordCompletedSale(saleId: string, occurredAt: Date, operationNumber: number): void;
