@@ -10,7 +10,6 @@ import type {
   CloseLockedCashSessionOutcome,
   EnrollmentStandingAnswer,
   FollowMercadoPagoChargeOutcome,
-  ListedCashMovement,
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -203,12 +202,7 @@ function Register({ core }: { core: CoreClient }) {
     if (outcome.kind === "closed") {
       await cancelCashSessionReads();
       setPerson(closer);
-      setClosedCash({
-        session: outcome.session,
-        movements:
-          queryClient.getQueryData<ListedCashMovement[]>(registerKeys.cashMovements(sessionId)) ??
-          [],
-      });
+      setClosedCash({ session: outcome.session, movements: outcome.movements });
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {

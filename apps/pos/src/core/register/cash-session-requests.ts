@@ -48,7 +48,12 @@ import { readOpenSale } from "../sales/sqlite-open-sale";
 import type { ActionGate } from "../sessions/action-gate";
 import { authorizersOf } from "../sessions/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
+import {
+  readListedSessionMovements,
+  readOpenSession,
+  readSessionMovements,
+  SqliteCashLedger,
+} from "./sqlite-cash-ledger";
 import { SqliteRegisterCloses } from "./sqlite-register-closes";
 
 export interface CashSessionRequestDeps {
@@ -161,7 +166,9 @@ export async function closeCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed" ? closedAnswer(outcome.session, zoneRules.zoneRules()) : outcome;
+  return outcome.kind === "closed"
+    ? closedAnswer(database, outcome.session, zoneRules.zoneRules())
+    : outcome;
 }
 
 export interface CloseLockedCashSessionRequest {
@@ -209,7 +216,9 @@ export async function closeLockedCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed" ? closedAnswer(outcome.session, zoneRules.zoneRules()) : outcome;
+  return outcome.kind === "closed"
+    ? closedAnswer(database, outcome.session, zoneRules.zoneRules())
+    : outcome;
 }
 
 export async function identifyLockedCloserFor(
@@ -234,6 +243,7 @@ export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
 }
 
 function closedAnswer(
+  database: LocalDatabase,
   session: ClosedCashSession,
   rules: ZoneRules,
 ): Extract<CloseCashSessionOutcome, { kind: "closed" }> {
@@ -247,6 +257,10 @@ function closedAnswer(
       opened_at: inArgentinaTime(session.openedAt, rules),
       closed_at: inArgentinaTime(session.closedAt, rules),
     },
+    movements: readListedSessionMovements(database, session.id).map((movement) => ({
+      ...movement,
+      occurred_at: inArgentinaTime(new Date(movement.occurred_at), rules),
+    })),
   };
 }
 

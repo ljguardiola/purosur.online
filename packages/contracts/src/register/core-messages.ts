@@ -211,38 +211,6 @@ const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type OpenCashSessionOutcome = z.infer<typeof openCashSessionOutcomeSchema>;
 
-const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("closed"),
-    session: z.object({
-      id: z.string(),
-      expected_cash: z.number(),
-      counted_cash: z.number(),
-      difference: z.number(),
-      opened_at: z.string(),
-      closed_at: z.string(),
-    }),
-  }),
-  z.object({ kind: z.literal("invalid_counted_cash") }),
-  z.object({ kind: z.literal("no_open_session") }),
-  z.object({ kind: z.literal("open_sale"), total: z.number() }),
-]);
-
-const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
-  ...cashSessionClosingOutcomeSchema.options,
-  z.object({ kind: z.literal("not_signed_in") }),
-  z.object({ kind: z.literal("lacks_permission") }),
-  z.object({ kind: z.literal("unavailable") }),
-]);
-export type CloseCashSessionOutcome = z.infer<typeof closeCashSessionOutcomeSchema>;
-
-const closeLockedCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
-  ...cashSessionClosingOutcomeSchema.options,
-  ...authorizationRefusalSchema.options,
-  z.object({ kind: z.literal("not_locked") }),
-]);
-export type CloseLockedCashSessionOutcome = z.infer<typeof closeLockedCashSessionOutcomeSchema>;
-
 const identifyLockedCloserOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("identified"), person: authorizedBySchema }),
   ...authorizationRefusalSchema.options,
@@ -313,6 +281,39 @@ const listedCashMovementSchema = z.object({
   authorized_by: cashMovementPersonSchema.nullable(),
 });
 export type ListedCashMovement = z.infer<typeof listedCashMovementSchema>;
+
+const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("closed"),
+    session: z.object({
+      id: z.string(),
+      expected_cash: z.number(),
+      counted_cash: z.number(),
+      difference: z.number(),
+      opened_at: z.string(),
+      closed_at: z.string(),
+    }),
+    movements: z.array(listedCashMovementSchema),
+  }),
+  z.object({ kind: z.literal("invalid_counted_cash") }),
+  z.object({ kind: z.literal("no_open_session") }),
+  z.object({ kind: z.literal("open_sale"), total: z.number() }),
+]);
+
+const closeCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  ...cashSessionClosingOutcomeSchema.options,
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("lacks_permission") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type CloseCashSessionOutcome = z.infer<typeof closeCashSessionOutcomeSchema>;
+
+const closeLockedCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
+  ...cashSessionClosingOutcomeSchema.options,
+  ...authorizationRefusalSchema.options,
+  z.object({ kind: z.literal("not_locked") }),
+]);
+export type CloseLockedCashSessionOutcome = z.infer<typeof closeLockedCashSessionOutcomeSchema>;
 
 const recordableCashMovementKindsSchema = z.record(
   z.enum(CASH_MOVEMENT_KINDS),

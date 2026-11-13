@@ -129,7 +129,7 @@ export function CloseCashSessionPanel({
   const counted = countedCashOf(countedCashRequestSchema, values);
   const difference = useCashCountPreviewQuery(sessionId, counted, loadCashCountPreview);
   const figure = difference === undefined ? undefined : countDifferenceFigure(difference);
-  const blocked = submitting || openSale;
+  const blocked = submitting || openSale || balance.status !== "loaded";
 
   function handleSubmit() {
     if (blocked) {
@@ -167,7 +167,8 @@ export function CloseCashSessionPanel({
           icon={<Check />}
           iconPosition="start"
           keycap="Enter"
-          disabled={blocked}
+          dataStatus={balance.status}
+          disabled={submitting || openSale}
           onPress={handleSubmit}
         >
           Cerrar caja

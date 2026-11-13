@@ -35,7 +35,9 @@ export function CashClosedScreen({ person, summary, lock, onOpenCash }: CashClos
   return (
     <RegisterFrame
       background="surface"
-      rail={<OpenSessionRail lock={lock} current="cash" abilities={person.abilities} />}
+      rail={
+        <OpenSessionRail lock={lock} current="cash" abilities={person.abilities} sessionClosed />
+      }
       aside={
         <SidePanel
           width="wide"

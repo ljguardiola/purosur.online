@@ -469,15 +469,20 @@ function requireRoute(expected: ScreenPath | readonly ScreenPath[], context: Rou
   }
 }
 
+function routeLeavingClosedCash(context: RouterContext): ScreenPath {
+  const route = routeFor(context);
+  return route === "/cash-closed" ? "/" : route;
+}
+
 function requireSignedInPerson(context: RouterContext): SignedInPerson {
-  if (context.person === undefined || routeFor(context) !== "/") {
+  if (context.person === undefined || routeLeavingClosedCash(context) !== "/") {
     throw redirect({ to: routeFor(context) });
   }
   return context.person;
 }
 
 function requireSignedInPersonAnywhere(context: RouterContext) {
-  const route = routeFor(context);
+  const route = routeLeavingClosedCash(context);
   if (context.person === undefined || (route !== "/" && route !== "/session")) {
     throw redirect({ to: route });
   }
@@ -1127,6 +1132,7 @@ const cashClosedRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/cash-closed",
   beforeLoad: ({ context }) => requireClosedCash(context),
+  onLeave: ({ context }) => context.dismissClosedCash(),
   component: function CashClosedRoute() {
     const { person, closedCash, signOut, dismissClosedCash } = cashClosedRoute.useRouteContext();
     return (
