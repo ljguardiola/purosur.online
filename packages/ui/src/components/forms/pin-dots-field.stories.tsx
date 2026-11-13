@@ -60,3 +60,7 @@ export const InvalidKeepingErrorRingWhileFocused: Story = {
 export const Disabled: Story = {
   args: { value: "1234", disabled: true },
 };
+
+export const WithoutDigitsKeycap: Story = {
+  args: { label: "PIN nuevo, de al menos 6 dígitos", digitsKeycap: false },
+};

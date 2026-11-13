@@ -65,6 +65,7 @@ type TextFieldCommonProps = {
   decimals?: number;
   // A key the field answers to, drawn at the right end of the label row. The caller binds it.
   labelKeycap?: KeyName;
+  errorRingWhileFocused?: boolean;
 };
 
 type TextFieldKindProps =
@@ -165,6 +166,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
     inputMode,
     decimals,
     labelKeycap,
+    errorRingWhileFocused = false,
     kind,
   } = props;
   const [attachInput, onDecimalChange] = useDecimalTyping(decimals, onChange);
@@ -259,7 +261,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
   const descriptionBelowBox = kind === "discount" ? null : descriptionElement;
   const boxElement = (
     <div
-      className={`${fieldBoxClassName} ${readOnlyReason !== undefined ? heightClassName : boxFrameClassName} ${fieldBoxStateClassName({ disabled, readOnly, invalid })}`}
+      className={`${fieldBoxClassName} ${readOnlyReason !== undefined ? heightClassName : boxFrameClassName} ${fieldBoxStateClassName({ disabled, readOnly, invalid, errorRingWhileFocused })}`}
     >
       {prefix !== undefined && (
         <span aria-hidden="true" id={affixId} className={moneyPrefixClassName}>

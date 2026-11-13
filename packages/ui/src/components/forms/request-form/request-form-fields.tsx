@@ -4,8 +4,10 @@ import { Checkbox, type CheckboxProps } from "../checkbox";
 import { ComboBox, type ComboBoxProps } from "../combo-box";
 import { DateField, type DateFieldProps } from "../date-field";
 import { type DateRange, DateRangeField, type DateRangeFieldProps } from "../date-range-field";
+import { fieldErrorClassName } from "../field-styles";
 import { FilePicker, type FilePickerProps } from "../file-picker";
 import { OptionCardGroup, type OptionCardGroupProps } from "../option-card-group";
+import { PinDotsField, type PinDotsFieldProps } from "../pin-dots-field";
 import { QuantityUnitField, type QuantityUnitFieldProps } from "../quantity-unit-field";
 import { SegmentedControl, type SegmentedControlProps } from "../segmented-control";
 import { Select, type SelectProps } from "../select";
@@ -183,6 +185,27 @@ export function BoundCheckbox(props: Omit<CheckboxProps, "name" | "checked" | "o
       checked={field.state.value}
       onCheckedChange={field.handleChange}
     />
+  );
+}
+
+export function BoundPinDotsField(props: Omit<PinDotsFieldProps, FieldValueProps>) {
+  const field = useFieldContext<string>();
+  const errorMessageId = useId();
+  const message = fieldErrorMessage(field.state.meta.errors);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <PinDotsField
+        {...props}
+        value={field.state.value}
+        onChange={field.handleChange}
+        errorMessageId={message === undefined ? undefined : errorMessageId}
+      />
+      {message === undefined ? null : (
+        <p id={errorMessageId} className={fieldErrorClassName}>
+          {message}
+        </p>
+      )}
+    </div>
   );
 }
 

@@ -1716,3 +1716,55 @@ test("draws no keycap beside the label unless one is given", async () => {
 
   expect(fieldWrapper(screen, "Cantidad contada").querySelector("kbd")).toBeNull();
 });
+
+test("shows the action ring while an invalid field is focused", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Código"
+      value=""
+      onChange={() => {}}
+      errorMessage="El código venció"
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("textbox", { name: "Código" }));
+
+  expect(paintedBoxShadowLayers(fieldBox(screen, "Código"))).toEqual(focusedLayers());
+});
+
+test("keeps the error ring while an invalid field that asks for it is focused", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Código"
+      value=""
+      onChange={() => {}}
+      errorMessage="El código venció"
+      errorRingWhileFocused
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("textbox", { name: "Código" }));
+
+  await expect.element(screen.getByRole("textbox", { name: "Código" })).toHaveFocus();
+  expect(paintedBoxShadowLayers(fieldBox(screen, "Código"))).toEqual([
+    insetBoundary("error", "2px"),
+  ]);
+});
+
+test("shows the action ring while a valid field that asks for the error ring is focused", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Código"
+      value=""
+      onChange={() => {}}
+      errorRingWhileFocused
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("textbox", { name: "Código" }));
+
+  expect(paintedBoxShadowLayers(fieldBox(screen, "Código"))).toEqual(focusedLayers());
+});

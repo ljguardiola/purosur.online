@@ -1,5 +1,5 @@
 import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, insetBoundary } from "@purosur/ui/test";
 import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -61,6 +61,7 @@ function renderForm(
       checkRedemption={checkingLikeTheCore}
       loadPinPolicy={async () => ({ min_digits: 6 })}
       onRedeemed={() => {}}
+      onCashSessionOpenedByAnother={() => {}}
       submitLabel={SAVE}
       newCodeAskedIn="backoffice"
       {...props}
@@ -99,6 +100,72 @@ describe("PinCodeRedemptionForm", () => {
     await expect.element(screen.getByRole("button", { name: SAVE })).toBeEnabled();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("draws the new PIN and its repeat as dots fields, without the digits keycap", async () => {
+    const screen = await renderForm(answering({ kind: "redeemed" }).redeem);
+
+    await expect.element(screen.getByText("PIN nuevo, de al menos 6 dígitos")).toBeVisible();
+    await expect.element(screen.getByText("Repetí el PIN nuevo")).toBeVisible();
+    expect(screen.container.querySelectorAll('[data-pin-slot="empty"]')).toHaveLength(12);
+    await expect.element(screen.getByText("0-9", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("opens with the code focused", async () => {
+    const screen = await renderForm(answering({ kind: "redeemed" }).redeem);
+
+    await expect.element(code(screen)).toHaveFocus();
+  });
+
+  it("puts the focus back on the code when the code doesn't work", async () => {
+    const screen = await renderForm(answering({ kind: "code_expired" }).redeem);
+
+    await fillAndSave(screen);
+
+    await expect.element(screen.getByText("El código venció")).toBeVisible();
+    await expect.element(code(screen)).toHaveFocus();
+    expect(
+      getComputedStyle(code(screen).element().parentElement as HTMLElement).boxShadow,
+    ).toContain(insetBoundary("error", "2px"));
+  });
+
+  it("moves between the code, the new PIN and its repeat with Tab and Shift+Tab", async () => {
+    const screen = await renderForm(answering({ kind: "redeemed" }).redeem);
+    await userEvent.click(code(screen));
+
+    await userEvent.tab();
+    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveFocus();
+    await userEvent.tab();
+    await expect.element(screen.getByLabelText(REPEAT_LABEL)).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    await expect.element(code(screen)).toHaveFocus();
+  });
+
+  it("shows the Enter keycap on the submit button and saves with Enter in a field", async () => {
+    const { redeem, calls } = answering({ kind: "redeemed" });
+    const screen = await renderForm(redeem);
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await userEvent.fill(code(screen), TYPED_CODE);
+    await userEvent.fill(screen.getByLabelText(PIN_LABEL), NEW_PIN);
+    await userEvent.fill(screen.getByLabelText(REPEAT_LABEL), NEW_PIN);
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => calls).toEqual([{ code: TYPED_CODE, pin: NEW_PIN }]);
+  });
+
+  it("hands over the outcome instead of showing a notice when the cash session was opened by another person", async () => {
+    const opened: string[] = [];
+    const screen = await renderForm(answering({ kind: "cash_session_opened_by_another" }).redeem, {
+      onCashSessionOpenedByAnother: () => void opened.push("opened"),
+    });
+
+    await fillAndSave(screen);
+
+    await expect.poll(() => opened).toEqual(["opened"]);
+    await expect.element(screen.getByText("La caja está abierta")).not.toBeInTheDocument();
   });
 
   it("labels the submit button with what the screen names it", async () => {

@@ -1,6 +1,6 @@
 import type { SignInLookupOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { FoundPerson } from "./first-sign-in-email-step";
@@ -45,18 +45,38 @@ async function submitEmail(screen: Screen, email: string) {
 }
 
 describe("FirstSignInEmailStep", () => {
-  it("asks for the email, saying it needs internet, and offers going back", async () => {
+  it("asks only for the email, with its placeholder and the keys that leave or continue", async () => {
     const screen = await renderStep(answering(ADA));
 
     await expect
       .element(screen.getByRole("heading", { name: "Ingresar por primera vez" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Escribí tu correo. Hace falta internet.")).toBeVisible();
-    await expect.element(screen.getByRole("textbox", { name: "Correo" })).toBeVisible();
+    await expect
+      .element(screen.getByText("Escribí tu correo. Hace falta internet."))
+      .not.toBeInTheDocument();
+    const email = screen.getByRole("textbox", { name: "Correo" });
+    await expect.element(email).toBeVisible();
+    await expect.element(email).toHaveAttribute("placeholder", "nombre@correo.com");
     await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeVisible();
-    const back = screen.getByRole("link", { name: "Volver" });
-    expect(back.element().getAttribute("href")).toBe("/sign-in");
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Volver" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("opens with the email field focused", async () => {
+    const screen = await renderStep(answering(ADA));
+
+    await expect.element(screen.getByRole("textbox", { name: "Correo" })).toHaveFocus();
+  });
+
+  it("goes back to the sign-in with Escape", async () => {
+    const screen = await renderStep(answering(ADA));
+    await userEvent.type(screen.getByRole("textbox", { name: "Correo" }), "ada");
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 
   it("sends the email as typed when the button is pressed", async () => {
