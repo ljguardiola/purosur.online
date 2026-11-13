@@ -3,6 +3,7 @@ import type {
   AnswerReceiptQuestionOutcome,
   CashChargeAmountsAnswer,
   CashChargeAnswer,
+  ConsultProductOutcome,
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
   CurrentSaleAnswer,
@@ -14,6 +15,7 @@ import type {
   PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  ProductToConsult,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
@@ -57,6 +59,8 @@ export const salesKeys = {
   saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
     [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  consultation: (product: ProductToConsult | undefined) =>
+    [...salesKey, "consultation", product ?? null] as const,
   productByCode: (code: string) => [...salesKey, "product-by-code", code] as const,
   paymentMethodAvailabilityRoot: [...salesKey, "payment-method-availability"] as const,
   paymentMethodAvailability: (sessionId: string, userId: string) =>
@@ -527,4 +531,20 @@ export function useFindProductByCode(
         gcTime: 0,
       })
       .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
+}
+
+const CONSULTATION_PAUSE_MS = 250;
+
+export function useConsultedProductQuery(
+  read: (product: ProductToConsult) => Promise<ConsultProductOutcome>,
+  product: ProductToConsult | undefined,
+): CoreData<ConsultProductOutcome> {
+  return useCoreQuery({
+    queryKey: salesKeys.consultation(product),
+    read: () => (product === undefined ? Promise.resolve("unavailable" as const) : read(product)),
+    enabled: product !== undefined,
+    gcTime: 0,
+    refetchInterval: (answer) =>
+      answer?.kind === "consulted" && answer.sale_unit === "KG" ? CONSULTATION_PAUSE_MS : false,
+  });
 }

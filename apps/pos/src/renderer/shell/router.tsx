@@ -24,6 +24,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
   CorrectRegisterClockOutcome,
@@ -52,6 +53,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadClockGuardOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
@@ -144,6 +146,9 @@ import { ReturnScreen } from "../returns/return-screen";
 import { KEYED_CHARGE_METHODS } from "../sales/charge-method-availability";
 import { ChargeScreen } from "../sales/charge-screen";
 import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
+import { ProductConsultationScreen } from "../sales/product-consultation-screen";
+import type { ProductToAdd } from "../sales/product-to-add";
+import { productToAddFrom } from "../sales/product-to-add";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
@@ -254,6 +259,7 @@ export interface RouterContext {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  consultProduct: (product: ProductToConsult) => Promise<ConsultProductOutcome>;
   findProductByCode: (code: string) => Promise<FindProductByCodeOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
@@ -733,6 +739,10 @@ function InitialCountRoute() {
 const openSessionRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/session",
+  validateSearch: (search: { add?: unknown }): { add?: ProductToAdd } => {
+    const add = productToAddFrom(search.add);
+    return add === undefined ? {} : { add };
+  },
   beforeLoad: async ({ context }) => {
     const { id, person } = requireOpenSession(context);
     const landsOnStartupPending = await context.startupPendingGate.lands(() =>
@@ -773,6 +783,7 @@ const openSessionRoute = createRoute({
       registerStatus,
       paymentMethodAvailability,
     } = openSessionRoute.useRouteContext();
+    const { add } = openSessionRoute.useSearch();
     const status = useRegisterStatusQuery(registerStatus);
     return (
       <SaleScreen
@@ -800,6 +811,35 @@ const openSessionRoute = createRoute({
         onSessionInvalid={() => void refreshCashSession()}
         registerStatus={status}
         paymentMethodAvailability={paymentMethodAvailability}
+        productToAdd={add}
+      />
+    );
+  },
+});
+
+const consultRoute = createRoute({
+  getParentRoute: () => registerStatusRoute,
+  path: "/consult",
+  validateSearch: (search: { product_id?: unknown }): { product_id?: string } =>
+    typeof search.product_id === "string" ? { product_id: search.product_id } : {},
+  beforeLoad: ({ context }) => {
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
+  },
+  component: function ConsultRoute() {
+    const { id, person, signOut, currentSale, consultProduct, searchProducts, refreshCashSession } =
+      consultRoute.useRouteContext();
+    const { product_id } = consultRoute.useSearch();
+    return (
+      <ProductConsultationScreen
+        sessionId={id}
+        person={person}
+        lock={signOut}
+        currentSale={currentSale}
+        consultProduct={consultProduct}
+        searchProducts={searchProducts}
+        productId={product_id}
+        onSessionInvalid={() => void refreshCashSession()}
       />
     );
   },
@@ -1380,6 +1420,7 @@ export const routeTree = rootRoute.addChildren([
       serialDevicesRoute,
       initialCountRoute,
       openSessionRoute,
+      consultRoute,
       startupPendingRoute,
       chargeRoute,
       historyRoute,
@@ -1466,6 +1507,7 @@ export function createAppRouter(
     | "followMercadoPagoCharge"
     | "abandonMercadoPagoCharge"
     | "searchProducts"
+    | "consultProduct"
     | "findProductByCode"
     | "addProduct"
     | "addWeighedProduct"

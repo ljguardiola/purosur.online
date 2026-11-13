@@ -26,6 +26,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CorrectRegisterClockOutcome,
   CredentialsCoreToRendererMessage,
@@ -63,6 +64,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadClockGuardOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
@@ -253,6 +255,7 @@ export interface CoreClient {
   openingFloatSuggestion(): Promise<OpeningFloatSuggestion | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
+  consultProduct(product: ProductToConsult): Promise<ConsultProductOutcome>;
   findProductByCode(code: string): Promise<FindProductByCodeOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
   addWeighedProduct(
@@ -1057,6 +1060,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     searchProducts(query) {
       return ask({ type: "search-products", request_id: deps.newRequestId(), query }, (answer) =>
         answer.type === "search-products-result" ? answer.outcome : undefined,
+      );
+    },
+    consultProduct(product) {
+      return ask({ type: "consult-product", request_id: deps.newRequestId(), product }, (answer) =>
+        answer.type === "consult-product-result" ? answer.outcome : undefined,
       );
     },
     findProductByCode(code) {

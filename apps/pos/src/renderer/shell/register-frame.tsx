@@ -9,6 +9,7 @@ export type RegisterFrameProps = {
   rail: ReactNode;
   aside?: ReactNode;
   crumb?: string;
+  mode?: ReactNode;
   children: ReactNode;
 };
 
@@ -21,7 +22,14 @@ export function FramePanel({ children }: { children: ReactNode }) {
   return slot === null ? null : createPortal(children, slot);
 }
 
-export function RegisterFrame({ background, rail, aside, crumb, children }: RegisterFrameProps) {
+export function RegisterFrame({
+  background,
+  rail,
+  aside,
+  crumb,
+  mode,
+  children,
+}: RegisterFrameProps) {
   const statusData = useRegisterStatusData();
   const [panelSlot, setPanelSlot] = useState<HTMLElement | null>(null);
   return (
@@ -29,7 +37,9 @@ export function RegisterFrame({ background, rail, aside, crumb, children }: Regi
       <div className={`relative flex h-full w-full ${BACKGROUNDS[background]}`}>
         {rail}
         <div className="flex min-w-0 flex-1 flex-col">
-          {statusData === undefined ? null : <RegisterHeader {...statusData} crumb={crumb} />}
+          {statusData === undefined ? null : (
+            <RegisterHeader {...statusData} crumb={crumb} mode={mode} />
+          )}
           <div className="flex min-h-0 flex-1">{children}</div>
         </div>
         {aside}
