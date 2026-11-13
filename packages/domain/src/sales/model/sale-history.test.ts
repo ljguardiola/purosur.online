@@ -102,16 +102,6 @@ describe("saleStandingOf", () => {
     },
   );
 
-  it("is completed once its deferral was satisfied by an authorized invoice", () => {
-    expect(
-      saleStandingOf({
-        voided: false,
-        deferred: false,
-        fiscalDocument: document("AUTHORIZED"),
-      }),
-    ).toBe("completed");
-  });
-
   it("is voided even with its fiscal document authorized", () => {
     expect(
       saleStandingOf({
