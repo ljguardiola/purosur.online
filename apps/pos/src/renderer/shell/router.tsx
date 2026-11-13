@@ -766,6 +766,7 @@ const openSessionRoute = createRoute({
       authorizers,
       refreshCashSession,
       registerStatus,
+      paymentMethodAvailability,
     } = openSessionRoute.useRouteContext();
     const status = useRegisterStatusQuery(registerStatus);
     return (
@@ -793,6 +794,7 @@ const openSessionRoute = createRoute({
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
         registerStatus={status}
+        paymentMethodAvailability={paymentMethodAvailability}
       />
     );
   },

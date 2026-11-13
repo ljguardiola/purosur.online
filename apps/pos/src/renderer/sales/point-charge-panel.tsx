@@ -2,18 +2,20 @@ import type { StartMercadoPagoChargeOutcome } from "@purosur/contracts";
 import type { PointCardType } from "@purosur/domain";
 import {
   Button,
+  FigureStat,
   fieldErrorMessage,
   formatAmountInput,
   formatCents,
   InlineNotice,
-  Modal,
-  SummaryRowGroup,
+  SidePanel,
+  SidePanelTitle,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { ArrowLeft, CreditCard, Info, Send, TriangleAlert } from "lucide-react";
-import { useState } from "react";
-import { pointCardName } from "../platform/payment-method-names";
+import { ArrowRight, CreditCard, Send, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
+import { pointCardTitle } from "../platform/payment-method-names";
 import { INVALID_AMOUNT_MESSAGE } from "./cash-charge-form";
 import {
   mercadoPagoChargeRequestFrom,
@@ -22,21 +24,20 @@ import {
 import {
   CHARGE_IN_PROGRESS_MESSAGE,
   exceedsPendingMessage,
-  ORDER_FAILED_MESSAGE,
+  ORDER_UNREACHABLE_MESSAGE,
   PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
 
 const REFUSED_MESSAGE = "Mercado Pago rechazó la orden. Cobrá con otro medio.";
 const NOT_CONFIGURED_MESSAGE = "La Point integrada no está configurada en esta caja.";
+const ORDER_NOT_CREATED_MESSAGE = "No se pudo crear la orden. Cobrá con otro medio.";
 
 export type ShownPointOrder = Extract<
   StartMercadoPagoChargeOutcome,
   { kind: "order_shown" | "order_unconfirmed" }
 >;
 
-export type PointChargeModalProps = {
-  total: number;
-  paid: number;
+export type PointChargePanelProps = {
   pending: number;
   cardType: PointCardType;
   minimum: number;
@@ -47,9 +48,7 @@ export type PointChargeModalProps = {
   onSessionInvalid: () => void;
 };
 
-export function PointChargeModal({
-  total,
-  paid,
+export function PointChargePanel({
   pending,
   cardType,
   minimum,
@@ -58,7 +57,8 @@ export function PointChargeModal({
   onOrderShown,
   onSaleUnavailable,
   onSessionInvalid,
-}: PointChargeModalProps) {
+}: PointChargePanelProps) {
+  const amountBox = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<string>();
   const { form, submit, submitting } = useRequestForm({
     defaultValues: { amount: formatAmountInput(pending) },
@@ -108,73 +108,98 @@ export function PointChargeModal({
           onSessionInvalid();
           break;
         case "unreachable":
+          setNotice(ORDER_UNREACHABLE_MESSAGE);
+          break;
         case "unavailable":
-          setNotice(ORDER_FAILED_MESSAGE);
+          setNotice(ORDER_NOT_CREATED_MESSAGE);
           break;
       }
     },
   });
 
+  useEffect(() => {
+    amountBox.current?.querySelector("input")?.focus();
+  }, []);
+
   function sendToTerminal() {
-    setNotice(undefined);
+    if (submitting) {
+      return;
+    }
     void submit();
   }
 
-  return (
-    <Modal
-      open
-      onOpenChange={(next) => {
-        if (!next) {
+  const refused = notice !== undefined;
+
+  function pressEnter() {
+    if (refused) {
+      onChooseAnotherMethod();
+    } else {
+      sendToTerminal();
+    }
+  }
+
+  useKeys([
+    {
+      key: "Escape",
+      run: () => {
+        if (!submitting) {
           onChooseAnotherMethod();
         }
-      }}
-      width="standard"
-      tone="info"
-      icon={<CreditCard />}
-      context={pointCardName(cardType).toUpperCase()}
-      contextTone="info"
-      title="¿Cuánto se cobra con la Point?"
-      closable={!submitting}
+      },
+    },
+  ]);
+  useKeys([{ key: "Enter", run: pressEnter }], { fallback: true });
+
+  const name = pointCardTitle(cardType);
+
+  return (
+    <SidePanel
+      label={`Cobro con ${name}`}
+      width="wide"
+      header={
+        <SidePanelTitle
+          icon={<CreditCard />}
+          title={name}
+          closeLabel="Cambiar de medio"
+          closeDisabled={submitting}
+          onClose={onChooseAnotherMethod}
+        />
+      }
       footer={
-        <>
+        refused ? (
           <Button
-            variant="secondary"
             size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
+            fullWidth
+            icon={<ArrowRight />}
+            iconPosition="start"
+            keycap="Enter"
             onPress={onChooseAnotherMethod}
           >
             Cambiar de medio
           </Button>
+        ) : (
           <Button
             size="large"
             fullWidth
             icon={<Send />}
+            iconPosition="start"
+            keycap="Enter"
             dataStatus={submitting ? "loading" : "loaded"}
             onPress={sendToTerminal}
           >
             Enviar a la terminal
           </Button>
-        </>
+        )
       }
     >
-      <div className="flex flex-col gap-5">
-        <SummaryRowGroup
-          variant="filled"
-          orientation="horizontal"
-          rows={[
-            { label: "Total de la venta", value: formatCents(total) },
-            { label: "Pagado", value: formatCents(paid) },
-            { label: "Saldo pendiente", value: formatCents(pending), emphasized: true },
-          ]}
-        />
-        <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
+      <FigureStat size="hero" label="A COBRAR" value={formatCents(pending)} />
+      <div ref={amountBox}>
+        <form.AppField name="amount">
           {(field) => (
             <TextField
               kind="amount"
               prefix="$"
-              label="Importe a cobrar con este medio"
-              description={`Hasta el saldo pendiente, ${formatCents(pending)}. Si cobrás menos, el resto queda pendiente para otro medio.`}
+              label="IMPORTE"
               decimals={2}
               value={field.state.value}
               onChange={field.handleChange}
@@ -183,15 +208,10 @@ export function PointChargeModal({
             />
           )}
         </form.AppField>
-        <InlineNotice
-          tone="info"
-          icon={<Info />}
-          title="El cobro se envía a la terminal por este importe. Después ya no se puede cambiar."
-        />
-        {notice === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
-        )}
       </div>
-    </Modal>
+      {notice === undefined ? null : (
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
+      )}
+    </SidePanel>
   );
 }

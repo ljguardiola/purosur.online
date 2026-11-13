@@ -1,4 +1,4 @@
-import { Check, Loader, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 export type ProgressStepState = "done" | "current" | "error" | "upcoming";
 
@@ -24,26 +24,23 @@ const markerClassName = "flex size-6 shrink-0 items-center justify-center rounde
 
 const labelClassName: Record<ProgressStepState, string> = {
   done: "text-body text-text",
-  current: "text-body font-bold text-text",
+  current: "text-body text-text",
   error: "text-body text-error-strong",
-  upcoming: "text-body text-text-subtle",
+  upcoming: "text-body text-text",
 };
 
 function Marker({ state }: { state: ProgressStepState }) {
   if (state === "done") {
     return (
-      <span data-marker className={`${markerClassName} bg-success text-text-inverse`}>
+      <span data-marker className={`${markerClassName} bg-success-strong text-text-inverse`}>
         <Check aria-hidden="true" className="size-icon-sm" />
       </span>
     );
   }
   if (state === "current") {
     return (
-      <span data-marker className={`${markerClassName} bg-info text-text-inverse`}>
-        <Loader
-          aria-hidden="true"
-          className="size-icon-sm animate-spin motion-reduce:animate-none"
-        />
+      <span data-marker className={`${markerClassName} border-2 border-info-strong bg-surface`}>
+        <span data-dot className="size-2.5 rounded-full bg-info-strong" />
       </span>
     );
   }
@@ -60,29 +57,23 @@ function Marker({ state }: { state: ProgressStepState }) {
 export function ProgressSteps({ steps }: ProgressStepsProps) {
   return (
     <ol className="flex flex-col font-sans">
-      {steps.map((step, index) => {
-        const isLast = index === steps.length - 1;
-        return (
-          <li
-            key={step.id}
-            aria-current={step.state === "current" ? "step" : undefined}
-            className="flex gap-3"
-          >
-            <div className="flex flex-col items-center">
-              <Marker state={step.state} />
-              {isLast ? null : <span data-connector className="w-0.5 flex-1 bg-border" />}
-            </div>
-            <div className={isLast ? "" : "pb-4"}>
-              <p className={labelClassName[step.state]}>
-                <span>{step.label}</span> <span className="sr-only">{stateText[step.state]}</span>
-              </p>
-              {step.detail === undefined ? null : (
-                <p className="text-detail text-text-subtle">{step.detail}</p>
-              )}
-            </div>
-          </li>
-        );
-      })}
+      {steps.map((step) => (
+        <li
+          key={step.id}
+          aria-current={step.state === "current" ? "step" : undefined}
+          className="flex min-h-8.5 items-center gap-3"
+        >
+          <Marker state={step.state} />
+          <div>
+            <p className={labelClassName[step.state]}>
+              <span>{step.label}</span> <span className="sr-only">{stateText[step.state]}</span>
+            </p>
+            {step.detail === undefined ? null : (
+              <p className="text-detail text-text-subtle">{step.detail}</p>
+            )}
+          </div>
+        </li>
+      ))}
     </ol>
   );
 }

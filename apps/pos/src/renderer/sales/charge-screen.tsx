@@ -37,9 +37,9 @@ import { chargeMethodAvailability } from "./charge-method-availability";
 import { ChargePaymentPanel } from "./charge-payment-panel";
 import { CombinedPaymentPanel } from "./combined-payment-panel";
 import { OtherChargeMethodsPanel } from "./other-charge-methods-panel";
-import type { ShownPointOrder } from "./point-charge-modal";
-import { PointChargeModal } from "./point-charge-modal";
-import { PointPaymentWaitModal } from "./point-payment-wait-modal";
+import type { ShownPointOrder } from "./point-charge-panel";
+import { PointChargePanel } from "./point-charge-panel";
+import { PointPaymentWaitPanel } from "./point-payment-wait-panel";
 import type { ShownQrOrder } from "./qr-charge-panel";
 import { QrChargePanel } from "./qr-charge-panel";
 import { QrPaymentWaitPanel } from "./qr-payment-wait-panel";
@@ -309,7 +309,9 @@ export function ChargeScreen({
             onSaleUnavailable={backToSale}
             onSessionInvalid={onSessionInvalid}
           />
-        ) : step.name === "methods" || (step.name === "qr" && qrMinimum === undefined) ? (
+        ) : step.name === "methods" ||
+          (step.name === "point" && pointMinimum === undefined) ||
+          (step.name === "qr" && qrMinimum === undefined) ? (
           <CombinedPaymentPanel
             total={sale.total}
             paid={sale.paid}
@@ -357,6 +359,39 @@ export function ChargeScreen({
                 name: "completed",
                 payment: { method: "STANDALONE_TERMINAL", charge },
                 sale,
+              })
+            }
+            onPartiallyPaid={backToMethodsWithBalance}
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
+        ) : step.name === "point" && pointMinimum !== undefined ? (
+          <PointChargePanel
+            pending={sale.pending}
+            cardType={step.cardType}
+            minimum={pointMinimum}
+            start={(amount) =>
+              startMercadoPagoCharge(sale.id, { method: "POINT", cardType: step.cardType }, amount)
+            }
+            onChooseAnotherMethod={() => void backToMethodsWithBalance()}
+            onOrderShown={(order) =>
+              setStep({ name: "point-wait", cardType: step.cardType, order, sale })
+            }
+            onSaleUnavailable={backToSale}
+            onSessionInvalid={onSessionInvalid}
+          />
+        ) : step.name === "point-wait" ? (
+          <PointPaymentWaitPanel
+            order={step.order}
+            cardType={step.cardType}
+            follow={followMercadoPagoCharge}
+            abandon={abandonMercadoPagoCharge}
+            onChooseAnotherMethod={() => void backToMethodsWithBalance()}
+            onCompleted={(charge) =>
+              setStep({
+                name: "completed",
+                payment: { method: "POINT", cardType: step.cardType, charge },
+                sale: step.sale,
               })
             }
             onPartiallyPaid={backToMethodsWithBalance}
@@ -431,45 +466,6 @@ export function ChargeScreen({
           </>
         )}
       </main>
-      {sale !== undefined && step.name === "point" && pointMinimum !== undefined ? (
-        <PointChargeModal
-          total={sale.total}
-          paid={sale.paid}
-          pending={sale.pending}
-          cardType={step.cardType}
-          minimum={pointMinimum}
-          start={(amount) =>
-            startMercadoPagoCharge(sale.id, { method: "POINT", cardType: step.cardType }, amount)
-          }
-          onChooseAnotherMethod={() => void backToMethodsWithBalance()}
-          onOrderShown={(order) =>
-            setStep({ name: "point-wait", cardType: step.cardType, order, sale })
-          }
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
-      {step.name === "point-wait" ? (
-        <PointPaymentWaitModal
-          total={step.sale.total}
-          paid={step.sale.paid}
-          order={step.order}
-          cardType={step.cardType}
-          follow={followMercadoPagoCharge}
-          abandon={abandonMercadoPagoCharge}
-          onChooseAnotherMethod={() => void backToMethodsWithBalance()}
-          onCompleted={(charge) =>
-            setStep({
-              name: "completed",
-              payment: { method: "POINT", cardType: step.cardType, charge },
-              sale: step.sale,
-            })
-          }
-          onPartiallyPaid={backToMethodsWithBalance}
-          onSaleUnavailable={backToSale}
-          onSessionInvalid={onSessionInvalid}
-        />
-      ) : null}
       {step.name === "completed" ? (
         <ChargeCompletedModal
           saleId={step.sale.id}

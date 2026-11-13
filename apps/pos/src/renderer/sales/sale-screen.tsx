@@ -13,6 +13,7 @@ import type {
   FoundProduct,
   ManualAdjustmentRequest,
   OpenSale,
+  PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   RegisterStatus,
@@ -38,7 +39,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, BatteryLow, ScanBarcode, Search } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useKeys } from "../platform/key-layer";
 import type { SearchResults } from "../platform/product-search-results";
@@ -62,8 +63,10 @@ import { LockedSaleLines, SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
   useFindProductByCode,
+  usePaymentMethodAvailabilityQuery,
   useProductByCodeQuery,
   useReadCurrentSale,
+  useRefreshPaymentMethodAvailability,
   useResetCurrentSale,
   useSearchProducts,
   useTakeSale,
@@ -130,6 +133,7 @@ export type SaleScreenProps = {
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
   registerStatus: CoreData<RegisterStatus>;
+  paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
 };
 
 type SaleEditOutcome =
@@ -237,6 +241,7 @@ export function SaleScreen({
   loadAuthorizers,
   onSessionInvalid,
   registerStatus,
+  paymentMethodAvailability,
 }: SaleScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
@@ -834,6 +839,31 @@ export function SaleScreen({
     !isZeroTotal &&
     sale.charge_refusal === null &&
     paidOrderToApply === null;
+  const availability = usePaymentMethodAvailabilityQuery({
+    sessionId,
+    userId: person.user_id,
+    read: paymentMethodAvailability,
+  });
+  const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
+  const readAvailabilityAgain = useEffectEvent(() => void refreshAvailability());
+  const saleTotal = sale?.total;
+  const availabilityReadForTotal = useRef<number>(undefined);
+  useEffect(() => {
+    if (saleTotal === undefined) {
+      return;
+    }
+    if (
+      availabilityReadForTotal.current !== undefined &&
+      availabilityReadForTotal.current !== saleTotal
+    ) {
+      readAvailabilityAgain();
+    }
+    availabilityReadForTotal.current = saleTotal;
+  }, [saleTotal]);
+  const pointBelowMinimum =
+    availability.status === "loaded" && availability.value.point === "below_minimum";
+  const qrBelowMinimum =
+    availability.status === "loaded" && availability.value.qr === "below_minimum";
   const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
   const searchEmpty = code === "";
   const canChargeNow = canCharge && weighing === undefined;
@@ -970,9 +1000,13 @@ export function SaleScreen({
         enabled: current.status === "failed" && searchEmpty,
       },
       { key: "F12", run: () => charge("CASH"), enabled: canChargeNow },
-      { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canChargeNow },
-      { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canChargeNow },
-      { key: "F11", run: () => charge("QR"), enabled: canChargeNow },
+      { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canChargeNow && !pointBelowMinimum },
+      {
+        key: "F10",
+        run: () => charge("POINT_CREDIT"),
+        enabled: canChargeNow && !pointBelowMinimum,
+      },
+      { key: "F11", run: () => charge("QR"), enabled: canChargeNow && !qrBelowMinimum },
       { key: "F1", run: () => charge(undefined), enabled: canChargeNow },
     ],
     { active: !panelOpen },
@@ -1067,6 +1101,7 @@ export function SaleScreen({
         hasApprovedPayment={sale?.lines_lock === "approved_payment"}
         chargeRefusal={sale?.charge_refusal ?? null}
         paidOrderToApply={paidOrderToApply ?? undefined}
+        availability={availability.status === "loaded" ? availability.value : undefined}
         canCharge={canChargeNow}
         canCancel={canCancel}
         canDiscount={canDiscount}
