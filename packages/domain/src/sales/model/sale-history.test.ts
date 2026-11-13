@@ -110,7 +110,7 @@ describe("saleStandingOf", () => {
     },
   );
 
-  it("is deferred when its deferred invoice was issued and its original copy is still to print", () => {
+  it("is completed once its deferred invoice was issued, even with its original copy still to print", () => {
     expect(
       saleStandingOf({
         voided: false,
@@ -118,7 +118,7 @@ describe("saleStandingOf", () => {
         deferredInvoicePending: true,
         fiscalDocument: document("AUTHORIZED"),
       }),
-    ).toBe("deferred");
+    ).toBe("completed");
   });
 
   it("is completed once the print of its deferred invoice was attempted", () => {

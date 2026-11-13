@@ -111,7 +111,7 @@ describe("readSalesHistory", () => {
     ]);
   });
 
-  it("shows a sale whose deferred invoice is still to print as deferred, with its invoice number", () => {
+  it("shows a sale whose deferred invoice was issued but not printed as completed, with its invoice number", () => {
     const history = new FakeRegisterSalesHistory([
       sale(1, {
         fiscal: {
@@ -131,7 +131,7 @@ describe("readSalesHistory", () => {
     const { rows } = readSalesHistory({ history }, { session: "all", page: 1 });
 
     expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
-      ["fiscal", "deferred"],
+      ["fiscal", "completed"],
     ]);
   });
 
