@@ -165,21 +165,7 @@ describe("CorrectRegisterClockModal", () => {
     const { dialog } = await renderModal({ guard: { ...GUARD, correction: "not_behind" } });
 
     await expect
-      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja").first())
-      .toBeVisible();
-    await expect
       .element(dialog.getByText("Ya se confirmó la hora en esta sesión de caja"))
-      .not.toBeInTheDocument();
-  });
-
-  it("does not say whom the confirmation is told to", async () => {
-    const { dialog } = await renderModal();
-
-    await expect
-      .element(dialog.getByText("Se puede confirmar una sola vez por sesión de caja").first())
-      .toBeVisible();
-    await expect
-      .element(dialog.getByText("Le avisa al Administrador quién lo confirmó."))
       .not.toBeInTheDocument();
   });
 

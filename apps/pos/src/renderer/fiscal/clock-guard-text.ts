@@ -1,5 +1,5 @@
 import type { ReadClockGuardOutcome } from "@purosur/contracts";
-import { formatCalendarDayNumeric, formatDayAndTime, formatPointOfSaleNumber } from "@purosur/ui";
+import { formatCalendarDayNumeric, formatDayAndTime } from "@purosur/ui";
 
 type ClockGuardBlock = Extract<ReadClockGuardOutcome, { kind: "read" }>["blocks"][number];
 
@@ -40,9 +40,4 @@ export function lastDocumentOf(blocks: readonly ClockGuardBlock[]): LastDocument
         pointOfSale: byDay.point_of_sale,
         text: formatCalendarDayNumeric(byDay.tax_authority_last_authorized_issued_on),
       };
-}
-
-export function modalEyebrow(registerName: string | null, pointOfSale: number): string {
-  const pointOfSaleText = `Punto de venta ${formatPointOfSaleNumber(pointOfSale)}`;
-  return registerName === null ? pointOfSaleText : `${registerName} · ${pointOfSaleText}`;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lastDocumentOf, modalEyebrow } from "./clock-guard-text";
+import { lastDocumentOf } from "./clock-guard-text";
 
 describe("lastDocumentOf", () => {
   it("is nothing when no block is given", () => {
@@ -88,15 +88,5 @@ describe("lastDocumentOf", () => {
     ]);
 
     expect(last?.pointOfSale).toBe(4);
-  });
-});
-
-describe("modalEyebrow", () => {
-  it("names the register and the point of sale", () => {
-    expect(modalEyebrow("Caja 1", 3)).toBe("Caja 1 · Punto de venta 00003");
-  });
-
-  it("names only the point of sale when the register has no name yet", () => {
-    expect(modalEyebrow(null, 3)).toBe("Punto de venta 00003");
   });
 });
