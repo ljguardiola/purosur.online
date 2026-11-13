@@ -301,6 +301,7 @@ const FOUND = {
         remaining: 15_000,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "APPROVED",
       },
       {
         payment_id: "pay-transfer",
@@ -311,6 +312,7 @@ const FOUND = {
         remaining: 6500,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "PENDING",
       },
     ],
   },
