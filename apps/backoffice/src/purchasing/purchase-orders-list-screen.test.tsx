@@ -375,7 +375,7 @@ test("ends the session when the orders come back unauthenticated", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the orders come back forbidden", async () => {
+test("opens the own account panel when the orders come back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
   const services = createServices();
   vi.mocked(services.fetchPurchaseOrders).mockResolvedValue({ kind: "forbidden" });

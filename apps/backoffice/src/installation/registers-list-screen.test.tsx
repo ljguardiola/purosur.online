@@ -186,7 +186,7 @@ test("shows the rate-limited notice with a retry action", async () => {
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the registers request comes back forbidden", async () => {
+test("opens the own account panel when the registers request comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
@@ -629,7 +629,7 @@ test("a refresh that fails shows the load error with its retry action, like a fa
   expect(screen.getByText("Caja 1").query()).toBeNull();
 });
 
-test("navigates to Mi cuenta when emitting a code comes back forbidden", async () => {
+test("opens the own account panel when emitting a code comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });

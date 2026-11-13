@@ -244,7 +244,7 @@ test("ends the session when recording finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when recording comes back forbidden", async () => {
+test("opens the own account panel when recording comes back forbidden", async () => {
   window.history.pushState(null, "", "/freights");
   const recordFreight = vi
     .fn<NewFreightModalServices["recordFreight"]>()

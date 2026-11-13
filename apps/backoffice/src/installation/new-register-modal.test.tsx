@@ -188,7 +188,7 @@ test("shows the attempt-failed notice in the create modal", async () => {
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when creating a register comes back forbidden", async () => {
+test("opens the own account panel when creating a register comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const services = createServices();
   vi.mocked(services.createRegister).mockResolvedValue({ kind: "forbidden" });
