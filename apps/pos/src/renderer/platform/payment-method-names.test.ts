@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { paidPaymentName, paymentMethodName, pointCardName } from "./payment-method-names";
+import {
+  paidPaymentName,
+  paymentMethodName,
+  pointCardName,
+  pointCardTitle,
+} from "./payment-method-names";
 
 describe("paymentMethodName", () => {
   it.each([
@@ -20,6 +25,16 @@ describe("pointCardName", () => {
     [null, "Point"],
   ] as const)("names a %s card charge as %s", (cardType, name) => {
     expect(pointCardName(cardType)).toBe(name);
+  });
+});
+
+describe("pointCardTitle", () => {
+  it.each([
+    ["DEBIT", "Point débito"],
+    ["CREDIT", "Point crédito"],
+    [null, "Point"],
+  ] as const)("titles a %s card charge panel as %s", (cardType, title) => {
+    expect(pointCardTitle(cardType)).toBe(title);
   });
 });
 
