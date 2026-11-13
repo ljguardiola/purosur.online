@@ -439,6 +439,7 @@ function Register({ core }: { core: CoreClient }) {
       core.addWeighedProduct(productId, weightThousandths),
     weighProduct: (productId: string, confirmedWeightThousandths: number | null) =>
       core.weighProduct(productId, confirmedWeightThousandths),
+    readScale: () => core.readScale(),
     weighLine: (
       lineId: string,
       expectedWeightThousandths: number,
