@@ -173,9 +173,7 @@ describe("CloseCashSessionPanel", () => {
 
       await userEvent.keyboard("{Enter}");
 
-      await expect
-        .element(screen.getByRole("alert"))
-        .toBeVisible();
+      await expect.element(screen.getByRole("alert")).toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeEnabled();
       expect(onClosed).not.toHaveBeenCalled();
     },
@@ -191,9 +189,7 @@ describe("CloseCashSessionPanel", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    await expect
-      .element(screen.getByRole("alert"))
-      .toBeVisible();
+    await expect.element(screen.getByRole("alert")).toBeVisible();
   });
 
   it("keeps today's notice when the person may no longer close", async () => {
@@ -202,7 +198,9 @@ describe("CloseCashSessionPanel", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByRole("alert")).toHaveTextContent("No tenés permiso para cerrar la caja.");
+    await expect
+      .element(screen.getByRole("alert"))
+      .toHaveTextContent("No tenés permiso para cerrar la caja.");
   });
 
   it("shows the field error when the core refuses the counted cash", async () => {
