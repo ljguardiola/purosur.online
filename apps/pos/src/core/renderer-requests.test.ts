@@ -443,9 +443,11 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
             "sales-history",
             request.session,
             request.page,
-            request.document === null
+            request.search === null
               ? "any"
-              : `${request.document.pointOfSale ?? "any"}-${request.document.number}`,
+              : request.search.kind === "invoice"
+                ? `${request.search.pointOfSale ?? "any"}-${request.search.number}`
+                : `deferred-${request.search.id}-${request.search.shortCode}`,
           ].join(" "),
         );
         return { kind: "found", rows: [], total: 0, page_size: 50 };
@@ -3700,11 +3702,24 @@ describe("answerRendererRequest", () => {
           type: "sales-history",
           session: "open",
           page: 2,
-          document: { point_of_sale: null, number: 187 },
+          search: { kind: "invoice", pointOfSale: null, number: 187 },
         } as const,
         "salesHistory",
         "reading the sales history",
         "sales-history open 2 any-187",
+        "sales-history-result",
+      ],
+      [
+        "sales-history of a deferred sale",
+        {
+          type: "sales-history",
+          session: "all",
+          page: 1,
+          search: { kind: "deferred", id: "d1", shortCode: "7KQ4M2P9" },
+        } as const,
+        "salesHistory",
+        "reading the sales history",
+        "sales-history all 1 deferred-d1-7KQ4M2P9",
         "sales-history-result",
       ],
       [

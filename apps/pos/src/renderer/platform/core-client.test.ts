@@ -2881,7 +2881,7 @@ describe("createCoreClient", () => {
         request_id: "request-1",
         session: "open",
         page: 2,
-        document: null,
+        search: null,
       },
     ]);
   });
@@ -2894,7 +2894,7 @@ describe("createCoreClient", () => {
     void client.salesHistory({
       session: "all",
       page: 1,
-      document: { pointOfSale: 3, number: 187 },
+      search: { kind: "typed", pointOfSale: 3, number: 187 },
     });
 
     expect(port.posted).toEqual([
@@ -2903,7 +2903,7 @@ describe("createCoreClient", () => {
         request_id: "request-1",
         session: "all",
         page: 1,
-        document: { point_of_sale: 3, number: 187 },
+        search: { kind: "typed", point_of_sale: 3, number: 187 },
       },
     ]);
   });
@@ -2916,10 +2916,28 @@ describe("createCoreClient", () => {
     void client.salesHistory({
       session: "all",
       page: 1,
-      document: { pointOfSale: null, number: 187 },
+      search: { kind: "typed", pointOfSale: null, number: 187 },
     });
 
-    expect(port.posted).toMatchObject([{ document: { point_of_sale: null, number: 187 } }]);
+    expect(port.posted).toMatchObject([
+      { search: { kind: "typed", point_of_sale: null, number: 187 } },
+    ]);
+  });
+
+  it("asks the core for the sale of a scanned ticket by the text that was read", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.salesHistory({
+      session: "all",
+      page: 1,
+      search: { kind: "scanned", text: "purosur-deferred-sale:0198-abc:7KQ4M2P9" },
+    });
+
+    expect(port.posted).toMatchObject([
+      { search: { kind: "scanned", text: "purosur-deferred-sale:0198-abc:7KQ4M2P9" } },
+    ]);
   });
 
   it("asks the core for one sale's detail and resolves with the outcome", async () => {
