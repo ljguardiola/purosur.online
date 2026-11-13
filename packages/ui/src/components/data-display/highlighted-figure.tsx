@@ -3,15 +3,21 @@ import { Eyebrow } from "../layout/eyebrow";
 
 export type HighlightedFigureProps = {
   label: string;
+  tone?: "success" | "neutral" | undefined;
 } & (
   | { value: string; detail?: string | undefined; loading?: false | undefined }
   | { loading: true; value?: undefined; detail?: undefined }
 );
 
-export function HighlightedFigure({ label, ...figure }: HighlightedFigureProps) {
+const TONE_CLASS_NAME = {
+  success: { card: "bg-success-subtle", value: "text-success-strong" },
+  neutral: { card: "bg-surface-subtle", value: "text-text" },
+} as const;
+
+export function HighlightedFigure({ label, tone = "success", ...figure }: HighlightedFigureProps) {
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg bg-success-subtle p-4"
+      className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg ${TONE_CLASS_NAME[tone].card} p-4`}
       aria-busy={figure.loading ? true : undefined}
     >
       <div className="flex flex-col gap-1">
@@ -28,7 +34,9 @@ export function HighlightedFigure({ label, ...figure }: HighlightedFigureProps) 
           <PlaceholderLine widthPercent={100} />
         </div>
       ) : (
-        <p className="ml-auto min-w-0 text-end text-display break-words text-success-strong">
+        <p
+          className={`ml-auto min-w-0 text-end text-display break-words ${TONE_CLASS_NAME[tone].value}`}
+        >
           {figure.value}
         </p>
       )}
