@@ -134,6 +134,7 @@ export function CancelPaidSalePanel({
         title="Cancelar venta"
         icon={<Ban />}
         tone="error"
+        locked={authorizationRequired}
         fieldLabel="A DEVOLVER AHORA"
         value={formatCents(refundNow)}
         details={[

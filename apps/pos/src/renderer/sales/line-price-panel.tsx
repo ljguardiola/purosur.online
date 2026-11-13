@@ -253,6 +253,7 @@ export function LinePricePanel({
         <SidePanelTitle
           icon={<Pencil />}
           title="Precio de la línea"
+          locked={authorizationRequired}
           onClose={submitting ? undefined : onClose}
         />
       }

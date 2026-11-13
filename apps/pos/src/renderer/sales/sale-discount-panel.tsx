@@ -217,6 +217,7 @@ export function SaleDiscountPanel({
         <SidePanelTitle
           icon={<Percent />}
           title="Descuento al total"
+          locked={authorizationRequired}
           onClose={submitting ? undefined : onClose}
         />
       }
