@@ -1,17 +1,12 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
+import { type MigrationMeta, readMigrationFiles } from "drizzle-orm/migrator";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { inject, onTestFinished } from "vitest";
-import { migrateFreshDatabase } from "../../../test-support/test-database-snapshot.js";
+import { openFreshCluster } from "../../../test-support/test-database-snapshot.js";
 import { MIGRATIONS_FOLDER } from "../migrations-folder.js";
-import {
-  addMigrationEntry,
-  findMigrationEntry,
-  migrationsFolderBefore,
-} from "./migration-journal-test-helpers.js";
+import { findMigrationEntry } from "./migration-journal-test-helpers.js";
 
 export type SqlOnlyDatabase = Pick<PGlite, "query" | "exec">;
 
@@ -30,16 +25,24 @@ function sqlOnly(client: PGlite): SqlOnlyDatabase {
   };
 }
 
+async function applyMigrations(client: PGlite, migrations: MigrationMeta[]): Promise<void> {
+  await new PgDialect().migrate(migrations, drizzle(client)._.session, {
+    migrationsFolder: MIGRATIONS_FOLDER,
+  });
+}
+
 export async function databaseBeforeMigration(tagSuffix: string): Promise<DatabaseBeforeMigration> {
   const entry = await findMigrationEntry(
     tagSuffix,
     `test setup: no migration ending in ${tagSuffix} in the journal`,
   );
-  const folder = await mkdtemp(join(tmpdir(), "migration-under-test-"));
-  onTestFinished(() => rm(folder, { recursive: true, force: true }));
-  await migrationsFolderBefore(folder, entry);
-  const client = await migrateFreshDatabase(folder, inject("testDatabaseClusterDumpPath"));
+  const migrations = readMigrationFiles({ migrationsFolder: MIGRATIONS_FOLDER });
+  const client = await openFreshCluster(inject("testDatabaseClusterDumpPath"));
   onTestFinished(() => client.close());
+  await applyMigrations(
+    client,
+    migrations.filter((migration) => migration.folderMillis < entry.when),
+  );
 
   const migrated: MigratedDatabase = {
     ...sqlOnly(client),
@@ -51,8 +54,10 @@ export async function databaseBeforeMigration(tagSuffix: string): Promise<Databa
   return {
     ...sqlOnly(client),
     applyMigration: async () => {
-      await addMigrationEntry(folder, entry);
-      await migrate(drizzle(client), { migrationsFolder: folder });
+      await applyMigrations(
+        client,
+        migrations.filter((migration) => migration.folderMillis <= entry.when),
+      );
       return migrated;
     },
   };
