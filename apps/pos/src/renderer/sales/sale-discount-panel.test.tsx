@@ -13,6 +13,21 @@ import {
 import { deferred, SALE_OF_YERBA } from "./test-support/sale-screen";
 
 describe("SaleDiscountPanel", () => {
+  it("marks its title as asking for authorization when the discount needs it", async () => {
+    const { screen } = await renderSaleDiscountPanel({ authorizationRequired: true });
+
+    await expect
+      .element(screen.getByRole("heading", { level: 2 }))
+      .toHaveTextContent("Descuento al total Pide autorización");
+  });
+
+  it("shows no lock on its title when the person may discount on their own", async () => {
+    const { screen } = await renderSaleDiscountPanel();
+
+    await expect.element(screen.getByRole("heading", { name: "Descuento al total" })).toBeVisible();
+    expect(screen.container.textContent).not.toContain("Pide autorización");
+  });
+
   it("is titled Descuento al total, with Esc at its top right and Enter on Aplicar and no function key", async () => {
     const { screen } = await renderSaleDiscountPanel();
 

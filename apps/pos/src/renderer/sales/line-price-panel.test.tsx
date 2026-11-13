@@ -14,6 +14,21 @@ import {
 import { deferred } from "./test-support/sale-screen";
 
 describe("LinePricePanel", () => {
+  it("marks its title as asking for authorization when changing the price needs it", async () => {
+    const { screen } = await renderLinePricePanel({ authorizationRequired: true });
+
+    await expect
+      .element(screen.getByRole("heading", { level: 2 }))
+      .toHaveTextContent("Precio de la línea Pide autorización");
+  });
+
+  it("shows no lock on its title when the person may change the price on their own", async () => {
+    const { screen } = await renderLinePricePanel();
+
+    await expect.element(screen.getByRole("heading", { name: "Precio de la línea" })).toBeVisible();
+    expect(screen.container.textContent).not.toContain("Pide autorización");
+  });
+
   it("names the line with its quantity and shows its list price and what it costs now", async () => {
     const { screen } = await renderLinePricePanel();
 

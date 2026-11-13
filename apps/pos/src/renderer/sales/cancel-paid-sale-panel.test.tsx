@@ -77,6 +77,21 @@ async function renderPanel({
 }
 
 describe("CancelPaidSalePanel", () => {
+  it("marks its title as asking for authorization when cancelling needs it", async () => {
+    const { screen } = await renderPanel({ authorizationRequired: true });
+
+    await expect
+      .element(screen.getByRole("heading", { level: 2 }))
+      .toHaveTextContent("Cancelar venta Pide autorización");
+  });
+
+  it("shows no lock on its title when the person may cancel on their own", async () => {
+    const { screen } = await renderPanel();
+
+    await expect.element(screen.getByRole("heading", { name: "Cancelar venta" })).toBeVisible();
+    expect(screen.container.textContent).not.toContain("Pide autorización");
+  });
+
   it("shows what is given back now, the total and one row per refund", async () => {
     const { screen } = await renderPanel({
       refunds: [
