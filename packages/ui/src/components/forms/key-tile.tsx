@@ -42,7 +42,7 @@ export function KeyTile({
           <Keycap keyName={keyName} />
         </span>
       </span>
-      <span className="truncate text-detail font-bold text-text">{label}</span>
+      <span className="-mr-2 truncate text-detail font-bold text-text">{label}</span>
     </>
   );
 
