@@ -9,7 +9,6 @@ import {
 
 const NO_DOCUMENT: SaleFiscalFacts = {
   deferred: false,
-  deferredInvoicePending: false,
   fiscalDocument: null,
 };
 
@@ -61,7 +60,6 @@ describe("readSalesHistory", () => {
       sale(1, {
         fiscal: {
           deferred: false,
-          deferredInvoicePending: false,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -87,11 +85,10 @@ describe("readSalesHistory", () => {
 
   it("shows a deferred sale with its non-fiscal comprobante and a sale being requested as in progress", () => {
     const history = new FakeRegisterSalesHistory([
-      sale(1, { fiscal: { deferred: true, deferredInvoicePending: false, fiscalDocument: null } }),
+      sale(1, { fiscal: { deferred: true, fiscalDocument: null } }),
       sale(2, {
         fiscal: {
           deferred: false,
-          deferredInvoicePending: false,
           fiscalDocument: {
             state: "REQUESTING",
             documentType: "factura_c",
@@ -116,7 +113,6 @@ describe("readSalesHistory", () => {
       sale(1, {
         fiscal: {
           deferred: false,
-          deferredInvoicePending: true,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -182,7 +178,6 @@ describe("readSalesHistory searching by document number", () => {
   ): SaleFiscalFacts {
     return {
       deferred: false,
-      deferredInvoicePending: false,
       fiscalDocument: {
         state: "AUTHORIZED",
         documentType: "factura_c",

@@ -28,7 +28,7 @@ function historySale(
       occurredAt: new Date("2026-10-07T15:00:00.000Z"),
       paymentMethods: ["CASH"],
       total: 7500,
-      fiscal: { deferred: false, deferredInvoicePending: false, fiscalDocument: null },
+      fiscal: { deferred: false, fiscalDocument: null },
       voided: false,
     },
     record: {
@@ -48,7 +48,6 @@ function historySale(
       ],
       fiscal: {
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -83,7 +82,6 @@ describe("readSaleHistoryDetail", () => {
       historySale({
         fiscal: {
           deferred: false,
-          deferredInvoicePending: true,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -251,7 +249,7 @@ describe("readSaleHistoryDetail", () => {
 
   describe("whether the sale may be voided", () => {
     const CASH_ONLY = [{ method: "CASH" as const, amount: 7500, cardType: null }];
-    const NO_INVOICE = { deferred: true, deferredInvoicePending: false, fiscalDocument: null };
+    const NO_INVOICE = { deferred: true, fiscalDocument: null };
     const NOT_INVOICED = { fiscal: NO_INVOICE, invoices: [] };
 
     function voidability(overrides: Parameters<typeof historySale>[0]) {
@@ -317,7 +315,6 @@ describe("readSaleHistoryDetail", () => {
     it("says why a sale whose invoice is being requested cannot be voided", () => {
       const fiscal = {
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "REQUESTING" as const,
           documentType: "factura_c" as const,
@@ -388,7 +385,6 @@ describe("readSaleHistoryDetail", () => {
         voidability({
           fiscal: {
             deferred: false,
-            deferredInvoicePending: false,
             fiscalDocument: {
               state: "RELEASED",
               documentType: "factura_c",
