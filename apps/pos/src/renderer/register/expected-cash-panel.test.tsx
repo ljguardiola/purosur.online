@@ -70,14 +70,14 @@ describe("ExpectedCashPanel", () => {
     await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).not.toBeInTheDocument();
   });
 
-  it("breaks the expected cash down with the direction of each line", async () => {
+  it("breaks the expected cash down, with a dash before each line that takes cash out", async () => {
     const screen = await renderPanel();
 
     expect(rowOf(screen, "Fondo inicial")).toBe("Fondo inicial$ 20.000,00");
-    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo+ $ 35.000,00");
-    expect(rowOf(screen, "Vuelto entregado")).toBe("Vuelto entregado− $ 9.300,00");
-    expect(rowOf(screen, "Ingresos")).toBe("Ingresos+ $ 1.000,00");
-    expect(rowOf(screen, "Gastos")).toBe("Gastos− $ 500,00");
+    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo$ 35.000,00");
+    expect(rowOf(screen, "Vuelto entregado")).toBe("Vuelto entregado\u2013 $ 9.300,00");
+    expect(rowOf(screen, "Ingresos")).toBe("Ingresos$ 1.000,00");
+    expect(rowOf(screen, "Gastos")).toBe("Gastos\u2013 $ 500,00");
   });
 
   it("shows the breakdown as the design system's summary rows", async () => {
@@ -109,7 +109,7 @@ describe("ExpectedCashPanel", () => {
   it("keeps a line with no movement, and leaves Devoluciones out while there are no refunds", async () => {
     const screen = await renderPanel();
 
-    expect(rowOf(screen, "Retiros")).toBe("Retiros− $ 0,00");
+    expect(rowOf(screen, "Retiros")).toBe("Retiros\u2013 $ 0,00");
     await expect.element(screen.getByText("Devoluciones")).not.toBeInTheDocument();
   });
 
@@ -118,10 +118,10 @@ describe("ExpectedCashPanel", () => {
       balance: loaded({ ...BALANCE, refunds: { amount: 120_000, direction: "out" } }),
     });
 
-    expect(rowOf(screen, "Devoluciones")).toBe("Devoluciones− $ 1.200,00");
+    expect(rowOf(screen, "Devoluciones")).toBe("Devoluciones\u2013 $ 1.200,00");
   });
 
-  it("shows a zero cash line as positive when it is an inflow", async () => {
+  it("shows a zero cash line that is an inflow plain", async () => {
     const screen = await renderPanel({
       balance: loaded({
         ...BALANCE,
@@ -130,11 +130,11 @@ describe("ExpectedCashPanel", () => {
       }),
     });
 
-    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo+ $ 0,00");
-    expect(rowOf(screen, "Ingresos")).toBe("Ingresos+ $ 0,00");
+    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo$ 0,00");
+    expect(rowOf(screen, "Ingresos")).toBe("Ingresos$ 0,00");
   });
 
-  it("signs each line by the direction the core gives it", async () => {
+  it("marks each line by the direction the core gives it", async () => {
     const screen = await renderPanel({
       balance: loaded({
         ...BALANCE,
@@ -144,8 +144,8 @@ describe("ExpectedCashPanel", () => {
       }),
     });
 
-    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo− $ 35.000,00");
-    expect(rowOf(screen, "Gastos")).toBe("Gastos+ $ 500,00");
+    expect(rowOf(screen, "Ventas en efectivo")).toBe("Ventas en efectivo\u2013 $ 35.000,00");
+    expect(rowOf(screen, "Gastos")).toBe("Gastos$ 500,00");
     expect(rowOf(screen, "Retiros")).toBe("Retiros$ 700,00");
   });
 

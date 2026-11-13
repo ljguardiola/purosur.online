@@ -9,18 +9,18 @@ describe("signedAmount", () => {
 });
 
 describe("directedAmount", () => {
-  it("signs an amount by the direction it moves the cash", () => {
-    expect(directedAmount({ amount: 5_070_000, direction: "in" })).toBe("+ $ 50.700,00");
-    expect(directedAmount({ amount: 930_000, direction: "out" })).toBe("− $ 9.300,00");
+  it("leaves an amount that adds cash plain and puts a dash before one that takes cash out", () => {
+    expect(directedAmount({ amount: 5_070_000, direction: "in" })).toBe("$ 50.700,00");
+    expect(directedAmount({ amount: 930_000, direction: "out" })).toBe("\u2013 $ 9.300,00");
   });
 
   it("leaves an amount that moves no cash plain", () => {
     expect(directedAmount({ amount: 930_000, direction: "none" })).toBe("$ 9.300,00");
   });
 
-  it("keeps the sign of a zero amount", () => {
-    expect(directedAmount({ amount: 0, direction: "in" })).toBe("+ $ 0,00");
-    expect(directedAmount({ amount: 0, direction: "out" })).toBe("− $ 0,00");
+  it("keeps the dash of a zero amount that takes cash out", () => {
+    expect(directedAmount({ amount: 0, direction: "in" })).toBe("$ 0,00");
+    expect(directedAmount({ amount: 0, direction: "out" })).toBe("\u2013 $ 0,00");
   });
 });
 
