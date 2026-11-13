@@ -1,4 +1,3 @@
-import type { SoldQuantity } from "../../catalog/index.js";
 import type { DiscountBenefit } from "../../pricing/index.js";
 import {
   type Clock,
@@ -8,7 +7,7 @@ import {
   type ZoneRulesSource,
 } from "../../shared/index.js";
 import { chargeLine } from "../model/line-pricing.js";
-import { mayBeSaleLineQuantity } from "../model/sale-line.js";
+import { mayBeSaleLineQuantity, soldQuantity } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { validPromotions } from "./sale-addition.js";
 import type { SaleLedger, SaleLedgerTransaction, SellableProduct } from "./sale-ledger.js";
@@ -77,12 +76,11 @@ export async function consultProduct(
         stockThousandths,
       };
     }
-    const quantity: SoldQuantity =
-      product.saleUnit === "KG"
-        ? { saleUnit: "KG", thousandths: weightThousandths ?? ONE_KILOGRAM }
-        : { saleUnit: "UNIT", units: 1 };
     const charge = chargeLine(
-      quantity,
+      soldQuantity({
+        saleUnit: product.saleUnit,
+        quantity: product.saleUnit === "KG" ? (weightThousandths ?? ONE_KILOGRAM) : ONE_UNIT,
+      }),
       price.unitPrice,
       validPromotions(tx, product.id, clock.now(), zoneRules.zoneRules()),
     );
@@ -102,6 +100,7 @@ export async function consultProduct(
 }
 
 const ONE_KILOGRAM = 1000;
+const ONE_UNIT = 1;
 
 function productToConsult(
   tx: SaleLedgerTransaction,
