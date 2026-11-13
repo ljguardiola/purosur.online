@@ -143,6 +143,28 @@ describe("saleActionsOf a completed sale", () => {
   });
 });
 
+describe("saleActionsOf whether the sale may be returned", () => {
+  const NOT_VOIDABLE = { kind: "not_voidable", refusal: "session_closed" } as const;
+
+  it("offers a return when the core says the sale is returnable and it cannot be voided", () => {
+    const { canReturn } = saleActionsOf({ ...DETAIL, voidability: NOT_VOIDABLE, returnable: true });
+
+    expect(canReturn).toBe(true);
+  });
+
+  it("offers no return while the sale can still be voided", () => {
+    const { canReturn } = saleActionsOf({ ...DETAIL, returnable: true });
+
+    expect(canReturn).toBe(false);
+  });
+
+  it("offers no return when the core says the sale is not returnable", () => {
+    const { canReturn } = saleActionsOf({ ...DETAIL, voidability: NOT_VOIDABLE, returnable: false });
+
+    expect(canReturn).toBe(false);
+  });
+});
+
 describe("saleActionsOf a voided sale", () => {
   it("reprints the credit note with F5 and, when its original was attempted, the factura with F6", () => {
     const { entries, canVoid } = saleActionsOf(VOIDED);
