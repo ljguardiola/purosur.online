@@ -1,8 +1,9 @@
 import type { CorrectRegisterClockOutcome } from "@purosur/contracts";
-import { Button, formatDayAndTime, InlineNotice, Modal, SummaryRowGroup } from "@purosur/ui";
-import { ArrowLeft, Check, Clock, Info, TriangleAlert } from "lucide-react";
+import { Button, CardModal, formatDayAndTime, InlineNotice, SummaryRowGroup } from "@purosur/ui";
+import { Check, Clock, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
-import { lastDocumentOf, modalEyebrow } from "./clock-guard-text";
+import { useKeys } from "../platform/key-layer";
+import { lastDocumentOf } from "./clock-guard-text";
 import type { ShownClockGuard } from "./fiscal-queries";
 
 const FAILED_MESSAGE = "No se pudo confirmar la hora. Probá de nuevo.";
@@ -14,7 +15,6 @@ const REFUSALS = {
 } as const;
 
 export type CorrectRegisterClockModalProps = {
-  registerName: string | null;
   cashSessionOpen: boolean;
   guard: ShownClockGuard;
   correctRegisterClock: () => Promise<CorrectRegisterClockOutcome>;
@@ -25,7 +25,6 @@ export type CorrectRegisterClockModalProps = {
 };
 
 export function CorrectRegisterClockModal({
-  registerName,
   cashSessionOpen,
   guard,
   correctRegisterClock,
@@ -40,6 +39,7 @@ export function CorrectRegisterClockModal({
   const [settled, setSettled] = useState(false);
   const correcting = useRef(false);
   const last = lastDocumentOf(guard.blocks);
+  const canConfirm = !submitting && !settled && !used;
 
   async function confirm() {
     if (correcting.current) {
@@ -74,84 +74,52 @@ export function CorrectRegisterClockModal({
     }
   }
 
+  useKeys([{ key: "Enter", run: () => void confirm(), enabled: canConfirm }], { modal: true });
+
   const period = cashSessionOpen
     ? "en esta sesión de caja"
     : "desde que se cerró la última sesión de caja";
 
   return (
-    <Modal
+    <CardModal
       open
       onOpenChange={(next) => {
         if (!next && !submitting) {
           onClose();
         }
       }}
-      width="standard"
-      tone="warning"
       icon={<Clock />}
-      {...(last === undefined ? {} : { context: modalEyebrow(registerName, last.pointOfSale) })}
-      title="No se pueden emitir comprobantes"
+      title="Reloj atrasado"
       closable={!submitting}
-      footer={
-        <>
-          <Button
-            variant="secondary"
-            size="large"
-            icon={<ArrowLeft />}
-            disabled={submitting}
-            onPress={onClose}
-          >
-            Volver
-          </Button>
-          <Button
-            size="large"
-            icon={<Check />}
-            fullWidth
-            disabled={submitting || settled || used}
-            onPress={() => void confirm()}
-          >
-            La hora de la caja es correcta
-          </Button>
-        </>
+      action={
+        <Button
+          fullWidth
+          icon={<Check />}
+          iconPosition="start"
+          keycap="Enter"
+          disabled={!canConfirm}
+          onPress={() => void confirm()}
+        >
+          Confirmar hora
+        </Button>
       }
     >
-      <div className="flex flex-col gap-4">
-        <p className="text-body text-text">
-          La hora de la caja quedó atrás de la del último comprobante emitido, así que la caja no
-          emite hasta que la hora sea correcta.
-        </p>
-        <SummaryRowGroup
-          rows={[
-            { label: "Hora de la caja", value: formatDayAndTime(guard.reading), strong: true },
-            ...(last === undefined ? [] : [{ label: "Último comprobante", value: last.text }]),
-          ]}
+      <SummaryRowGroup
+        rows={[
+          { label: "Hora de la caja", value: formatDayAndTime(guard.reading) },
+          ...(last === undefined ? [] : [{ label: "Último comprobante", value: last.text }]),
+        ]}
+      />
+      {used ? (
+        <InlineNotice
+          tone="warning"
+          icon={<TriangleAlert />}
+          title={`Ya se confirmó la hora ${period}`}
         />
-        <ol className="flex list-decimal flex-col gap-1 pl-5 text-body text-text">
-          <li>Fijate en otro reloj confiable qué hora es.</li>
-          <li>Si la hora de la caja está mal, corregila en Windows y volvé a probar.</li>
-          <li>Si la hora de la caja es la correcta, confirmalo acá abajo.</li>
-        </ol>
-        {used ? (
-          <InlineNotice
-            tone="warning"
-            icon={<TriangleAlert />}
-            title={`Ya se confirmó la hora ${period}`}
-          />
-        ) : (
-          <InlineNotice
-            tone="info"
-            icon={<Info />}
-            title={
-              cashSessionOpen
-                ? "Se puede confirmar una sola vez por sesión de caja"
-                : "Se puede confirmar una sola vez hasta la próxima apertura de caja"
-            }
-          />
-        )}
-        {refusal === undefined ? null : (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title={refusal} />
-        )}
-      </div>
-    </Modal>
+      ) : null}
+      {refusal === undefined ? null : (
+        <InlineNotice tone="error" icon={<TriangleAlert />} title={refusal} />
+      )}
+    </CardModal>
   );
 }

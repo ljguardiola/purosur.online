@@ -110,6 +110,7 @@ export {
   REFUND_TASK_ORIGINS,
   RETURN_REFUND_ORIGIN,
   refundableAmount,
+  refundedAtRegisterNow,
   refundsSettleApprovedPayments,
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_VOIDED_REFUND_ORIGIN,

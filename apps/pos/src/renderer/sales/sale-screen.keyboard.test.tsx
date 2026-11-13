@@ -3,16 +3,13 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
+  legendOf,
   pressKeypad,
   renderScreen,
   SALE_OF_FOUR_LINES,
   SALE_OF_YERBA,
   SALE_OF_YERBA_AND_ALFAJOR,
 } from "./test-support/sale-screen";
-
-function legendOf() {
-  return Array.from(document.querySelectorAll("main ul li"), (item) => item.textContent);
-}
 
 describe("SaleScreen moving through the lines by keyboard", () => {
   it("shows the lines as the board does, the last one selected", async () => {
@@ -157,7 +154,7 @@ describe("SaleScreen with a sale that can no longer be changed", () => {
     });
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F8Cancelar venta"]);
     await userEvent.keyboard("{Delete}");
     pressKeypad("+");
     pressKeypad("-");
@@ -219,11 +216,19 @@ describe("SaleScreen changing a unit line's quantity with the keypad", () => {
 });
 
 describe("SaleScreen's key legend under the lines", () => {
-  it("shows ↑↓ Líneas, F2 Buscar and Supr Quitar on a weighed line, with no key of another slice", async () => {
+  it("shows ↑↓ Líneas, F2 Buscar, F3 Pesar, F6 Precio, F7 Descuento, F8 Vaciar and Supr Quitar on a weighed line", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_FOUR_LINES });
     await expect.element(screen.getByText("Pasas de uva")).toBeVisible();
 
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F3Pesar", "SuprQuitar"]);
+    expect(legendOf()).toEqual([
+      "↑↓Líneas",
+      "F2Buscar",
+      "F3Pesar",
+      "F6Precio",
+      "F7Descuento",
+      "F8Vaciar",
+      "SuprQuitar",
+    ]);
   });
 
   it("adds +/− Cantidad while a unit line is selected, and not on a weighed line", async () => {
@@ -238,10 +243,28 @@ describe("SaleScreen's key legend under the lines", () => {
     await userEvent.keyboard("{ArrowUp}{ArrowUp}");
     await expect
       .poll(() => legendOf())
-      .toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar", "+/−Cantidad"]);
+      .toEqual([
+        "↑↓Líneas",
+        "F2Buscar",
+        "F6Precio",
+        "F7Descuento",
+        "F8Vaciar",
+        "SuprQuitar",
+        "+/−Cantidad",
+      ]);
     await userEvent.keyboard("{ArrowUp}");
 
-    await expect.poll(() => legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F3Pesar", "SuprQuitar"]);
+    await expect
+      .poll(() => legendOf())
+      .toEqual([
+        "↑↓Líneas",
+        "F2Buscar",
+        "F3Pesar",
+        "F6Precio",
+        "F7Descuento",
+        "F8Vaciar",
+        "SuprQuitar",
+      ]);
   });
 });
 

@@ -63,7 +63,7 @@ test("writes a URL with a period the cloud would refuse without it", async () =>
   expect(services.marginReportScreen.fetchMarginReport).toHaveBeenCalledTimes(1);
 });
 
-test("sends a user without the reports permission to Mi cuenta", async () => {
+test("sends a user without the reports permission to the own account panel", async () => {
   const services = reportsServices(["stock_area"]);
   window.history.pushState(null, "", "/reports/margin");
 

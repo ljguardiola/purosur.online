@@ -4,7 +4,7 @@ import { Button, Modal, useRequestForm } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { CalendarClock, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type PurchaseCorrectionNotice,
   PurchaseCorrectionNotices,
@@ -42,7 +42,7 @@ export function CorrectPurchaseLineExpiryModal({
   onClose,
   onSessionEnded,
 }: CorrectPurchaseLineExpiryModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PurchaseLineExpiryTarget | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -73,7 +73,7 @@ export function CorrectPurchaseLineExpiryModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "unchanged") {

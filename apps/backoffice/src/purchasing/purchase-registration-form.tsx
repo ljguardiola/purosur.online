@@ -18,7 +18,7 @@ import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { CloudData } from "../platform/use-cloud-query";
 import { AreaTopBar } from "../shell/area-top-bar";
@@ -102,7 +102,7 @@ export function PurchaseRegistrationForm<Parsed>({
   onCancel,
   onSessionEnded,
 }: PurchaseRegistrationFormProps<Parsed>) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [lineRefusals, setLineRefusals] = useState<Record<number, string>>({});
@@ -147,7 +147,7 @@ export function PurchaseRegistrationForm<Parsed>({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "refused") {

@@ -11,7 +11,7 @@ import type {
   SalesByPromotionBody,
   SalesReportBody,
 } from "@purosur/contracts";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchAverageTicket,
@@ -82,13 +82,13 @@ type ReadParams = { onSessionEnded: () => void };
 export function useSalesReportQuery(
   params: ReadParams & { query: ReportQuery; fetchSalesReport: typeof fetchSalesReport },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SalesReportBody>({
     queryKey: salesKeys.report(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -98,52 +98,52 @@ export function useSalesByProductAndCategoryQuery(
     fetchSalesByProductAndCategory: typeof fetchSalesByProductAndCategory;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SalesByProductAndCategoryBody>({
     queryKey: salesKeys.productsAndCategories(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByProductAndCategory(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useSalesByCashierQuery(
   params: ReadParams & { query: ReportQuery; fetchSalesByCashier: typeof fetchSalesByCashier },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SalesByCashierBody>({
     queryKey: salesKeys.cashiers(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByCashier(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useHandTypedWeightsQuery(
   params: ReadParams & { query: ReportQuery; fetchHandTypedWeights: typeof fetchHandTypedWeights },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<HandTypedWeightsBody>({
     queryKey: salesKeys.handTypedWeights(params.query),
     keepPreviousData: true,
     read: () => params.fetchHandTypedWeights(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useSalesByPromotionQuery(
   params: ReadParams & { query: ReportQuery; fetchSalesByPromotion: typeof fetchSalesByPromotion },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SalesByPromotionBody>({
     queryKey: salesKeys.promotions(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByPromotion(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -153,38 +153,38 @@ export function useManualDiscountsQuery(
     fetchManualDiscounts: typeof fetchManualDiscounts;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ManualDiscountsBody>({
     queryKey: salesKeys.manualDiscounts(params.query),
     keepPreviousData: true,
     read: () => params.fetchManualDiscounts(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useAverageTicketQuery(
   params: ReadParams & { query: ReportQuery; fetchAverageTicket: typeof fetchAverageTicket },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<AverageTicketBody>({
     queryKey: salesKeys.averageTicket(params.query),
     keepPreviousData: true,
     read: () => params.fetchAverageTicket(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useCashRoundingQuery(
   params: ReadParams & { query: ReportQuery; fetchCashRounding: typeof fetchCashRounding },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<CashRoundingBody>({
     queryKey: salesKeys.cashRounding(params.query),
     keepPreviousData: true,
     read: () => params.fetchCashRounding(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }

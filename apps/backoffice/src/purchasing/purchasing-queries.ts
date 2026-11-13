@@ -31,7 +31,7 @@ import type {
 import { type QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchAiCostReport } from "./ai-cost-report-api";
 import type { fetchFreightReport } from "./freight-report-api";
@@ -162,13 +162,13 @@ export function useSuppliersQuery(params: {
   enabled?: boolean;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SupplierSummary[]>({
     queryKey: purchasingKeys.suppliers,
     read: params.fetchSuppliers,
     enabled: params.enabled ?? true,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -190,13 +190,13 @@ export function usePurchasesReportQuery(params: {
   fetchPurchasesReport: typeof fetchPurchasesReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PurchasesBySupplierBody>({
     queryKey: purchasesReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchPurchasesReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -205,13 +205,13 @@ export function usePendingPurchaseOrdersReportQuery(params: {
   fetchPendingPurchaseOrdersReport: typeof fetchPendingPurchaseOrdersReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PendingPurchaseOrdersBody>({
     queryKey: pendingPurchaseOrdersReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchPendingPurchaseOrdersReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -220,13 +220,13 @@ export function useReceiptDifferencesReportQuery(params: {
   fetchReceiptDifferencesReport: typeof fetchReceiptDifferencesReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ReceiptDifferencesBody>({
     queryKey: receiptDifferencesReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchReceiptDifferencesReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -235,13 +235,13 @@ export function useFreightReportQuery(params: {
   fetchFreightReport: typeof fetchFreightReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<FreightByPeriodBody>({
     queryKey: freightReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchFreightReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -250,13 +250,13 @@ export function useAiCostReportQuery(params: {
   fetchAiCostReport: typeof fetchAiCostReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<AiCostByPeriodBody>({
     queryKey: aiCostReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchAiCostReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -266,13 +266,13 @@ export function usePurchasesQuery(params: {
   fetchPurchases: typeof fetchPurchases;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PurchaseSummary[]>({
     queryKey: [...purchasingKeys.purchases, params.supplierId ?? ""],
     enabled: params.enabled ?? true,
     read: () => params.fetchPurchases({ supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -281,13 +281,13 @@ export function usePurchaseChoicesQuery(params: {
   enabled?: boolean;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PurchaseChoices>({
     queryKey: purchasingKeys.purchaseChoices,
     enabled: params.enabled,
     read: params.fetchPurchaseChoices,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -296,14 +296,14 @@ export function usePurchaseChangesQuery(params: {
   fetchPurchaseChanges: typeof fetchPurchaseChanges;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { purchaseId } = params;
   return useCloudQuery<PurchaseChange[]>({
     queryKey: [...purchasingKeys.purchaseChanges, purchaseId ?? ""],
     enabled: purchaseId !== null,
     read: () => params.fetchPurchaseChanges(purchaseId ?? ""),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -313,14 +313,14 @@ export function useFreightsQuery(params: {
   fetchFreights: typeof fetchFreights;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<FreightList>({
     queryKey: [...purchasingKeys.freights, params.input],
     keepPreviousData: true,
     enabled: params.enabled ?? true,
     read: () => params.fetchFreights(params.input),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -330,13 +330,13 @@ export function useLinkablePurchasesQuery(params: {
   fetchLinkablePurchases: typeof fetchLinkablePurchases;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<LinkablePurchaseList>({
     queryKey: [...purchasingKeys.linkablePurchases, params.input],
     enabled: params.enabled,
     read: () => params.fetchLinkablePurchases(params.input),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -345,13 +345,13 @@ export function useSupplierPriceListsQuery(params: {
   fetchSupplierPriceLists: typeof fetchSupplierPriceLists;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQueryWhileReading<SupplierPriceListSummary[]>(
     {
       queryKey: [...purchasingKeys.supplierPriceLists, params.supplierId ?? ""],
       read: () => params.fetchSupplierPriceLists({ supplierId: params.supplierId }),
       onSessionEnded: params.onSessionEnded,
-      onForbidden: sendToMyAccount,
+      onForbidden: sendToOwnAccount,
     },
     (lists) => lists.some((list) => list.state === "READING" || list.rereading),
   );
@@ -368,7 +368,7 @@ export function useSupplierPriceListReviewQuery(params: {
   fetchSupplierPriceListReview: typeof fetchSupplierPriceListReview;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const client = useQueryClient();
   const queryKey = [...purchasingKeys.supplierPriceListReview, params.listId];
   return useCloudQueryWhileReading<SupplierPriceListReviewRead>(
@@ -387,7 +387,7 @@ export function useSupplierPriceListReviewQuery(params: {
         return outcome;
       },
       onSessionEnded: params.onSessionEnded,
-      onForbidden: sendToMyAccount,
+      onForbidden: sendToOwnAccount,
     },
     isListReading,
   );
@@ -398,13 +398,13 @@ export function useSupplierPriceListAiCostQuery(params: {
   fetchSupplierPriceListAiCost: typeof fetchSupplierPriceListAiCost;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SupplierPriceListAiCostBody>({
     queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
     keepPreviousData: true,
     read: () => params.fetchSupplierPriceListAiCost(params.listId),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -415,7 +415,7 @@ export function useSupplierItemLinkProposalQuery(params: {
   fetchSupplierItemLinkProposal: typeof fetchSupplierItemLinkProposal;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const client = useQueryClient();
   return useCloudQuery<SupplierItemLinkProposal>({
     queryKey: [...purchasingKeys.supplierItemLinkProposal, params.listId, params.rowId],
@@ -430,7 +430,7 @@ export function useSupplierItemLinkProposalQuery(params: {
       return outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -457,7 +457,7 @@ function useProposalRefresh<T>(params: {
   onSessionEnded: () => void;
 }) {
   const client = useQueryClient();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { listId, queryKey, opening, ask, onSessionEnded } = params;
   const asked = JSON.stringify(queryKey);
   const { mutateAsync, reset, variables, isPending, data } = useMutation({
@@ -475,7 +475,7 @@ function useProposalRefresh<T>(params: {
       if (outcome.kind === "unauthenticated") {
         onSessionEnded();
       } else if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
       }
     },
   });
@@ -542,7 +542,7 @@ export function useSupplierItemQuantityProposalQuery(params: {
   fetchSupplierItemQuantityProposal: typeof fetchSupplierItemQuantityProposal;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const client = useQueryClient();
   const { request } = params;
   return useCloudQuery<SupplierItemQuantityProposal>({
@@ -563,7 +563,7 @@ export function useSupplierItemQuantityProposalQuery(params: {
       return outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -572,13 +572,13 @@ export function useSupplierItemLinkChoicesQuery(params: {
   fetchSupplierItemLinkChoices: typeof fetchSupplierItemLinkChoices;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SupplierItemLinkChoices>({
     queryKey: purchasingKeys.supplierItemLinkChoices,
     enabled: params.enabled,
     read: params.fetchSupplierItemLinkChoices,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -587,13 +587,13 @@ export function useProductCreationCategoriesQuery(params: {
   fetchProductCreationCategories: typeof fetchProductCreationCategories;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<CategorySummary[]>({
     queryKey: purchasingKeys.productCreationCategories,
     enabled: params.enabled,
     read: params.fetchProductCreationCategories,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -602,13 +602,13 @@ export function useProductCreationBrandsQuery(params: {
   fetchProductCreationBrands: typeof fetchProductCreationBrands;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<BrandSummary[]>({
     queryKey: purchasingKeys.productCreationBrands,
     enabled: params.enabled,
     read: params.fetchProductCreationBrands,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -617,13 +617,13 @@ export function useProductCreationTagsQuery(params: {
   fetchProductCreationTags: typeof fetchProductCreationTags;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<TagList>({
     queryKey: purchasingKeys.productCreationTags,
     enabled: params.enabled,
     read: params.fetchProductCreationTags,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -660,12 +660,12 @@ export function useSupplierPriceComparisonQuery(params: {
   fetchSupplierPriceComparison: typeof fetchSupplierPriceComparison;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SupplierPriceComparison>({
     queryKey: purchasingKeys.supplierPriceComparison,
     read: params.fetchSupplierPriceComparison,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -673,12 +673,12 @@ export function useOrderSuggestionQuery(params: {
   fetchOrderSuggestion: typeof fetchOrderSuggestion;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<OrderSuggestion>({
     queryKey: purchasingKeys.orderSuggestion,
     read: params.fetchOrderSuggestion,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -727,7 +727,7 @@ export function usePurchaseOrdersQuery(params: {
   fetchPurchaseOrders: typeof fetchPurchaseOrders;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PurchaseOrderSummary[]>({
     queryKey: [...purchasingKeys.purchaseOrders, params.state, params.supplierId ?? ""],
     keepPreviousData: true,
@@ -737,7 +737,7 @@ export function usePurchaseOrdersQuery(params: {
         ? params.fetchPurchaseOrders(params.state)
         : params.fetchPurchaseOrders(params.state, { supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -746,12 +746,12 @@ export function usePurchaseOrderQuery(params: {
   fetchPurchaseOrder: typeof fetchPurchaseOrder;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PurchaseOrderRead>({
     queryKey: [...purchasingKeys.purchaseOrder, params.orderId],
     read: () => params.fetchPurchaseOrder(params.orderId),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -760,7 +760,7 @@ export function usePurchaseOrderTextQuery(params: {
   fetchPurchaseOrderText: typeof fetchPurchaseOrderText;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { orderId } = params;
   return useCloudQuery<PurchaseOrderTextRead>({
     queryKey: [...purchasingKeys.purchaseOrderText, orderId],
@@ -771,7 +771,7 @@ export function usePurchaseOrderTextQuery(params: {
         ? Promise.resolve({ kind: "failed" })
         : params.fetchPurchaseOrderText(orderId),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -780,12 +780,12 @@ export function usePurchaseOrderReceiptDraftQuery(params: {
   fetchPurchaseOrderReceiptDraft: typeof fetchPurchaseOrderReceiptDraft;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PurchaseOrderReceiptDraftRead>({
     queryKey: [...purchasingKeys.purchaseOrderReceiptDraft, params.orderId],
     gcTime: 0,
     read: () => params.fetchPurchaseOrderReceiptDraft(params.orderId),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }

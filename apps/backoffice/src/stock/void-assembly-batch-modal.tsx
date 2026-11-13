@@ -5,7 +5,7 @@ import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import type { voidAssemblyBatch } from "./assembly-batches-api";
 
@@ -43,7 +43,7 @@ export function VoidAssemblyBatchModal({
   onSessionEnded,
   services,
 }: VoidAssemblyBatchModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<VoidNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const product = formatProductDescription({
@@ -65,7 +65,7 @@ export function VoidAssemblyBatchModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

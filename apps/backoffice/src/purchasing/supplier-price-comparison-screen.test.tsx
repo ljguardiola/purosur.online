@@ -373,7 +373,7 @@ test("ends the session when the comparison comes back unauthenticated", async ()
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the comparison comes back forbidden", async () => {
+test("opens the own account panel when the comparison comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders/comparison");
   const services = createServices();
   vi.mocked(services.fetchSupplierPriceComparison).mockResolvedValue({ kind: "forbidden" });

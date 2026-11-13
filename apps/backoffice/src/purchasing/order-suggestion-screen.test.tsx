@@ -471,7 +471,7 @@ test("ends the session when the suggestion comes back unauthenticated", async ()
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the suggestion comes back forbidden", async () => {
+test("opens the own account panel when the suggestion comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders/suggestion");
   const services = createServices();
   vi.mocked(services.fetchOrderSuggestion).mockResolvedValue({ kind: "forbidden" });
@@ -622,7 +622,7 @@ test("ends the session when building the orders finds no open session", async ()
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when building the orders comes back forbidden", async () => {
+test("opens the own account panel when building the orders comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders/suggestion");
   const services = createServices();
   vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "forbidden" });

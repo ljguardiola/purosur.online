@@ -26,7 +26,7 @@ import {
 import { TagsField, useStackedTagCreation, withCreatedTags } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { SALE_UNIT_OPTIONS } from "../platform/sale-unit-options";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { type ProductReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
@@ -86,7 +86,7 @@ export function EditProductModal({
   services,
 }: EditProductModalProps) {
   const { editProduct, createBrand, createCategory, createTag } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
   const [keptBrandId, setKeptBrandId] = useState<string | null>(null);
@@ -116,7 +116,7 @@ export function EditProductModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {
@@ -257,7 +257,7 @@ export function EditProductModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {

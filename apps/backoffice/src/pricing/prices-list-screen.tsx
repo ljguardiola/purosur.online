@@ -31,7 +31,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { BranchTermChange } from "../shell/branch-term-change";
 import { IncompleteCostTag } from "./incomplete-cost-tag";
@@ -110,7 +110,7 @@ export function PricesListScreen({
   onSessionEnded,
   services,
 }: PricesListScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const {
     fetchPrices: fetchPricesService,
     fetchPriceMargin: fetchPriceMarginService,
@@ -297,7 +297,7 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {
@@ -393,7 +393,7 @@ export function PricesListScreen({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "stale_price") {

@@ -1,5 +1,6 @@
 import type { FindProductByCodeOutcome, ScanProductOutcome } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import type { SaleScreenProps } from "./sale-screen";
 import {
   renderScreen,
@@ -169,7 +170,7 @@ describe("SaleScreen reading a barcode reader's codes", () => {
       });
       await rendered.screen.getByRole("button", { name: "Vaciar", exact: true }).click();
       await expect
-        .element(rendered.screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }))
+        .element(rendered.screen.getByRole("complementary", { name: "Vaciar venta" }))
         .toBeVisible();
       return { ...rendered, scanProduct };
     }
@@ -186,9 +187,9 @@ describe("SaleScreen reading a barcode reader's codes", () => {
     it("scans the codes read once the window is closed", async () => {
       const { screen, scanProduct, readBarcode } = await withCancelWindowOpen();
 
-      await screen.getByRole("button", { name: "Seguir con la venta" }).click();
+      await userEvent.keyboard("{Escape}");
       await expect
-        .element(screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }))
+        .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
         .not.toBeInTheDocument();
       readBarcode("7790001");
 

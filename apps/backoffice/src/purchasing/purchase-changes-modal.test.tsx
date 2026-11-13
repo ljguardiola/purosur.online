@@ -164,7 +164,7 @@ test("ends the session when the changes come back without an open session", asyn
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the changes come back forbidden", async () => {
+test("opens the own account panel when the changes come back forbidden", async () => {
   window.history.pushState(null, "", "/purchases");
   const fetchPurchaseChanges = vi
     .fn<PurchaseChangesModalServices["fetchPurchaseChanges"]>()

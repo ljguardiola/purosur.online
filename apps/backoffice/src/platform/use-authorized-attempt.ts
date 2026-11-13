@@ -1,7 +1,7 @@
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { useEffect, useRef, useState } from "react";
 import { useAuthorization } from "./authorization-modal";
-import { useSendToMyAccount } from "./send-to-my-account";
+import { useSendToOwnAccount } from "./send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -57,7 +57,7 @@ export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific 
   onCancelled?: () => void;
   services: AuthorizedAttemptServices;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<AttemptNotice<Specific> | null>(null);
   const [running, setRunning] = useState(false);
   const { run, modal } = useAuthorization<Outcome | SharedOutcome>({
@@ -98,7 +98,7 @@ export function useAuthorizedAttempt<Outcome extends { kind: string }, Specific 
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "rate_limited") {
       showNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else if (outcome.kind === "cancelled") {

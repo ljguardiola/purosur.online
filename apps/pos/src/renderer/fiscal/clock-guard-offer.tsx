@@ -7,7 +7,6 @@ import type { ShownClockGuard } from "./fiscal-queries";
 import { useClockGuardQuery, useRefreshClockGuard } from "./fiscal-queries";
 
 export type ClockGuardOfferProps = {
-  registerName: string | null;
   cashSessionOpen: boolean;
   readClockGuard: () => Promise<ReadClockGuardOutcome>;
   correctRegisterClock: () => Promise<CorrectRegisterClockOutcome>;
@@ -15,7 +14,6 @@ export type ClockGuardOfferProps = {
 };
 
 export function ClockGuardOffer({
-  registerName,
   cashSessionOpen,
   readClockGuard,
   correctRegisterClock,
@@ -34,12 +32,12 @@ export function ClockGuardOffer({
         <HighlightedNotice
           tone="warning"
           icon={<TriangleAlert />}
-          title="El reloj de la caja atrasa"
+          title="Reloj atrasado"
           description="Mientras tanto no se emiten facturas. Se puede vender igual: la factura sale cuando se corrige."
           actions={
             blocked.may_correct && blocked.correction !== "not_behind" ? (
               <Button variant="secondary" icon={<Clock />} onPress={() => setCorrecting(blocked)}>
-                Corregir el reloj
+                Confirmar hora
               </Button>
             ) : undefined
           }
@@ -47,7 +45,6 @@ export function ClockGuardOffer({
       )}
       {correcting === undefined ? null : (
         <CorrectRegisterClockModal
-          registerName={registerName}
           cashSessionOpen={cashSessionOpen}
           guard={correcting}
           correctRegisterClock={correctRegisterClock}

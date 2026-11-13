@@ -2,7 +2,7 @@ import { Button, type LoadStatus } from "@purosur/ui";
 import { KeyRound } from "lucide-react";
 import { useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useRefreshCredentials } from "./credentials-queries";
 import {
   type EmissionState,
@@ -33,7 +33,7 @@ export function UserPinSection({
     authorizeSession,
     startAuthentication,
   } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshCredentials = useRefreshCredentials();
   const [emission, setEmission] = useState<EmissionState>({ kind: "closed" });
   const latestEmission = useRef(0);
@@ -66,7 +66,7 @@ export function UserPinSection({
     }
     if (outcome.kind === "forbidden") {
       setEmission({ kind: "closed" });
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "not_found" || outcome.kind === "inactive") {

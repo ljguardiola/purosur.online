@@ -271,7 +271,7 @@ test("ends the session when saving finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when saving comes back forbidden", async () => {
+test("opens the own account panel when saving comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
   const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({ kind: "forbidden" });
@@ -446,7 +446,7 @@ test("ends the session when the order comes back unauthenticated", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the order comes back forbidden", async () => {
+test("opens the own account panel when the order comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
   const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({ kind: "forbidden" }),

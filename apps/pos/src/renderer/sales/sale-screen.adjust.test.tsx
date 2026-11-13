@@ -6,8 +6,9 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
-import { renderScreen, SALE_OF_YERBA, YERBA } from "./test-support/sale-screen";
+import { chooseRadio, renderScreen, SALE_OF_YERBA, YERBA } from "./test-support/sale-screen";
 
+const PANEL = "Precio de la línea";
 const OPEN_ADJUSTMENT = "Cambiar el precio de Yerba mate 1 kg";
 const DISCOUNTED_SALE: OpenSale = {
   ...SALE_OF_YERBA,
@@ -32,24 +33,27 @@ const CHANGED: AdjustSaleLineOutcome = {
 };
 
 async function applyTenPercent(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "10");
-  await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Envase dañado");
-  await userEvent.click(screen.getByRole("button", { name: "Aplicar el descuento" }));
+  await chooseRadio(screen, "Descuento %");
+  await userEvent.fill(screen.getByRole("textbox", { name: "DESCUENTO" }), "10");
+  await userEvent.click(screen.getByRole("button", { name: "Aplicar" }));
 }
 
 describe("SaleScreen adjusting a line's price or discount", () => {
-  it("opens the modal of the line it is asked on, naming the line", async () => {
+  it("opens the panel of the line it is asked on, in place of the charge panel", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
     await screen.getByRole("button", { name: OPEN_ADJUSTMENT }).click();
 
+    const panel = screen.getByRole("complementary", { name: PANEL });
+    await expect.element(panel).toBeVisible();
+    await expect.element(panel.getByText("Yerba mate 1 kg")).toBeVisible();
+    await expect.element(panel.getByText("2 u", { exact: true })).toBeVisible();
     await expect
-      .element(screen.getByRole("dialog", { name: "Cambiar el precio de la línea" }))
-      .toBeVisible();
-    await expect.element(screen.getByText("YERBA MATE 1 KG · 2 U")).toBeVisible();
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
+      .not.toBeInTheDocument();
   });
 
-  it("sends the line and the adjustment to the core, shows the sale it answers and closes the modal", async () => {
+  it("sends the line and the adjustment to the core, shows the sale it answers and closes the panel", async () => {
     const adjustSaleLine = vi.fn(async (): Promise<AdjustSaleLineOutcome> => CHANGED);
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
@@ -62,11 +66,13 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     expect(adjustSaleLine).toHaveBeenCalledExactlyOnceWith(
       YERBA.id,
       { kind: "PERCENT", value: 10 },
-      "Envase dañado",
+      "Precio de etiqueta",
       undefined,
     );
     await expect.element(screen.getByText("Descuento manual 10 %")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
   });
 
   it("asks the core what the typed discount would leave the line at and shows its answer", async () => {
@@ -75,6 +81,7 @@ describe("SaleScreen adjusting a line's price or discount", () => {
         kind: "preview",
         discount_amount: 47_600,
         line_total: 428_400,
+        line_total_reduction: 47_600,
       }),
     );
     const { screen } = await renderScreen({
@@ -83,13 +90,14 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     });
     await screen.getByRole("button", { name: OPEN_ADJUSTMENT }).click();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Porcentaje de descuento" }), "10");
+    await chooseRadio(screen, "Descuento %");
+    await userEvent.fill(screen.getByRole("textbox", { name: "DESCUENTO" }), "10");
 
     expect(previewSaleLineAdjustment).toHaveBeenLastCalledWith(YERBA.id, {
       kind: "PERCENT",
       value: 10,
     });
-    await expect.element(screen.getByText("− $ 476,00")).toBeVisible();
+    await expect.element(screen.getByText("– $ 476,00")).toBeVisible();
     await expect.element(screen.getByText("$ 4.284,00")).toBeVisible();
   });
 
@@ -118,7 +126,7 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     expect(loadAuthorizers).toHaveBeenCalledWith("override_line_price_or_discount");
   });
 
-  it("closes the modal and reads the sale again when the line is gone", async () => {
+  it("closes the panel and reads the sale again when the line is gone", async () => {
     const currentSale = vi.fn(async () => SALE_OF_YERBA);
     const { screen } = await renderScreen({
       currentSale,
@@ -128,7 +136,9 @@ describe("SaleScreen adjusting a line's price or discount", () => {
 
     await applyTenPercent(screen);
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
     await expect.poll(() => currentSale.mock.calls.length).toBe(2);
   });
 
@@ -146,7 +156,7 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
   });
 
-  it("closes the modal from Volver without asking the core", async () => {
+  it("closes the panel from Esc without asking the core", async () => {
     const adjustSaleLine = vi.fn();
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
@@ -154,9 +164,11 @@ describe("SaleScreen adjusting a line's price or discount", () => {
     });
     await screen.getByRole("button", { name: OPEN_ADJUSTMENT }).click();
 
-    await screen.getByRole("button", { name: "Volver" }).click();
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: PANEL }))
+      .not.toBeInTheDocument();
     expect(adjustSaleLine).not.toHaveBeenCalled();
   });
 });

@@ -278,6 +278,7 @@ export {
   formatCalendarDayRange,
   formatCents,
   formatCentsFraction,
+  formatCentsReduction,
   formatClockTime,
   formatCountdown,
   formatDate,

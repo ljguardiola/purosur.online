@@ -36,7 +36,7 @@ import { useFailureText } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CategoryCreationModal, ProductCreationModal } from "../platform/creation-parts";
 import { formatDisplayDate } from "../platform/display-date";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { AreaTopBar } from "../shell/area-top-bar";
 import {
   type BackofficeAccess,
@@ -162,7 +162,7 @@ export function SupplierPriceListReviewScreen({
     onSessionEnded,
   });
   const refreshPurchasing = useRefreshPurchasing();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const retryAdvice = useFailureText("Volvé a intentarlo.");
   const [search, setSearch] = useState(filters.search);
   const [show, setShow] = useState<ShowFilter>(filters.show);
@@ -215,7 +215,7 @@ export function SupplierPriceListReviewScreen({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else {
       const outdated =
         outcome.kind === "stale_version" ||

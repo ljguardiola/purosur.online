@@ -178,7 +178,7 @@ test("a row confirmation that finds no open session ends the session", async () 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("a row confirmation answered forbidden navigates to Mi cuenta", async () => {
+test("a row confirmation answered forbidden opens the own account panel", async () => {
   window.history.pushState(null, "", "/prices");
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({

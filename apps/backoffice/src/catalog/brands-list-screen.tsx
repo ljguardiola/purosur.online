@@ -33,7 +33,7 @@ import { brandNameMessage } from "../platform/brand-name";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { BRAND_NAME_TAKEN, NewBrandModal } from "../platform/new-brand-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { ChangeBrandActivationOutcome, editBrand } from "./brands-api";
 import type { BrandsListScreenServices } from "./brands-list-services";
 import {
@@ -123,7 +123,7 @@ function EditBrandModal({
   reload,
   editBrand,
 }: EditBrandModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [loaded, setLoaded] = useState<BrandSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
@@ -151,7 +151,7 @@ function EditBrandModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {
@@ -338,7 +338,7 @@ function BrandActivationModal({
   onSessionEnded,
   changeActivation,
 }: BrandActivationModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState(target);
   const [notice, setNotice] = useState<ActivationNotice | null>(null);
@@ -368,7 +368,7 @@ function BrandActivationModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);
