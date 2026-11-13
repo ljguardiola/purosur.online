@@ -798,12 +798,13 @@ describe("SqliteRegisterSalesHistory", () => {
     });
 
     it("lists only completed and voided sales of this register", () => {
+      openSession("other-session", "r2");
       addSale({ id: "voided", state: "VOIDED", deferred: true });
-      addSale({ id: "in-progress", state: "OPEN", deferred: true });
-      addSale({ id: "elsewhere", register: "r2", deferred: true });
+      addSale({ id: "cancelled", state: "CANCELLED", deferred: true });
+      addSale({ id: "elsewhere", session: "other-session", register: "r2", deferred: true });
 
       expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("voided")))).toEqual(["voided"]);
-      expect(history.salesOfRegisterOfDeferredSale(referenceOf("in-progress"))).toEqual([]);
+      expect(history.salesOfRegisterOfDeferredSale(referenceOf("cancelled"))).toEqual([]);
       expect(history.salesOfRegisterOfDeferredSale(referenceOf("elsewhere"))).toEqual([]);
     });
   });
