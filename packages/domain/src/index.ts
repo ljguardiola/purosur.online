@@ -984,6 +984,7 @@ export {
   grossSaleSubtotal,
   isDeferralPending,
   isDeferredInvoicePending,
+  liveScaleReading,
   manualAdjustmentReason,
   mayBeCashRounding,
   mayBeManualDiscountAmount,
