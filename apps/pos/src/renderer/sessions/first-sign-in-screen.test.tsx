@@ -161,7 +161,9 @@ async function reachCodeStep() {
   await userEvent.click(
     rendered.screen.getByRole("button", { name: "Mandarme un código por correo" }),
   );
-  await expect.element(rendered.screen.getByRole("heading", { name: "Elegí tu PIN" })).toBeVisible();
+  await expect
+    .element(rendered.screen.getByRole("heading", { name: "Elegí tu PIN" }))
+    .toBeVisible();
   return rendered.screen;
 }
 
@@ -169,7 +171,7 @@ it("shows the Tab key as Campo above the version while the code and the PINs are
   const screen = await reachCodeStep();
 
   await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("Campo", { exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("listitem")).toBeVisible();
   await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
 });
 

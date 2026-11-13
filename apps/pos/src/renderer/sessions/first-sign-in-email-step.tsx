@@ -1,12 +1,12 @@
 import type { SignInLookupOutcome } from "@purosur/contracts";
 import type { Icon } from "@purosur/ui";
 import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
-import { ArrowLeft, ArrowRight, RefreshCw, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import { ArrowRight, RefreshCw, ShieldX, TriangleAlert, UserPlus, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { FirstSignInPanel } from "../shell/first-sign-in-panel";
+import { useEscapeToSignIn } from "../platform/use-escape-to-sign-in";
+import { BrandPanelCard } from "../shell/brand-panel-card";
 import { retryAfterText } from "../shell/retry-after-text";
-import { ScreenLink } from "../shell/screen-link";
 import {
   EMPTY_FIRST_SIGN_IN_EMAIL_FORM,
   INVALID_EMAIL_MESSAGE,
@@ -61,6 +61,7 @@ export type FirstSignInEmailStepProps = {
 
 export function FirstSignInEmailStep({ lookup, onFound }: FirstSignInEmailStepProps) {
   const [refused, setRefused] = useState<Refused>();
+  useEscapeToSignIn();
   const { form, submit, submitting } = useRequestForm({
     defaultValues: EMPTY_FIRST_SIGN_IN_EMAIL_FORM,
     request: { schema: signInLookupRequestSchema, from: signInLookupRequestFrom },
@@ -99,13 +100,17 @@ export function FirstSignInEmailStep({ lookup, onFound }: FirstSignInEmailStepPr
   const notice = refused === undefined ? undefined : noticeFor(refused);
 
   return (
-    <FirstSignInPanel
-      title="Ingresar por primera vez"
-      description="Escribí tu correo. Hace falta internet."
-    >
+    <BrandPanelCard icon={<UserPlus />} title="Ingresar por primera vez" escapeKeycap>
       <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
         <form.AppField name="email" listeners={{ onChange: () => setRefused(undefined) }}>
-          {(email) => <email.TextField kind="plain-text" label="Correo" disabled={submitting} />}
+          {(email) => (
+            <email.TextField
+              kind="plain-text"
+              label="Correo"
+              placeholder="nombre@correo.com"
+              disabled={submitting}
+            />
+          )}
         </form.AppField>
         {notice === undefined ? null : (
           <InlineNotice
@@ -115,11 +120,17 @@ export function FirstSignInEmailStep({ lookup, onFound }: FirstSignInEmailStepPr
             description={notice.description}
           />
         )}
-        <Button type="submit" fullWidth icon={<ArrowRight />} disabled={submitting}>
+        <Button
+          type="submit"
+          fullWidth
+          icon={<ArrowRight />}
+          iconPosition="start"
+          keycap="Enter"
+          disabled={submitting}
+        >
           Continuar
         </Button>
-        <ScreenLink to="/sign-in" icon={<ArrowLeft />} label="Volver" />
       </form>
-    </FirstSignInPanel>
+    </BrandPanelCard>
   );
 }

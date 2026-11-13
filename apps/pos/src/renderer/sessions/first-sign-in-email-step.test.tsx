@@ -51,7 +51,9 @@ describe("FirstSignInEmailStep", () => {
     await expect
       .element(screen.getByRole("heading", { name: "Ingresar por primera vez" }))
       .toBeVisible();
-    await expect.element(screen.getByText("Escribí tu correo. Hace falta internet.")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("Escribí tu correo. Hace falta internet."))
+      .not.toBeInTheDocument();
     const email = screen.getByRole("textbox", { name: "Correo" });
     await expect.element(email).toBeVisible();
     await expect.element(email).toHaveAttribute("placeholder", "nombre@correo.com");

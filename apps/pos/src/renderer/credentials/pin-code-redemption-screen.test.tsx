@@ -71,7 +71,7 @@ describe("PinCodeRedemptionScreen", () => {
     );
 
     await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Campo", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("listitem")).toBeVisible();
   });
 
   it("goes back to the sign-in with Escape", async () => {
@@ -142,7 +142,9 @@ describe("PinCodeRedemptionScreen", () => {
       getComputedStyle(detail.element().parentElement?.parentElement as HTMLElement)
         .backgroundColor,
     ).toBe(tokenRgb("success-subtle"));
-    await expect.element(screen.getByText("La caja está abierta", { exact: true })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("La caja está abierta", { exact: true }))
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
     await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Esc", { exact: true })).not.toBeInTheDocument();

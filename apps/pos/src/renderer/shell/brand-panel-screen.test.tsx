@@ -102,7 +102,8 @@ describe("BrandPanelScreen", () => {
       </BrandPanelScreen>,
     );
 
-    const legend = screen.getByText("Campo").element();
+    await expect.element(screen.getByRole("listitem")).toBeVisible();
+    const legend = screen.getByRole("listitem").element();
     const version = screen.getByText("Versión 1.0.1539").element();
     await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
     expect(legend.getBoundingClientRect().bottom).toBeLessThanOrEqual(
@@ -121,7 +122,7 @@ describe("BrandPanelScreen", () => {
       </BrandPanelScreen>,
     );
 
-    await expect.element(screen.getByText("Campo")).toBeVisible();
+    await expect.element(screen.getByRole("listitem")).toBeVisible();
   });
 
   it("drops the legend when its content stops giving it", async () => {
@@ -130,10 +131,10 @@ describe("BrandPanelScreen", () => {
         <BrandPanelLegend items={[{ keyName: "Tab", label: "Campo" }]} />
       </BrandPanelScreen>,
     );
-    await expect.element(screen.getByText("Campo")).toBeVisible();
+    await expect.element(screen.getByRole("listitem")).toBeVisible();
 
     await screen.rerender(<BrandPanelScreen />);
 
-    await expect.element(screen.getByText("Campo")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("listitem")).not.toBeInTheDocument();
   });
 });

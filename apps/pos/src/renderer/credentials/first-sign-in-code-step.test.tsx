@@ -151,7 +151,8 @@ describe("FirstSignInCodeStep", () => {
       await expect.element(screen.getByText("No se pudo entrar")).toBeVisible();
       expect(
         getComputedStyle(
-          screen.getByText("No se pudo entrar").element().parentElement?.parentElement as HTMLElement,
+          screen.getByText("No se pudo entrar").element().parentElement
+            ?.parentElement as HTMLElement,
         ).backgroundColor,
       ).toBe(tokenRgb("warning-subtle"));
       await expect
@@ -175,9 +176,8 @@ describe("FirstSignInCodeStep", () => {
       .toBeVisible();
     expect(
       getComputedStyle(
-        screen
-          .getByText("La caja está abierta: solo puede entrar quien la abrió.")
-          .element().parentElement?.parentElement as HTMLElement,
+        screen.getByText("La caja está abierta: solo puede entrar quien la abrió.").element()
+          .parentElement?.parentElement as HTMLElement,
       ).backgroundColor,
     ).toBe(tokenRgb("success-subtle"));
     await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
