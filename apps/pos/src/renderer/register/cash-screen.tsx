@@ -6,6 +6,7 @@ import type {
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { KeyLegendItem } from "@purosur/ui";
 import { Button, ScreenHeader } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { Lock, Plus } from "lucide-react";
@@ -19,6 +20,13 @@ import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { RecordCashMovementPanel } from "./record-cash-movement-panel";
 import { useCashBalanceQuery, useCashMovementsQuery } from "./register-queries";
+
+const LEGEND: readonly KeyLegendItem[] = [
+  { keyName: "1", label: "Ingreso" },
+  { keyName: "2", label: "Gasto" },
+  { keyName: "3", label: "Retiro" },
+  { keyName: "F12", label: "Cerrar caja" },
+];
 
 export type CashScreenProps = {
   sessionId: string;
@@ -82,7 +90,7 @@ export function CashScreen({
       <main className="flex flex-1 flex-col gap-6 p-8">
         <ScreenHeader title="Movimientos de efectivo" />
         {clockGuard}
-        <CashMovementsTable state={movements} />
+        <CashMovementsTable state={movements} legend={LEGEND} />
       </main>
       <RecordCashMovementPanel
         open={recording}

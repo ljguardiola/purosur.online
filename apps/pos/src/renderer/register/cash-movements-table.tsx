@@ -1,20 +1,8 @@
 import type { ListedCashMovement } from "@purosur/contracts";
-import { cashMovementTypeSchema } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
-import type { TableLoadingState } from "@purosur/ui";
-import {
-  dataColumn,
-  formatClockTime,
-  formatNumber,
-  ListFilter,
-  plural,
-  Table,
-  TableCellText,
-  TablePagination,
-  useTableModel,
-} from "@purosur/ui";
+import type { KeyLegendItem, TableLoadingState } from "@purosur/ui";
+import { dataColumn, formatClockTime, Table, TableCellText, useTableModel } from "@purosur/ui";
 import { Receipt, TriangleAlert } from "lucide-react";
-import { useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { directedAmount } from "./cash-amounts";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
@@ -31,12 +19,12 @@ const PLAIN = "text-text-subtle";
 
 const PRESENTATION = {
   OPENING: {
-    label: "Apertura de sesión",
+    label: "Apertura",
     iconClassName: GREEN,
     detail: () => "Fondo inicial",
   },
   CASH_IN: {
-    label: "Ingreso de efectivo",
+    label: "Ingreso",
     iconClassName: GREEN,
     detail: (movement) => movement.reason,
   },
@@ -46,7 +34,7 @@ const PRESENTATION = {
     detail: (movement) => movement.reason,
   },
   WITHDRAWAL: {
-    label: "Retiro a caja fuerte",
+    label: "Retiro",
     iconClassName: EARTH,
     detail: (movement) => movement.reason,
   },
@@ -72,29 +60,11 @@ const PRESENTATION = {
   },
 } as const satisfies Record<CashMovementType, Presentation>;
 
-type TypeFilter = "ALL" | Exclude<CashMovementType, "CLOSING">;
-
-const TYPE_FILTER_OPTIONS = [
-  { value: "ALL", label: "Todos" },
-  ...cashMovementTypeSchema.options
-    .filter((type) => type !== "CLOSING")
-    .map((type) => ({
-      value: type,
-      label: PRESENTATION[type].label,
-    })),
-] as const;
-
 function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
   return Date.parse(a.occurred_at) - Date.parse(b.occurred_at);
 }
 
 const columns = [
-  dataColumn({
-    id: "time",
-    header: "Hora",
-    sort: { order: timeOrder, firstDirection: "descending" },
-    render: (movement: ListedCashMovement) => formatClockTime(movement.occurred_at),
-  }),
   dataColumn({
     id: "movement",
     header: "Movimiento",
@@ -114,6 +84,11 @@ const columns = [
         </span>
       );
     },
+  }),
+  dataColumn({
+    id: "time",
+    header: "Hora",
+    render: (movement: ListedCashMovement) => formatClockTime(movement.occurred_at),
   }),
   dataColumn({
     id: "person",
@@ -138,6 +113,8 @@ const columns = [
 
 export type CashMovementsTableProps = {
   state: CoreData<ListedCashMovement[]>;
+  legend: readonly KeyLegendItem[];
+  locked?: boolean;
 };
 
 function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
@@ -147,76 +124,32 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
   return state.refreshing ? "updating" : false;
 }
 
-export function CashMovementsTable({ state }: CashMovementsTableProps) {
-  const movements = state.status === "loaded" ? state.value : [];
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<{ column: "time"; direction: "ascending" | "descending" }>({
-    column: "time",
-    direction: "descending",
-  });
-
+export function CashMovementsTable({ state, legend, locked = false }: CashMovementsTableProps) {
+  const movements = state.status === "loaded" ? [...state.value].sort(timeOrder) : [];
   const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
-    filter: (movement) => typeFilter === "ALL" || movement.type === typeFilter,
     columns,
-    sort,
-    onSortChange: setSort,
-    paging: { page, onPageChange: setPage },
   });
-  const matchCount = table.getRowCount();
-
-  function chooseTypeFilter(next: TypeFilter) {
-    setTypeFilter(next);
-    setPage(1);
-  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <ListFilter
-          name="type"
-          label="Tipo:"
-          options={TYPE_FILTER_OPTIONS}
-          value={typeFilter}
-          onChange={chooseTypeFilter}
-        />
-      </div>
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-        <Table
-          aria-label="Movimientos de la sesión"
-          table={table}
-          {...(state.status === "failed"
-            ? {
-                failure: {
-                  icon: <TriangleAlert />,
-                  title: "No se pudieron leer los movimientos",
-                  description: "Volvé a intentarlo en unos segundos.",
-                  onRetry: state.retry,
-                },
-              }
-            : { loading: loadingOf(state) })}
-          empty={{
-            icon: <Receipt />,
-            title: "No hay movimientos de este tipo",
-            variant: "blank",
-          }}
-          footer={
-            matchCount === 0 ? undefined : (
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-text-subtle text-detail">
-                  {plural(matchCount, {
-                    one: "1 movimiento",
-                    other: `${formatNumber(matchCount)} movimientos`,
-                  })}
-                </p>
-                <TablePagination table={table} label="Páginas de movimientos" />
-              </div>
-            )
+    <Table
+      aria-label="Movimientos de la sesión"
+      table={table}
+      fill
+      legend={legend}
+      {...(locked ? { locked: { label: "Movimientos bloqueados" } } : {})}
+      {...(state.status === "failed"
+        ? {
+            failure: {
+              icon: <TriangleAlert />,
+              title: "No se pudieron leer los movimientos",
+              description: "Volvé a intentarlo en unos segundos.",
+              onRetry: state.retry,
+            },
           }
-        />
-      </div>
-    </div>
+        : { loading: loadingOf(state) })}
+      empty={{ icon: <Receipt />, title: "Todavía no hay movimientos", variant: "blank" }}
+    />
   );
 }
