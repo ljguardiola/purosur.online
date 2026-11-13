@@ -150,8 +150,11 @@ describe("CloseCashSessionPanel", () => {
   });
 
   it("disables the button and ignores a second Enter while the close is in flight", async () => {
-    const pending = Promise.withResolvers<CloseCashSessionOutcome>();
-    const { screen, closeCashSession } = await renderPanel({ outcome: pending.promise });
+    let resolve: (outcome: CloseCashSessionOutcome) => void = () => {};
+    const pending = new Promise<CloseCashSessionOutcome>((settle) => {
+      resolve = settle;
+    });
+    const { screen, closeCashSession } = await renderPanel({ outcome: pending });
     await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "144.000,00");
 
     await userEvent.keyboard("{Enter}");
@@ -159,7 +162,7 @@ describe("CloseCashSessionPanel", () => {
 
     await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
     expect(closeCashSession).toHaveBeenCalledOnce();
-    pending.resolve(CLOSED);
+    resolve(CLOSED);
   });
 
   it.each(["unavailable", "not_signed_in"] as const)(
