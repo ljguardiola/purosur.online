@@ -906,6 +906,7 @@ export type {
   CurrentSaleAnswer,
   FindProductByCodeOutcome,
   FoundProduct,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashCharge,
   NonCashChargeAnswer,
