@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
-import { BrandPanelScreen } from "./brand-panel-screen";
+import { BrandPanelLegend, BrandPanelScreen } from "./brand-panel-screen";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -93,5 +93,47 @@ describe("BrandPanelScreen", () => {
     expectTypeOf<{ status: undefined; version: undefined }>().toExtend<
       ComponentProps<typeof BrandPanelScreen>
     >();
+  });
+
+  it("shows the legend its content gives above the version at the bottom of the brand panel", async () => {
+    const screen = await render(
+      <BrandPanelScreen version="1.0.1539">
+        <BrandPanelLegend items={[{ keyName: "Tab", label: "Campo" }]} />
+      </BrandPanelScreen>,
+    );
+
+    const legend = screen.getByText("Campo").element();
+    const version = screen.getByText("Versión 1.0.1539").element();
+    await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
+    expect(legend.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      version.getBoundingClientRect().top,
+    );
+    expect(legend.getBoundingClientRect().left).toBeLessThan(
+      screen.getByRole("img", { name: "Puro Sur" }).element().getBoundingClientRect().right,
+    );
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the legend even without a version", async () => {
+    const screen = await render(
+      <BrandPanelScreen>
+        <BrandPanelLegend items={[{ keyName: "Tab", label: "Campo" }]} />
+      </BrandPanelScreen>,
+    );
+
+    await expect.element(screen.getByText("Campo")).toBeVisible();
+  });
+
+  it("drops the legend when its content stops giving it", async () => {
+    const screen = await render(
+      <BrandPanelScreen>
+        <BrandPanelLegend items={[{ keyName: "Tab", label: "Campo" }]} />
+      </BrandPanelScreen>,
+    );
+    await expect.element(screen.getByText("Campo")).toBeVisible();
+
+    await screen.rerender(<BrandPanelScreen />);
+
+    await expect.element(screen.getByText("Campo")).not.toBeInTheDocument();
   });
 });

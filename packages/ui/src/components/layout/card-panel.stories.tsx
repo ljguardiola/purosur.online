@@ -56,3 +56,17 @@ export const WithEscapeKeycap: Story = {
     ),
   },
 };
+
+export const WithEyebrow: Story = {
+  args: {
+    icon: <KeyRound />,
+    title: "PIN nuevo guardado",
+    eyebrow: "Lucas",
+    escapeKeycap: true,
+    children: (
+      <Button fullWidth keycap="Enter">
+        Volver al inicio
+      </Button>
+    ),
+  },
+};

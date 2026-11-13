@@ -131,3 +131,32 @@ test("draws no outline on the focused title", async () => {
   expect(style.outlineStyle).toBe("none");
   expect(style.boxShadow).toBe("none");
 });
+
+test("shows the eyebrow above the title row, in capitals and tightly stacked", async () => {
+  const screen = await render(
+    <CardPanel icon={<Lock />} title="Elegí tu PIN" eyebrow="Lucas">
+      <p>Contenido</p>
+    </CardPanel>,
+  );
+
+  const eyebrow = screen.getByText("Lucas", { exact: true }).element();
+  const heading = screen.getByRole("heading", { name: "Elegí tu PIN" }).element();
+  expect(getComputedStyle(eyebrow).textTransform).toBe("uppercase");
+  expect(eyebrow.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    heading.getBoundingClientRect().top,
+  );
+  expect(heading.getBoundingClientRect().top - eyebrow.getBoundingClientRect().bottom).toBeLessThan(
+    16,
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows no eyebrow when it has none", async () => {
+  const screen = await render(
+    <CardPanel icon={<Lock />} title="Elegí tu PIN">
+      <p>Contenido</p>
+    </CardPanel>,
+  );
+
+  expect(screen.container.querySelectorAll("p")).toHaveLength(1);
+});
