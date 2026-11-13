@@ -125,14 +125,14 @@ test("reports what is typed in a row's input with the row's id, keeping two deci
 
   await userEvent.type(screen.getByRole("textbox", { name: "Debit card" }), "5000,555");
 
-  expect(onAmountChange).toHaveBeenLastCalledWith("debit", "5000,55");
+  expect(onAmountChange).toHaveBeenLastCalledWith("debit", "5.000,55");
   await expect.element(screen.getByRole("textbox", { name: "Cash" })).toHaveValue("");
 });
 
 test("lists the keys of its legend below the rows", async () => {
   const screen = await render(table({ legend: [{ keyName: "ArrowUpDown", label: "Medio" }] }));
 
-  await expect.element(screen.getByText("Medio")).toBeVisible();
+  await expect.element(screen.getByRole("listitem")).toHaveTextContent("Medio");
 });
 
 test("has no accessibility violations", async () => {
