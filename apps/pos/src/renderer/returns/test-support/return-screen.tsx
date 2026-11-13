@@ -7,9 +7,9 @@ import type {
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { SaleForReturnReading } from "../../platform/core-client";
 import { BarcodeReadings } from "../../shell/barcode-readings";
 import { render } from "../../shell/test-support/render-with-router";
-import type { SaleForReturnReading } from "../../platform/core-client";
 import type { ReturnScreenProps } from "../return-screen";
 import { ReturnScreen } from "../return-screen";
 import { SALE } from "./sale-for-return";

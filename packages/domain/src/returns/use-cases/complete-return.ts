@@ -30,10 +30,10 @@ import {
   refundableTotal,
 } from "../model/return-draft.js";
 import type { TicketSource } from "../model/return-reasons.js";
-import { ticketVerificationRequired } from "../model/ticket-verification.js";
 import { returnSaleLines } from "../model/return-sale.js";
 import { returnStockDelta, returnStockMovements } from "../model/return-stock.js";
 import type { ReturnedLine, ReturnedRefund } from "../model/returned-sale.js";
+import { ticketVerificationRequired } from "../model/ticket-verification.js";
 import type {
   IdGenerator,
   RecordedReturn,
