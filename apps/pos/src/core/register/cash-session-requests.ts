@@ -166,9 +166,18 @@ export async function closeCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed"
-    ? closedAnswer(database, outcome.session, zoneRules.zoneRules())
-    : outcome;
+  if (outcome.kind !== "closed") {
+    return outcome;
+  }
+  const rules = zoneRules.zoneRules();
+  return {
+    kind: "closed",
+    session: closedSessionAnswer(outcome.session, rules),
+    movements: readListedSessionMovements(database, outcome.session.id).map((movement) => ({
+      ...movement,
+      occurred_at: inArgentinaTime(new Date(movement.occurred_at), rules),
+    })),
+  };
 }
 
 export interface CloseLockedCashSessionRequest {
@@ -217,7 +226,7 @@ export async function closeLockedCashSessionFor(
     { sessionId, countedCash },
   );
   return outcome.kind === "closed"
-    ? closedAnswer(database, outcome.session, zoneRules.zoneRules())
+    ? { kind: "closed", session: closedSessionAnswer(outcome.session, zoneRules.zoneRules()) }
     : outcome;
 }
 
@@ -242,25 +251,17 @@ export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
   });
 }
 
-function closedAnswer(
-  database: LocalDatabase,
+function closedSessionAnswer(
   session: ClosedCashSession,
   rules: ZoneRules,
-): Extract<CloseCashSessionOutcome, { kind: "closed" }> {
+): Extract<CloseCashSessionOutcome, { kind: "closed" }>["session"] {
   return {
-    kind: "closed",
-    session: {
-      id: session.id,
-      expected_cash: session.expectedCash,
-      counted_cash: session.countedCash,
-      difference: session.difference,
-      opened_at: inArgentinaTime(session.openedAt, rules),
-      closed_at: inArgentinaTime(session.closedAt, rules),
-    },
-    movements: readListedSessionMovements(database, session.id).map((movement) => ({
-      ...movement,
-      occurred_at: inArgentinaTime(new Date(movement.occurred_at), rules),
-    })),
+    id: session.id,
+    expected_cash: session.expectedCash,
+    counted_cash: session.countedCash,
+    difference: session.difference,
+    opened_at: inArgentinaTime(session.openedAt, rules),
+    closed_at: inArgentinaTime(session.closedAt, rules),
   };
 }
 
