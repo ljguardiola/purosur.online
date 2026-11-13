@@ -31,6 +31,8 @@ describe("ReturnScreen choosing what the customer returns", () => {
     const { screen } = await renderScreen({
       findSaleForReturn: async () => ({
         kind: "found",
+        ticket_source: "TYPED",
+        ticket_verification_required: true,
         sale: {
           ...SALE,
           windows: {

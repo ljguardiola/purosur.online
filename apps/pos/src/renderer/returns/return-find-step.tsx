@@ -12,7 +12,7 @@ import {
 import { ScanBarcode, Search, TriangleAlert } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
-import type { SaleForReturnReading } from "../platform/core-client";
+import type { CompleteReturnInput, SaleForReturnReading } from "../platform/core-client";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { RegisterFrame } from "../shell/register-frame";
@@ -36,7 +36,7 @@ export type ReturnFindStepProps = {
     reading: SaleForReturnReading,
     authorization: AuthorizationState["value"],
   ) => Promise<FindSaleForReturnOutcome>;
-  onFound: (sale: SaleForReturn, source: "QR" | "TYPED") => void;
+  onFound: (sale: SaleForReturn, source: CompleteReturnInput["ticketSource"]) => void;
   onAuthorizationRequired: () => void;
   onSessionInvalid: () => void;
 };
@@ -76,7 +76,7 @@ export function ReturnFindStep({
     }
     switch (outcome.kind) {
       case "found":
-        onFound(outcome.sale, reading.kind === "typed" ? "TYPED" : "QR");
+        onFound(outcome.sale, outcome.ticket_source);
         break;
       case "not_found":
       case "voided":

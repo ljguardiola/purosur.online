@@ -28,6 +28,7 @@ describe("ReturnScreen completing the return", () => {
     expect(completeReturn).toHaveBeenCalledExactlyOnceWith({
       saleId: "sale-1",
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines: [
         {
           sale_line_id: "line-pasta",
@@ -68,6 +69,7 @@ describe("ReturnScreen completing the return", () => {
     expect(completeReturn).toHaveBeenCalledExactlyOnceWith({
       saleId: "sale-1",
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines: [
         {
           sale_line_id: "line-pasta",

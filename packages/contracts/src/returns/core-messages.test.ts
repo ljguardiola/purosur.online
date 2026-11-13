@@ -54,6 +54,20 @@ describe("finding the sale to return from the ticket", () => {
     );
   });
 
+  it("reads a sale already known as the sale to look for, recording that it came from the history", () => {
+    expect(
+      returnsRendererToCoreMessageSchema.parse(finding({ kind: "sale", sale_id: "sale-1" })),
+    ).toEqual(finding({ source: "HISTORY", ticket: { kind: "sale", saleId: "sale-1" } }));
+  });
+
+  it.each([
+    ["a sale without an id", { kind: "sale" }],
+    ["a sale whose id is a number", { kind: "sale", sale_id: 7 }],
+    ["a sale with an empty id", { kind: "sale", sale_id: "" }],
+  ])("rejects %s", (_case, reading) => {
+    expect(returnsRendererToCoreMessageSchema.safeParse(finding(reading)).success).toBe(false);
+  });
+
   it("carries the authorization of another person when the cashier lacks the permission", () => {
     const authorization = { user_id: "u2", pin: "1234" };
 
@@ -182,6 +196,7 @@ describe("completing a return", () => {
     request_id: REQUEST_ID,
     sale_id: "sale-1",
     ticket_source: "QR",
+    ticket_verified: true,
     lines: [DRAFT_LINE],
     refunds: [{ payment_id: "pay-1", amount: 5000 }],
     ...extra,
@@ -191,7 +206,7 @@ describe("completing a return", () => {
     expect(returnsRendererToCoreMessageSchema.parse(complete())).toEqual(complete());
   });
 
-  it.each(["QR", "TYPED"])("accepts a ticket read by %s", (ticket_source) => {
+  it.each(["QR", "TYPED", "HISTORY"])("accepts a ticket read by %s", (ticket_source) => {
     expect(returnsRendererToCoreMessageSchema.safeParse(complete({ ticket_source })).success).toBe(
       true,
     );
@@ -214,6 +229,8 @@ describe("completing a return", () => {
   it.each([
     ["a ticket source nobody reads", { ticket_source: "SCAN" }],
     ["no ticket source", { ticket_source: undefined }],
+    ["no word on whether the ticket was verified", { ticket_verified: undefined }],
+    ["a ticket verification that is text", { ticket_verified: "yes" }],
     ["no sale", { sale_id: undefined }],
     ["a fractional refund", { refunds: [{ payment_id: "pay-1", amount: 10.5 }] }],
     ["a refund without a payment", { refunds: [{ amount: 100 }] }],
@@ -248,6 +265,8 @@ const REFUND_REFUSALS = [
 
 const FOUND = {
   kind: "found",
+  ticket_source: "QR",
+  ticket_verification_required: true,
   sale: {
     sale_id: "sale-1",
     occurred_at: "2026-09-12T18:30:00.000Z",
@@ -353,8 +372,22 @@ describe("the answer to finding the sale to return", () => {
     expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a sale found from the history, which needs no ticket verification", () => {
+    const message = result("find-sale-for-return-result", {
+      ...FOUND,
+      ticket_source: "HISTORY",
+      ticket_verification_required: false,
+    });
+
+    expect(returnsCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it.each([
     { kind: "found" },
+    { ...FOUND, ticket_source: undefined },
+    { ...FOUND, ticket_source: "SCAN" },
+    { ...FOUND, ticket_verification_required: undefined },
+    { ...FOUND, ticket_verification_required: "yes" },
     { ...FOUND, sale: { ...FOUND.sale, offered_resolutions: undefined } },
     {
       ...FOUND,
@@ -514,6 +547,7 @@ describe("the answer to completing a return", () => {
         },
       ],
     },
+    { kind: "ticket_not_verified" },
     { kind: "not_found" },
     { kind: "sale_not_returnable" },
     { kind: "no_open_session" },

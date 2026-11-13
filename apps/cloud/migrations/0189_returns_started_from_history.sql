@@ -1,0 +1,2 @@
+ALTER TABLE "returns" DROP CONSTRAINT "returns_ticket_source_check";--> statement-breakpoint
+ALTER TABLE "returns" ADD CONSTRAINT "returns_ticket_source_check" CHECK ("returns"."ticket_source" in ('QR', 'TYPED', 'HISTORY'));

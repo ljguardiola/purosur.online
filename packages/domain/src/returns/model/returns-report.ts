@@ -75,11 +75,13 @@ function groupOf(rows: ReturnRow[]): ReturnsGroup {
 export function returnsReportGroups(records: readonly ReturnRecord[]): {
   typed: ReturnsGroup;
   scanned: ReturnsGroup;
+  history: ReturnsGroup;
 } {
   const rows = returnRows(records);
   return {
     typed: groupOf(rows.filter((row) => row.ticketSource === "TYPED")),
     scanned: groupOf(rows.filter((row) => row.ticketSource === "QR")),
+    history: groupOf(rows.filter((row) => row.ticketSource === "HISTORY")),
   };
 }
 

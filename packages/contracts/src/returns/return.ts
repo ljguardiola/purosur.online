@@ -107,7 +107,12 @@ const saleForReturnSchema = z.object({
 });
 
 export const findSaleForReturnOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("found"), sale: saleForReturnSchema }),
+  z.object({
+    kind: z.literal("found"),
+    sale: saleForReturnSchema,
+    ticket_source: ticketSourceSchema,
+    ticket_verification_required: z.boolean(),
+  }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("voided") }),
   z.object({ kind: z.literal("needs_connection") }),
@@ -142,6 +147,7 @@ export const previewReturnOutcomeSchema = z.discriminatedUnion("kind", [
 export type PreviewReturnOutcome = z.infer<typeof previewReturnOutcomeSchema>;
 
 export const completeReturnOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("ticket_not_verified") }),
   z.object({
     kind: z.literal("completed"),
     return_id: z.string(),

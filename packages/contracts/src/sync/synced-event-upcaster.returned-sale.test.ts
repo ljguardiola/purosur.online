@@ -110,6 +110,13 @@ describe("decoding a sale_returned event", () => {
     });
   });
 
+  it("reads a return started from the sales history as such", () => {
+    expect(syncedEventUpcaster.decode(returned({ ticket_source: "HISTORY" }))).toMatchObject({
+      kind: "fact",
+      fact: { kind: "sale_returned", saleReturn: { ticketSource: "HISTORY" } },
+    });
+  });
+
   it("reads each line with what the cashier chose and what it refunded", () => {
     expect(syncedEventUpcaster.decode(returned())).toMatchObject({
       fact: {

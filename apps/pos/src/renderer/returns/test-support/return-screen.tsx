@@ -7,6 +7,7 @@ import type {
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { SaleForReturnReading } from "../../platform/core-client";
 import { BarcodeReadings } from "../../shell/barcode-readings";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ReturnScreenProps } from "../return-screen";
@@ -77,7 +78,14 @@ export async function renderScreen(overrides: Overrides = {}) {
   onTestFinished(() => page.viewport(414, 896));
   const findSaleForReturn =
     overrides.findSaleForReturn ??
-    vi.fn(async (): Promise<FindSaleForReturnOutcome> => ({ kind: "found", sale: SALE }));
+    vi.fn(
+      async (reading: SaleForReturnReading): Promise<FindSaleForReturnOutcome> => ({
+        kind: "found",
+        sale: SALE,
+        ticket_source: reading.kind === "scanned" ? "QR" : "TYPED",
+        ticket_verification_required: true,
+      }),
+    );
   const previewReturn =
     overrides.previewReturn ??
     vi.fn(async (_saleId: string, lines: readonly ReturnDraftLineBody[]) => previewOf(lines));

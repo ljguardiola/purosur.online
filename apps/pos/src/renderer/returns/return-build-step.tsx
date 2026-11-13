@@ -54,7 +54,7 @@ const NOT_PERMITTED = "No tenés permiso para hacer devoluciones.";
 export type ReturnBuildStepProps = {
   rail: ReactNode;
   sale: SaleForReturn;
-  source: "QR" | "TYPED";
+  source: CompleteReturnInput["ticketSource"];
   authorization: AuthorizationState;
   previewReturn: (
     saleId: string,
@@ -143,6 +143,7 @@ export function ReturnBuildStep({
     const outcome = await completeReturn({
       saleId: sale.sale_id,
       ticketSource: source,
+      ticketVerified: true,
       lines: request.lines,
       refunds: request.refunds,
       authorization: authorization.value,

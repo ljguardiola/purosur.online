@@ -112,6 +112,10 @@ describe("sale_returned v1", () => {
     expect(accepts({ ...RETURNED, authorized_by: "user-2", ticket_source: "TYPED" })).toBe(true);
   });
 
+  it("accepts a return started from the sales history, without a ticket", () => {
+    expect(accepts({ ...RETURNED, ticket_source: "HISTORY" })).toBe(true);
+  });
+
   it("accepts a return that refunds nothing, with no refund and no cash movement", () => {
     expect(accepts({ ...RETURNED, refunds: [], cash_movements: [] })).toBe(true);
   });

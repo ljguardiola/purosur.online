@@ -28,6 +28,7 @@ export interface ReturnsReport {
   range: ReportPeriod;
   typed: ReturnsGroup;
   scanned: ReturnsGroup;
+  history: ReturnsGroup;
   voids: VoidsGroup;
   totals: ReturnsReportTotals;
   byCashier: CashierReturnsAndVoids[];
