@@ -158,7 +158,7 @@ test("raiseBudgetOnPullRequest reads the budget the measured commit, the default
 
   const reads = calls.filter(([name]) => name === "repos.getContent").map(([, params]) => params);
   assert.deepEqual(
-    reads.toSorted((a, b) => a.ref.localeCompare(b.ref)),
+    reads.toSorted((a, b) => (a.ref < b.ref ? -1 : 1)),
     [
       { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: HEAD_SHA },
       { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: MERGE_BASE_SHA },
