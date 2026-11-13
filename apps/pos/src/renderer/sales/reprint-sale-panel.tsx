@@ -106,6 +106,7 @@ export function ReprintSalePanel({
       <div ref={focusReasonWhenShown} className="flex h-full outline-none">
         <SidePanel
           label="Reimprimir"
+          width="wide"
           header={
             <SidePanelTitle
               title="Reimprimir"

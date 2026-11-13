@@ -160,6 +160,7 @@ export function VoidSalePanel({
       <div ref={focusWhenShown} tabIndex={-1} className="flex h-full outline-none">
         <SidePanel
           label="Anular venta"
+          width="wide"
           header={
             <SidePanelTitle
               title="Anular venta"

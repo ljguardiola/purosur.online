@@ -33,10 +33,7 @@ export function RegisterFrame({ background, rail, aside, crumb, children }: Regi
           <div className="flex min-h-0 flex-1">{children}</div>
         </div>
         {aside}
-        <div
-          ref={setPanelSlot}
-          className="absolute inset-y-0 right-0 z-raised flex w-98 empty:hidden"
-        />
+        <div ref={setPanelSlot} className="absolute inset-y-0 right-0 z-raised flex empty:hidden" />
       </div>
     </PanelSlotContext>
   );
