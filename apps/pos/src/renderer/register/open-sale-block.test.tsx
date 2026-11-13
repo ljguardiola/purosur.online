@@ -31,7 +31,7 @@ describe("OpenSaleBlock", () => {
 
     await expect
       .element(screen.getByRole("button", { name: "Ir a la venta" }))
-      .toHaveTextContent("V");
+      .toHaveTextContent(/V/);
     await userEvent.keyboard("v");
 
     expect(onGoToSale).toHaveBeenCalledOnce();
