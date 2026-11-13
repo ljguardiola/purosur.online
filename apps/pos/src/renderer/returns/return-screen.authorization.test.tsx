@@ -24,7 +24,12 @@ function lackingPermissionUntilAuthorized() {
   return vi.fn(async (_reading: unknown, authorization: { user_id: string } | undefined) =>
     authorization === undefined
       ? ({ kind: "lacks_permission" } as const)
-      : ({ kind: "found", sale: SALE } as const),
+      : ({
+          kind: "found",
+          sale: SALE,
+          ticket_source: "TYPED",
+          ticket_verification_required: true,
+        } as const),
   );
 }
 
@@ -128,7 +133,12 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       .toBeDisabled();
     await userEvent.keyboard("{Escape}");
     await expect.element(authorizationDialog()).toBeVisible();
-    answer({ kind: "found", sale: SALE });
+    answer({
+      kind: "found",
+      sale: SALE,
+      ticket_source: "TYPED",
+      ticket_verification_required: true,
+    });
     await expect
       .element(screen.getByRole("heading", { name: "¿Coincide con el ticket en papel?" }))
       .toBeVisible();

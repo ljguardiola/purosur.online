@@ -2720,6 +2720,28 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to find the sale of a return from a sale already known", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const found = client.findSaleForReturn({ kind: "sale", sale_id: "sale-1" }, undefined);
+    port.answer({
+      type: "find-sale-for-return-result",
+      request_id: "request-1",
+      outcome: { kind: "not_found" },
+    });
+
+    expect(await found).toEqual({ kind: "not_found" });
+    expect(port.posted).toEqual([
+      {
+        type: "find-sale-for-return",
+        request_id: "request-1",
+        reading: { kind: "sale", sale_id: "sale-1" },
+      },
+    ]);
+  });
+
   it("asks the core to find the sale of a return from the text of the QR the reader scanned", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -2789,6 +2811,7 @@ describe("createCoreClient", () => {
     const completed = client.completeReturn({
       saleId: "sale-1",
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines,
       refunds,
       authorization,
@@ -2806,6 +2829,7 @@ describe("createCoreClient", () => {
         request_id: "request-1",
         sale_id: "sale-1",
         ticket_source: "TYPED",
+        ticket_verified: true,
         lines,
         refunds,
         authorization,
@@ -2820,7 +2844,8 @@ describe("createCoreClient", () => {
 
     const completed = client.completeReturn({
       saleId: "sale-1",
-      ticketSource: "QR",
+      ticketSource: "HISTORY",
+      ticketVerified: false,
       lines: [],
       refunds: [],
       authorization: undefined,
@@ -2837,7 +2862,8 @@ describe("createCoreClient", () => {
         type: "complete-return",
         request_id: "request-1",
         sale_id: "sale-1",
-        ticket_source: "QR",
+        ticket_source: "HISTORY",
+        ticket_verified: false,
         lines: [],
         refunds: [],
       },

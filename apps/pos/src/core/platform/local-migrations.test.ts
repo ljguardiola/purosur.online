@@ -10026,3 +10026,107 @@ describe("the payment approval order migration", () => {
     });
   });
 });
+
+describe("the returns started from the history migration", () => {
+  const MIGRATION = "0103_returns_started_from_history";
+
+  const INSERT_RETURN = `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, authorized_by, ticket_source, occurred_at)
+    VALUES (@id, 'sale-1', 'r1', 'device-a', 's1', 'u1', NULL, @ticket_source, '2026-10-12T12:00:00.000Z')`;
+
+  function withReturnsBefore(test: (database: LocalDatabase) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at)
+         VALUES ('pay-1', 'sale-1', 'SALE', 'CASH', 'NONE', 3000, 3000, NULL, NULL, 'APPROVED', '2026-10-09T12:05:00.000Z');`,
+      );
+      before.prepare(INSERT_RETURN).run({ id: "return-qr", ticket_source: "QR" });
+      before.exec(
+        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES ('return-qr', 'line-1', 1, 'defective', 'discard', 1500);
+         INSERT INTO payment_refunds (id, payment_id, return_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-1', 'pay-1', 'return-qr', 'CASH', 'NONE', 1500, 'APPROVED', '2026-10-12T12:00:00.000Z');
+         INSERT INTO sale_credit_notes (id, sale_id, return_id, requested_issue_on, total, state, recorded_at)
+         VALUES ('credit-note-1', 'sale-1', 'return-qr', '2026-10-12', 1500, 'AWAITING_INVOICE', '2026-10-12T12:00:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabaseWithoutDiskSync(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("keeps the returns a register already holds with their lines, refunds and credit notes", () => {
+    withReturnsBefore((database) => {
+      expect(database.prepare("SELECT id, ticket_source FROM returns").all()).toEqual([
+        { id: "return-qr", ticket_source: "QR" },
+      ]);
+      expect(database.prepare("SELECT return_id FROM return_lines").all()).toEqual([
+        { return_id: "return-qr" },
+      ]);
+      expect(database.prepare("SELECT return_id FROM payment_refunds").all()).toEqual([
+        { return_id: "return-qr" },
+      ]);
+      expect(database.prepare("SELECT return_id FROM sale_credit_notes").all()).toEqual([
+        { return_id: "return-qr" },
+      ]);
+      expect(database.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    });
+  });
+
+  it("records a return started from the history", () => {
+    withReturnsBefore((database) => {
+      database.prepare(INSERT_RETURN).run({ id: "return-history", ticket_source: "HISTORY" });
+
+      expect(
+        database.prepare("SELECT ticket_source FROM returns WHERE id = 'return-history'").all(),
+      ).toEqual([{ ticket_source: "HISTORY" }]);
+    });
+  });
+
+  it("still refuses a ticket source nobody reads", () => {
+    withReturnsBefore((database) => {
+      expect(() =>
+        database.prepare(INSERT_RETURN).run({ id: "return-scan", ticket_source: "SCAN" }),
+      ).toThrow(/CHECK/);
+    });
+  });
+
+  it("still refuses a line of a return the register does not hold", () => {
+    withReturnsBefore((database) => {
+      expect(() =>
+        database.exec(
+          `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+           VALUES ('missing', 'line-1', 1, 'defective', 'discard', 1500)`,
+        ),
+      ).toThrow(/FOREIGN KEY/);
+    });
+  });
+
+  it("keeps looking the returns of a sale up by the sale", () => {
+    withReturnsBefore((database) => {
+      expect(
+        database
+          .prepare(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND name = 'returns_by_sale'",
+          )
+          .all(),
+      ).toEqual([{ name: "returns_by_sale" }]);
+    });
+  });
+});

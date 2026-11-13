@@ -15,6 +15,8 @@ const payment = {
 function found(paymentBody: Record<string, unknown>) {
   return {
     kind: "found",
+    ticket_source: "TYPED",
+    ticket_verification_required: true,
     sale: {
       sale_id: "sale-1",
       occurred_at: "2026-09-12T11:42:00.000-03:00",

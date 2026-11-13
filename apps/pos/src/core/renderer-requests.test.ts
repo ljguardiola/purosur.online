@@ -359,6 +359,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(
           [
             "find-return",
+            request.ticketSource,
             JSON.stringify(request.ticket),
             request.authorization?.user_id ?? "alone",
           ].join(" "),
@@ -377,6 +378,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
             "complete-return",
             request.saleId,
             request.ticketSource,
+            request.ticketVerified ? "verified" : "unverified",
             JSON.stringify(request.lines),
             JSON.stringify(request.refunds),
             request.authorization?.user_id ?? "alone",
@@ -3621,7 +3623,18 @@ describe("answerRendererRequest", () => {
         } as const,
         "findSaleForReturn",
         "finding the sale to return",
-        'find-return {"kind":"invoice","pointOfSale":3,"number":1204} u2',
+        'find-return TYPED {"kind":"invoice","pointOfSale":3,"number":1204} u2',
+        "find-sale-for-return-result",
+      ],
+      [
+        "find-sale-for-return from the history",
+        {
+          type: "find-sale-for-return",
+          reading: { source: "HISTORY", ticket: { kind: "sale", saleId: "s1" } },
+        } as const,
+        "findSaleForReturn",
+        "finding the sale to return",
+        'find-return HISTORY {"kind":"sale","saleId":"s1"} alone',
         "find-sale-for-return-result",
       ],
       [
@@ -3630,12 +3643,13 @@ describe("answerRendererRequest", () => {
           type: "complete-return",
           sale_id: "s1",
           ticket_source: "QR",
+          ticket_verified: true,
           lines: RETURNED_LINES,
           refunds: RETURN_REFUNDS,
         } as const,
         "completeReturn",
         "completing a return",
-        'complete-return s1 QR [{"saleLineId":"l1","quantity":2,"reason":"change_of_mind","disposition":"restock","resolution":"refund"}] [{"paymentId":"pay-1","amount":5000}] alone',
+        'complete-return s1 QR verified [{"saleLineId":"l1","quantity":2,"reason":"change_of_mind","disposition":"restock","resolution":"refund"}] [{"paymentId":"pay-1","amount":5000}] alone',
         "complete-return-result",
       ],
       [
