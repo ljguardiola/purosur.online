@@ -20,7 +20,7 @@ export type ExpectedCashPanelProps = {
   children?: ReactNode;
 };
 
-function rowsOf(balance: CashBalance): SummaryRowGroupProps["rows"] {
+export function cashBalanceRows(balance: CashBalance): SummaryRowGroupProps["rows"] {
   return [
     { label: "Fondo inicial", value: formatCents(balance.opening_float.amount) },
     { label: "Ventas en efectivo", value: directedAmount(balance.cash_sales) },
@@ -38,7 +38,7 @@ function Balance({ eyebrow, balance }: { eyebrow: string; balance: CashBalance }
   return (
     <>
       <FigureStat label={eyebrow} value={formatCents(balance.expected)} />
-      <SummaryRowGroup rows={rowsOf(balance)} />
+      <SummaryRowGroup rows={cashBalanceRows(balance)} />
     </>
   );
 }
