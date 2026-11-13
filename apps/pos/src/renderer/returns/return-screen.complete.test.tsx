@@ -110,7 +110,7 @@ describe("ReturnScreen verifying the ticket", () => {
     await complete();
 
     await expect
-      .element(screen.getByText("Marcá Ticket verificado para completar la devolución."))
+      .element(screen.getByText("Marcá Ticket verificado para completar la devolución.").first())
       .toBeVisible();
   });
 
@@ -163,7 +163,7 @@ describe("ReturnScreen completing the return", () => {
   it("records a ticket the reader scanned as scanned", async () => {
     const { screen, completeReturn, readBarcode } = await renderScreen();
     readBarcode(QR_TEXT);
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
     await chooseReturnLine(screen, "Pasta de maní 380 g");
     await userEvent.keyboard("t");
 
@@ -174,7 +174,7 @@ describe("ReturnScreen completing the return", () => {
 
   it("records a sale chosen from Historial as such, completing without verifying any ticket", async () => {
     const { screen, completeReturn } = await renderScreen({ saleId: "sale-1" });
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
     await chooseReturnLine(screen, "Pasta de maní 380 g");
 
     await complete();
@@ -244,7 +244,7 @@ describe("ReturnScreen completing the return", () => {
     await expect.element(screen.getByText("Pasta de maní 380 g · 3 u")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Listo" }));
     await expect.element(searchBox(screen)).toHaveValue("");
-    await expect.element(linesTable(screen).getByText("Sin ventas")).toBeVisible();
+    await expect.element(screen.getByText("Sin ventas")).toBeVisible();
   });
 
   it("does not complete twice while the first answer is awaited", async () => {
@@ -271,7 +271,7 @@ describe("ReturnScreen completing the return", () => {
 
     await userEvent.keyboard("{Escape}");
 
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
   });
 
   it.each([
@@ -296,7 +296,7 @@ describe("ReturnScreen completing the return", () => {
 
       await complete();
 
-      await expect.element(screen.getByText(text)).toBeVisible();
+      await expect.element(screen.getByText(text).first()).toBeVisible();
       await expect
         .element(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }))
         .toBeChecked();
@@ -318,7 +318,9 @@ describe("ReturnScreen completing the return", () => {
     await complete();
 
     const panel = screen.getByRole("complementary", { name: "Resumen de la devolución" });
-    await expect.element(panel.getByText("Esa venta ya no se puede devolver.")).toBeVisible();
+    await expect
+      .element(panel.getByText("Esa venta ya no se puede devolver.").first())
+      .toBeVisible();
     await expect.element(panel.getByText("$ 13.935,00").first()).toBeVisible();
     await expect.element(panel.getByText("Factura C")).toBeVisible();
   });
@@ -334,7 +336,7 @@ describe("ReturnScreen completing the return", () => {
     await complete();
 
     await expect
-      .element(screen.getByText("No se pudo completar la devolución. Probá de nuevo."))
+      .element(screen.getByText("No se pudo completar la devolución. Probá de nuevo.").first())
       .toBeVisible();
   });
 

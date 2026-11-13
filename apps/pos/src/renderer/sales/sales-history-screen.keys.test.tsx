@@ -55,12 +55,14 @@ describe("SalesHistoryScreen footer keys", () => {
       .toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir", "SuprAnular"]);
   });
 
-  it("offers no void for a sale of another session", async () => {
+  it("offers the return, and no void, for a sale of another session", async () => {
     const { screen } = await renderScreen(
       showing({ ...DETAIL, voidability: { kind: "not_voidable", refusal: "session_closed" } }),
     );
 
-    await expect.poll(() => legendOf(screen)).toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir"]);
+    await expect
+      .poll(() => legendOf(screen))
+      .toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir", "SuprDevolver"]);
   });
 
   it("offers the credit note with F5 and the factura with F6 for a voided sale", async () => {
@@ -84,7 +86,7 @@ describe("SalesHistoryScreen footer keys", () => {
 
     await expect
       .poll(() => legendOf(screen))
-      .toEqual(["↑↓Ventas", "F2Buscar", "EnterImprimir factura"]);
+      .toEqual(["↑↓Ventas", "F2Buscar", "EnterImprimir factura", "SuprDevolver"]);
   });
 
   it("offers printing the original with F5 for a sale never printed", async () => {

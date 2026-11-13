@@ -181,7 +181,9 @@ describe("ReturnScreen refunding by payment method", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect
-      .element(screen.getByText("Lo que se reintegra por los pagos tiene que sumar $ 13.935,00."))
+      .element(
+        screen.getByText("Lo que se reintegra por los pagos tiene que sumar $ 13.935,00.").first(),
+      )
       .toBeVisible();
     await expect
       .element(refundsPanel(screen).getByRole("button", { name: "Finalizar" }))

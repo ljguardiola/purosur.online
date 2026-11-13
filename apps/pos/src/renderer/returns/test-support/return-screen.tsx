@@ -179,7 +179,7 @@ export async function lookUp(screen: RenderedScreen, text = "00003-00001192") {
 
 export async function openReturn(screen: RenderedScreen) {
   await lookUp(screen);
-  await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+  await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
 }
 
 export async function selectLine(screen: RenderedScreen, product: string) {

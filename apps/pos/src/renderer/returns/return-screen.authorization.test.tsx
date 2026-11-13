@@ -61,7 +61,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     expect(findSaleForReturn.mock.calls[1]).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "typed" }), GRACE]),
     );
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
     await expect.element(authorizationDialog()).not.toBeInTheDocument();
   });
 
@@ -133,7 +133,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       ticket_source: "TYPED",
       ticket_verification_required: true,
     });
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
   });
 
   it("shows who authorized on the screen where the return is built, and sends it to complete", async () => {

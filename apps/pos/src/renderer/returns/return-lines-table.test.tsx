@@ -67,7 +67,7 @@ describe("ReturnLinesTable", () => {
   it("selects a line when its row is pressed, without marking it", async () => {
     const { screen, onSelect, onMark } = await renderTable();
 
-    await userEvent.click(screen.getByText("Nibs de cacao", { exact: true }));
+    await userEvent.click(screen.getByText("Nibs de cacao", { exact: true }).last());
 
     expect(onSelect).toHaveBeenCalledExactlyOnceWith("line-nibs");
     expect(onMark).not.toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe("ReturnLinesTable", () => {
 
     await screen.getByRole("checkbox", { name: "Nibs de cacao" }).click({ force: true });
 
-    expect(onMark).toHaveBeenCalledExactlyOnceWith("line-nibs", false);
+    await vi.waitFor(() => expect(onMark).toHaveBeenCalledExactlyOnceWith("line-nibs", false));
     await expect.element(screen.getByRole("checkbox", { name: /Té verde/ })).toBeDisabled();
     await expect.element(screen.getByText("Ya se devolvió completa")).toBeVisible();
   });

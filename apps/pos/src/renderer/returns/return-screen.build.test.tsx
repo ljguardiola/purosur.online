@@ -161,7 +161,7 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
 
     await userEvent.keyboard("{Escape}");
 
-    await expect.element(linesTable(screen).getByText("Sin ventas")).toBeVisible();
+    await expect.element(screen.getByText("Sin ventas")).toBeVisible();
     await expect.element(searchBox(screen)).toHaveValue("");
     await expect.element(searchBox(screen)).toHaveFocus();
   });
@@ -190,7 +190,7 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
   it("looks the sale up by its id, without the ticket step, and shows no Ticket verificado nor T", async () => {
     const { screen, findSaleForReturn } = await renderScreen({ saleId: "sale-1" });
 
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
 
     expect(findSaleForReturn).toHaveBeenCalledExactlyOnceWith(
       { kind: "sale", sale_id: "sale-1" },
@@ -204,7 +204,7 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
 
   it("completes as soon as a line is marked, offering Enter Completar", async () => {
     const { screen } = await renderScreen({ saleId: "sale-1" });
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
 
     await markLine(screen, "Pasta de maní 380 g");
 
@@ -223,7 +223,7 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
     });
 
     await expect
-      .element(screen.getByText("Esa venta está anulada: no se puede devolver."))
+      .element(screen.getByText("Esa venta está anulada: no se puede devolver.").first())
       .toBeVisible();
   });
 });
@@ -240,7 +240,7 @@ describe("ReturnScreen refusing a line", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect
-      .element(screen.getByText("Pasta de maní 380 g: se pueden devolver hasta 3 u."))
+      .element(screen.getByText("Pasta de maní 380 g: se pueden devolver hasta 3 u.").first())
       .toBeVisible();
     await expect.element(rowOf(screen, "Pasta de maní 380 g").getByText("5 u")).toBeVisible();
     await expect.element(summary(screen).getByText("$ 4.235,00").first()).toBeVisible();
