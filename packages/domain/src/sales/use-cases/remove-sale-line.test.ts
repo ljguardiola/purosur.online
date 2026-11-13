@@ -116,6 +116,7 @@ describe("removeSaleLine", () => {
       removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [AZUCAR_LINE] },
       balance: { paid: 0, pending: 1200 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -291,6 +292,7 @@ describe("removeSaleLine on a sale with a discount on the total", () => {
         removedSaleDiscount: true,
         sale: expect.objectContaining({ saleDiscount: null }),
         balance: { paid: 0, pending: 1200 },
+        approvedPayments: [],
       }),
     );
   });

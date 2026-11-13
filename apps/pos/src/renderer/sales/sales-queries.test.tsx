@@ -66,6 +66,7 @@ const SALE: OpenSale = {
   total: 238_000,
   paid: 0,
   pending: 238_000,
+  payments: [],
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
