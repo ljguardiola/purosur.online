@@ -3,7 +3,8 @@ import {
   type FiscalAuthorization,
   type FiscalDocumentState,
   isDeferralPending,
-  nextReceiptCopy,
+  isDeferredInvoicePending,
+  type ReceiptDelivery,
   type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
@@ -219,11 +220,12 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return saleTotalOf(this.database, saleId);
   }
 
-  private deferredInvoiceOriginalIsToPrint(saleId: string): boolean {
-    const delivery = new SqliteReceiptLedger(this.database).transaction((tx) =>
-      tx.receiptDelivery({ document: "deferred_invoice", saleId }),
+  private deferredInvoiceDelivery(saleId: string): ReceiptDelivery | null {
+    return (
+      new SqliteReceiptLedger(this.database).transaction((tx) =>
+        tx.receiptDelivery({ document: "deferred_invoice", saleId }),
+      ) ?? null
     );
-    return delivery !== undefined && nextReceiptCopy(delivery).kind === "original";
   }
 
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
@@ -254,8 +256,10 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 };
     return {
       deferred: isDeferralPending(record),
-      deferredInvoicePending:
-        record?.satisfied === true && this.deferredInvoiceOriginalIsToPrint(saleId),
+      deferredInvoicePending: isDeferredInvoicePending(
+        record,
+        this.deferredInvoiceDelivery(saleId),
+      ),
       fiscalDocument: saleFiscalDocumentAmong(attempts),
     };
   }

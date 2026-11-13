@@ -71,7 +71,7 @@ export type {
 } from "./model/sale-history.js";
 export {
   isDeferralPending,
-  PENDING_DEFERRED_SALE_RECORD,
+  isDeferredInvoicePending,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   saleComprobanteOf,
