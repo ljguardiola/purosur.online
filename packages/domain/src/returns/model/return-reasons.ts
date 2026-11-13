@@ -14,6 +14,6 @@ export function offeredResolutions(reason: ReturnReason): readonly ReturnResolut
   return reason === "defective" ? RETURN_RESOLUTIONS : ["refund"];
 }
 
-export const TICKET_SOURCES = ["QR", "TYPED"] as const;
+export const TICKET_SOURCES = ["QR", "TYPED", "HISTORY"] as const;
 
 export type TicketSource = (typeof TICKET_SOURCES)[number];

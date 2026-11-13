@@ -921,6 +921,7 @@ export {
   returnedReceiptLine,
   TICKET_SOURCES,
   ticketReferenceFromQrText,
+  ticketVerificationRequired,
   withReturnsOfBranch,
   withUncountedReturns,
 } from "./returns/index.js";
