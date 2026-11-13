@@ -27,7 +27,7 @@ import { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { RoleSummary } from "../platform/roles-api";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -217,7 +217,7 @@ function RoleEditorSession({
   onSessionEnded,
   services,
 }: RoleEditorSessionProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPermissions = useRefreshPermissions();
   const {
     fetchRole,
@@ -290,7 +290,7 @@ function RoleEditorSession({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "name_taken") {

@@ -30,7 +30,7 @@ import {
 } from "../branch/branch-settings-form";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { BRANCH_TERMS, type BranchTerm } from "./branch-terms";
 
 export type ChangeBranchTermModalServices = {
@@ -57,7 +57,7 @@ export function ChangeBranchTermModal({
 }: ChangeBranchTermModalProps) {
   const { fetchBranchSettings, saveBranchSettings } = services;
   const client = useQueryClient();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const data = useBranchSettingsQuery({ fetchBranchSettings, onSessionEnded });
   const reloadBranchSettings = useReloadBranchSettings({ fetchBranchSettings });
   const [seededFrom, setSeededFrom] = useState<BranchSettings | null>(null);
@@ -80,7 +80,7 @@ export function ChangeBranchTermModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

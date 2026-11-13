@@ -160,7 +160,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the change comes back forbidden", async () => {
+test("opens the own account panel when the change comes back forbidden", async () => {
   window.history.pushState(null, "", "/refunds");
   const markRefundDone = vi
     .fn<MarkRefundDoneModalServices["markRefundDone"]>()

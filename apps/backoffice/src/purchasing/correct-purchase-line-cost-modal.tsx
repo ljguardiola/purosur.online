@@ -4,7 +4,7 @@ import { Button, Modal, useRequestForm } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { BadgeDollarSign, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type PurchaseCorrectionNotice,
   PurchaseCorrectionNotices,
@@ -43,7 +43,7 @@ export function CorrectPurchaseLineCostModal({
   onClose,
   onSessionEnded,
 }: CorrectPurchaseLineCostModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PurchaseLineCostTarget | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -74,7 +74,7 @@ export function CorrectPurchaseLineCostModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "unchanged") {

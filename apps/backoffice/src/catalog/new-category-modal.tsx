@@ -5,7 +5,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { withCreatedCategory } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import type { createCategory } from "./categories-api";
@@ -40,7 +40,7 @@ export function NewCategoryModal({
   createCategory,
   categories,
 }: NewCategoryModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
@@ -65,7 +65,7 @@ export function NewCategoryModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "name_taken") {

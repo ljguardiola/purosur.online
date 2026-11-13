@@ -71,3 +71,36 @@ export const FocusVisible: Story = {
     (canvasElement) => segmentRoot(canvasElement, "Descuento"),
   ),
 };
+
+export const FullWidth: Story = {
+  args: { fullWidth: true },
+  decorators: [
+    (Story) => (
+      <div className="w-96">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+export const FullWidthLongOptions: StoryObj<
+  typeof SegmentedControl<"newPrice" | "percent" | "amount">
+> = {
+  args: {
+    size: "large",
+    fullWidth: true,
+    value: "newPrice",
+    options: [
+      { value: "newPrice", label: "Precio nuevo" },
+      { value: "percent", label: "Descuento %" },
+      { value: "amount", label: "Descuento $" },
+    ],
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-88">
+        <Story />
+      </div>
+    ),
+  ],
+};

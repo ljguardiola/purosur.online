@@ -87,7 +87,43 @@ describe("previewSaleLineAdjustment", () => {
     ["a lower price", { kind: "PRICE", unitPrice: 2000 }, 0, 6000],
     ["a higher price", { kind: "PRICE", unitPrice: 3000 }, 0, 9000],
   ])("answers what %s would leave the line at", (_name, adjustment, discountAmount, lineTotal) => {
-    expect(preview(ledger(), adjustment)).toEqual({ kind: "preview", discountAmount, lineTotal });
+    expect(preview(ledger(), adjustment)).toMatchObject({
+      kind: "preview",
+      discountAmount,
+      lineTotal,
+    });
+  });
+
+  it.each<[string, Parameters<typeof previewSaleLineAdjustment>[1]["adjustment"], number]>([
+    ["a lower price", { kind: "PRICE", unitPrice: 2000 }, 750],
+    ["a higher price", { kind: "PRICE", unitPrice: 3000 }, -2250],
+    ["a percentage off the gross amount", { kind: "PERCENT", percent: 20 }, 750],
+    ["an amount off the gross amount", { kind: "AMOUNT", amount: 1000 }, 250],
+  ])(
+    "answers how much %s would take off the line's current total",
+    (_name, adjustment, lineTotalReduction) => {
+      expect(preview(ledger(), adjustment)).toMatchObject({ kind: "preview", lineTotalReduction });
+    },
+  );
+
+  it("answers a reduction smaller than the discount against the list price when a promotion already applies", () => {
+    const promotedWeighedLine: SaleLine = {
+      ...YERBA_LINE,
+      saleUnit: "KG",
+      weightSource: "SCALE",
+      quantity: 250,
+      listUnitPrice: 780_000,
+      discountAmount: 19_500,
+      lineTotal: 175_500,
+    };
+    const store = ledger({ sales: [{ ...OPEN_SALE, lines: [promotedWeighedLine] }] });
+
+    expect(preview(store, { kind: "AMOUNT", amount: 20_000 })).toEqual({
+      kind: "preview",
+      discountAmount: 20_000,
+      lineTotal: 175_000,
+      lineTotalReduction: 500,
+    });
   });
 
   it("records nothing and leaves the line as it was", () => {
@@ -134,6 +170,7 @@ describe("previewSaleLineAdjustment", () => {
       kind: "preview",
       discountAmount: 7500,
       lineTotal: 0,
+      lineTotalReduction: 300,
     });
   });
 

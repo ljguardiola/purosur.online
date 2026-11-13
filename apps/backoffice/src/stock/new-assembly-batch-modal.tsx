@@ -16,7 +16,7 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, CookingPot, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   formatStockQuantity,
   quantityFieldKind,
@@ -80,7 +80,7 @@ export function NewAssemblyBatchModal({
   onClose,
   onSessionEnded,
 }: NewAssemblyBatchModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshStock = useRefreshStock();
   const [notice, setNotice] = useState<AssemblyBatchNotice | null>(null);
   const [refusals, setRefusals] = useState<Record<string, string>>({});
@@ -141,7 +141,7 @@ export function NewAssemblyBatchModal({
           onSessionEnded();
           return;
         case "forbidden":
-          sendToMyAccount();
+          sendToOwnAccount();
           return;
         case "product_not_found":
           showFieldError("productId", ASSEMBLY_BATCH_PRODUCT_NOT_FOUND);

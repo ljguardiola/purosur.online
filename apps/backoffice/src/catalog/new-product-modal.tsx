@@ -26,7 +26,7 @@ import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields"
 import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
@@ -79,7 +79,7 @@ export function NewProductModal({
 }: NewProductModalProps) {
   const { createProduct, createBrand, createCategory, createTag, generateInternalBarcode } =
     services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<
     | { kind: "attemptFailed" }
     | { kind: "rateLimited"; retryAfterSeconds: number; raisedByGenerate?: true }
@@ -109,7 +109,7 @@ export function NewProductModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

@@ -380,6 +380,7 @@ describe("sale answers", () => {
     rebuilt_paid_order: null,
     mercado_pago_charge_in_progress: null,
     refunds_on_cancel: [],
+    refund_now_on_cancel: 0,
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,
@@ -967,8 +968,10 @@ describe("previewing a sale line adjustment", () => {
   });
 
   it.each([
-    { kind: "preview", discount_amount: 840, line_total: 7560 },
-    { kind: "preview", discount_amount: 0, line_total: 0 },
+    { kind: "preview", discount_amount: 840, line_total: 7560, line_total_reduction: 840 },
+    { kind: "preview", discount_amount: 0, line_total: 0, line_total_reduction: 0 },
+    { kind: "preview", discount_amount: 200, line_total: 7500, line_total_reduction: 500 },
+    { kind: "preview", discount_amount: 0, line_total: 9000, line_total_reduction: -1500 },
     { kind: "unknown_line" },
     { kind: "same_as_list_price" },
     { kind: "discount_exceeds_line" },
@@ -991,11 +994,34 @@ describe("previewing a sale line adjustment", () => {
 
   it.each([
     ["an outcome it does not know", { kind: "somewhere_else" }],
-    ["a preview without the line total", { kind: "preview", discount_amount: 840 }],
-    ["a preview without the discount", { kind: "preview", line_total: 7560 }],
-    ["a fractional discount", { kind: "preview", discount_amount: 8.5, line_total: 7560 }],
-    ["a negative line total", { kind: "preview", discount_amount: 0, line_total: -1 }],
-    ["a negative discount", { kind: "preview", discount_amount: -1, line_total: 100 }],
+    [
+      "a preview without the line total",
+      { kind: "preview", discount_amount: 840, line_total_reduction: 840 },
+    ],
+    [
+      "a preview without the discount",
+      { kind: "preview", line_total: 7560, line_total_reduction: 840 },
+    ],
+    [
+      "a preview without the line total reduction",
+      { kind: "preview", discount_amount: 840, line_total: 7560 },
+    ],
+    [
+      "a fractional discount",
+      { kind: "preview", discount_amount: 8.5, line_total: 7560, line_total_reduction: 840 },
+    ],
+    [
+      "a fractional line total reduction",
+      { kind: "preview", discount_amount: 840, line_total: 7560, line_total_reduction: 8.5 },
+    ],
+    [
+      "a negative line total",
+      { kind: "preview", discount_amount: 0, line_total: -1, line_total_reduction: 0 },
+    ],
+    [
+      "a negative discount",
+      { kind: "preview", discount_amount: -1, line_total: 100, line_total_reduction: 0 },
+    ],
     ["an authorization refusal", { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 }],
   ])("rejects an answer with %s", (_case, outcome) => {
     expect(
@@ -1231,6 +1257,7 @@ describe("sale line answers", () => {
     rebuilt_paid_order: null,
     mercado_pago_charge_in_progress: null,
     refunds_on_cancel: [],
+    refund_now_on_cancel: 0,
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,

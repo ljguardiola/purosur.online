@@ -446,7 +446,7 @@ test("ends the session when generating finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when generating comes back forbidden", async () => {
+test("opens the own account panel when generating comes back forbidden", async () => {
   window.history.pushState(null, "", "/products");
   const generate = vi.fn<typeof generateInternalBarcode>().mockResolvedValue({ kind: "forbidden" });
   const chips = await renderChips({ generate });

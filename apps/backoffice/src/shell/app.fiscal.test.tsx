@@ -194,7 +194,7 @@ test("has no Caja y fiscal item in the rail", async () => {
   expect(screen.getByRole("link", { name: "Caja y fiscal", exact: true }).query()).toBeNull();
 });
 
-test("hides the Fiscal item from a person without a fiscal capability, and sends them to Mi cuenta from /fiscal", async () => {
+test("hides the Fiscal item from a person without a fiscal capability, and sends them to the own account panel from /fiscal", async () => {
   const services = servicesFor(["reports_area"]);
   window.history.pushState(null, "", "/fiscal");
 

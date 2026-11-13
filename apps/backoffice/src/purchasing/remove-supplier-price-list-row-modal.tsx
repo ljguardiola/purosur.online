@@ -1,7 +1,7 @@
 import { Button, Modal } from "@purosur/ui";
 import { RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type SupplierPriceListChangeNotice,
   SupplierPriceListChangeNotices,
@@ -33,7 +33,7 @@ export function RemoveSupplierPriceListRowModal({
   onClose,
   onSessionEnded,
 }: RemoveSupplierPriceListRowModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<SupplierPriceListChangeNotice | null>(null);
@@ -65,7 +65,7 @@ export function RemoveSupplierPriceListRowModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

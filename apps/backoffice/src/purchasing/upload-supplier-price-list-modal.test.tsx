@@ -292,7 +292,7 @@ test("ends the session when uploading finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when uploading comes back forbidden", async () => {
+test("opens the own account panel when uploading comes back forbidden", async () => {
   window.history.pushState(null, "", "/lists");
   const services = createServices();
   vi.mocked(services.uploadSupplierPriceList).mockResolvedValue({ kind: "forbidden" });

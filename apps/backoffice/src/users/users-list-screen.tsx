@@ -41,7 +41,7 @@ import type { RoleCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { RoleSummary } from "../platform/roles-api";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -127,7 +127,7 @@ function NewUserModal({
   authorizeSession,
   startAuthentication,
 }: NewUserModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const options = roles.length > 0 ? roleOptions(roles) : undefined;
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [deactivatedConflict, setDeactivatedConflict] = useState<{
@@ -168,7 +168,7 @@ function NewUserModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

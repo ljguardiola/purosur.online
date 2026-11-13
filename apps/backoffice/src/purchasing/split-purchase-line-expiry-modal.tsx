@@ -4,7 +4,7 @@ import { Button, Modal, useRequestForm } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { CalendarClock, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { formatStockQuantity, quantityFieldKind } from "../platform/stock-quantity";
 import {
   type PurchaseCorrectionNotice,
@@ -47,7 +47,7 @@ export function SplitPurchaseLineExpiryModal({
   onClose,
   onSessionEnded,
 }: SplitPurchaseLineExpiryModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<SplitPurchaseLineExpiryTarget | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -79,7 +79,7 @@ export function SplitPurchaseLineExpiryModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "unchanged") {

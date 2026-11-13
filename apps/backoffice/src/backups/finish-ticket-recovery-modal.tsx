@@ -3,7 +3,7 @@ import { CircleCheck, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   ContingencyTicketRecovery,
   finishContingencyTicketRecovery,
@@ -32,7 +32,7 @@ export function FinishTicketRecoveryModal({
   onSessionEnded,
   services,
 }: FinishTicketRecoveryModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [shown, setShown] = useState(target);
   const [notice, setNotice] = useState<FinishNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,7 +61,7 @@ export function FinishTicketRecoveryModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);
