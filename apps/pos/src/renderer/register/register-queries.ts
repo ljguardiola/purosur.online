@@ -205,7 +205,7 @@ export function useCashMovementPreviewQuery(
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey.at(cashKey.length) === sessionId ? previous : undefined,
   });
-  return movement === undefined ? undefined : query.data;
+  return movement === undefined ? undefined : (query.data ?? undefined);
 }
 
 export function useCashMovementsQuery(
