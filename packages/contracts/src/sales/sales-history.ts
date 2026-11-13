@@ -104,6 +104,7 @@ const saleHistoryDetailSchema = z.object({
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
   void_authorization_required: z.boolean(),
+  returnable: z.boolean(),
   reprint_authorization_required: z.boolean(),
   credit_notes: z.array(
     z.object({
