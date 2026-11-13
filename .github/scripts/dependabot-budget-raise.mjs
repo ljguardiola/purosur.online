@@ -5,6 +5,7 @@ const RAISE_CAP_BYTES = 2048;
 const BUDGET_PATH = "apps/backoffice/download-budget.json";
 const MEASUREMENT_FIELDS = ["entry", "total", "missing"];
 const MERGE_CONFLICT_STATUS = 409;
+const NOTHING_TO_MERGE_STATUS = 204;
 
 export function decideBudgetRaise(measured, budget) {
   if (!holdsExactlyTheMeasures(budget) || measured.missing.length > 0) {
@@ -70,13 +71,34 @@ export async function raiseBudgetOnPullRequest({
   if (pullRequest.head.sha !== run.head_sha)
     return { kind: "stale", pullRequest: pullRequest.number };
 
-  const [headBudgetText, baseBudgetText] = await Promise.all([
-    readBudgetText({ reader, owner, repo, ref: run.head_sha }),
-    readBudgetText({ reader, owner, repo, ref: baseBranch }),
-  ]);
-  if (headBudgetText !== baseBudgetText) {
+  const {
+    data: { merge_base_commit: mergeBase },
+  } = await reader.repos.compareCommitsWithBasehead({
+    owner,
+    repo,
+    basehead: `${baseBranch}...${run.head_sha}`,
+  });
+  const [headBudgetText, defaultBranchBudgetText, mergeBaseBudgetText] = await Promise.all(
+    [run.head_sha, baseBranch, mergeBase.sha].map((ref) =>
+      readBudgetText({ reader, owner, repo, ref }),
+    ),
+  );
+  const defaultBranchChangedIt = defaultBranchBudgetText !== mergeBaseBudgetText;
+  const mergedBudgetText = !defaultBranchChangedIt
+    ? headBudgetText
+    : headBudgetText === mergeBaseBudgetText || headBudgetText === defaultBranchBudgetText
+      ? defaultBranchBudgetText
+      : null;
+  if (mergedBudgetText === null)
+    return { kind: "budget-conflict", pullRequest: pullRequest.number };
+
+  const decision = decideBudgetRaise(measured, JSON.parse(mergedBudgetText));
+  if (decision.kind !== "raise") return { ...decision, pullRequest: pullRequest.number };
+
+  if (defaultBranchChangedIt) {
+    let response;
     try {
-      await writer.repos.merge({
+      response = await writer.repos.merge({
         owner,
         repo,
         base: run.head_branch,
@@ -89,12 +111,11 @@ export async function raiseBudgetOnPullRequest({
       }
       throw error;
     }
+    if (response.status === NOTHING_TO_MERGE_STATUS) {
+      return { kind: "nothing-to-merge", pullRequest: pullRequest.number };
+    }
     return { kind: "merged-default-branch", pullRequest: pullRequest.number };
   }
-  const budget = JSON.parse(headBudgetText);
-
-  const decision = decideBudgetRaise(measured, budget);
-  if (decision.kind !== "raise") return { ...decision, pullRequest: pullRequest.number };
 
   const { data: headCommit } = await writer.git.getCommit({
     owner,

@@ -20,8 +20,9 @@ jobs:
   # Runs main's scripts, never the Dependabot branch's, and installs nothing: the only input from
   # the measuring run is its artifact, which is read as data and capped. A commit pushed with
   # GITHUB_TOKEN would not start the branch's checks again, so the raised budget, or the merge of
-  # the default branch when its budget differs from the branch's, is pushed with the budget App's
-  # token instead.
+  # the default branch when the default branch changed the budget since the branch left it, is
+  # pushed with the budget App's token instead. That merge may carry the default branch's workflow
+  # changes, which only a token with the workflows permission may push.
   commit:
     name: commit the raised budget
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'dependabot/') }}
@@ -49,6 +50,7 @@ jobs:
           client-id: ${{ secrets.DOWNLOAD_BUDGET_APP_CLIENT_ID }}
           private-key: ${{ secrets.DOWNLOAD_BUDGET_APP_PRIVATE_KEY }}
           permission-contents: write
+          permission-workflows: write
 
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
