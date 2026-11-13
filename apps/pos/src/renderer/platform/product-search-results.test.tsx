@@ -175,6 +175,29 @@ describe("ProductSearchResults", () => {
     await expect.element(screen.getByText(/resultado/)).not.toBeInTheDocument();
   });
 
+  it("shows the keys the screen offers in place of the usual ones", async () => {
+    await page.viewport(1280, 720);
+    const screen = await render(
+      <>
+        <ComboboxField expanded />
+        <ProductSearchResults
+          listboxId="results"
+          search={{ query: "a", products: [YERBA], more: false }}
+          activeIndex={0}
+          onChoose={vi.fn()}
+          legend={[
+            { keyName: "ArrowUpDown", label: "Elegir" },
+            { keyName: "F4", label: "Consultar" },
+          ]}
+        />
+      </>,
+    );
+
+    const legend = screen.getByRole("listitem");
+    await expect.element(legend).toHaveLength(2);
+    await expect.element(legend.nth(1)).toHaveTextContent("F4Consultar");
+  });
+
   it("counts the results it shows in the warning that there are more", async () => {
     const { screen } = await renderResults({
       products: Array.from({ length: 7 }, (_, position) => product(position)),

@@ -248,6 +248,7 @@ export async function renderScreen(overrides: Overrides = {}) {
         onSessionInvalid={onSessionInvalid}
         registerStatus={registerStatus}
         paymentMethodAvailability={paymentMethodAvailability}
+        productToAdd={overrides.productToAdd}
       />
     </BarcodeReadings>,
   );

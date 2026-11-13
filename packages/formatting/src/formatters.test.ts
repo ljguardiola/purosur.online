@@ -29,6 +29,7 @@ import {
   formatNumber,
   formatOperationNumber,
   formatPercent,
+  formatRecurringWeekdays,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
   formatProductDescription,
@@ -153,6 +154,15 @@ describe("formatPercent", () => {
     expect(formatPercent(5)).toBe("5 %");
     expect(formatPercent(12.5)).toBe("12,5 %");
     expect(formatPercent(100)).toBe("100 %");
+  });
+});
+
+describe("formatRecurringWeekdays", () => {
+  it("names the weekdays something recurs on, joined the way it reads in Argentina", () => {
+    expect(formatRecurringWeekdays([2])).toBe("los martes");
+    expect(formatRecurringWeekdays([4, 2])).toBe("los martes y jueves");
+    expect(formatRecurringWeekdays([1, 3, 5])).toBe("los lunes, miércoles y viernes");
+    expect(formatRecurringWeekdays([6, 7])).toBe("los sábados y domingos");
   });
 });
 

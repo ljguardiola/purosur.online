@@ -48,6 +48,24 @@ describe("RegisterFrame", () => {
       .not.toBeInTheDocument();
   });
 
+  it("shows the mode its screen is in beside the header's pills", async () => {
+    const screen = await render(
+      <RegisterStatusProvider value={STATUS}>
+        <RegisterFrame background="surface" rail={null} mode={<button type="button">Consulta</button>}>
+          <main>contenido</main>
+        </RegisterFrame>
+      </RegisterStatusProvider>,
+    );
+
+    await expect
+      .element(
+        screen
+          .getByRole("region", { name: "Estado de la caja" })
+          .getByRole("button", { name: "Consulta" }),
+      )
+      .toBeVisible();
+  });
+
   it("ends the header's crumbs with the crumb of its screen", async () => {
     const screen = await render(
       <RegisterStatusProvider value={STATUS}>
