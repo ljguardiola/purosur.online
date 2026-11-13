@@ -119,6 +119,7 @@ describe("readReturnsReport", () => {
       record({ returnId: "q1", ticketSource: "QR" }),
       record({ returnId: "t1", ticketSource: "TYPED" }),
       record({ returnId: "t2", ticketSource: "TYPED" }),
+      record({ returnId: "h1", ticketSource: "HISTORY" }),
     ]);
 
     const report = await readReturnsReport(
@@ -130,6 +131,8 @@ describe("readReturnsReport", () => {
     expect(report.typed.rows.map((row) => row.returnId)).toEqual(["t1", "t2"]);
     expect(report.scanned.totals).toEqual({ returns: 1, refunded: 1_000 });
     expect(report.typed.totals).toEqual({ returns: 2, refunded: 2_000 });
+    expect(report.history.rows.map((row) => row.returnId)).toEqual(["h1"]);
+    expect(report.history.totals).toEqual({ returns: 1, refunded: 1_000 });
   });
 
   it("answers the voided sales with their totals and the summaries by cashier and by authorizer", async () => {

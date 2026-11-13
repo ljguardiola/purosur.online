@@ -26,8 +26,8 @@ describe("RETURN_DISPOSITIONS", () => {
 });
 
 describe("TICKET_SOURCES", () => {
-  it("lists how the ticket of a return was read: scanned or typed in", () => {
-    expect(TICKET_SOURCES).toEqual(["QR", "TYPED"]);
+  it("lists how a return was started: scanning the ticket, typing its number or choosing the sale from the history", () => {
+    expect(TICKET_SOURCES).toEqual(["QR", "TYPED", "HISTORY"]);
     expectTypeOf<(typeof TICKET_SOURCES)[number]>().toEqualTypeOf<TicketSource>();
   });
 });

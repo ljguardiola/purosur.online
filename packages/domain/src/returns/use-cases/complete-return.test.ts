@@ -45,6 +45,7 @@ const CHEESE_THROWN_AWAY = {
 const INPUT: CompleteReturnInput = {
   saleId: "sale-1",
   ticketSource: "QR",
+  ticketVerified: true,
   lines: [YERBA_BACK, CHEESE_THROWN_AWAY],
   refunds: [{ paymentId: "pay-cash", amount: 7000 }],
 };
@@ -908,6 +909,59 @@ describe("completeReturn", () => {
         kind: "refund_refused",
         refusal: { kind: "exceeds_payment", remaining: 1000 },
       });
+    });
+  });
+
+  describe("ticket verification", () => {
+    it.each(["QR", "TYPED"] as const)(
+      "refuses a return started from a %s ticket that was not verified, leaving the register untouched",
+      async (ticketSource) => {
+        const store = ledger();
+        const before = structuredClone(store.state);
+
+        const outcome = await complete(store, { ticketSource, ticketVerified: false });
+
+        expect(outcome).toEqual({ kind: "ticket_not_verified" });
+        expect(store.state).toEqual(before);
+      },
+    );
+
+    it.each(["QR", "TYPED"] as const)("completes a verified %s ticket", async (ticketSource) => {
+      const outcome = await complete(ledger(), { ticketSource, ticketVerified: true });
+
+      expect(outcome.kind).toBe("completed");
+    });
+
+    it("completes a return started from the history without verification", async () => {
+      const store = ledger();
+
+      const outcome = await complete(store, { ticketSource: "HISTORY", ticketVerified: false });
+
+      expect(outcome.kind).toBe("completed");
+      expect(store.state.returns[0]?.ticketSource).toBe("HISTORY");
+    });
+
+    it("refuses before asking the authority or opening a transaction", async () => {
+      const store = ledger();
+      const authority = new FakeOperationAuthority<CompleteReturnGrant, typeof NOT_SIGNED_IN>({
+        kind: "granted",
+        grant: OWN_GRANT,
+      });
+
+      const outcome = await completeReturn(
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          ledger: store,
+          clock: new FixedClock(RETURNED_AT),
+          ids: new SequentialIds(),
+          authority,
+        },
+        { ...INPUT, ticketVerified: false },
+      );
+
+      expect(outcome).toEqual({ kind: "ticket_not_verified" });
+      expect(authority.asked).toBe(0);
+      expect(store.transactions).toBe(0);
     });
   });
 
