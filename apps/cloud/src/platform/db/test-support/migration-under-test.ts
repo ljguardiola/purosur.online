@@ -1,7 +1,7 @@
 import type { PGlite } from "@electric-sql/pglite";
 import { type MigrationMeta, readMigrationFiles } from "drizzle-orm/migrator";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { drizzle } from "drizzle-orm/pglite";
+import { drizzle, PgliteSession } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { inject, onTestFinished } from "vitest";
 import { openFreshCluster } from "../../../test-support/test-database-snapshot.js";
@@ -26,9 +26,12 @@ function sqlOnly(client: PGlite): SqlOnlyDatabase {
 }
 
 async function applyMigrations(client: PGlite, migrations: MigrationMeta[]): Promise<void> {
-  await new PgDialect().migrate(migrations, drizzle(client)._.session, {
-    migrationsFolder: MIGRATIONS_FOLDER,
-  });
+  const dialect = new PgDialect();
+  await dialect.migrate(
+    migrations,
+    new PgliteSession<Record<string, never>, Record<string, never>>(client, dialect, undefined),
+    { migrationsFolder: MIGRATIONS_FOLDER },
+  );
 }
 
 export async function databaseBeforeMigration(tagSuffix: string): Promise<DatabaseBeforeMigration> {
