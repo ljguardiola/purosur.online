@@ -108,7 +108,7 @@ export function PaymentPanel({
         ]
       : []),
     saleDiscount === null
-      ? { label: "Descuento sobre el total", value: "Sin aplicar" }
+      ? { label: "Descuento al total", value: "Sin aplicar" }
       : {
           label: saleDiscountLabel(saleDiscount),
           value: `− ${formatCents(saleDiscount.amount)}`,

@@ -50,6 +50,7 @@ import {
   type RebuiltPaidOrderStanding,
   type RegisterActor,
   type RegisterOperation,
+  refundedAtRegisterNow,
   registerOperationAccess,
   type SaleDiscountValue,
   type SaleLine,
@@ -333,6 +334,7 @@ function toOpenSale(
     lines_lock: linesLock,
     cancel_refusal: cancelRefusal,
     refunds_on_cancel: refundsOnCancel.map(toWireRefund),
+    refund_now_on_cancel: refundedAtRegisterNow(refundsOnCancel),
     cancel_authorization_required: view.cancelAuthorizationRequired,
     adjust_authorization_required: view.adjustAuthorizationRequired,
     sale_discount_authorization_required: view.saleDiscountAuthorizationRequired,
@@ -1005,6 +1007,7 @@ export async function previewSaleLineAdjustmentFor(
         kind: "preview",
         discount_amount: outcome.discountAmount,
         line_total: outcome.lineTotal,
+        line_total_reduction: outcome.lineTotalReduction,
       }
     : outcome;
 }
