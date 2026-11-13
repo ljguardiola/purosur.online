@@ -1,5 +1,7 @@
 import {
+  type ApprovedPayment,
   aMercadoPagoChargeInProgress,
+  approvedPayments,
   cancellableWithoutAuthorization,
   hasApprovedPayment,
   type MercadoPagoChargeInProgress,
@@ -7,6 +9,7 @@ import {
   type PendingMercadoPagoCharge,
   type PendingMercadoPagoChargeWait,
   type PlannedRefund,
+  type PointCardType,
   plannedRefunds,
   type RefundablePayment,
   type SaleBalance,
@@ -19,6 +22,7 @@ export type SaleCancelRefusal = "mercado_pago_charge_in_progress";
 
 export interface OpenSaleStanding {
   balance: SaleBalance;
+  approvedPayments: ApprovedPayment[];
   linesLock: SaleLinesLock | null;
   cancellable: boolean;
   cancelRefusal: SaleCancelRefusal | null;
@@ -50,13 +54,14 @@ export function saleCancelRefusal(
 
 export function openSaleStanding(
   total: number,
-  payments: readonly RefundablePayment[],
+  payments: readonly (RefundablePayment & { cardType?: PointCardType | null })[],
   pendingMercadoPagoPayments: readonly PendingMercadoPagoCharge[],
   now: Date,
 ): OpenSaleStanding {
   const cancelRefusal = saleCancelRefusal(pendingMercadoPagoPayments, now);
   return {
     balance: saleBalance(total, payments),
+    approvedPayments: approvedPayments(payments),
     linesLock: saleLinesLock(payments, pendingMercadoPagoPayments, now),
     cancellable: cancelRefusal === null && cancellableWithoutAuthorization(payments),
     cancelRefusal,

@@ -1,3 +1,4 @@
+import type { OpenSale } from "@purosur/contracts";
 import type { Icon, KeyName } from "@purosur/ui";
 import {
   Button,
@@ -12,10 +13,11 @@ import { Banknote, ChevronRight, CreditCard, Info, QrCode } from "lucide-react";
 import type { ReactNode } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { ChargeMethodAvailability, KeyedChargeMethod } from "./charge-method-availability";
+import { paidPaymentLabel } from "./paid-payment-label";
 
 export type CombinedPaymentPanelProps = {
   total: number;
-  paid: number;
+  payments: OpenSale["payments"];
   pending: number;
   methods: ChargeMethodAvailability;
   cancelledNotice: boolean;
@@ -32,7 +34,7 @@ const TILES: { method: KeyedChargeMethod; label: string; icon: Icon; keyName: Ke
 
 export function CombinedPaymentPanel({
   total,
-  paid,
+  payments,
   pending,
   methods,
   cancelledNotice,
@@ -56,7 +58,10 @@ export function CombinedPaymentPanel({
         variant="plain"
         rows={[
           { label: "Total", value: formatCents(total) },
-          ...(paid > 0 ? [{ label: "Pagado", value: `– ${formatCents(paid)}` }] : []),
+          ...payments.map((payment) => ({
+            label: paidPaymentLabel(payment),
+            value: `– ${formatCents(payment.amount)}`,
+          })),
         ]}
       />
       {cancelledNotice ? (

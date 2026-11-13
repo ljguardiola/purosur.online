@@ -46,6 +46,7 @@ const sale = {
   total: 3000,
   paid: 1000,
   pending: 2000,
+  payments: [{ method: "TRANSFER", card_type: null, amount: 1000 }],
   lines_lock: "approved_payment",
   cancel_refusal: null,
   charge_refusal: null,
@@ -86,6 +87,44 @@ describe("saleSchema", () => {
 
   it("accepts a sale with its lines and the total to charge", () => {
     expect(saleSchema.parse(sale)).toEqual(sale);
+  });
+
+  it("accepts a sale with no payment", () => {
+    expect(saleSchema.parse({ ...sale, paid: 0, pending: 3000, payments: [] }).payments).toEqual(
+      [],
+    );
+  });
+
+  it.each([
+    ["cash", { method: "CASH", card_type: null, amount: 500 }],
+    ["transfer", { method: "TRANSFER", card_type: null, amount: 500 }],
+    ["QR", { method: "QR", card_type: null, amount: 500 }],
+    ["standalone terminal", { method: "STANDALONE_TERMINAL", card_type: null, amount: 500 }],
+    ["Point debit", { method: "POINT", card_type: "DEBIT", amount: 500 }],
+    ["Point credit", { method: "POINT", card_type: "CREDIT", amount: 500 }],
+    ["Point unknown card", { method: "POINT", card_type: null, amount: 500 }],
+  ])("accepts a %s payment, keeping the order of the payments", (_case, payment) => {
+    const first = { method: "CASH", card_type: null, amount: 100 };
+
+    expect(saleSchema.parse({ ...sale, payments: [first, payment] }).payments).toEqual([
+      first,
+      payment,
+    ]);
+  });
+
+  it.each([
+    ["an unknown method", { method: "CHEQUE", card_type: null, amount: 500 }],
+    ["an unknown card type", { method: "POINT", card_type: "PREPAID", amount: 500 }],
+    ["no card type", { method: "POINT", amount: 500 }],
+    ["a zero amount", { method: "CASH", card_type: null, amount: 0 }],
+    ["a negative amount", { method: "CASH", card_type: null, amount: -500 }],
+    ["a fractional amount", { method: "CASH", card_type: null, amount: 500.5 }],
+  ])("rejects a payment with %s", (_case, payment) => {
+    expect(saleSchema.safeParse({ ...sale, payments: [payment] }).success).toBe(false);
+  });
+
+  it("rejects a sale without its payments", () => {
+    expect(saleSchema.safeParse({ ...sale, payments: undefined }).success).toBe(false);
   });
 
   it.each([

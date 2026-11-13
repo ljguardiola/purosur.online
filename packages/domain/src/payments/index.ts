@@ -147,5 +147,9 @@ export {
 } from "./model/rebuilt-paid-order.js";
 export type { RefundTransfer, RefundTransferKind } from "./model/refund-transfer.js";
 export { REFUND_TRANSFER_KINDS } from "./model/refund-transfer.js";
-export type { SaleBalance } from "./model/sale-balance.js";
-export { approvedPaymentsCoverTotal, saleBalance } from "./model/sale-balance.js";
+export type { ApprovedPayment, SaleBalance } from "./model/sale-balance.js";
+export {
+  approvedPayments,
+  approvedPaymentsCoverTotal,
+  saleBalance,
+} from "./model/sale-balance.js";

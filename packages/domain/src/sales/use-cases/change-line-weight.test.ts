@@ -116,6 +116,7 @@ describe("changeLineWeight", () => {
       removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [changed, YERBA_LINE] },
       balance: { paid: 0, pending: 30000 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -414,6 +415,7 @@ describe("changeLineWeight on a sale with a discount on the total", () => {
         removedSaleDiscount: true,
         sale: expect.objectContaining({ saleDiscount: null }),
         balance: { paid: 0, pending: 25_500 },
+        approvedPayments: [],
       }),
     );
   });
@@ -428,6 +430,7 @@ describe("changeLineWeight on a sale with a discount on the total", () => {
       expect.objectContaining({
         removedSaleDiscount: false,
         balance: { paid: 0, pending: 14_850 },
+        approvedPayments: [],
       }),
     );
   });

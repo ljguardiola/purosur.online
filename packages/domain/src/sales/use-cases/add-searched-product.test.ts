@@ -142,6 +142,7 @@ describe("addSearchedProduct", () => {
       removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
