@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FiscalDocumentState } from "../../fiscal/index.js";
 import {
   isDeferralPending,
+  isDeferredInvoicePending,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   type SaleFiscalDocument,
@@ -275,6 +276,31 @@ describe("isDeferralPending", () => {
 
   it("is not pending for a sale that was never deferred", () => {
     expect(isDeferralPending(null)).toBe(false);
+  });
+});
+
+describe("isDeferredInvoicePending", () => {
+  const ORIGINAL_NOT_PRINTED = { printAttemptedAt: null, reprintCount: 0 };
+  const ORIGINAL_PRINTED = { printAttemptedAt: new Date("2026-03-02T10:00:00Z"), reprintCount: 0 };
+
+  it("is pending while the deferred invoice's original copy is not printed", () => {
+    expect(isDeferredInvoicePending({ satisfied: true }, ORIGINAL_NOT_PRINTED)).toBe(true);
+  });
+
+  it("is not pending once the deferred invoice's original copy was printed", () => {
+    expect(isDeferredInvoicePending({ satisfied: true }, ORIGINAL_PRINTED)).toBe(false);
+  });
+
+  it("is not pending while no authorization satisfied the deferred record", () => {
+    expect(isDeferredInvoicePending({ satisfied: false }, ORIGINAL_NOT_PRINTED)).toBe(false);
+  });
+
+  it("is not pending for a sale that was never deferred", () => {
+    expect(isDeferredInvoicePending(null, ORIGINAL_NOT_PRINTED)).toBe(false);
+  });
+
+  it("is not pending when the deferred invoice has no receipt to print", () => {
+    expect(isDeferredInvoicePending({ satisfied: true }, null)).toBe(false);
   });
 });
 
