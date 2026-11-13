@@ -134,6 +134,7 @@ describe("addWeighedProduct", () => {
       removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 11250 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -430,6 +431,7 @@ describe("addWeighedProduct on a sale with a discount on the total", () => {
         removedSaleDiscount: true,
         sale: expect.objectContaining({ saleDiscount: null }),
         balance: { paid: 0, pending: 13_500 },
+        approvedPayments: [],
       }),
     );
   });

@@ -1,4 +1,4 @@
-import type { PaymentMethodAvailability } from "@purosur/contracts";
+import type { CurrentSaleAnswer, PaymentMethodAvailability } from "@purosur/contracts";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
@@ -93,7 +93,15 @@ describe("ChargeScreen · terminal independiente", () => {
   });
 
   it("goes back to the methods, with the balance the core now answers, after a partial amount", async () => {
-    const reads = [SALE_OF_ONE_LINE, { ...SALE_OF_ONE_LINE, paid: 200_000, pending: 276_000 }];
+    const reads: CurrentSaleAnswer[] = [
+      SALE_OF_ONE_LINE,
+      {
+        ...SALE_OF_ONE_LINE,
+        paid: 200_000,
+        pending: 276_000,
+        payments: [{ method: "STANDALONE_TERMINAL", card_type: null, amount: 200_000 }],
+      },
+    ];
     const { screen, chargeSaleOnStandaloneTerminal } = await renderScreen({
       currentSale: async () => reads.shift() ?? SALE_WITH_PART_PAID,
       chargeSaleOnStandaloneTerminal: async () => ({
@@ -113,7 +121,7 @@ describe("ChargeScreen · terminal independiente", () => {
       .element(screen.getByRole("heading", { name: "Terminal independiente" }))
       .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
-    await expect.poll(() => valueBeside(screen, "Pagado")).toBe("– $ 2.000,00");
+    await expect.poll(() => valueBeside(screen, "Terminal independiente")).toBe("– $ 2.000,00");
     await expect.element(panel.getByText("$ 2.760,00")).toBeVisible();
     expect(chargeSaleOnStandaloneTerminal).toHaveBeenCalledExactlyOnceWith("sale-1", 200_000);
   });

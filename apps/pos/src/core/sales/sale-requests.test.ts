@@ -7,7 +7,11 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
-import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
+import {
+  type Scale,
+  type ScaleReading,
+  settleApprovedMercadoPagoPayment,
+} from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { restorePendingIn } from "../backups/restore-pending";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -54,6 +58,7 @@ import {
   weighProductFor,
 } from "./sale-requests";
 import { anySaleIsOpen } from "./sqlite-open-sale-presence";
+import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 
@@ -310,6 +315,7 @@ describe("scanning a product on the register", () => {
         total: 3000,
         paid: 0,
         pending: 3000,
+        payments: [],
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
@@ -594,6 +600,7 @@ describe("adding a searched product on the register", () => {
         total: 1500,
         paid: 0,
         pending: 1500,
+        payments: [],
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
@@ -699,6 +706,7 @@ describe("adding a product sold by weight on the register", () => {
         total: 11250,
         paid: 0,
         pending: 11250,
+        payments: [],
         lines_lock: null,
         cancel_refusal: null,
         charge_refusal: null,
@@ -1208,6 +1216,7 @@ describe("the sale in progress", () => {
       total: 3000,
       paid: 0,
       pending: 3000,
+      payments: [],
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
@@ -1233,9 +1242,55 @@ describe("the sale in progress", () => {
       total: 3000,
       paid: 1000,
       pending: 2000,
+      payments: [{ method: "CASH", card_type: null, amount: 1000 }],
       lines_lock: "approved_payment",
       cancel_refusal: null,
     });
+  });
+
+  it("lists the approved payments with their method and amount, in the order they were approved", async () => {
+    const saleId = await sellTwoForPayments();
+    const ids = idsStartingWith("payment");
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 1000 });
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 500 });
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      paid: 1500,
+      payments: [
+        { method: "TRANSFER", card_type: null, amount: 1000 },
+        { method: "CASH", card_type: null, amount: 500 },
+      ],
+    });
+  });
+
+  it("lists a QR payment approved after a later cash payment after that cash payment", async () => {
+    const saleId = await sellTwoForPayments();
+    addQrPayment(saleId, "PENDING", NOW);
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 500 });
+    settleApprovedMercadoPagoPayment(
+      {
+        ledger: new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY),
+        restoration: deps().restoration,
+        clock: { now: () => NOW },
+        zoneRules: fixedZoneRulesSource(),
+        ids: idsStartingWith("settlement"),
+      },
+      { actorId: "u1", paymentTransactionId: "qr-1" },
+    );
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      paid: 1500,
+      payments: [
+        { method: "CASH", card_type: null, amount: 500 },
+        { method: "QR", card_type: null, amount: 1000 },
+      ],
+    });
+  });
+
+  it("lists no payment for a sale nothing was paid on", async () => {
+    await sellTwoForPayments();
+
+    expect(await currentSaleFor(deps())).toMatchObject({ paid: 0, payments: [] });
   });
 
   it("refuses to charge in cash once the restoration of the register is in progress", async () => {

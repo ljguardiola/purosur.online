@@ -17,6 +17,7 @@ const PAID_SALE: OpenSale = {
   ...SALE_OF_YERBA,
   paid: 100_000,
   pending: 376_000,
+  payments: [{ method: "CASH", card_type: null, amount: 100_000 }],
   lines_lock: "approved_payment",
   cancel_refusal: null,
   refunds_on_cancel: [CASH_REFUND],
@@ -31,6 +32,7 @@ const STANDALONE_TERMINAL_REFUND = {
 const SALE_WITH_STANDALONE_TERMINAL_PAYMENT: OpenSale = {
   ...PAID_SALE,
   paid: 90_000,
+  payments: [{ method: "STANDALONE_TERMINAL", card_type: null, amount: 90_000 }],
   refunds_on_cancel: [STANDALONE_TERMINAL_REFUND],
 };
 const QR_REFUND = {
@@ -43,6 +45,7 @@ const QR_REFUND = {
 const SALE_WITH_QR_PAYMENT: OpenSale = {
   ...PAID_SALE,
   paid: 70_000,
+  payments: [{ method: "QR", card_type: null, amount: 70_000 }],
   refunds_on_cancel: [QR_REFUND],
 };
 const POINT_REFUND = {
@@ -55,6 +58,7 @@ const POINT_REFUND = {
 const SALE_WITH_POINT_PAYMENT: OpenSale = {
   ...PAID_SALE,
   paid: 60_000,
+  payments: [{ method: "POINT", card_type: null, amount: 60_000 }],
   refunds_on_cancel: [POINT_REFUND],
 };
 const CANCELLED: CancelPaidSaleOutcome = {

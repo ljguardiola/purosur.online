@@ -43,7 +43,9 @@ import {
   type MercadoPagoChargeInProgress,
   nonCashCharge,
   type PaidOrderDiscoveryState,
+  type PaymentMethod,
   type PlannedRefund,
+  type PointCardType,
   promotionSavings,
   type RebuiltPaidOrderStanding,
   type RegisterActor,
@@ -210,6 +212,11 @@ interface OpenSaleAnswer {
   sale: SaleWithLines;
   chargeRefusal: ChargeRefusal | undefined;
   balance: { paid: number; pending: number };
+  approvedPayments: readonly {
+    method: PaymentMethod;
+    cardType: PointCardType | null;
+    amount: number;
+  }[];
   linesLock: OpenSale["lines_lock"];
   cancelRefusal: OpenSale["cancel_refusal"];
   refundsOnCancel: readonly PlannedRefund[];
@@ -287,6 +294,7 @@ function toOpenSale(
     sale,
     chargeRefusal,
     balance,
+    approvedPayments,
     linesLock,
     cancelRefusal,
     refundsOnCancel,
@@ -317,6 +325,11 @@ function toOpenSale(
     total: amountToCharge(sale),
     paid: balance.paid,
     pending: balance.pending,
+    payments: approvedPayments.map(({ method, cardType, amount }) => ({
+      method,
+      card_type: cardType,
+      amount,
+    })),
     lines_lock: linesLock,
     cancel_refusal: cancelRefusal,
     refunds_on_cancel: refundsOnCancel.map(toWireRefund),
