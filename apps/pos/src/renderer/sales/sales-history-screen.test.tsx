@@ -291,6 +291,7 @@ describe("SalesHistoryScreen", () => {
       await userEvent.type(searchField(screen), "187");
 
       await expect.element(screen.getByText("No hay ventas con ese número")).toBeVisible();
+      await expect.element(table(screen).getByRole("columnheader", { name: "Hora" })).toBeVisible();
       await expect.element(searchField(screen)).not.toBeInvalid();
     });
 
@@ -310,6 +311,7 @@ describe("SalesHistoryScreen", () => {
       const { screen } = await renderScreen({ salesHistory: async () => pageOf([]) });
 
       await expect.element(screen.getByText("No hay ventas en la sesión abierta")).toBeVisible();
+      await expect.element(table(screen).getByRole("columnheader", { name: "Hora" })).toBeVisible();
       await expect
         .element(detailPanel(screen).getByText("DETALLE DE LA VENTA", { exact: true }))
         .toBeVisible();
@@ -363,8 +365,15 @@ describe("SalesHistoryScreen", () => {
       await expect
         .element(screen.getByText("No tenés permiso para ver el historial de ventas"))
         .toBeVisible();
+      await expect.element(table(screen).getByRole("columnheader", { name: "Hora" })).toBeVisible();
+      await expect
+        .element(detailPanel(screen).getByText("Elegí una venta para ver su detalle"))
+        .not.toBeInTheDocument();
       await expect.element(searchField(screen)).toBeDisabled();
       await expect.element(screen.getByRole("radio", { name: "Todas" })).toBeDisabled();
+      expect(
+        getComputedStyle(screen.getByRole("radiogroup", { name: "Sesión" }).element()).opacity,
+      ).toBe("0.45");
       await expect
         .element(detailPanel(screen).getByText("DETALLE DE LA VENTA", { exact: true }))
         .toBeVisible();
@@ -379,6 +388,10 @@ describe("SalesHistoryScreen", () => {
       await expect
         .element(screen.getByText("La sesión terminó. Volvé a ingresar para ver las ventas"))
         .toBeVisible();
+      await expect.element(table(screen).getByRole("columnheader", { name: "Hora" })).toBeVisible();
+      await expect
+        .element(detailPanel(screen).getByText("Elegí una venta para ver su detalle"))
+        .not.toBeInTheDocument();
       await expect.element(searchField(screen)).toBeDisabled();
       await expect.element(detailPanel(screen).getByText("Esc", { exact: true })).toBeVisible();
     });

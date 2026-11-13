@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import { DETAIL, detailPanel, renderScreen } from "./test-support/sales-history-screen";
@@ -43,6 +43,18 @@ describe("SalesHistoryScreen credit note of a voided sale", () => {
       .element(screen.getByText("La nota de crédito sale en cuanto la impresora esté lista"))
       .toBeVisible();
     await expect.element(screen.getByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("shows the whole name of the credit note's button in the register's window", async () => {
+    const { screen } = await renderScreen(showing(voided({ kind: "duplicate", order_number: 1 })));
+    await page.viewport(1366, 768);
+    onTestFinished(() => page.viewport(414, 896));
+
+    const button = detailPanel(screen).getByRole("button", { name: /Reimprimir nota de crédito/ });
+    await expect.element(button).toBeVisible();
+
+    const label = button.getByText("Reimprimir nota de crédito").element();
+    expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
   });
 
   it("reads the sale again after printing it", async () => {

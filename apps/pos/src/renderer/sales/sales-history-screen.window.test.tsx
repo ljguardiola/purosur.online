@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { page } from "vitest/browser";
 import {
   STORE_NOTEBOOK_WINDOW,
   scrollTheAreaHoldingItToItsEnd,
@@ -6,6 +7,12 @@ import {
   windowOverflow,
 } from "../shell/test-support/register-window";
 import { FISCAL_ROW, pageOf, renderScreen, table } from "./test-support/sales-history-screen";
+
+function linesOfText(element: Element): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+}
 
 const FIFTY_SALES = Array.from({ length: 50 }, (_, index) => ({
   ...FISCAL_ROW,
@@ -32,5 +39,26 @@ describe("SalesHistoryScreen in the store notebook's window", () => {
     expect(menu.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
     const panel = screen.getByRole("complementary", { name: "Detalle de la venta" }).element();
     expect(panel.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
+  });
+});
+
+describe("SalesHistoryScreen in the register's window", () => {
+  it("shows each sale on one line, with the comprobante and the payment methods unbroken", async () => {
+    const { screen } = await renderScreen({
+      salesHistory: async () =>
+        pageOf([
+          { ...FISCAL_ROW, payment_methods: ["CASH", "TRANSFER"] },
+          { ...FISCAL_ROW, sale_id: "sale-2", payment_methods: ["CASH", "POINT"] },
+        ]),
+    });
+    await page.viewport(1366, 768);
+    onTestFinished(() => page.viewport(414, 896));
+
+    const comprobante = table(screen).getByText("Factura C · 00003-00001248").first();
+    const methods = table(screen).getByText("Efectivo · Transferencia");
+    await expect.element(comprobante).toBeVisible();
+
+    expect(linesOfText(comprobante.element())).toBe(1);
+    expect(linesOfText(methods.element())).toBe(1);
   });
 });
