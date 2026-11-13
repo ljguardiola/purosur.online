@@ -27,7 +27,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import {
   useMarkPurchasingStale,
@@ -107,7 +107,7 @@ export function LinkSupplierItemModal({
   onClose,
   onSessionEnded,
 }: LinkSupplierItemModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshChoices = useRefreshSupplierItemLinkChoices();
   const open = target !== null;
   const [shown, setShown] = useState<SupplierPriceListRow | null>(null);
@@ -155,7 +155,7 @@ export function LinkSupplierItemModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

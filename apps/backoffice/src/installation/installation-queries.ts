@@ -2,7 +2,7 @@ import type { ReportRegisterListBody } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type {
   FetchRegisterNamesOutcome,
@@ -32,12 +32,12 @@ export function useRegistersQuery(params: {
   fetchRegisters: typeof fetchRegisters;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RegisterSummary[]>({
     queryKey: installationKeys.registers,
     read: params.fetchRegisters,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -46,12 +46,12 @@ export function useRegisterNamesQuery(params: {
   fetchRegisterNames: () => Promise<FetchRegisterNamesOutcome>;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RegisterName[]>({
     queryKey: installationKeys.registerNames(params.source),
     read: params.fetchRegisterNames,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -59,12 +59,12 @@ export function useRegisterCoverageQuery(params: {
   fetchRegisterCoverage: typeof fetchRegisterCoverage;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PermissionKey[]>({
     queryKey: installationKeys.coverage,
     read: params.fetchRegisterCoverage,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -72,12 +72,12 @@ export function useRegisterSyncStatusQuery(params: {
   fetchRegisterSyncStatus: typeof fetchRegisterSyncStatus;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RegisterSyncStatus[]>({
     queryKey: installationKeys.syncStatus,
     read: params.fetchRegisterSyncStatus,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -85,12 +85,12 @@ export function useReportRegistersQuery(params: {
   fetchReportRegisters: typeof fetchReportRegisters;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ReportRegisterListBody>({
     queryKey: installationKeys.reportRegisters,
     read: params.fetchReportRegisters,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

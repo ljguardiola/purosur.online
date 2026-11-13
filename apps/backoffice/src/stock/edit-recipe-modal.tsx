@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import type { ProductPriceSection } from "../platform/product-price-section";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { RecipeComponentsField } from "./recipe-components-field";
 import {
@@ -53,7 +53,7 @@ export function EditRecipeModal({
   onClose,
   onSessionEnded,
 }: EditRecipeModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshStock = useRefreshStock();
   const [notice, setNotice] = useState<RecipeSaveNotice | null>(null);
   const [refusals, setRefusals] = useState<Record<string, string>>({});
@@ -80,7 +80,7 @@ export function EditRecipeModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "product_not_found") {

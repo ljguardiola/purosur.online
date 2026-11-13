@@ -4,7 +4,7 @@ import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-reac
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { TAG_NAME_TAKEN, tagNameMessage } from "../platform/tag-name";
 import type { TagReload } from "./catalog-queries";
 import {
@@ -43,7 +43,7 @@ export function EditTagModal({
   services,
 }: EditTagModalProps) {
   const { editTag } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [loaded, setLoaded] = useState<TagSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
@@ -68,7 +68,7 @@ export function EditTagModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

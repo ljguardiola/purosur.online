@@ -20,7 +20,7 @@ import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { ProductPriceSectionProps as PlatformProps } from "../platform/product-price-section";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { formatCentsWithUnit } from "./money";
 import {
   AMOUNT_ALREADY_CURRENT,
@@ -237,7 +237,7 @@ export function ProductPriceSection({
   onSessionEnded,
   services = defaultServices,
 }: ProductPriceSectionProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPrices = useRefreshPrices();
   const [notice, setNotice] = useState<SectionNotice | null>(null);
   const key = components === null ? undefined : componentsKey(components);
@@ -288,7 +288,7 @@ export function ProductPriceSection({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
     } else if (outcome.kind === "stale_price") {

@@ -64,7 +64,7 @@ import { AREA_LABELS, PERMISSION_LABELS } from "../platform/permission-labels";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import { schemaText } from "../platform/schema-text";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { monthNameOf, yearMonthPhrase, yearOf } from "../platform/year-month-label";
 import {
   type BackofficeAccess,
@@ -988,7 +988,7 @@ function OpenAlertDetailModal({
   onSessionEnded,
   services,
 }: Omit<AlertDetailModalProps, "alertId"> & { alertId: string }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { fetchAlert, fetchPermissionCatalog, closeAlert } =
     services ?? defaultAlertDetailModalServices;
   const data = useAlertQuery({ id: alertId, fetchAlert, onSessionEnded });
@@ -1011,7 +1011,7 @@ function OpenAlertDetailModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

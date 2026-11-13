@@ -23,7 +23,7 @@ import type {
   RegisterPaymentModals,
 } from "../platform/register-payment-modals";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type BackofficeAccess,
   canEnrollRegisters,
@@ -100,7 +100,7 @@ function FullRegistersListScreen({
   onSessionsPeriodChange,
 }: RegistersListScreenProps) {
   const navigate = useNavigate();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const {
     fetchRegisters,
     fetchRegisterCoverage,
@@ -158,7 +158,7 @@ function FullRegistersListScreen({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "not_found") {

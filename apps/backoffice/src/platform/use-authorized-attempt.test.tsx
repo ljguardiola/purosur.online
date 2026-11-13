@@ -183,7 +183,7 @@ test("ends the session when the attempt finds no open session", async () => {
   expect(onSettled).not.toHaveBeenCalled();
 });
 
-test("sends the person to Mi cuenta when the attempt comes back forbidden", async () => {
+test("opens the own account panel when the attempt comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const screen = await renderHarness({ request: vi.fn().mockResolvedValue({ kind: "forbidden" }) });
 
@@ -312,7 +312,7 @@ test("ends the session when no open session is found after it was closed", async
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("sends the person to Mi cuenta when the attempt comes back forbidden after it was closed", async () => {
+test("opens the own account panel when the attempt comes back forbidden after it was closed", async () => {
   window.history.pushState(null, "", "/registers");
   const { request, answer } = pending();
   const screen = await renderHarness({ request });

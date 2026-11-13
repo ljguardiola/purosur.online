@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import {
   type PurchaseCorrectionNotice,
@@ -53,7 +53,7 @@ export function AddPurchaseLinesModal({
   onClose,
   onSessionEnded,
 }: AddPurchaseLinesModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const reviewPurchasedPrices = useReviewPurchasedPrices();
   const open = target !== null;
@@ -100,7 +100,7 @@ export function AddPurchaseLinesModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

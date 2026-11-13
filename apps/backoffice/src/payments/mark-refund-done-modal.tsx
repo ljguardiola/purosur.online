@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { paymentLabelInSentence } from "../platform/payment-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { markRefundDone } from "./refunds-api";
 
 export type MarkRefundDoneModalServices = {
@@ -37,7 +37,7 @@ export function MarkRefundDoneModal({
   services,
 }: MarkRefundDoneModalProps) {
   const { markRefundDone } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PendingRefund | null>(null);
   const [notice, setNotice] = useState<MarkDoneNotice | null>(null);
@@ -67,7 +67,7 @@ export function MarkRefundDoneModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);
