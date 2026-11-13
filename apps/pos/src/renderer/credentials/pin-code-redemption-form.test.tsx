@@ -1,5 +1,5 @@
 import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, insetBoundary } from "@purosur/ui/test";
 import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -134,6 +134,9 @@ describe("PinCodeRedemptionForm", () => {
 
     await expect.element(screen.getByText("El código venció")).toBeVisible();
     await expect.element(code(screen)).toHaveFocus();
+    expect(
+      getComputedStyle(code(screen).element().parentElement as HTMLElement).boxShadow,
+    ).toContain(insetBoundary("error", "2px"));
   });
 
   it("moves between the code, the new PIN and its repeat with Tab and Shift+Tab", async () => {

@@ -299,3 +299,17 @@ export const PasswordNumeric: Story = {
     inputMode: "numeric",
   },
 };
+
+export const InvalidKeepingErrorRingWhileFocused: Story = {
+  args: {
+    kind: "plain-text",
+    label: "Código",
+    value: "K7M4Q2",
+    onChange: () => {},
+    errorMessage: "El código venció",
+    errorRingWhileFocused: true,
+  },
+  play: async ({ canvasElement }) => {
+    canvasElement.querySelector("input")?.focus();
+  },
+};
