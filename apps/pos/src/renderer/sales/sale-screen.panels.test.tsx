@@ -1,4 +1,10 @@
-import type { OpenSale } from "@purosur/contracts";
+import type {
+  AddProductOutcome,
+  CancelSaleOutcome,
+  FoundProduct,
+  OpenSale,
+  SearchProductsOutcome,
+} from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { Overrides } from "./test-support/sale-screen";
@@ -13,6 +19,13 @@ const LINE_PRICE = "Precio de la línea";
 const SALE_DISCOUNT = "Descuento al total";
 const EMPTY_SALE = "Vaciar venta";
 const CANCEL_SALE = "Cancelar venta";
+const ALMENDRAS_FOUND: FoundProduct = {
+  product_id: "p-almendras",
+  name: "Almendras peladas",
+  sale_unit: "UNIT",
+  unit_price: 120_000,
+  matches: [{ start: 0, length: 3 }],
+};
 const FIELD_AND_OPTION_KEYS = ["TabCampo", "←→Opción"];
 const PAID_SALE: OpenSale = {
   ...SALE_OF_YERBA,
@@ -80,11 +93,29 @@ describe("SaleScreen opening the panels with F6, F7 and F8", () => {
 
   it("opens the cancellation on F8 when the sale has payments", async () => {
     const { screen } = await renderScreen({ currentSale: async () => PAID_SALE });
-    await userEvent.click(screen.getByText("Yerba mate 1 kg"));
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
     await userEvent.keyboard("{F8}");
 
     await expect.element(panelNamed(screen, CANCEL_SALE)).toBeVisible();
+  });
+
+  it("offers no F8 and opens nothing on it when the sale has no lines", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => ({
+        ...SALE_OF_YERBA,
+        lines: [],
+        total: 0,
+        pending: 0,
+        gross_subtotal: 0,
+        subtotal: 0,
+      }),
+    });
+    await expect.element(panelNamed(screen, "Panel de cobro")).toBeVisible();
+
+    expect(legendOf()).not.toContain("F8Vaciar");
+    await userEvent.keyboard("{F8}");
+    await expect.element(panelNamed(screen, EMPTY_SALE)).not.toBeInTheDocument();
   });
 
   it("opens each panel from its key while the search field holds text", async () => {
@@ -158,17 +189,54 @@ describe("SaleScreen while a panel is open", () => {
     ["{F8}", EMPTY_SALE],
   ])("leaves the keys of the screen off under the panel opened by %s", async (opening, name) => {
     const removeSaleLine = vi.fn();
-    const { screen } = await renderFourLines({ removeSaleLine });
+    const { screen, field } = await renderFourLines({ removeSaleLine });
     await userEvent.keyboard(opening);
     await expect.element(panelNamed(screen, name)).toBeVisible();
 
     await userEvent.keyboard("{F2}{F3}{F6}{F7}{F8}{Delete}{ArrowUp}");
 
     await expect.element(panelNamed(screen, name)).toBeVisible();
+    await expect.element(field).not.toHaveFocus();
     await userEvent.keyboard("{Escape}");
     await expect.element(panelNamed(screen, "Panel de cobro")).toBeVisible();
     await expect.element(screen.getByRole("row").last()).toHaveAttribute("aria-current", "true");
     expect(removeSaleLine).not.toHaveBeenCalled();
+  });
+
+  it("searches nothing typed under the confirmation to empty the sale", async () => {
+    const searchProducts = vi.fn(
+      async (): Promise<SearchProductsOutcome> => ({ kind: "results", products: [], more: false }),
+    );
+    const { screen, field } = await renderFourLines({ searchProducts });
+    await userEvent.keyboard("{F8}");
+    await expect.element(panelNamed(screen, EMPTY_SALE)).toBeVisible();
+
+    await userEvent.keyboard("yer");
+
+    await expect.element(field).toHaveValue("");
+    expect(searchProducts).not.toHaveBeenCalled();
+  });
+
+  it("lets no search result be chosen under the confirmation to empty the sale, Enter reaching only the panel", async () => {
+    const addProduct = vi.fn(
+      async (): Promise<AddProductOutcome> => ({ kind: "product_unavailable" }),
+    );
+    const cancelSale = vi.fn(async (): Promise<CancelSaleOutcome> => ({ kind: "unavailable" }));
+    const { screen, field } = await renderFourLines({
+      searchProducts: async () => ({ kind: "results", products: [ALMENDRAS_FOUND], more: false }),
+      addProduct,
+      cancelSale,
+    });
+    await field.fill("alm");
+    await expect.element(screen.getByRole("option", { name: /Almendras/ })).toBeVisible();
+
+    await userEvent.keyboard("{F8}");
+    await expect.element(panelNamed(screen, EMPTY_SALE)).toBeVisible();
+
+    await expect.element(screen.getByRole("option")).not.toBeInTheDocument();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => cancelSale).toHaveBeenCalledOnce();
+    expect(addProduct).not.toHaveBeenCalled();
   });
 
   it("shows no F2 or F3 anywhere in the panel", async () => {

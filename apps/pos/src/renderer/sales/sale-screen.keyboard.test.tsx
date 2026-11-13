@@ -154,7 +154,7 @@ describe("SaleScreen with a sale that can no longer be changed", () => {
     });
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F8Vaciar"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F8Cancelar venta"]);
     await userEvent.keyboard("{Delete}");
     pressKeypad("+");
     pressKeypad("-");
