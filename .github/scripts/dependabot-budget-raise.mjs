@@ -1,6 +1,15 @@
-import { findBudgetViolations, holdsExactlyTheMeasures } from "./backoffice-download-budget.mjs";
+import { writeFileSync } from "node:fs";
+import {
+  findBudgetViolations,
+  holdsExactlyTheMeasures,
+  measureDownload,
+} from "./backoffice-download-budget.mjs";
+import { isDependabotAuthor } from "./validate-pr.mjs";
 
 const RAISE_CAP_BYTES = 2048;
+const BUDGET_PATH = "apps/backoffice/download-budget.json";
+const DEFAULT_DIST_DIR = "apps/backoffice/dist";
+const MEASUREMENT_FIELDS = ["entry", "total", "missing"];
 
 export function decideBudgetRaise(measured, budget) {
   if (!holdsExactlyTheMeasures(budget) || measured.missing.length > 0) {
@@ -13,4 +22,105 @@ export function decideBudgetRaise(measured, budget) {
   if (overCap.length > 0) return { kind: "over-cap", reasons: overCap };
 
   return { kind: "raise", budget: { entry: measured.entry, total: measured.total } };
+}
+
+export function writeMeasurement({ distDir = DEFAULT_DIST_DIR, outPath }) {
+  const { entry, total, missing } = measureDownload(distDir);
+  writeFileSync(outPath, JSON.stringify({ entry, total, missing }));
+}
+
+export function readMeasurement(text) {
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const keys = Object.keys(value);
+  if (keys.length !== MEASUREMENT_FIELDS.length) return null;
+  if (!MEASUREMENT_FIELDS.every((field) => Object.hasOwn(value, field))) return null;
+  if (!holdsExactlyTheMeasures({ entry: value.entry, total: value.total })) return null;
+  if (!Array.isArray(value.missing) || !value.missing.every((file) => typeof file === "string")) {
+    return null;
+  }
+  return { entry: value.entry, total: value.total, missing: value.missing };
+}
+
+const budgetFileContent = (budget) => `${JSON.stringify(budget, null, 2)}\n`;
+
+export async function raiseBudgetOnPullRequest({
+  reader,
+  writer,
+  owner,
+  repo,
+  run,
+  measurementText,
+}) {
+  const measured = readMeasurement(measurementText);
+  if (measured === null) return { kind: "unreadable-measurement" };
+
+  const { data: pullRequests } = await reader.pulls.list({
+    owner,
+    repo,
+    head: `${owner}:${run.head_branch}`,
+    state: "open",
+  });
+  if (pullRequests.length !== 1) return { kind: "no-pull-request" };
+  const [pullRequest] = pullRequests;
+  if (!isDependabotAuthor({ login: pullRequest.user?.login, type: pullRequest.user?.type })) {
+    return { kind: "not-dependabot", pullRequest: pullRequest.number };
+  }
+  if (pullRequest.head.sha !== run.head_sha)
+    return { kind: "stale", pullRequest: pullRequest.number };
+
+  const { data: file } = await reader.repos.getContent({
+    owner,
+    repo,
+    path: BUDGET_PATH,
+    ref: run.head_sha,
+  });
+  const budget = JSON.parse(Buffer.from(file.content, file.encoding).toString("utf8"));
+
+  const decision = decideBudgetRaise(measured, budget);
+  if (decision.kind !== "raise") return { ...decision, pullRequest: pullRequest.number };
+
+  const { data: headCommit } = await writer.git.getCommit({
+    owner,
+    repo,
+    commit_sha: run.head_sha,
+  });
+  const { data: tree } = await writer.git.createTree({
+    owner,
+    repo,
+    base_tree: headCommit.tree.sha,
+    tree: [
+      {
+        path: BUDGET_PATH,
+        mode: "100644",
+        type: "blob",
+        content: budgetFileContent(decision.budget),
+      },
+    ],
+  });
+  const { data: commit } = await writer.git.createCommit({
+    owner,
+    repo,
+    message: "chore(deps): raise the backoffice download budget to the measured bundle",
+    tree: tree.sha,
+    parents: [run.head_sha],
+  });
+  await writer.git.updateRef({
+    owner,
+    repo,
+    ref: `heads/${run.head_branch}`,
+    sha: commit.sha,
+    force: false,
+  });
+
+  return { kind: "raised", pullRequest: pullRequest.number, budget: decision.budget };
+}
+
+if (import.meta.main) {
+  writeMeasurement({ outPath: process.argv[2] });
 }
