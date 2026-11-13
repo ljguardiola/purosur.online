@@ -24,7 +24,7 @@ import type { CoreData } from "../platform/use-core-query";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import { nonEmptyRows } from "../shell/sale-receipt-text";
 import { creditNoteRowOf } from "./credit-note-text";
-import { comprobanteRow, paymentRowName } from "./sale-history-text";
+import { comprobanteLine, comprobanteRow, paymentRowName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
 
 export type SaleButton = {
@@ -126,6 +126,14 @@ function Message({
   );
 }
 
+function deferredRows(sale: SaleDetail): SummaryRowProps[] {
+  return [
+    { label: "Venta del", value: formatDayMonthAndTime(sale.occurred_at) },
+    { label: "Comprobante", value: comprobanteLine(sale.comprobante) },
+    { label: "Artículos", value: formatNumber(sale.lines.length) },
+  ];
+}
+
 function Sale({
   sale,
   withDate,
@@ -135,7 +143,8 @@ function Sale({
   withDate: boolean;
   buttons: readonly SaleButton[];
 }) {
-  const rows = nonEmptyRows(detailRows(sale));
+  const deferred = sale.state === "deferred";
+  const rows = nonEmptyRows(deferred ? deferredRows(sale) : detailRows(sale));
   const when = withDate
     ? formatDayMonthAndTime(sale.occurred_at)
     : formatClockTime(sale.occurred_at);
@@ -152,7 +161,7 @@ function Sale({
         value={formatCents(sale.total)}
       />
       {rows === undefined ? null : <SummaryRowGroup rows={rows} />}
-      {sale.lines.length === 0 ? null : (
+      {deferred || sale.lines.length === 0 ? null : (
         <div className="flex flex-col gap-2">
           <Eyebrow text="PRODUCTOS" />
           <LineItemList
