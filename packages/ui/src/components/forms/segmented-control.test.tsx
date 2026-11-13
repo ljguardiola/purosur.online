@@ -396,6 +396,35 @@ test("spans its container with options of equal width when full width", async ()
   expect(first.width + second.width).toBeGreaterThan(container.width - 20);
 });
 
+test("fits a narrow container with long options when full width", async () => {
+  const screen = await render(
+    <div style={{ width: "352px" }}>
+      <SegmentedControl
+        label="Entry mode"
+        size="large"
+        fullWidth
+        value="newPrice"
+        onChange={() => {}}
+        options={[
+          { value: "newPrice", label: "Precio nuevo" },
+          { value: "percent", label: "Descuento %" },
+          { value: "amount", label: "Descuento $" },
+        ]}
+      />
+    </div>,
+  );
+  const container = segmentContainer(screen, "Entry mode");
+  const box = container.getBoundingClientRect();
+
+  expect(container.scrollWidth).toBeLessThanOrEqual(Math.ceil(box.width));
+  expect(box.width).toBeCloseTo(352, 0);
+  for (const label of ["Precio nuevo", "Descuento %", "Descuento $"]) {
+    const option = segmentOption(screen, label).getBoundingClientRect();
+    expect(option.left).toBeGreaterThanOrEqual(box.left);
+    expect(option.right).toBeLessThanOrEqual(box.right);
+  }
+});
+
 test("keeps its content width when not full width", async () => {
   const screen = await render(
     <div style={{ width: "600px" }}>
