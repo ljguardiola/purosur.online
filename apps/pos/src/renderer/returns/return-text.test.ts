@@ -48,44 +48,19 @@ describe("the quantity of a line", () => {
 });
 
 describe("the refusal of finding the sale", () => {
-  it("says the sale is not in this branch", () => {
-    expect(findRefusalText("not_found")).toEqual({
-      title: "No encontramos esa venta en esta sucursal.",
-    });
-  });
-
-  it("says a connection is needed to look for a sale of another register", () => {
-    expect(findRefusalText("needs_connection")).toEqual({
-      title: "Se necesita conexión a internet para buscar una venta de otra caja.",
-    });
-  });
-
-  it("says looking for a sale of another register failed", () => {
-    expect(findRefusalText("lookup_failed")).toEqual({
-      title: "No se pudo buscar la venta en las otras cajas",
-      description: "Probá de nuevo.",
-    });
-  });
-
-  it("says a voided sale cannot be returned", () => {
-    expect(findRefusalText("voided")).toEqual({
-      title: "Esa venta está anulada: no se puede devolver.",
-    });
-  });
-
-  it("says a scanned code is not a ticket's QR", () => {
-    expect(findRefusalText("not_a_ticket_qr")).toEqual({
-      title: "Ese QR no es de un ticket",
-      description:
-        "Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
-    });
-  });
-
-  it("says the search could not be made", () => {
-    expect(findRefusalText("unavailable")).toEqual({
-      title: "No se pudo buscar la venta",
-      description: "Probá de nuevo.",
-    });
+  it.each([
+    ["not_found", "No encontramos esa venta en esta sucursal."],
+    ["needs_connection", "Se necesita conexión a internet para buscar una venta de otra caja."],
+    ["lookup_failed", "No se pudo buscar la venta en las otras cajas. Probá de nuevo."],
+    ["voided", "Esa venta está anulada: no se puede devolver."],
+    [
+      "not_a_ticket_qr",
+      "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
+    ],
+    ["not_a_ticket_number", "Tipeá el número impreso del ticket, como 00003-00001192."],
+    ["unavailable", "No se pudo buscar la venta. Probá de nuevo."],
+  ] as const)("says %s in one sentence", (kind, text) => {
+    expect(findRefusalText(kind)).toBe(text);
   });
 });
 

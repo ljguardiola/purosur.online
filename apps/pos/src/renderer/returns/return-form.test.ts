@@ -22,17 +22,27 @@ describe("a return draft", () => {
     expect(draftLinesFor(SALE, EMPTY_RETURN_DRAFT)).toEqual([]);
   });
 
-  it("takes a checked unit line whole, with no reason and no destination chosen", () => {
+  it("takes a checked unit line whole, for a change of mind refunded and put back on sale", () => {
     const draft = checkLine(EMPTY_RETURN_DRAFT, PASTA);
 
     expect(draft).toEqual({
-      [PASTA.id]: { quantity: "3", reason: null, disposition: null, resolution: null },
+      [PASTA.id]: {
+        quantity: "3",
+        reason: "change_of_mind",
+        disposition: "restock",
+        resolution: "refund",
+      },
     });
   });
 
   it("takes a checked weighed line whole, as the weight is typed", () => {
     expect(checkLine(EMPTY_RETURN_DRAFT, NIBS)).toEqual({
-      [NIBS.id]: { quantity: "0,350", reason: null, disposition: null, resolution: null },
+      [NIBS.id]: {
+        quantity: "0,350",
+        reason: "change_of_mind",
+        disposition: "restock",
+        resolution: "refund",
+      },
     });
   });
 
@@ -59,7 +69,7 @@ describe("a return draft", () => {
     expect(draft[PASTA.id]).toEqual({
       quantity: "3",
       reason: "defective",
-      disposition: null,
+      disposition: "restock",
       resolution: null,
     });
   });
@@ -118,7 +128,7 @@ describe("a return draft", () => {
         quantity: 2,
         reason: "change_of_mind",
         disposition: "restock",
-        resolution: null,
+        resolution: "refund",
       },
       {
         sale_line_id: NIBS.id,
@@ -157,10 +167,10 @@ describe("a return draft", () => {
     expect(draftLinesFor(SALE, draft).map(({ quantity }) => quantity)).toEqual([1]);
   });
 
-  it("asks for what is typed of a line that goes back whole for some reason while none is chosen", () => {
-    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, { quantity: "1" });
+  it("asks for all that remains of a line that goes back whole for a change of mind as soon as it is checked", () => {
+    const draft = checkLine(EMPTY_RETURN_DRAFT, HONEY);
 
-    expect(draftLinesFor(SALE, draft).map(({ quantity }) => quantity)).toEqual([1]);
+    expect(draftLinesFor(SALE, draft).map(({ quantity }) => quantity)).toEqual([2]);
   });
 
   it("leaves out a checked line the sale no longer has", () => {
@@ -255,7 +265,7 @@ describe("the request a return is completed with", () => {
           quantity: 3,
           reason: "change_of_mind",
           disposition: "restock",
-          resolution: null,
+          resolution: "refund",
         },
       ],
       refunds: [{ payment_id: CASH.payment_id, amount: 970_000 }],

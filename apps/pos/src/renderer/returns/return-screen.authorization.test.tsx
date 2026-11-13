@@ -6,19 +6,15 @@ import {
   authorizeInModal,
 } from "../shell/test-support/authorization-modal-steps";
 import {
+  CASH_SALE,
   chooseReturnLine,
+  linesTable,
+  lookUp,
   openReturn,
   renderScreen,
-  typeTicket,
 } from "./test-support/return-screen";
-import { SALE } from "./test-support/sale-for-return";
 
 const GRACE = { user_id: "u2", pin: "1234" };
-const RETURN_LINE = {
-  reason: "Defecto",
-  disposition: "Descarte",
-  resolution: "Reintegro",
-} as const;
 
 function lackingPermissionUntilAuthorized() {
   return vi.fn(async (_reading: unknown, authorization: { user_id: string } | undefined) =>
@@ -26,7 +22,7 @@ function lackingPermissionUntilAuthorized() {
       ? ({ kind: "lacks_permission" } as const)
       : ({
           kind: "found",
-          sale: SALE,
+          sale: CASH_SALE,
           ticket_source: "TYPED",
           ticket_verification_required: true,
         } as const),
@@ -46,7 +42,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       findSaleForReturn: lackingPermissionUntilAuthorized(),
     });
 
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await expect
       .element(authorizationDialog().getByText("Devolución", { exact: true }))
@@ -57,7 +53,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
   it("looks the same ticket up again with who authorizes and their PIN on Enter", async () => {
     const findSaleForReturn = lackingPermissionUntilAuthorized();
     const { screen } = await renderScreen({ findSaleForReturn });
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await authorizeInModal({ as: "Grace", pin: "1234" });
 
@@ -65,16 +61,14 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     expect(findSaleForReturn.mock.calls[1]).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "typed" }), GRACE]),
     );
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Coincide con el ticket en papel?" }))
-      .toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
     await expect.element(authorizationDialog()).not.toBeInTheDocument();
   });
 
   it("does not look the ticket up again when the modal is closed with Esc", async () => {
     const findSaleForReturn = lackingPermissionUntilAuthorized();
     const { screen } = await renderScreen({ findSaleForReturn });
-    await typeTicket(screen);
+    await lookUp(screen);
     await expect.element(authorizationDialog()).toBeVisible();
 
     await userEvent.keyboard("{Escape}");
@@ -88,7 +82,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       findSaleForReturn: lackingPermissionUntilAuthorized(),
     });
 
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await expect.element(authorizationDialog()).toBeVisible();
     await expect
@@ -100,12 +94,12 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     const { screen } = await renderScreen({
       findSaleForReturn: lackingPermissionUntilAuthorized(),
     });
-    await typeTicket(screen);
+    await lookUp(screen);
     await expect.element(authorizationDialog()).toBeVisible();
     await userEvent.keyboard("{Escape}");
     await expect.element(authorizationDialog()).not.toBeInTheDocument();
 
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await expect.element(authorizationDialog()).toBeVisible();
     await expect.element(authorizationDialog().getByLabelText("PIN")).toBeEnabled();
@@ -123,7 +117,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
             }),
     );
     const { screen } = await renderScreen({ findSaleForReturn });
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await authorizeInModal({ as: "Grace", pin: "1234" });
 
@@ -135,26 +129,24 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await expect.element(authorizationDialog()).toBeVisible();
     answer({
       kind: "found",
-      sale: SALE,
+      sale: CASH_SALE,
       ticket_source: "TYPED",
       ticket_verification_required: true,
     });
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Coincide con el ticket en papel?" }))
-      .toBeVisible();
+    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
   });
 
   it("shows who authorized on the screen where the return is built, and sends it to complete", async () => {
     const { screen, completeReturn } = await renderScreen({
       findSaleForReturn: lackingPermissionUntilAuthorized(),
     });
-    await typeTicket(screen);
+    await lookUp(screen);
     await authorizeInModal({ as: "Grace", pin: "1234" });
-    await userEvent.click(screen.getByRole("button", { name: "Coincide: seguir" }));
 
     await expect.element(screen.getByText("Autorizó Grace").first()).toBeVisible();
-    await chooseReturnLine(screen, "Pasta de maní 380 g", RETURN_LINE);
-    await userEvent.click(screen.getByRole("button", { name: "Completar devolución" }));
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+    await userEvent.keyboard("t");
+    await userEvent.keyboard("{Enter}");
 
     expect(completeReturn).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ authorization: GRACE }),
@@ -169,7 +161,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
           : ({ kind: "wrong_pin", attempts_left: 2, retry_after_seconds: 0 } as const),
       ),
     });
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await authorizeInModal({ as: "Grace", pin: "1234" });
 
@@ -180,12 +172,11 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     const { screen } = await renderScreen({
       findSaleForReturn: lackingPermissionUntilAuthorized(),
     });
-    await typeTicket(screen);
+    await lookUp(screen);
     await authorizeInModal({ as: "Grace", pin: "1234" });
-    await userEvent.click(screen.getByRole("button", { name: "Coincide: seguir" }));
-    await userEvent.click(screen.getByRole("button", { name: "Salir sin completar" }));
+    await userEvent.keyboard("{Escape}");
 
-    await typeTicket(screen);
+    await lookUp(screen);
 
     await expect.element(authorizationDialog()).toBeVisible();
   });
@@ -201,9 +192,10 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       }),
     });
     await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g", RETURN_LINE);
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+    await userEvent.keyboard("t");
 
-    await userEvent.click(screen.getByRole("button", { name: "Completar devolución" }));
+    await userEvent.keyboard("{Enter}");
 
     await expect
       .element(authorizationDialog().getByText("Devolución", { exact: true }))
@@ -222,8 +214,9 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       completeReturn: vi.fn(async () => ({ kind: "lacks_permission" as const })),
     });
     await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g", RETURN_LINE);
-    await userEvent.click(screen.getByRole("button", { name: "Completar devolución" }));
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+    await userEvent.keyboard("t");
+    await userEvent.keyboard("{Enter}");
     await expect.element(authorizationDialog()).toBeVisible();
 
     await userEvent.keyboard("{Escape}");

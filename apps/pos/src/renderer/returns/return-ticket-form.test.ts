@@ -1,54 +1,31 @@
 import { describe, expect, it } from "vitest";
-import {
-  EMPTY_RETURN_TICKET_FORM,
-  INVALID_INVOICE_NUMBER_MESSAGE,
-  INVALID_POINT_OF_SALE_MESSAGE,
-  returnTicketRequestFrom,
-  returnTicketRequestSchema,
-  scannedReturnReading,
-} from "./return-ticket-form";
+import { scannedReturnReading, typedReturnReading } from "./return-ticket-form";
 
 const FISCAL_QR = `https://www.arca.gob.ar/fe/qr/?p=${btoa(JSON.stringify({ ver: 1, ptoVta: 3, tipoCmp: 11, nroCmp: 1192 }))}`;
 
-describe("the numbers typed from the ticket", () => {
-  it("start empty", () => {
-    expect(EMPTY_RETURN_TICKET_FORM).toEqual({ pointOfSale: "", number: "" });
-  });
-
-  it("are looked up as typed, however many zeros the ticket prints", () => {
-    expect(returnTicketRequestFrom({ pointOfSale: "00003", number: "00001192" })).toEqual({
-      reading: { kind: "typed", point_of_sale: 3, number: 1192 },
-    });
-  });
-
+describe("the number typed in the search", () => {
   it.each([
-    { pointOfSale: "00003", number: "00001192" },
-    { pointOfSale: "3", number: "1" },
-    { pointOfSale: " 3 ", number: " 1192 " },
-  ])("are accepted by the request's shape: %j", (values) => {
-    expect(returnTicketRequestSchema.safeParse(returnTicketRequestFrom(values)).success).toBe(true);
-  });
+    ["0003-00001192", 3, 1192],
+    ["00003-00001192", 3, 1192],
+    ["3-1", 3, 1],
+    [" 3-1192 ", 3, 1192],
+  ])(
+    "is looked up as typed, however many zeros the ticket prints: %j",
+    (text, pointOfSale, number) => {
+      expect(typedReturnReading(text)).toEqual({
+        kind: "typed",
+        point_of_sale: pointOfSale,
+        number,
+      });
+    },
+  );
 
-  it.each([
-    { pointOfSale: "", number: "1192" },
-    { pointOfSale: "0", number: "1192" },
-    { pointOfSale: "100000", number: "1192" },
-    { pointOfSale: "3", number: "" },
-    { pointOfSale: "3", number: "0" },
-    { pointOfSale: "3", number: "11,5" },
-    { pointOfSale: "A3", number: "1192" },
-  ])("are refused by the request's shape: %j", (values) => {
-    expect(returnTicketRequestSchema.safeParse(returnTicketRequestFrom(values)).success).toBe(
-      false,
-    );
-  });
-
-  it("name what each refused field expects", () => {
-    expect(INVALID_POINT_OF_SALE_MESSAGE).toBe("Tipeá el punto de venta impreso, como 00003.");
-    expect(INVALID_INVOICE_NUMBER_MESSAGE).toBe(
-      "Tipeá el número de comprobante impreso, como 00001192.",
-    );
-  });
+  it.each(["", "1192", "0-1192", "100000-1192", "3-", "3-0", "3-11,5", "A3-1192", "3-1-2"])(
+    "is not a ticket's number: %j",
+    (text) => {
+      expect(typedReturnReading(text)).toBeUndefined();
+    },
+  );
 });
 
 describe("the text the reader scans", () => {

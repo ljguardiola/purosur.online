@@ -5,14 +5,19 @@ import type {
   ReturnDraftLineBody,
   SignInUser,
 } from "@purosur/contracts";
-import { onTestFinished, vi } from "vitest";
+import { expect, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SaleForReturnReading } from "../../platform/core-client";
 import { BarcodeReadings } from "../../shell/barcode-readings";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ReturnScreenProps } from "../return-screen";
 import { ReturnScreen } from "../return-screen";
-import { SALE } from "./sale-for-return";
+import { CASH, SALE } from "./sale-for-return";
+
+export const CASH_SALE = {
+  ...SALE,
+  payments: [{ ...CASH, amount: SALE.total, remaining: SALE.total }],
+};
 
 export const QR_TEXT = `https://www.arca.gob.ar/fe/qr/?p=${btoa(JSON.stringify({ ver: 1, ptoVta: 3, tipoCmp: 11, nroCmp: 1192 }))}`;
 
@@ -70,6 +75,7 @@ type Overrides = Partial<
     | "completeReturn"
     | "loadAuthorizers"
     | "onSessionInvalid"
+    | "saleId"
   >
 >;
 
@@ -81,9 +87,10 @@ export async function renderScreen(overrides: Overrides = {}) {
     vi.fn(
       async (reading: SaleForReturnReading): Promise<FindSaleForReturnOutcome> => ({
         kind: "found",
-        sale: SALE,
-        ticket_source: reading.kind === "scanned" ? "QR" : "TYPED",
-        ticket_verification_required: true,
+        sale: CASH_SALE,
+        ticket_source:
+          reading.kind === "scanned" ? "QR" : reading.kind === "sale" ? "HISTORY" : "TYPED",
+        ticket_verification_required: reading.kind !== "sale",
       }),
     );
   const previewReturn =
@@ -125,6 +132,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     >
       <ReturnScreen
         person={overrides.person ?? CASHIER}
+        {...(overrides.saleId === undefined ? {} : { saleId: overrides.saleId })}
         registerName="Caja 1"
         lock={() => {}}
         findSaleForReturn={findSaleForReturn}
@@ -149,19 +157,39 @@ export async function renderScreen(overrides: Overrides = {}) {
 
 export type RenderedScreen = Awaited<ReturnType<typeof renderScreen>>["screen"];
 
-export async function typeTicket(
-  screen: RenderedScreen,
-  pointOfSale = "00003",
-  number = "00001192",
-) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Punto de venta" }), pointOfSale);
-  await userEvent.fill(screen.getByRole("textbox", { name: "Número de comprobante" }), number);
-  await userEvent.click(screen.getByRole("button", { name: "Buscar venta" }));
+export function searchBox(screen: RenderedScreen) {
+  return screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" });
+}
+
+export function legendOf(screen: RenderedScreen): string[] {
+  return screen
+    .getByRole("listitem")
+    .elements()
+    .filter((item) => item.querySelector("kbd") !== null && item.closest("table") === null)
+    .map((item) => item.textContent.trim());
+}
+
+export function linesTable(screen: RenderedScreen) {
+  return screen.getByRole("table", { name: "Líneas de la venta" });
+}
+
+export async function lookUp(screen: RenderedScreen, text = "0003-00001192") {
+  await userEvent.fill(searchBox(screen), text);
+  await userEvent.keyboard("{Enter}");
 }
 
 export async function openReturn(screen: RenderedScreen) {
-  await typeTicket(screen);
-  await userEvent.click(screen.getByRole("button", { name: "Coincide: seguir" }));
+  await lookUp(screen);
+  await expect.element(linesTable(screen).getByText("Pasta de maní 380 g")).toBeVisible();
+}
+
+export async function selectLine(screen: RenderedScreen, product: string) {
+  await userEvent.click(linesTable(screen).getByText(product, { exact: true }));
+}
+
+export async function markLine(screen: RenderedScreen, product: string) {
+  await selectLine(screen, product);
+  await userEvent.keyboard(" ");
 }
 
 export async function chooseReturnLine(
@@ -171,23 +199,26 @@ export async function chooseReturnLine(
     reason,
     disposition,
     resolution,
-  }: { reason?: string; disposition?: string; resolution?: string } = {},
+    quantity,
+  }: { reason?: string; disposition?: string; resolution?: string; quantity?: string } = {},
 ) {
-  await screen.getByRole("checkbox", { name: new RegExp(product) }).click({ force: true });
-  if (reason !== undefined) {
-    await userEvent.click(screen.getByRole("button", { name: new RegExp(`Motivo de ${product}`) }));
-    await userEvent.click(screen.getByRole("option", { name: new RegExp(reason) }));
+  await markLine(screen, product);
+  if (
+    reason === undefined &&
+    disposition === undefined &&
+    resolution === undefined &&
+    quantity === undefined
+  ) {
+    return;
   }
-  if (resolution !== undefined) {
-    await userEvent.click(
-      screen.getByRole("button", { name: new RegExp(`Resolución de ${product}`) }),
-    );
-    await userEvent.click(screen.getByRole("option", { name: resolution }));
+  await userEvent.keyboard("{F6}");
+  if (quantity !== undefined) {
+    await userEvent.fill(screen.getByRole("textbox", { name: "Cantidad" }), quantity);
   }
-  if (disposition !== undefined) {
-    await userEvent.click(
-      screen.getByRole("button", { name: new RegExp(`Destino de ${product}`) }),
-    );
-    await userEvent.click(screen.getByRole("option", { name: disposition }));
+  for (const option of [reason, resolution, disposition]) {
+    if (option !== undefined) {
+      await screen.getByRole("radio", { name: option }).click({ force: true });
+    }
   }
+  await userEvent.keyboard("{Enter}");
 }
