@@ -131,7 +131,7 @@ type ClosingRefusal = Extract<
 >;
 
 export async function closeCashSessionFor(
-  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { database, gate, readOutboxChainKey, now, ids, zoneRules }: CashSessionRequestDeps,
   { sessionId, countedCash }: CloseCashSessionRequest,
 ): Promise<CloseCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -161,7 +161,7 @@ export async function closeCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed" ? closedAnswer(outcome.session) : outcome;
+  return outcome.kind === "closed" ? closedAnswer(outcome.session, zoneRules.zoneRules()) : outcome;
 }
 
 export interface CloseLockedCashSessionRequest {
@@ -176,7 +176,7 @@ type LockedClosingRefusal = Extract<
 >;
 
 export async function closeLockedCashSessionFor(
-  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { database, gate, readOutboxChainKey, now, ids, zoneRules }: CashSessionRequestDeps,
   { sessionId, countedCash, closer }: CloseLockedCashSessionRequest,
 ): Promise<CloseLockedCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -209,7 +209,7 @@ export async function closeLockedCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed" ? closedAnswer(outcome.session) : outcome;
+  return outcome.kind === "closed" ? closedAnswer(outcome.session, zoneRules.zoneRules()) : outcome;
 }
 
 export async function identifyLockedCloserFor(
@@ -235,6 +235,7 @@ export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
 
 function closedAnswer(
   session: ClosedCashSession,
+  rules: ZoneRules,
 ): Extract<CloseCashSessionOutcome, { kind: "closed" }> {
   return {
     kind: "closed",
@@ -243,6 +244,8 @@ function closedAnswer(
       expected_cash: session.expectedCash,
       counted_cash: session.countedCash,
       difference: session.difference,
+      opened_at: inArgentinaTime(session.openedAt, rules),
+      closed_at: inArgentinaTime(session.closedAt, rules),
     },
   };
 }
