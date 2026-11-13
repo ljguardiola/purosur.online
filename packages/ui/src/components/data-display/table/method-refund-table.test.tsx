@@ -132,7 +132,7 @@ test("reports what is typed in a row's input with the row's id, keeping two deci
 test("lists the keys of its legend below the rows", async () => {
   const screen = await render(table({ legend: [{ keyName: "ArrowUpDown", label: "Medio" }] }));
 
-  await expect.element(screen.getByRole("listitem")).toHaveTextContent("Medio");
+  await expect.element(screen.getByRole("listitem")).toHaveTextContent(/Medio/);
 });
 
 test("has no accessibility violations", async () => {
