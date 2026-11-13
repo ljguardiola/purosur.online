@@ -330,6 +330,36 @@ describe("SalesHistoryScreen", () => {
       await expect.element(screen.getByText("Todavía no hay ventas")).toBeVisible();
     });
 
+    it("draws the receipt with a dollar sign in the empty list of the open session", async () => {
+      const { screen } = await renderScreen({ salesHistory: async () => pageOf([]) });
+
+      await expect.element(screen.getByText("No hay ventas en la sesión abierta")).toBeVisible();
+      expect(document.querySelector("svg.lucide-receipt")).not.toBeNull();
+      expect(document.querySelector("svg.lucide-receipt-text")).toBeNull();
+    });
+
+    it("draws the receipt with a dollar sign when no sale has that number", async () => {
+      const { screen } = await renderScreen({
+        salesHistory: async ({ document }) => pageOf(document === undefined ? [FISCAL_ROW] : []),
+      });
+      await userEvent.type(searchField(screen), "187");
+
+      await expect.element(screen.getByText("No hay ventas con ese número")).toBeVisible();
+      expect(document.querySelector("svg.lucide-receipt")).not.toBeNull();
+      expect(document.querySelector("svg.lucide-receipt-text")).toBeNull();
+    });
+
+    it("draws the receipt with a dollar sign when every session is shown and none was made", async () => {
+      const { screen } = await renderScreen({
+        sessionOpen: false,
+        salesHistory: async () => pageOf([]),
+      });
+
+      await expect.element(screen.getByText("Todavía no hay ventas")).toBeVisible();
+      expect(document.querySelector("svg.lucide-receipt")).not.toBeNull();
+      expect(document.querySelector("svg.lucide-receipt-text")).toBeNull();
+    });
+
     it("shows no sale while they load", async () => {
       const { screen } = await renderScreen({ salesHistory: () => new Promise(() => {}) });
 

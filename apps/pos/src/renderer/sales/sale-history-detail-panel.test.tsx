@@ -46,6 +46,13 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(panel.getByText("Elegí una venta para ver su detalle")).toBeVisible();
   });
 
+  it("draws the receipt with a dollar sign while no sale is chosen", async () => {
+    const { panel } = await renderPanel({ detail: undefined, buttons: [] });
+
+    expect(panel.element().querySelector("svg.lucide-receipt")).not.toBeNull();
+    expect(panel.element().querySelector("svg.lucide-receipt-text")).toBeNull();
+  });
+
   it("shows only its title and the Esc key, with no request to choose a sale, when the list cannot be shown", async () => {
     const { panel } = await renderPanel({ detail: undefined, buttons: [], escape: true });
 
