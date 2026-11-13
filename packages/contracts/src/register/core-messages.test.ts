@@ -434,7 +434,14 @@ describe("closing a cash session answers", () => {
       request_id: REQUEST_ID,
       outcome: {
         kind: "closed",
-        session: { id: "s1", expected_cash: 150000, counted_cash: 149000, difference: -1000 },
+        session: {
+          id: "s1",
+          expected_cash: 150000,
+          counted_cash: 149000,
+          difference: -1000,
+          opened_at: "2026-11-04T08:02:00.000-03:00",
+          closed_at: "2026-11-04T20:14:00.000-03:00",
+        },
       },
     };
 
@@ -457,6 +464,14 @@ describe("closing a cash session answers", () => {
   it.each([
     { kind: "closed" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
+    {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, closed_at: "x" },
+    },
+    {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, opened_at: "x" },
+    },
     { kind: "open_sale" },
     { kind: "open_sale", total: "4500" },
     { kind: "x" },
@@ -798,7 +813,14 @@ describe("closing a locked register's cash session", () => {
       request_id: REQUEST_ID,
       outcome: {
         kind: "closed",
-        session: { id: "s1", expected_cash: 150000, counted_cash: 149000, difference: -1000 },
+        session: {
+          id: "s1",
+          expected_cash: 150000,
+          counted_cash: 149000,
+          difference: -1000,
+          opened_at: "2026-11-04T08:02:00.000-03:00",
+          closed_at: "2026-11-04T20:14:00.000-03:00",
+        },
       },
     };
 
@@ -823,6 +845,14 @@ describe("closing a locked register's cash session", () => {
   it.each([
     { kind: "not_signed_in" },
     { kind: "closed", session: { id: "s1", expected_cash: 0, counted_cash: 0 } },
+    {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, closed_at: "x" },
+    },
+    {
+      kind: "closed",
+      session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, opened_at: "x" },
+    },
     { kind: "open_sale" },
     { kind: "open_sale", total: "4500" },
   ])("rejects a close result it does not know: %j", (outcome) => {
