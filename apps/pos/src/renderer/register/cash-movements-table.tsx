@@ -172,31 +172,29 @@ export function CashMovementsTable({ state, legend, locked = false }: CashMoveme
           : { loading: loadingOf(state) })}
         empty={{
           icon: <Receipt />,
-          title:
-            typeFilter === "ALL" ? "Todavía no hay movimientos" : "No hay movimientos de este tipo",
-          variant: "blank",
+          ...(typeFilter === "ALL"
+            ? { title: "Todavía no hay movimientos", variant: "blank" }
+            : { title: "No hay movimientos de este tipo", variant: "filtered" }),
         }}
-        footer={
-          <div className="flex items-center justify-between gap-4 pt-3">
-            <div className="flex items-center gap-4">
-              <ListFilter
-                name="type"
-                label="Tipo:"
-                options={TYPE_FILTER_OPTIONS}
-                value={typeFilter}
-                onChange={chooseTypeFilter}
-              />
-              {matchCount === 0 ? null : (
+        legendAside={
+          <div className="flex items-center gap-4">
+            <ListFilter
+              name="type"
+              label="Tipo:"
+              options={TYPE_FILTER_OPTIONS}
+              value={typeFilter}
+              onChange={chooseTypeFilter}
+            />
+            {matchCount === 0 ? null : (
+              <>
                 <p className="text-text-subtle text-detail">
                   {plural(matchCount, {
                     one: "1 movimiento",
                     other: `${formatNumber(matchCount)} movimientos`,
                   })}
                 </p>
-              )}
-            </div>
-            {matchCount === 0 ? null : (
-              <TablePagination table={table} label="Páginas de movimientos" />
+                <TablePagination table={table} label="Páginas de movimientos" />
+              </>
             )}
           </div>
         }
