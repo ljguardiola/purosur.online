@@ -335,7 +335,7 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
         />
         {mayChangePrinter ? (
           <div className="flex">
-            <Button variant="text" icon={<Printer />} keycap="F2" onPress={changePrinter}>
+            <Button variant="text" keycap="F2" onPress={changePrinter}>
               Cambiar impresora
             </Button>
           </div>
