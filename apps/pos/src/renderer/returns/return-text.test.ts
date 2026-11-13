@@ -7,6 +7,8 @@ import {
   quantityText,
   REASON_OPTIONS,
   RESOLUTION_LABELS,
+  REFUND_WHEN_IN_ROW,
+  REFUND_WHEN_IN_TABLE,
   refundRefusalText,
   windowTags,
 } from "./return-text";
@@ -28,12 +30,22 @@ describe("the options of a return line", () => {
   });
 
   it("name the two ways a line is resolved", () => {
-    expect(RESOLUTION_LABELS).toEqual({ refund: "Reintegro", exchange: "Cambio por otra igual" });
+    expect(RESOLUTION_LABELS).toEqual({ refund: "Reintegro", exchange: "Cambio" });
   });
 
   it("say what happens to the merchandise of each destination", () => {
     expect(dispositionOutcomeText("restock")).toBe("vuelve a la venta");
     expect(dispositionOutcomeText("discard")).toBe("se descarta");
+  });
+});
+
+describe("when a payment is refunded", () => {
+  it("says in the table that cash is given on the spot and the rest is a pending refund", () => {
+    expect(REFUND_WHEN_IN_TABLE).toEqual({ APPROVED: "En el acto", PENDING: "Reembolso pendiente" });
+  });
+
+  it("says the same in a row beside the payment's name", () => {
+    expect(REFUND_WHEN_IN_ROW).toEqual({ APPROVED: "en el acto", PENDING: "reembolso pendiente" });
   });
 });
 
