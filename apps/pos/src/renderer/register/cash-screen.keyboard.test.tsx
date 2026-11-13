@@ -12,18 +12,21 @@ const KEYS = [
 ] as const;
 
 describe("CashScreen recording movements from the keyboard", () => {
-  it.each(KEYS)("opens the %s panel on the key %s, with the focus on Importe", async (key, title) => {
-    const screen = await renderScreen();
-    await expect.element(screen.getByText("Flete", { exact: true })).toBeVisible();
+  it.each(KEYS)(
+    "opens the %s panel on the key %s, with the focus on Importe",
+    async (key, title) => {
+      const screen = await renderScreen();
+      await expect.element(screen.getByText("Flete", { exact: true })).toBeVisible();
 
-    await userEvent.keyboard(key);
+      await userEvent.keyboard(key);
 
-    await expect.element(screen.getByRole("heading", { name: title, exact: true })).toBeVisible();
-    await expect.element(screen.getByRole("textbox", { name: "Importe" })).toHaveFocus();
-    await expect
-      .element(screen.getByRole("button", { name: `Registrar ${title.toLowerCase()}` }))
-      .toBeVisible();
-  });
+      await expect.element(screen.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      await expect.element(screen.getByRole("textbox", { name: "Importe" })).toHaveFocus();
+      await expect
+        .element(screen.getByRole("button", { name: `Registrar ${title.toLowerCase()}` }))
+        .toBeVisible();
+    },
+  );
 
   it.each(KEYS)("opens the %s panel when its button is pressed", async (_key, title) => {
     const screen = await renderScreen();
@@ -137,8 +140,8 @@ describe("CashScreen recording movements from the keyboard", () => {
 
   it("shows the cash left the core answers for the typed amount, and the refusal in its place when it exceeds the cash", async () => {
     const answers: Record<number, CashMovementPreview> = {
-      1_850_000: { kind: "remaining", cash: 12_570_000 },
-      15_000_000: { kind: "exceeds_expected_cash", expected: 14_420_000 },
+      1850000: { kind: "remaining", cash: 12_570_000 },
+      15000000: { kind: "exceeds_expected_cash", expected: 14_420_000 },
     };
     const loadCashMovementPreview = vi.fn(async ({ amount }: { amount: number }) => {
       return answers[amount] ?? null;

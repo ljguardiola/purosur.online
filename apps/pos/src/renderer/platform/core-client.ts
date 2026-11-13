@@ -125,11 +125,7 @@ import {
   stockCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 } from "@purosur/contracts";
-import type {
-  AuthorizablePermissionKey,
-  CashMovementKind,
-  PointCardType,
-} from "@purosur/domain";
+import type { AuthorizablePermissionKey, CashMovementKind, PointCardType } from "@purosur/domain";
 import { z } from "zod";
 
 const coreToRendererMessageSchema = z.discriminatedUnion("type", [

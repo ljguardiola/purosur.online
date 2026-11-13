@@ -21,8 +21,8 @@ import {
 import { Check, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
-import type { CoreData } from "../platform/use-core-query";
 import { useKeys } from "../platform/key-layer";
+import type { CoreData } from "../platform/use-core-query";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
@@ -177,7 +177,8 @@ function MovementPanel({
     readPreview,
   );
   const missingCash =
-    refusedExpectedCash ?? (preview?.kind === "exceeds_expected_cash" ? preview.expected : undefined);
+    refusedExpectedCash ??
+    (preview?.kind === "exceeds_expected_cash" ? preview.expected : undefined);
 
   useEffect(() => {
     amountBox.current?.querySelector("input")?.focus();

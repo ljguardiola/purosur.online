@@ -3,9 +3,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
+  STORE_NOTEBOOK_WINDOW,
   scrollTheAreaHoldingItToItsEnd,
   showInStoreNotebookWindow,
-  STORE_NOTEBOOK_WINDOW,
   windowOverflow,
 } from "../shell/test-support/register-window";
 import { BALANCE, FLETE, OPENING, PERSON, renderScreen } from "./test-support/cash-screen";
