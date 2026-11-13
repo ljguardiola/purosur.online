@@ -38,7 +38,7 @@ export const DisabledWithReason: Story = {
 export const PaymentTiles: Story = {
   decorators: [
     () => (
-      <div className="grid w-90 grid-cols-3 gap-3">
+      <div className="grid w-[351px] grid-cols-3 gap-3">
         <KeyTile label="Point débito" icon={<CreditCard />} keyName="F9" onPress={() => {}} />
         <KeyTile label="Point crédito" icon={<CreditCard />} keyName="F10" onPress={() => {}} />
         <KeyTile label="QR" icon={<QrCode />} keyName="F11" onPress={() => {}} />
