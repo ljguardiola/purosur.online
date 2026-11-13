@@ -301,7 +301,12 @@ test("shows the returns started from the history in their own table, not the emp
   });
   await expect.element(row.getByText("Harina 1 kg × 2 u")).toBeVisible();
   await expect.element(row.getByText("$ 600,00", { exact: true })).toBeVisible();
-  expect(screen.getByText("No hay devoluciones en este período").query()).toBeNull();
+  expect(
+    screen
+      .getByRole("table", { name: HISTORY_TABLE })
+      .getByText("No hay devoluciones en este período")
+      .query(),
+  ).toBeNull();
 });
 
 test("asks the cloud with no range when the URL has none, and shows the range it answered", async () => {
@@ -397,7 +402,14 @@ test("gives each table its own empty text when its group has no returns", async 
         .getByText("No hay devoluciones en este período"),
     )
     .toBeVisible();
-  expect(screen.getByText("No hay devoluciones en este período").elements()).toHaveLength(1);
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: HISTORY_TABLE })
+        .getByText("No hay devoluciones en este período"),
+    )
+    .toBeVisible();
+  expect(screen.getByText("No hay devoluciones en este período").elements()).toHaveLength(2);
 });
 
 test("says once that the period has no voids nor returns, showing no table", async () => {
