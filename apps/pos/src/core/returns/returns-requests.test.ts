@@ -1074,6 +1074,7 @@ describe("returning a sale another register rang up", () => {
   const COMPLETION = {
     saleId: "sale-elsewhere",
     ticketSource: "TYPED" as const,
+    ticketVerified: true,
     lines: [LINE_BACK],
     refunds: [{ paymentId: "pay-elsewhere", amount: 2500 }],
   };
