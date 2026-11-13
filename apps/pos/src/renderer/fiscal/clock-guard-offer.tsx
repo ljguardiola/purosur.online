@@ -7,7 +7,6 @@ import type { ShownClockGuard } from "./fiscal-queries";
 import { useClockGuardQuery, useRefreshClockGuard } from "./fiscal-queries";
 
 export type ClockGuardOfferProps = {
-  registerName: string | null;
   cashSessionOpen: boolean;
   readClockGuard: () => Promise<ReadClockGuardOutcome>;
   correctRegisterClock: () => Promise<CorrectRegisterClockOutcome>;

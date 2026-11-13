@@ -49,7 +49,6 @@ async function renderOffer(
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ClockGuardOffer
-      registerName="Caja 1"
       cashSessionOpen={false}
       readClockGuard={readClockGuard}
       correctRegisterClock={correctRegisterClock}
