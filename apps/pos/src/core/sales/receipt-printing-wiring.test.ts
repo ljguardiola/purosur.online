@@ -364,13 +364,13 @@ describe("the register's receipt printing over its local database", () => {
       expect(connections).toEqual([]);
       expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
         standing: "awaiting_answer",
-        offer: { remaining_ms: 3000, length_ms: 3000 },
+        offer: { remaining_ms: 10_000, length_ms: 10_000 },
       });
     });
 
     it("lapses without printing, recording the decline and syncing, when nobody answers within the offer", async () => {
       const printing = await completed();
-      moment = new Date(NOW.getTime() + 3000);
+      moment = new Date(NOW.getTime() + 10_000);
 
       expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
         standing: "declined",
