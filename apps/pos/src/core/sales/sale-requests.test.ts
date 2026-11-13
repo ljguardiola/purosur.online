@@ -50,6 +50,7 @@ import {
   type OutboxSaleRequestDeps,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
+  readScaleFor,
   removeSaleLineFor,
   type SellingRequestDeps,
   scanProductFor,
@@ -939,6 +940,53 @@ describe("weighing a product on the scale on the register", () => {
       kind: "no_open_session",
     });
   });
+});
+
+describe("reading the scale on the register", () => {
+  function read(reading: ScaleReading, standing: { kind: string } = { kind: "matching" }) {
+    return readScaleFor({
+      scale: { read: async () => reading },
+      scaleStanding: () => standing,
+    });
+  }
+
+  it.each([
+    [
+      { kind: "stable", weightThousandths: 410 },
+      { kind: "reading", weight_thousandths: 410, settled: true },
+    ],
+    [
+      { kind: "unstable", weightThousandths: 395 },
+      { kind: "reading", weight_thousandths: 395, settled: false },
+    ],
+    [{ kind: "not_stable" }, { kind: "settling" }],
+    [{ kind: "unavailable" }, { kind: "no_reading" }],
+  ] as const)("answers what the scale shows for %j", async (reading, outcome) => {
+    expect(await read(reading)).toEqual(outcome);
+  });
+
+  it("answers that no scale is configured without reading the scale", async () => {
+    const readScale = vi.fn(async (): Promise<ScaleReading> => ({ kind: "unavailable" }));
+
+    const outcome = await readScaleFor({
+      scale: { read: readScale },
+      scaleStanding: () => ({ kind: "not_registered" }),
+    });
+
+    expect(outcome).toEqual({ kind: "not_configured" });
+    expect(readScale).not.toHaveBeenCalled();
+  });
+
+  it.each(["unknown", "matching", "missing"])(
+    "reads the scale when its standing is %s",
+    async (kind) => {
+      expect(await read({ kind: "stable", weightThousandths: 410 }, { kind })).toEqual({
+        kind: "reading",
+        weight_thousandths: 410,
+        settled: true,
+      });
+    },
+  );
 });
 
 describe("changing the weight of a line", () => {
