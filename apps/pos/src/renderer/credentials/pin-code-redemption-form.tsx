@@ -3,8 +3,6 @@ import {
   Button,
   fieldErrorMessage,
   InlineNotice,
-  PinDotsField,
-  SharedFieldError,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
@@ -187,38 +185,15 @@ export function PinCodeRedemptionForm({
       </form.AppField>
       <form.AppField name="newPin">
         {(newPin) => (
-          <div className="flex flex-col gap-1.5">
-            <SharedFieldError>
-              {(errorMessageId) => (
-                <PinDotsField
-                  label={`PIN nuevo, de al menos ${minDigits} dígitos`}
-                  value={newPin.state.value}
-                  onChange={newPin.handleChange}
-                  digitsKeycap={false}
-                  autoFocus={focusOnOpen === "newPin"}
-                  errorMessageId={errorMessageId}
-                />
-              )}
-            </SharedFieldError>
-          </div>
+          <newPin.PinDotsField
+            label={`PIN nuevo, de al menos ${minDigits} dígitos`}
+            digitsKeycap={false}
+            autoFocus={focusOnOpen === "newPin"}
+          />
         )}
       </form.AppField>
       <form.AppField name="repeat">
-        {(repeat) => (
-          <div className="flex flex-col gap-1.5">
-            <SharedFieldError>
-              {(errorMessageId) => (
-                <PinDotsField
-                  label="Repetí el PIN nuevo"
-                  value={repeat.state.value}
-                  onChange={repeat.handleChange}
-                  digitsKeycap={false}
-                  errorMessageId={errorMessageId}
-                />
-              )}
-            </SharedFieldError>
-          </div>
-        )}
+        {(repeat) => <repeat.PinDotsField label="Repetí el PIN nuevo" digitsKeycap={false} />}
       </form.AppField>
       {notice === undefined ? null : (
         <div id={noticeId}>

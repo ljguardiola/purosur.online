@@ -62,7 +62,7 @@ export function FirstSignInCodeStep({
 
   if (openedByAnother) {
     return (
-      <BrandPanelCard icon={<KeyRound />} eyebrow={person.first_name} title="PIN nuevo guardado">
+      <BrandPanelCard icon={<KeyRound />} eyebrow={person.first_name} title="Elegí tu PIN">
         <InlineNotice
           tone="success"
           icon={<CircleCheck />}
