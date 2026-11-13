@@ -8,7 +8,7 @@ import {
   STORE_NOTEBOOK_WINDOW,
   windowOverflow,
 } from "../shell/test-support/register-window";
-import { FLETE, OPENING, PERSON, renderScreen } from "./test-support/cash-screen";
+import { BALANCE, FLETE, OPENING, PERSON, renderScreen } from "./test-support/cash-screen";
 
 describe("CashScreen", () => {
   it("scrolls a page of movements longer than the window inside the list's own area, with the clock guard, the menu and the expected cash in place", async () => {
@@ -171,9 +171,9 @@ describe("CashScreen", () => {
     );
     expect(buttons.filter((text) => text !== "Reintentar")).toEqual([
       "Cerrar cajaF12",
-      "Ingreso1",
-      "Gasto2",
-      "Retiro3",
+      "1Ingreso",
+      "2Gasto",
+      "3Retiro",
     ]);
     await expect.element(screen.getByRole("button", { name: "Ingreso" })).toBeEnabled();
   });

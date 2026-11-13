@@ -161,6 +161,7 @@ describe("RecordCashMovementPanel", () => {
 
   it("shows only the Esc and Enter keys, with no letter keycap at Importe or Motivo", async () => {
     const { screen } = await renderPanel({ expectedCash: 14_420_000 });
+    await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeVisible();
 
     const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
     expect(keys).toEqual(["Esc", "Enter"]);
@@ -304,8 +305,8 @@ describe("RecordCashMovementPanel", () => {
         readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
       });
 
-      await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
-      await userEvent.keyboard("5,");
+      await expect.element(screen.getByRole("textbox", { name: "Importe" })).toHaveFocus();
+      await userEvent.keyboard(",");
       await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
       expect(readPreview).not.toHaveBeenCalled();
     });
@@ -605,7 +606,7 @@ describe("RecordCashMovementPanel", () => {
       await screen.unmount();
       const withdrawal = await renderPanel({ kind: "WITHDRAWAL", lacking: ["WITHDRAWAL"] });
 
-      expect(withdrawal.requested).toEqual(["withdraw_cash"]);
+      await expect.poll(() => withdrawal.requested).toEqual(["withdraw_cash"]);
     });
 
     it("asks for the authorizers of the permission the core names for the kind", async () => {
