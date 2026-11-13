@@ -7,7 +7,11 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
-import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
+import {
+  type Scale,
+  type ScaleReading,
+  settleApprovedMercadoPagoPayment,
+} from "@purosur/domain/sales/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { restorePendingIn } from "../backups/restore-pending";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -54,6 +58,7 @@ import {
   weighProductFor,
 } from "./sale-requests";
 import { anySaleIsOpen } from "./sqlite-open-sale-presence";
+import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 
@@ -1254,6 +1259,30 @@ describe("the sale in progress", () => {
       payments: [
         { method: "TRANSFER", card_type: null, amount: 1000 },
         { method: "CASH", card_type: null, amount: 500 },
+      ],
+    });
+  });
+
+  it("lists a QR payment approved after a later cash payment after that cash payment", async () => {
+    const saleId = await sellTwoForPayments();
+    addQrPayment(saleId, "PENDING", NOW);
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 500 });
+    settleApprovedMercadoPagoPayment(
+      {
+        ledger: new SqliteSaleLedger(database, new SqliteSignInStore(database), CHAIN_KEY),
+        restoration: deps().restoration,
+        clock: { now: () => NOW },
+        zoneRules: fixedZoneRulesSource(),
+        ids: idsStartingWith("settlement"),
+      },
+      { actorId: "u1", paymentTransactionId: "qr-1" },
+    );
+
+    expect(await currentSaleFor(deps())).toMatchObject({
+      paid: 1500,
+      payments: [
+        { method: "CASH", card_type: null, amount: 500 },
+        { method: "QR", card_type: null, amount: 1000 },
       ],
     });
   });
