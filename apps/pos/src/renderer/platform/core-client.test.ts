@@ -2307,6 +2307,7 @@ describe("createCoreClient", () => {
       printed: false,
       standing: "printing",
       comprobante: { kind: "none" },
+      offer: null,
     },
     { kind: "not_found" },
     { kind: "unavailable" },

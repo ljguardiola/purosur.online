@@ -21,7 +21,7 @@ describe("receiptQuestionOf", () => {
     expect(rig.ledger.transactions).toBe(1);
   });
 
-  it("asks before printing a factura C authorized in contingency", () => {
+  it("prints without asking a factura C authorized in contingency", () => {
     const { outcome } = questionOf([
       saleWithFiscal({
         kind: "offline_authorized",
@@ -29,7 +29,7 @@ describe("receiptQuestionOf", () => {
       }),
     ]);
 
-    expect(outcome).toEqual({ kind: "asks" });
+    expect(outcome).toEqual({ kind: "prints" });
   });
 
   it.each([

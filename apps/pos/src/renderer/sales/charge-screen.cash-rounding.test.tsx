@@ -25,7 +25,7 @@ it("shows the rounded total once a cash charge with rounding is completed", asyn
 
   await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
-  const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+  const panel = screen.getByRole("complementary", { name: "Venta completada" });
   await expect.element(panel.getByText("$ 4.750,00").first()).toBeVisible();
   await expect.element(panel.getByText("$ 4.760,00")).not.toBeInTheDocument();
 });

@@ -71,6 +71,8 @@ export type { WeighingPanelProps } from "./components/data-display/weighing-pane
 export { WeighingPanel } from "./components/data-display/weighing-panel";
 export type { WeightReadoutProps } from "./components/data-display/weight-readout";
 export { WeightReadout } from "./components/data-display/weight-readout";
+export type { CountdownBarProps } from "./components/feedback/countdown-bar";
+export { CountdownBar } from "./components/feedback/countdown-bar";
 export type { CountdownCardProps } from "./components/feedback/countdown-card";
 export { CountdownCard } from "./components/feedback/countdown-card";
 export type { CountdownRingProps } from "./components/feedback/countdown-ring";
@@ -113,6 +115,8 @@ export type { StatusPillProps, StatusPillTone } from "./components/feedback/stat
 export { StatusPill } from "./components/feedback/status-pill";
 export type { StatusPillButtonProps } from "./components/feedback/status-pill-button";
 export { StatusPillButton } from "./components/feedback/status-pill-button";
+export type { TimedOfferCardProps } from "./components/feedback/timed-offer-card";
+export { TimedOfferCard } from "./components/feedback/timed-offer-card";
 export type { ToastProps } from "./components/feedback/toast";
 export { Toast } from "./components/feedback/toast";
 export type { ToastStackProps } from "./components/feedback/toast-stack";

@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
+import type { Fortnight } from "../../fiscal/index.js";
 import { receiptAsksBeforePrinting, receiptAwaitsAnswer } from "./receipt-asks-before-printing.js";
+
+const CONTINGENCY_FORTNIGHT: Fortnight = { start: "2026-11-01", end: "2026-11-15" };
 
 describe("receiptAsksBeforePrinting", () => {
   it("is true for the customer's factura C", () => {
     expect(receiptAsksBeforePrinting({ invoiceClass: "C" })).toBe(true);
+  });
+
+  it("is false for a factura C authorized in contingency, which always prints", () => {
+    expect(receiptAsksBeforePrinting({ invoiceClass: "C", fortnight: CONTINGENCY_FORTNIGHT })).toBe(
+      false,
+    );
   });
 
   it("is false for the deferred sale's non-fiscal document, which always prints", () => {
@@ -29,6 +38,9 @@ describe("receiptAwaitsAnswer", () => {
 
   it("does not wait on a receipt that always prints", () => {
     expect(receiptAwaitsAnswer("never_printed", { invoiceClass: "X" })).toBe(false);
+    expect(
+      receiptAwaitsAnswer("never_printed", { invoiceClass: "C", fortnight: CONTINGENCY_FORTNIGHT }),
+    ).toBe(false);
     expect(receiptAwaitsAnswer("never_printed", null)).toBe(false);
   });
 });
