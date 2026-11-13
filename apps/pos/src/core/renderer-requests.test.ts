@@ -439,7 +439,6 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
           [
             "sales-history",
             request.session,
-            request.state,
             request.page,
             request.document === null
               ? "any"
@@ -3623,13 +3622,12 @@ describe("answerRendererRequest", () => {
         {
           type: "sales-history",
           session: "open",
-          state: "deferred",
           page: 2,
           document: { point_of_sale: null, number: 187 },
         } as const,
         "salesHistory",
         "reading the sales history",
-        "sales-history open deferred 2 any-187",
+        "sales-history open 2 any-187",
         "sales-history-result",
       ],
       [

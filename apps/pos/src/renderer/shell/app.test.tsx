@@ -3715,7 +3715,7 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("table", { name: "Ventas" }).getByText("$ 50.700,00"))
         .toBeVisible();
-      expect(queries).toEqual([{ session: "all", state: "all", page: 1 }]);
+      expect(queries).toEqual([{ session: "all", page: 1 }]);
     });
 
     it("opens from the menu while a session is open, and goes back to the sale from it", async () => {

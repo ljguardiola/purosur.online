@@ -2829,7 +2829,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const history = client.salesHistory({ session: "open", state: "deferred", page: 2 });
+    const history = client.salesHistory({ session: "open", page: 2 });
     port.answer({
       type: "sales-history-result",
       request_id: "request-1",
@@ -2842,7 +2842,6 @@ describe("createCoreClient", () => {
         type: "sales-history",
         request_id: "request-1",
         session: "open",
-        state: "deferred",
         page: 2,
         document: null,
       },
@@ -2856,7 +2855,6 @@ describe("createCoreClient", () => {
 
     void client.salesHistory({
       session: "all",
-      state: "all",
       page: 1,
       document: { pointOfSale: 3, number: 187 },
     });
@@ -2866,7 +2864,6 @@ describe("createCoreClient", () => {
         type: "sales-history",
         request_id: "request-1",
         session: "all",
-        state: "all",
         page: 1,
         document: { point_of_sale: 3, number: 187 },
       },
@@ -2880,7 +2877,6 @@ describe("createCoreClient", () => {
 
     void client.salesHistory({
       session: "all",
-      state: "all",
       page: 1,
       document: { pointOfSale: null, number: 187 },
     });

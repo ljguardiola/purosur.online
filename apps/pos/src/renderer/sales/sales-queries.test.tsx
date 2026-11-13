@@ -1114,16 +1114,14 @@ const HISTORY_FOUND: SalesHistoryOutcome = { kind: "found", rows: [], total: 0, 
 
 function SalesHistoryProbe({
   page = 1,
-  state = "all",
   document,
   read,
 }: {
   page?: number;
-  state?: "all" | "completed";
   document?: SalesHistoryQuery["document"];
   read: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
 }) {
-  const history = useSalesHistoryQuery({ session: "open", state, page, document, read });
+  const history = useSalesHistoryQuery({ session: "open", page, document, read });
   const refresh = useRefreshSalesHistory();
   return (
     <>
@@ -1233,14 +1231,12 @@ describe("payment methods availability query", () => {
 });
 
 describe("sales history query", () => {
-  it("reads the page and filters it is given", async () => {
+  it("reads the page it is given", async () => {
     const read = vi.fn(async () => HISTORY_FOUND);
-    const screen = await renderWithClient(
-      <SalesHistoryProbe page={2} state="completed" read={read} />,
-    );
+    const screen = await renderWithClient(<SalesHistoryProbe page={2} read={read} />);
 
     await expect.element(screen.getByText("found")).toBeVisible();
-    expect(read).toHaveBeenCalledWith({ session: "open", state: "completed", page: 2 });
+    expect(read).toHaveBeenCalledWith({ session: "open", page: 2 });
   });
 
   it("reads the sales with the document number it is given", async () => {
@@ -1252,7 +1248,6 @@ describe("sales history query", () => {
     await expect.element(screen.getByText("found")).toBeVisible();
     expect(read).toHaveBeenCalledWith({
       session: "open",
-      state: "all",
       page: 1,
       document: { pointOfSale: null, number: 187 },
     });

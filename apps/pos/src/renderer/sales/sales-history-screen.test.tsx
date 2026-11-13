@@ -167,7 +167,6 @@ describe("SalesHistoryScreen", () => {
       await vi.waitFor(() =>
         expect(salesHistory).toHaveBeenCalledWith({
           session: "open",
-          state: "all",
           page: 1,
           document: undefined,
         }),
@@ -240,7 +239,6 @@ describe("SalesHistoryScreen", () => {
       await vi.waitFor(() =>
         expect(salesHistory).toHaveBeenLastCalledWith({
           session: "open",
-          state: "all",
           page: 1,
           document: { pointOfSale: 3, number: 187 },
         }),

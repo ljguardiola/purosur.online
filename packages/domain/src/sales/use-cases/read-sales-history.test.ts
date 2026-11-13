@@ -38,7 +38,7 @@ describe("readSalesHistory", () => {
       sale(7, { paymentMethods: ["CASH", "TRANSFER"], total: 4500 }),
     ]);
 
-    const page = readSalesHistory({ history }, { session: "all", standing: undefined, page: 1 });
+    const page = readSalesHistory({ history }, { session: "all", page: 1 });
 
     expect(page.rows).toEqual([
       {
@@ -68,10 +68,7 @@ describe("readSalesHistory", () => {
       }),
     ]);
 
-    const [row] = readSalesHistory(
-      { history },
-      { session: "all", standing: undefined, page: 1 },
-    ).rows;
+    const [row] = readSalesHistory({ history }, { session: "all", page: 1 }).rows;
 
     expect(row?.comprobante).toEqual({
       kind: "fiscal",
@@ -100,10 +97,7 @@ describe("readSalesHistory", () => {
       }),
     ]);
 
-    const { rows } = readSalesHistory(
-      { history },
-      { session: "all", standing: undefined, page: 1 },
-    );
+    const { rows } = readSalesHistory({ history }, { session: "all", page: 1 });
 
     expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
       ["deferred_non_fiscal", "deferred"],
@@ -114,7 +108,7 @@ describe("readSalesHistory", () => {
   it("answers the page size and the total of all the sales that match, not only the page", () => {
     const history = new FakeRegisterSalesHistory(manySales(120));
 
-    const page = readSalesHistory({ history }, { session: "all", standing: undefined, page: 1 });
+    const page = readSalesHistory({ history }, { session: "all", page: 1 });
 
     expect(page.rows).toHaveLength(50);
     expect(page.total).toBe(120);
@@ -124,63 +118,30 @@ describe("readSalesHistory", () => {
   it("reads the asked page by skipping the pages before it", () => {
     const history = new FakeRegisterSalesHistory(manySales(120));
 
-    const page = readSalesHistory({ history }, { session: "all", standing: undefined, page: 3 });
+    const page = readSalesHistory({ history }, { session: "all", page: 3 });
 
     expect(page.rows).toHaveLength(20);
-    expect(history.filters).toEqual([
-      { scope: "register", filter: { standing: undefined, offset: 100, limit: 50 } },
-    ]);
+    expect(history.filters).toEqual([{ scope: "register", filter: { offset: 100, limit: 50 } }]);
   });
 
   it("reads the sales of the open session when asked for it", () => {
     const history = new FakeRegisterSalesHistory([sale(1), sale(2, {}, false)]);
 
-    const page = readSalesHistory({ history }, { session: "open", standing: undefined, page: 1 });
+    const page = readSalesHistory({ history }, { session: "open", page: 1 });
 
     expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
     expect(page.total).toBe(1);
     expect(history.filters.map(({ scope }) => scope)).toEqual(["open_session"]);
   });
 
-  it("asks only for the sales in the asked standing", () => {
-    const history = new FakeRegisterSalesHistory([
-      sale(1),
-      sale(2, { fiscal: { deferred: true, fiscalDocument: null } }),
-    ]);
-
-    const page = readSalesHistory({ history }, { session: "all", standing: "deferred", page: 1 });
-
-    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
-    expect(page.total).toBe(1);
-  });
-
   it("shows a voided sale as voided, without a comprobante", () => {
     const history = new FakeRegisterSalesHistory([sale(1, { voided: true })]);
 
-    const { rows } = readSalesHistory(
-      { history },
-      { session: "all", standing: undefined, page: 1 },
-    );
+    const { rows } = readSalesHistory({ history }, { session: "all", page: 1 });
 
     expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
       ["none", "voided"],
     ]);
-  });
-
-  it("asks only for the voided sales when asked for them, in the open session too", () => {
-    const history = new FakeRegisterSalesHistory([sale(1), sale(2, { voided: true })]);
-
-    const page = readSalesHistory({ history }, { session: "open", standing: "voided", page: 1 });
-
-    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
-  });
-
-  it("leaves a voided sale out of the completed ones", () => {
-    const history = new FakeRegisterSalesHistory([sale(1), sale(2, { voided: true })]);
-
-    const page = readSalesHistory({ history }, { session: "all", standing: "completed", page: 1 });
-
-    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
   });
 });
 
@@ -204,7 +165,6 @@ describe("readSalesHistory searching by document number", () => {
 
   const search = (document: { pointOfSale: number | null; number: number }, session = "all") => ({
     session: session as "open" | "all",
-    standing: undefined,
     page: 1,
     document,
   });
@@ -271,21 +231,6 @@ describe("readSalesHistory searching by document number", () => {
       { scope: "register", document: { pointOfSale: null, number: 187 } },
     ]);
     expect(history.filters).toEqual([]);
-  });
-
-  it("combines the search with the standing asked", () => {
-    const history = new FakeRegisterSalesHistory([
-      sale(1, { fiscal: invoiced(187) }),
-      sale(2, { fiscal: invoiced(187), voided: true }),
-    ]);
-
-    const page = readSalesHistory(
-      { history },
-      { ...search({ pointOfSale: null, number: 187 }), standing: "voided" },
-    );
-
-    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
-    expect(page.total).toBe(1);
   });
 
   it("pages the sales found and counts all of them", () => {

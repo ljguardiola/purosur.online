@@ -194,7 +194,6 @@ export function SalesHistoryScreen({
   const invalidSearch = typed && parsed === undefined;
   const read = useSalesHistoryQuery({
     session,
-    state: "all",
     page,
     document: parsed,
     read: salesHistory,

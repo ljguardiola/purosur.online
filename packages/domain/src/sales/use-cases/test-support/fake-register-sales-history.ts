@@ -1,8 +1,4 @@
-import {
-  type SaleDocumentNumber,
-  type SaleFiscalFacts,
-  saleStandingOf,
-} from "../../model/sale-history.js";
+import type { SaleDocumentNumber, SaleFiscalFacts } from "../../model/sale-history.js";
 import type {
   RegisterSalesHistory,
   SaleHistoryRecord,
@@ -74,15 +70,10 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
       .map(({ entry }) => entry);
   }
 
-  private pageOf(sales: FakeHistorySale[], { standing, offset, limit }: SalesHistoryFilter) {
-    const matching = sales.filter(
-      ({ entry }) =>
-        standing === undefined ||
-        saleStandingOf({ ...entry.fiscal, voided: entry.voided }) === standing,
-    );
+  private pageOf(sales: FakeHistorySale[], { offset, limit }: SalesHistoryFilter) {
     return {
-      entries: matching.slice(offset, offset + limit).map(({ entry }) => entry),
-      total: matching.length,
+      entries: sales.slice(offset, offset + limit).map(({ entry }) => entry),
+      total: sales.length,
     };
   }
 }

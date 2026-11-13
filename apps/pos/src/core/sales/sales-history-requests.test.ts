@@ -17,7 +17,7 @@ import {
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
-const ASK = { session: "all", state: "all", page: 1, document: null } as const;
+const ASK = { session: "all", page: 1, document: null } as const;
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -224,23 +224,7 @@ describe("the sales history", () => {
     });
   });
 
-  it("answers the sales of the state asked", async () => {
-    addSale({ id: "plain", occurredAt: "2026-10-08T09:00:00.000Z", operationNumber: 1 });
-    addSale({
-      id: "offline",
-      occurredAt: "2026-10-08T10:00:00.000Z",
-      operationNumber: 2,
-      deferred: true,
-    });
-
-    const answer = await salesHistoryFor(deps(), { ...ASK, state: "deferred" });
-
-    expect(answer.kind === "found" && answer.rows.map(({ sale_id }) => sale_id)).toEqual([
-      "offline",
-    ]);
-  });
-
-  it("shows a voided sale as voided and answers the voided sales when asked for them", async () => {
+  it("shows a voided sale as voided", async () => {
     addSale({ id: "plain", occurredAt: "2026-10-08T09:00:00.000Z", operationNumber: 1 });
     addSale({
       id: "gone",
@@ -250,13 +234,11 @@ describe("the sales history", () => {
     });
 
     const all = await salesHistoryFor(deps(), ASK);
-    const voided = await salesHistoryFor(deps(), { ...ASK, state: "voided" });
 
     expect(all.kind === "found" && all.rows.map(({ sale_id, state }) => [sale_id, state])).toEqual([
       ["gone", "voided"],
       ["plain", "completed"],
     ]);
-    expect(voided.kind === "found" && voided.rows.map(({ sale_id }) => sale_id)).toEqual(["gone"]);
   });
 
   it("answers the sales of the open session only when asked for it", async () => {

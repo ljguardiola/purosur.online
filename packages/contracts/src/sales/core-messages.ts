@@ -52,7 +52,6 @@ import {
   saleHistoryDetailOutcomeSchema,
   salesHistoryOutcomeSchema,
   salesHistorySessionSchema,
-  salesHistoryStateSchema,
 } from "./sales-history.js";
 
 const requestId = requestIdSchema;
@@ -231,7 +230,6 @@ const salesHistoryMessageSchema = z.object({
   type: z.literal("sales-history"),
   request_id: requestId,
   session: salesHistorySessionSchema,
-  state: salesHistoryStateSchema,
   page: z.int().positive(),
   document: z
     .object({ point_of_sale: z.int().positive().nullable(), number: z.int().positive() })

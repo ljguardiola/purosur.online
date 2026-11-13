@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { FiscalDocumentState } from "../../fiscal/index.js";
 import {
   isDeferralPending,
-  SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   type SaleFiscalDocument,
@@ -28,16 +27,6 @@ const NO_DOCUMENT: SaleFiscalFacts = { deferred: false, fiscalDocument: null };
 describe("SALE_STANDINGS", () => {
   it("lists the standings a sale of the history can have, a voided one last", () => {
     expect(SALE_STANDINGS).toEqual(["completed", "in_progress", "deferred", "voided"]);
-  });
-});
-
-describe("SALE_STANDING_DEFINITIONS", () => {
-  it("defines each standing but completed by the facts that make a sale have it", () => {
-    expect(SALE_STANDING_DEFINITIONS).toEqual({
-      voided: { voided: true },
-      deferred: { voided: false, deferred: true },
-      in_progress: { voided: false, deferred: false, documentBeingRequested: true },
-    });
   });
 });
 

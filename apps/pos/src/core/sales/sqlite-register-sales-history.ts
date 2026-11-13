@@ -2,15 +2,10 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalAuthorization,
   type FiscalDocumentState,
-  IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   isDeferralPending,
-  PENDING_DEFERRED_SALE_RECORD,
-  SALE_STANDING_DEFINITIONS,
   type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
-  type SaleStanding,
-  type SaleStandingDefinition,
   type SaleUnit,
   saleFiscalDocumentAmong,
 } from "@purosur/domain";
@@ -66,68 +61,6 @@ const IN_THE_OPEN_SESSION =
 const VOIDED = "(sales.state = 'VOIDED')";
 
 const DEFERRED_SALE_SATISFIED = "(deferred_sales.satisfied_at IS NOT NULL)";
-
-const DEFERRED = `EXISTS (
-  SELECT 1 FROM deferred_sales
-  WHERE deferred_sales.sale_id = sales.id
-    AND deferred_sales.cancelled_at IS NULL
-    AND ${DEFERRED_SALE_SATISFIED} = ${Number(PENDING_DEFERRED_SALE_RECORD.satisfied)}
-)`;
-
-const DOCUMENT_BEING_REQUESTED = `EXISTS (
-  SELECT 1 FROM fiscal_documents
-  WHERE fiscal_documents.sale_id = sales.id
-    AND fiscal_documents.state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
-)`;
-
-interface Condition {
-  sql: string;
-  parameters: string[];
-}
-
-function factCondition(sql: string, parameters: string[], holds: boolean): Condition {
-  return { sql: holds ? sql : `NOT ${sql}`, parameters };
-}
-
-function definitionCondition({
-  voided,
-  deferred,
-  documentBeingRequested,
-}: SaleStandingDefinition): Condition {
-  const facts = [factCondition(VOIDED, [], voided)];
-  if (deferred !== undefined) {
-    facts.push(factCondition(DEFERRED, [], deferred));
-  }
-  if (documentBeingRequested !== undefined) {
-    facts.push(
-      factCondition(
-        DOCUMENT_BEING_REQUESTED,
-        [...IN_PROGRESS_FISCAL_DOCUMENT_STATES],
-        documentBeingRequested,
-      ),
-    );
-  }
-  return {
-    sql: `(${facts.map(({ sql }) => sql).join(" AND ")})`,
-    parameters: facts.flatMap(({ parameters }) => parameters),
-  };
-}
-
-function standingCondition(standing: SaleStanding | undefined): Condition {
-  switch (standing) {
-    case undefined:
-      return { sql: "1 = 1", parameters: [] };
-    case "completed": {
-      const others = Object.values(SALE_STANDING_DEFINITIONS).map(definitionCondition);
-      return {
-        sql: others.map(({ sql }) => `NOT ${sql}`).join(" AND "),
-        parameters: others.flatMap(({ parameters }) => parameters),
-      };
-    }
-    default:
-      return definitionCondition(SALE_STANDING_DEFINITIONS[standing]);
-  }
-}
 
 export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   private readonly database: LocalDatabase;
@@ -223,19 +156,17 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return rows.map((row) => this.entryOf(row));
   }
 
-  private page(scope: string, { standing, offset, limit }: SalesHistoryFilter): SalesHistoryPage {
-    const { sql, parameters } = standingCondition(standing);
-    const where = `${scope} AND ${sql}`;
+  private page(scope: string, { offset, limit }: SalesHistoryFilter): SalesHistoryPage {
     const rows = this.database
-      .prepare<(string | number)[], SaleRow>(
+      .prepare<[number, number], SaleRow>(
         `SELECT sales.id AS id, sales.occurred_at AS occurred_at, ${VOIDED} AS voided
-         FROM sales WHERE ${where}
+         FROM sales WHERE ${scope}
          ORDER BY sales.occurred_at DESC, sales.rowid DESC LIMIT ? OFFSET ?`,
       )
-      .all(...parameters, limit, offset);
+      .all(limit, offset);
     const counted = this.database
-      .prepare<string[], { total: number }>(`SELECT count(*) AS total FROM sales WHERE ${where}`)
-      .get(...parameters);
+      .prepare<[], { total: number }>(`SELECT count(*) AS total FROM sales WHERE ${scope}`)
+      .get();
     return {
       entries: rows.map((row) => this.entryOf(row)),
       total: counted?.total ?? 0,

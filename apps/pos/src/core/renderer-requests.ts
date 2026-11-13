@@ -1303,7 +1303,6 @@ export async function answerRendererRequest(
             (() =>
               salesHistory({
                 session: message.session,
-                state: message.state,
                 page: message.page,
                 document:
                   message.document === null

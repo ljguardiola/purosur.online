@@ -2118,12 +2118,11 @@ describe("asking for the register's sales history", () => {
     type: "sales-history",
     request_id: REQUEST_ID,
     session: "open",
-    state: "all",
     page: 1,
     document: null,
   };
 
-  it("accepts a request naming the session, the state and the page", () => {
+  it("accepts a request naming the session and the page", () => {
     expect(salesRendererToCoreMessageSchema.parse(ask)).toEqual(ask);
   });
 
@@ -2131,23 +2130,14 @@ describe("asking for the register's sales history", () => {
     expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, session }).success).toBe(true);
   });
 
-  it.each(["all", "completed", "in_progress", "deferred", "voided"])(
-    "accepts the state %s",
-    (state) => {
-      expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, state }).success).toBe(true);
+  it.each([{ session: "closed" }, { page: 0 }, { page: -1 }, { page: 1.5 }, { page: "1" }])(
+    "rejects a request with %j",
+    (override) => {
+      expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, ...override }).success).toBe(
+        false,
+      );
     },
   );
-
-  it.each([
-    { session: "closed" },
-    { state: "cancelled" },
-    { page: 0 },
-    { page: -1 },
-    { page: 1.5 },
-    { page: "1" },
-  ])("rejects a request with %j", (override) => {
-    expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, ...override }).success).toBe(false);
-  });
 
   it.each([
     { point_of_sale: 3, number: 187 },
@@ -2176,7 +2166,7 @@ describe("asking for the register's sales history", () => {
     expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, document }).success).toBe(false);
   });
 
-  it.each(["request_id", "session", "state", "page", "document"])(
+  it.each(["request_id", "session", "page", "document"])(
     "rejects a request missing its %s",
     (field) => {
       const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));

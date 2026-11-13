@@ -47,30 +47,6 @@ export type SaleComprobante =
   | { kind: "deferred_non_fiscal" }
   | { kind: "none" };
 
-interface SaleStandingFacts {
-  voided: boolean;
-  deferred: boolean;
-  documentBeingRequested: boolean;
-}
-
-export type SaleStandingDefinition = Pick<SaleStandingFacts, "voided"> &
-  Partial<Pick<SaleStandingFacts, "deferred" | "documentBeingRequested">>;
-
-export const SALE_STANDING_DEFINITIONS = {
-  voided: { voided: true },
-  deferred: { voided: false, deferred: true },
-  in_progress: { voided: false, deferred: false, documentBeingRequested: true },
-} as const satisfies Record<Exclude<SaleStanding, "completed">, SaleStandingDefinition>;
-
-function isDefinedBy(definition: SaleStandingDefinition, facts: SaleStandingFacts): boolean {
-  return (
-    definition.voided === facts.voided &&
-    (definition.deferred === undefined || definition.deferred === facts.deferred) &&
-    (definition.documentBeingRequested === undefined ||
-      definition.documentBeingRequested === facts.documentBeingRequested)
-  );
-}
-
 export function saleFiscalDocumentAmong(
   attempts: readonly SaleFiscalDocument[],
 ): SaleFiscalDocument | null {
@@ -86,19 +62,16 @@ export function saleStandingOf({
   deferred,
   fiscalDocument,
 }: SaleFiscalFacts & { voided: boolean }): SaleStanding {
-  const facts: SaleStandingFacts = {
-    voided,
-    deferred,
-    documentBeingRequested:
-      fiscalDocument !== null && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state),
-  };
-  if (isDefinedBy(SALE_STANDING_DEFINITIONS.voided, facts)) {
+  if (voided) {
     return "voided";
   }
-  if (isDefinedBy(SALE_STANDING_DEFINITIONS.deferred, facts)) {
+  if (deferred) {
     return "deferred";
   }
-  return isDefinedBy(SALE_STANDING_DEFINITIONS.in_progress, facts) ? "in_progress" : "completed";
+  return fiscalDocument !== null &&
+    IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state)
+    ? "in_progress"
+    : "completed";
 }
 
 export interface SaleDocumentNumber {

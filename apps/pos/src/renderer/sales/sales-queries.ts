@@ -67,12 +67,11 @@ export const salesKeys = {
   backupTicket: (saleId: string) => [...salesKey, "backup-ticket", saleId] as const,
   backupPrinterFailure: [...salesKey, "backup-printer-failure"] as const,
   historyRoot: [...salesKey, "history"] as const,
-  history: ({ session, state, page, document }: SalesHistoryQuery) =>
+  history: ({ session, page, document }: SalesHistoryQuery) =>
     [
       ...salesKey,
       "history",
       session,
-      state,
       page,
       document?.pointOfSale ?? null,
       document?.number ?? null,

@@ -20,7 +20,6 @@ export interface ReadSalesHistoryPorts {
 
 export interface ReadSalesHistoryInput {
   session: "open" | "all";
-  standing: SaleStanding | undefined;
   page: number;
   document?: SaleDocumentNumber;
 }
@@ -42,13 +41,13 @@ export interface SalesHistoryPageShown {
 
 export function readSalesHistory(
   { history }: ReadSalesHistoryPorts,
-  { session, standing, page, document }: ReadSalesHistoryInput,
+  { session, page, document }: ReadSalesHistoryInput,
 ): SalesHistoryPageShown {
   const offset = (page - 1) * SALES_HISTORY_PAGE_SIZE;
   const found =
     document === undefined
-      ? pageOfSales(history, session, { standing, offset, limit: SALES_HISTORY_PAGE_SIZE })
-      : pageOfSalesWithDocument(history, session, document, { standing, offset });
+      ? pageOfSales(history, session, { offset, limit: SALES_HISTORY_PAGE_SIZE })
+      : pageOfSalesWithDocument(history, session, document, offset);
   return {
     rows: found.entries.map(
       ({ fiscal, voided, ...entry }): SalesHistoryRow => ({
@@ -74,17 +73,13 @@ function pageOfSalesWithDocument(
   history: RegisterSalesHistory,
   session: ReadSalesHistoryInput["session"],
   document: SaleDocumentNumber,
-  { standing, offset }: Pick<SalesHistoryFilter, "standing" | "offset">,
+  offset: number,
 ): SalesHistoryPage {
   const candidates =
     session === "open"
       ? history.salesOfOpenSessionWithDocument(document)
       : history.salesOfRegisterWithDocument(document);
-  const matching = candidates.filter(
-    ({ fiscal, voided }) =>
-      saleHasDocumentNumber(fiscal, document) &&
-      (standing === undefined || saleStandingOf({ ...fiscal, voided }) === standing),
-  );
+  const matching = candidates.filter(({ fiscal }) => saleHasDocumentNumber(fiscal, document));
   return {
     entries: matching.slice(offset, offset + SALES_HISTORY_PAGE_SIZE),
     total: matching.length,

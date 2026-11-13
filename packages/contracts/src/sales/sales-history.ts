@@ -22,8 +22,6 @@ export type ReceiptCopyShown = z.infer<typeof receiptCopySchema>;
 
 export const salesHistorySessionSchema = z.enum(["open", "all"]);
 
-export const salesHistoryStateSchema = z.enum(["all", ...SALE_STANDINGS]);
-
 const saleStateSchema = z.enum(SALE_STANDINGS);
 
 export const comprobanteSchema = z.discriminatedUnion("kind", [

@@ -66,12 +66,10 @@ export type {
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleStanding,
-  SaleStandingDefinition,
 } from "./model/sale-history.js";
 export {
   isDeferralPending,
   PENDING_DEFERRED_SALE_RECORD,
-  SALE_STANDING_DEFINITIONS,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   saleComprobanteOf,

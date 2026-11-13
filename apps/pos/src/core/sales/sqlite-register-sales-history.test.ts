@@ -1,4 +1,4 @@
-import { type FiscalDocumentState, type SaleStanding, saleStandingOf } from "@purosur/domain";
+import { type FiscalDocumentState, saleStandingOf } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertOfflineCreditNote,
@@ -29,8 +29,6 @@ interface SaleSeed {
   deferred?: boolean | "satisfied" | "cancelled";
   offlineDocument?: { pointOfSale: number; number: number };
 }
-
-const DECIDED_STANDINGS = ["completed", "in_progress", "deferred", "voided"] as const;
 
 let database: LocalDatabase;
 let history: SqliteRegisterSalesHistory;
@@ -222,8 +220,8 @@ function idsOf(page: { entries: { saleId: string }[] }): string[] {
   return page.entries.map(({ saleId }) => saleId);
 }
 
-function all(standing?: SaleStanding) {
-  return history.salesOfRegister({ standing, offset: 0, limit: 100 });
+function all() {
+  return history.salesOfRegister({ offset: 0, limit: 100 });
 }
 
 beforeEach(() => {
@@ -266,7 +264,7 @@ describe("SqliteRegisterSalesHistory", () => {
         addSale({ id: `sale-${n}`, occurredAt: `2026-10-08T12:0${n}:00.000Z` });
       }
 
-      const second = history.salesOfRegister({ standing: undefined, offset: 3, limit: 3 });
+      const second = history.salesOfRegister({ offset: 3, limit: 3 });
 
       expect(idsOf(second)).toEqual(["sale-4", "sale-3", "sale-2"]);
       expect(second.total).toBe(7);
@@ -290,7 +288,7 @@ describe("SqliteRegisterSalesHistory", () => {
       addSale({ id: "today", session: "open-session", occurredAt: "2026-10-08T12:00:00.000Z" });
       addSale({ id: "yesterday", session: "old-session", occurredAt: "2026-10-07T12:00:00.000Z" });
 
-      const open = history.salesOfOpenSession({ standing: undefined, offset: 0, limit: 50 });
+      const open = history.salesOfOpenSession({ offset: 0, limit: 50 });
 
       expect(idsOf(open)).toEqual(["today"]);
       expect(open.total).toBe(1);
@@ -303,7 +301,7 @@ describe("SqliteRegisterSalesHistory", () => {
       );
       addSale({ id: "closed-day" });
 
-      expect(history.salesOfOpenSession({ standing: undefined, offset: 0, limit: 50 })).toEqual({
+      expect(history.salesOfOpenSession({ offset: 0, limit: 50 })).toEqual({
         entries: [],
         total: 0,
       });
@@ -499,8 +497,16 @@ describe("SqliteRegisterSalesHistory", () => {
     });
 
     it("is completed, while a sale whose document was released or conflicting stays deferred", () => {
-      expect(idsOf(all("completed"))).toEqual(["adopted"]);
-      expect(idsOf(all("deferred"))).toEqual(["conflicting", "released"]);
+      const standingOf = (saleId: string) => {
+        const entry = all().entries.find((candidate) => candidate.saleId === saleId);
+        return entry && saleStandingOf({ ...entry.fiscal, voided: entry.voided });
+      };
+
+      expect(["adopted", "conflicting", "released"].map(standingOf)).toEqual([
+        "completed",
+        "deferred",
+        "deferred",
+      ]);
     });
   });
 
@@ -669,7 +675,7 @@ describe("SqliteRegisterSalesHistory", () => {
     });
   });
 
-  describe("filtering by standing", () => {
+  describe("listing every standing", () => {
     beforeEach(() => {
       addSale({ id: "no-document", occurredAt: "2026-10-08T10:00:00.000Z" });
       addSale({
@@ -709,65 +715,16 @@ describe("SqliteRegisterSalesHistory", () => {
       });
     });
 
-    it("lists every standing when none is asked", () => {
+    it("lists a sale of each standing", () => {
       expect(all().total).toBe(8);
     });
 
-    it("lists the voided sales, whatever their fiscal facts", () => {
-      const page = all("voided");
+    it("counts the total whatever the page", () => {
+      const page = history.salesOfRegister({ offset: 0, limit: 1 });
 
-      expect(idsOf(page)).toEqual(["voided-authorized", "voided-unbilled"]);
-      expect(page.total).toBe(2);
+      expect(page.entries).toHaveLength(1);
+      expect(page.total).toBe(8);
     });
-
-    it("lists the completed sales", () => {
-      const page = all("completed");
-
-      expect(idsOf(page)).toEqual(["authorized", "no-document"]);
-      expect(page.total).toBe(2);
-    });
-
-    it("lists the sales whose fiscal document is being requested", () => {
-      const page = all("in_progress");
-
-      expect(idsOf(page)).toEqual(["requesting"]);
-      expect(page.total).toBe(1);
-    });
-
-    it("lists the deferred sales, including those whose document was rejected or left unknown", () => {
-      const page = all("deferred");
-
-      expect(idsOf(page)).toEqual(["unknown", "rejected", "offline"]);
-      expect(page.total).toBe(3);
-    });
-
-    it("counts the total of the standing asked, whatever the page", () => {
-      const page = history.salesOfRegister({ standing: "deferred", offset: 0, limit: 1 });
-
-      expect(idsOf(page)).toEqual(["unknown"]);
-      expect(page.total).toBe(3);
-    });
-
-    it("filters the open session's sales by standing too", () => {
-      addSale({ id: "closed-session-deferred", session: "old-session", deferred: true });
-
-      const page = history.salesOfOpenSession({ standing: "deferred", offset: 0, limit: 50 });
-
-      expect(page.total).toBe(3);
-    });
-
-    it.each(DECIDED_STANDINGS)(
-      "lists under %s exactly the sales the domain gives that standing",
-      (standing) => {
-        const expected = all()
-          .entries.filter(
-            ({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }) === standing,
-          )
-          .map(({ saleId }) => saleId);
-
-        expect(idsOf(all(standing))).toEqual(expected);
-      },
-    );
   });
 
   describe("a sale with a discount on its total", () => {
