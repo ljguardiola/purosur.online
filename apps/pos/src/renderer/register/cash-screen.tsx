@@ -131,11 +131,9 @@ export function CashScreen({
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <h1 className="sr-only">Movimientos de efectivo</h1>
         {clockGuard}
-        <CashMovementsTable
-          state={movements}
-          legend={LEGEND}
-          locked={recording !== undefined}
-        />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CashMovementsTable state={movements} legend={LEGEND} locked={recording !== undefined} />
+        </div>
         {recording === undefined ? null : <KeyLegend items={FIELD_LEGEND} />}
       </main>
     </RegisterFrame>

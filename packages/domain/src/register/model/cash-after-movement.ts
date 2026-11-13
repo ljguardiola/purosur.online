@@ -3,7 +3,7 @@ import type { CashMovementKind } from "./cash-movement-kind.js";
 import type { CashMovement } from "./cash-session.js";
 import { expectedCash } from "./expected-cash.js";
 
-export type CashAfterMovement =
+type CashAfterMovement =
   | { kind: "remaining"; cash: number }
   | { kind: "exceeds_expected_cash"; expected: number };
 
