@@ -476,7 +476,7 @@ test("ends the session when printing comes back unauthenticated", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when printing comes back forbidden", async () => {
+test("opens the own account panel when printing comes back forbidden", async () => {
   window.history.pushState(null, "", "/products");
   const services = createServices();
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "forbidden" });

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { selfAndDescendantIds, withCreatedCategory } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { type CategoryReload, useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import type { createCategory, editCategory } from "./categories-api";
@@ -50,7 +50,7 @@ export function EditCategoryModal({
   createCategory,
   categories,
 }: EditCategoryModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<EditNotice | null>(null);
@@ -76,7 +76,7 @@ export function EditCategoryModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

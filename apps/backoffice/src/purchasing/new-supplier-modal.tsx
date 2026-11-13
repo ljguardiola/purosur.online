@@ -4,7 +4,7 @@ import { Check, ShieldX, Truck, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   EMPTY_SUPPLIER_FORM,
   SUPPLIER_CUIT_TAKEN,
@@ -38,7 +38,7 @@ export function NewSupplierModal({
   onClose,
   onSessionEnded,
 }: NewSupplierModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_SUPPLIER_FORM,
@@ -57,7 +57,7 @@ export function NewSupplierModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "name_taken") {

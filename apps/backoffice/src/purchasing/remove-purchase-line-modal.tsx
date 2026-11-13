@@ -3,7 +3,7 @@ import { Button, Modal } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type PurchaseCorrectionNotice,
   PurchaseCorrectionNotices,
@@ -37,7 +37,7 @@ export function RemovePurchaseLineModal({
   onClose,
   onSessionEnded,
 }: RemovePurchaseLineModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PurchaseLineRemovalTarget | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -67,7 +67,7 @@ export function RemovePurchaseLineModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

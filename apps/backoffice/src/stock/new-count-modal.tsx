@@ -29,7 +29,7 @@ import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { parseStockQuantity, quantityFieldKind, quantityMessage } from "../platform/stock-quantity";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -135,7 +135,7 @@ export function NewCountModal({
   onSessionEnded,
   onRegistered,
 }: NewCountModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshStock = useRefreshStock();
   const [notice, setNotice] = useState<Notice | null>(null);
   const products = useStockProductsQuery({
@@ -229,7 +229,7 @@ export function NewCountModal({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "occurred_in_the_future") {
       showFieldError("moment", IN_THE_FUTURE);
     } else if (outcome.kind === "count_at_same_moment") {

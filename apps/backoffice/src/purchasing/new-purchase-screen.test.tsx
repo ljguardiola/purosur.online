@@ -460,7 +460,7 @@ test("shows the rate-limited notice when the form data is rate-limited", async (
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the form data comes back forbidden, and ends the session when it finds none", async () => {
+test("opens the own account panel when the form data comes back forbidden, and ends the session when it finds none", async () => {
   window.history.pushState(null, "", "/purchases/new");
   const forbidden = createServices({
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "forbidden" }),

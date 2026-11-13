@@ -512,7 +512,7 @@ test.each(refreshedHooks)(
 );
 
 test.each(refreshedHooks)(
-  "refreshing the $name proposal sends the person to Mi cuenta when it comes back forbidden",
+  "refreshing the $name proposal opens the own account panel when it comes back forbidden",
   async (hook) => {
     window.history.pushState(null, "", "/supplier-price-lists/list-1");
     const { askAgain } = await refreshing(hook, { kind: "forbidden" });

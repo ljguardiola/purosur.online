@@ -212,7 +212,7 @@ test("shows the attempt-failed notice", async () => {
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the rotation comes back forbidden", async () => {
+test("opens the own account panel when the rotation comes back forbidden", async () => {
   window.history.pushState(null, "", "/backups");
   const services = createServices();
   vi.mocked(services.rotateSnapshotKey).mockResolvedValue({ kind: "forbidden" });

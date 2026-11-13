@@ -596,7 +596,7 @@ test("after an unsaved edit and a change in the data, the save sends the version
   );
 });
 
-test("sends to Mi cuenta when saving comes back forbidden", async () => {
+test("opens the own account panel when saving comes back forbidden", async () => {
   window.history.pushState(null, "", "/fiscal-settings");
   const services = createServices();
   vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "forbidden" });

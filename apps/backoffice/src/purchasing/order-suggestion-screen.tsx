@@ -25,7 +25,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { ownEntry } from "../platform/own-entry";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { type BackofficeAccess, canManagePurchaseOrders } from "../shell/backoffice-access";
 import {
   chosenOrder,
@@ -135,7 +135,7 @@ export function OrderSuggestionScreen({
   const [search, setSearch] = useState(filters.search);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const reportFilters = useEffectEvent(onFiltersChange);
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [buildNotice, setBuildNotice] = useState<BuildNotice | null>(null);
 
@@ -159,7 +159,7 @@ export function OrderSuggestionScreen({
           onSessionEnded();
           return;
         case "forbidden":
-          sendToMyAccount();
+          sendToOwnAccount();
           return;
         case "refused":
           setBuildNotice({ kind: "refused", reason: outcome.reason });

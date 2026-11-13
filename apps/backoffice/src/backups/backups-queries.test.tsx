@@ -27,7 +27,7 @@ test("invalidating the backups key marks the ticket recoveries stale and leaves 
   expect(client.getQueryState(["alerts"])?.isInvalidated).toBe(false);
 });
 
-test("sends the person to Mi cuenta when the ticket recoveries come back forbidden", async () => {
+test("opens the own account panel when the ticket recoveries come back forbidden", async () => {
   window.history.pushState(null, "", "/rescue");
   const read = vi
     .fn<typeof fetchContingencyTicketRecoveries>()

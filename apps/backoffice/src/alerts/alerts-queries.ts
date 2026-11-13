@@ -7,7 +7,7 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { fetchPermissionCatalog } from "../platform/permission-catalog-api";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { AlertListQuery, fetchAlert, fetchAlerts, fetchAlertsOverview } from "./alerts-api";
 
@@ -27,12 +27,12 @@ export function usePermissionCatalogQuery(params: {
   fetchPermissionCatalog: typeof fetchPermissionCatalog;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PermissionCatalogWire>({
     queryKey: alertsKeys.permissionCatalog,
     read: params.fetchPermissionCatalog,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -43,12 +43,12 @@ export function useAlertsQuery(params: {
   fetchAlerts: typeof fetchAlerts;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<AlertListPage>({
     queryKey: alertsKeys.list(params.query),
     read: () => params.fetchAlerts(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -56,12 +56,12 @@ export function useAlertsOverviewQuery(params: {
   fetchAlertsOverview: typeof fetchAlertsOverview;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<AlertsOverview>({
     queryKey: alertsKeys.overview,
     read: params.fetchAlertsOverview,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -84,12 +84,12 @@ export function useAlertQuery(params: {
   fetchAlert: typeof fetchAlert;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<AlertRead>({
     queryKey: alertsKeys.detail(params.id),
     read: () => readAlert(params.id, params.fetchAlert),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

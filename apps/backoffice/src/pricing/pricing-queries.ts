@@ -14,7 +14,7 @@ import { useId } from "react";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { mapCloudData } from "../platform/map-cloud-data";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
 import type {
@@ -58,13 +58,13 @@ export function usePricesQuery(params: {
   fetchPrices: typeof fetchPrices;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PriceList>({
     queryKey: pricesKeys.list(params.input),
     keepPreviousData: true,
     read: () => params.fetchPrices(params.input),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -75,7 +75,7 @@ export function useProductPriceQuery(params: {
   fetchPrices: typeof fetchPrices;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { productId } = params;
   return useCloudQuery<PriceProduct | null>({
     queryKey: pricesKeys.ofProduct(productId),
@@ -89,7 +89,7 @@ export function useProductPriceQuery(params: {
         : outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -115,7 +115,7 @@ export function usePriceMarginQuery(params: {
   fetchPriceMargin: typeof fetchPriceMargin;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { productId, unitPrice } = params;
   return useCloudQuery<PriceMargin>({
     queryKey: pricesKeys.margin(productId, unitPrice ?? null),
@@ -125,7 +125,7 @@ export function usePriceMarginQuery(params: {
         ? Promise.resolve({ kind: "failed" })
         : params.fetchPriceMargin(productId, unitPrice),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -137,7 +137,7 @@ export function usePriceRecommendationQuery(params: {
   fetchPriceRecommendation: typeof fetchPriceRecommendation;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { productId, input } = params;
   const components = input.components
     .map(
@@ -151,7 +151,7 @@ export function usePriceRecommendationQuery(params: {
     keepPreviousData: params.keepPreviousData,
     read: () => params.fetchPriceRecommendation(productId, input),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -199,13 +199,13 @@ export function usePricesPastReviewDeadlineReportQuery(params: {
   fetchPricesPastReviewDeadlineReport: typeof fetchPricesPastReviewDeadlineReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PricesPastReviewDeadlineReportBody>({
     queryKey: pricesKeys.pastReviewDeadlineReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchPricesPastReviewDeadlineReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -218,13 +218,13 @@ function useDiscountsQuery(params: {
   fetchDiscounts: typeof fetchDiscounts;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<DiscountList>({
     queryKey: discountsKey,
     read: params.fetchDiscounts,
     refetchInterval: DISCOUNT_STATUS_REFRESH_MS,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -232,12 +232,12 @@ function useDiscountTargetsQuery(params: {
   fetchDiscountTargets: typeof fetchDiscountTargets;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<DiscountTargets>({
     queryKey: discountTargetsKey,
     read: params.fetchDiscountTargets,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -276,14 +276,14 @@ export function useDiscountTargetsReread(params: {
   readAgain: () => Promise<CloudReadOutcome<DiscountTargets>>;
 } {
   const client = useQueryClient();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const queryKey = discountTargetsRereadKey(useId(), params.opening);
   const reread = useCloudQuery<DiscountTargets>({
     queryKey,
     enabled: false,
     read: params.fetchDiscountTargets,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
   return {
     reread,

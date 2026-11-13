@@ -246,7 +246,7 @@ test("ends the session when the freights are refused for lack of one", async () 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("sends the person to Mi cuenta when the freights are forbidden", async () => {
+test("opens the own account panel when the freights are forbidden", async () => {
   window.history.pushState(null, "", "/freights");
   const services = createServices({
     fetchFreights: vi.fn().mockResolvedValue({ kind: "forbidden" }),

@@ -530,7 +530,7 @@ test("shows the attempt-failed notice when recording fails, and keeps what was t
   await expect.element(dialog.getByRole("textbox", { name: /^Importe/ })).toHaveValue("15.000,00");
 });
 
-test("sends to Mi cuenta when recording comes back forbidden", async () => {
+test("opens the own account panel when recording comes back forbidden", async () => {
   window.history.pushState(null, "", "/fiscal-settings");
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({ kind: "forbidden" });
