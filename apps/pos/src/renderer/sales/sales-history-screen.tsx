@@ -577,15 +577,14 @@ export function SalesHistoryScreen({
             />
           </div>
           <Keycap keyName="F3" />
-          <fieldset disabled={locked} className="m-0 min-w-0 border-0 p-0">
-            <SegmentedControl
-              label="Sesión"
-              size="large"
-              options={SESSION_OPTIONS}
-              value={session}
-              onChange={changeSession}
-            />
-          </fieldset>
+          <SegmentedControl
+            label="Sesión"
+            size="large"
+            options={SESSION_OPTIONS}
+            value={session}
+            onChange={changeSession}
+            disabled={locked}
+          />
         </div>
         <ToastStack toasts={toasts}>
           <div ref={tableArea} className="flex min-h-0 flex-1 flex-col">

@@ -17,6 +17,12 @@ import type { ShownSalesHistory } from "./sales-queries";
 
 type Row = Extract<ShownSalesHistory, { kind: "found" }>["rows"][number];
 
+const CLOCK_TIME_WIDTH = 48;
+const DATE_AND_TIME_WIDTH = 100;
+const METHODS_WIDTH = 190;
+const TOTAL_WIDTH = 120;
+const STATE_WIDTH = 100;
+
 function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
   if (state.status === "loading") {
     return "initial";
@@ -49,6 +55,7 @@ export function SalesHistoryTable({
     dataColumn({
       id: "time",
       header: "Hora",
+      width: withDate ? DATE_AND_TIME_WIDTH : CLOCK_TIME_WIDTH,
       render: (row: Row) => (
         <TableCellText strong>
           {withDate
@@ -65,17 +72,20 @@ export function SalesHistoryTable({
     dataColumn({
       id: "methods",
       header: "Medios",
+      width: METHODS_WIDTH,
       render: (row: Row) => paymentMethodsText(row.payment_methods),
     }),
     dataColumn({
       id: "total",
       header: "Total",
       align: "end",
+      width: TOTAL_WIDTH,
       render: (row: Row) => <TableCellText strong>{formatCents(row.total)}</TableCellText>,
     }),
     dataColumn({
       id: "state",
       header: "Estado",
+      width: STATE_WIDTH,
       render: (row: Row) => {
         const { label, tone } = saleStatePresentation(row.state);
         return <Tag tone={tone}>{label}</Tag>;
@@ -93,6 +103,7 @@ export function SalesHistoryTable({
       aria-label="Ventas"
       table={table}
       fill
+      emptyKeepsHeaders
       inactive={inactive}
       {...(legend.length === 0 ? {} : { legend })}
       rowState={(row) => (row.sale_id === selectedSaleId ? "selected" : undefined)}

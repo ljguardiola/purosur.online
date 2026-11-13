@@ -98,7 +98,7 @@ function Buttons({ buttons }: { buttons: readonly SaleButton[] }) {
 
 function Header({ withEscape }: { withEscape: boolean }) {
   return (
-    <div className="flex items-center justify-between px-8 pt-8">
+    <div className="flex items-center justify-between px-6 pt-6">
       <Eyebrow text="DETALLE DE LA VENTA" />
       {withEscape ? <Keycap keyName="Escape" /> : null}
     </div>
@@ -117,6 +117,7 @@ function Message({
   return (
     <SidePanel
       label="Detalle de la venta"
+      width="wide"
       header={<Header withEscape={withEscape} />}
       footer={footer}
     >
@@ -141,6 +142,7 @@ function Sale({
   return (
     <SidePanel
       label="Detalle de la venta"
+      width="wide"
       footer={buttons.length === 0 ? undefined : <Buttons buttons={buttons} />}
     >
       <FigureStat
@@ -255,9 +257,12 @@ export function SaleHistoryDetailPanel({
   buttons,
   escape: withEscape,
 }: SaleHistoryDetailPanelProps) {
+  if (detail === undefined && withEscape) {
+    return <Message withEscape>{null}</Message>;
+  }
   if (detail === undefined) {
     return (
-      <Message withEscape={withEscape}>
+      <Message>
         <EmptyState
           variant="blank"
           icon={<ReceiptText />}
