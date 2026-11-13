@@ -69,13 +69,12 @@ export function saleFiscalDocumentAmong(
 export function saleStandingOf({
   voided,
   deferred,
-  deferredInvoicePending,
   fiscalDocument,
 }: SaleFiscalFacts & { voided: boolean }): SaleStanding {
   if (voided) {
     return "voided";
   }
-  if (deferred || deferredInvoicePending) {
+  if (deferred) {
     return "deferred";
   }
   return fiscalDocument !== null &&
