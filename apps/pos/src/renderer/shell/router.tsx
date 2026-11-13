@@ -760,6 +760,7 @@ const openSessionRoute = createRoute({
       addProduct,
       addWeighedProduct,
       weighProduct,
+      readScale,
       weighLine,
       changeLineQuantity,
       changeLineWeight,
@@ -788,6 +789,7 @@ const openSessionRoute = createRoute({
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        readScale={readScale}
         weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}

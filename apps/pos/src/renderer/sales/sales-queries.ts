@@ -8,6 +8,7 @@ import type {
   CurrentSaleAnswer,
   FindProductByCodeOutcome,
   FollowMercadoPagoChargeOutcome,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenSale,
@@ -56,6 +57,7 @@ export const salesKeys = {
     ] as const,
   saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
     [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
+  liveScaleReading: [...salesKey, "live-scale-reading"] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
   productByCode: (code: string) => [...salesKey, "product-by-code", code] as const,
   paymentMethodAvailabilityRoot: [...salesKey, "payment-method-availability"] as const,
@@ -202,6 +204,7 @@ export function useAnswerReceiptQuestionMutation({
 
 const BACKUP_TICKET_POLL_MILLISECONDS = 1000;
 const BACKUP_PRINTER_FAILURE_POLL_MILLISECONDS = 5000;
+const LIVE_SCALE_READING_POLL_MILLISECONDS = 250;
 
 export function useBackupTicketOfSaleQuery({
   saleId,
@@ -240,6 +243,21 @@ export function useBackupPrinterFailureQuery({
     },
     enabled,
     refetchInterval: () => BACKUP_PRINTER_FAILURE_POLL_MILLISECONDS,
+  });
+}
+
+export function useLiveScaleReadingQuery({
+  read,
+  enabled,
+}: {
+  read: () => Promise<LiveScaleReadingOutcome>;
+  enabled: boolean;
+}): CoreData<LiveScaleReadingOutcome> {
+  return useCoreQuery({
+    queryKey: salesKeys.liveScaleReading,
+    read,
+    enabled,
+    refetchInterval: () => LIVE_SCALE_READING_POLL_MILLISECONDS,
   });
 }
 
