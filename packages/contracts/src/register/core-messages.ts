@@ -270,6 +270,7 @@ export type CashCountPreview = z.infer<typeof cashCountPreviewSchema>;
 const cashMovementPreviewSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("remaining"), cash: z.number() }),
   z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
+  z.object({ kind: z.literal("invalid_amount") }),
 ]);
 export type CashMovementPreview = z.infer<typeof cashMovementPreviewSchema>;
 

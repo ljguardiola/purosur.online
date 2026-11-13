@@ -60,10 +60,6 @@ const PRESENTATION = {
   },
 } as const satisfies Record<CashMovementType, Presentation>;
 
-function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
-  return Date.parse(a.occurred_at) - Date.parse(b.occurred_at);
-}
-
 const columns = [
   dataColumn({
     id: "movement",
@@ -125,7 +121,7 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
 }
 
 export function CashMovementsTable({ state, legend, locked = false }: CashMovementsTableProps) {
-  const movements = state.status === "loaded" ? [...state.value].sort(timeOrder) : [];
+  const movements = state.status === "loaded" ? state.value : [];
   const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
