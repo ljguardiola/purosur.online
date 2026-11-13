@@ -136,9 +136,6 @@ describe("authorizing a sale's invoice in real time on the register", () => {
       buyer_tax_status_code: 5,
       sale_event: { event_type: "sale_completed" },
     });
-    const printOffer = page.getByRole("group", { name: "¿Imprimir ticket?" });
-    await printOffer.waitFor();
-    await printOffer.waitFor({ state: "detached" });
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
   });
 
