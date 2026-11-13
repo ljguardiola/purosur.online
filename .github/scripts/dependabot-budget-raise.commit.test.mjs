@@ -6,6 +6,7 @@ const BUDGET_PATH = "apps/backoffice/download-budget.json";
 const HEAD_SHA = "a".repeat(40);
 const BRANCH = "dependabot/npm_and_yarn/lucide-react-1.2.3";
 const DEFAULT_BRANCH = "main";
+const MERGE_BASE_SHA = "c".repeat(40);
 const BUDGET = { entry: 100_000, total: 400_000 };
 
 const dependabotPullRequest = {
@@ -17,9 +18,16 @@ const dependabotPullRequest = {
 
 function fakeGitHub({
   pullRequests = [dependabotPullRequest],
-  budgets = { [HEAD_SHA]: BUDGET, [DEFAULT_BRANCH]: BUDGET },
+  budgets = {},
   mergeError = null,
+  mergeStatus = 201,
 } = {}) {
+  const budgetAt = {
+    [HEAD_SHA]: BUDGET,
+    [DEFAULT_BRANCH]: BUDGET,
+    [MERGE_BASE_SHA]: BUDGET,
+    ...budgets,
+  };
   const calls = [];
   const encoded = (budget) =>
     Buffer.from(`${JSON.stringify(budget, null, 2)}\n`).toString("base64");
@@ -34,8 +42,12 @@ function fakeGitHub({
       getContent: async (params) => {
         calls.push(["repos.getContent", params]);
         return {
-          data: { type: "file", encoding: "base64", content: encoded(budgets[params.ref]) },
+          data: { type: "file", encoding: "base64", content: encoded(budgetAt[params.ref]) },
         };
+      },
+      compareCommitsWithBasehead: async (params) => {
+        calls.push(["repos.compareCommitsWithBasehead", params]);
+        return { data: { merge_base_commit: { sha: MERGE_BASE_SHA } } };
       },
     },
   };
@@ -44,7 +56,9 @@ function fakeGitHub({
       merge: async (params) => {
         calls.push(["repos.merge", params]);
         if (mergeError !== null) throw mergeError;
-        return { data: { sha: "merge-commit" } };
+        return mergeStatus === 204
+          ? { status: 204, data: "" }
+          : { status: mergeStatus, data: { sha: "merge-commit" } };
       },
     },
     git: {
@@ -92,10 +106,9 @@ const writes = (calls) =>
   calls.filter(([name]) => name.startsWith("git.") || name === "repos.merge");
 const gitWrites = (calls) => calls.filter(([name]) => name.startsWith("git."));
 const httpError = (status) => Object.assign(new Error(`HTTP ${status}`), { status });
-const DIVERGED_BUDGETS = {
-  [HEAD_SHA]: BUDGET,
-  [DEFAULT_BRANCH]: { entry: 100_000, total: 401_500 },
-};
+const budgetOf = (total) => ({ entry: 100_000, total });
+const DEFAULT_BRANCH_RAISED = { [DEFAULT_BRANCH]: budgetOf(401_500) };
+const OWN_RAISE = { [HEAD_SHA]: budgetOf(400_500) };
 
 test("raiseBudgetOnPullRequest commits the measured sizes as the budget on the pull request's branch, on top of the measured commit", async () => {
   const { outcome, calls } = await raise();
@@ -129,7 +142,18 @@ test("raiseBudgetOnPullRequest commits the measured sizes as the budget on the p
   });
 });
 
-test("raiseBudgetOnPullRequest reads the budget the measured commit and the default branch hold", async () => {
+test("raiseBudgetOnPullRequest finds where the branch left the default branch", async () => {
+  const { calls } = await raise();
+
+  const compares = calls
+    .filter(([name]) => name === "repos.compareCommitsWithBasehead")
+    .map(([, params]) => params);
+  assert.deepEqual(compares, [
+    { owner: "owner", repo: "repo", basehead: `${DEFAULT_BRANCH}...${HEAD_SHA}` },
+  ]);
+});
+
+test("raiseBudgetOnPullRequest reads the budget the measured commit, the default branch and their merge base hold", async () => {
   const { calls } = await raise();
 
   const reads = calls.filter(([name]) => name === "repos.getContent").map(([, params]) => params);
@@ -137,23 +161,62 @@ test("raiseBudgetOnPullRequest reads the budget the measured commit and the defa
     reads.toSorted((a, b) => a.ref.localeCompare(b.ref)),
     [
       { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: HEAD_SHA },
+      { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: MERGE_BASE_SHA },
       { owner: "owner", repo: "repo", path: BUDGET_PATH, ref: DEFAULT_BRANCH },
     ],
   );
 });
 
-for (const [description, defaultBranchBudget] of [
-  ["raised", { entry: 100_000, total: 401_500 }],
-  ["lowered", { entry: 100_000, total: 399_000 }],
+for (const [description, measuredTotal] of [
+  ["shrank", 399_000],
+  ["grew within the default branch's raised budget", 400_105],
 ]) {
-  test(`raiseBudgetOnPullRequest merges the default branch into the pull request's branch, committing no budget, when the default branch ${description} the budget since the branch was cut`, async () => {
-    const github = fakeGitHub({
-      budgets: { [HEAD_SHA]: BUDGET, [DEFAULT_BRANCH]: defaultBranchBudget },
-    });
+  test(`raiseBudgetOnPullRequest writes nothing when the bundle ${description} while the default branch raised the budget`, async () => {
+    const github = fakeGitHub({ budgets: DEFAULT_BRANCH_RAISED });
 
     const { outcome, calls } = await raise({
       github,
-      measured: { entry: 100_000, total: 400_105 },
+      measured: { entry: 100_000, total: measuredTotal },
+    });
+
+    assert.equal(outcome.kind, "within-budget");
+    assert.deepEqual(writes(calls), []);
+  });
+}
+
+test("raiseBudgetOnPullRequest writes nothing when the bundle fits the budget the branch already raised", async () => {
+  const github = fakeGitHub({ budgets: OWN_RAISE });
+
+  const { outcome, calls } = await raise({ github, measured: { entry: 100_000, total: 400_500 } });
+
+  assert.equal(outcome.kind, "within-budget");
+  assert.deepEqual(writes(calls), []);
+});
+
+test("raiseBudgetOnPullRequest raises again on the branch, over the budget it already raised, when the bundle grew within 2 KB of it", async () => {
+  const github = fakeGitHub({ budgets: OWN_RAISE });
+
+  const { outcome, calls } = await raise({ github, measured: { entry: 100_000, total: 402_548 } });
+
+  assert.deepEqual(outcome, { kind: "raised", pullRequest: 2202, budget: budgetOf(402_548) });
+  assert.deepEqual(
+    calls.filter(([name]) => name === "repos.merge"),
+    [],
+  );
+  const commit = calls.find(([name]) => name === "git.createCommit")[1];
+  assert.deepEqual(commit.parents, [HEAD_SHA]);
+});
+
+for (const [description, defaultBranchTotal, measuredTotal] of [
+  ["raised", 401_500, 401_600],
+  ["lowered", 399_000, 400_105],
+]) {
+  test(`raiseBudgetOnPullRequest merges the default branch into the pull request's branch, committing no budget, when the default branch ${description} the budget since the branch was cut and the bundle outgrew it`, async () => {
+    const github = fakeGitHub({ budgets: { [DEFAULT_BRANCH]: budgetOf(defaultBranchTotal) } });
+
+    const { outcome, calls } = await raise({
+      github,
+      measured: { entry: 100_000, total: measuredTotal },
     });
 
     assert.deepEqual(outcome, { kind: "merged-default-branch", pullRequest: 2202 });
@@ -168,29 +231,51 @@ for (const [description, defaultBranchBudget] of [
   });
 }
 
-test("raiseBudgetOnPullRequest commits nothing when the default branch cannot be merged into the pull request's branch without a conflict", async () => {
-  const github = fakeGitHub({ budgets: DIVERGED_BUDGETS, mergeError: httpError(409) });
+test("raiseBudgetOnPullRequest merges the default branch when both raised the budget alike since the branch was cut and the bundle outgrew it", async () => {
+  const github = fakeGitHub({
+    budgets: { [HEAD_SHA]: budgetOf(401_500), [DEFAULT_BRANCH]: budgetOf(401_500) },
+  });
 
-  const { outcome, calls } = await raise({ github });
+  const { outcome, calls } = await raise({ github, measured: { entry: 100_000, total: 401_600 } });
+
+  assert.deepEqual(outcome, { kind: "merged-default-branch", pullRequest: 2202 });
+  assert.deepEqual(gitWrites(calls), []);
+});
+
+test("raiseBudgetOnPullRequest writes nothing when the branch and the default branch changed the budget differently since the branch was cut", async () => {
+  const github = fakeGitHub({ budgets: { ...OWN_RAISE, ...DEFAULT_BRANCH_RAISED } });
+
+  const { outcome, calls } = await raise({ github, measured: { entry: 100_000, total: 401_600 } });
+
+  assert.deepEqual(outcome, { kind: "budget-conflict", pullRequest: 2202 });
+  assert.deepEqual(writes(calls), []);
+});
+
+test("raiseBudgetOnPullRequest reports nothing to merge when the branch already holds the default branch", async () => {
+  const github = fakeGitHub({ budgets: DEFAULT_BRANCH_RAISED, mergeStatus: 204 });
+
+  const { outcome, calls } = await raise({ github, measured: { entry: 100_000, total: 401_600 } });
+
+  assert.deepEqual(outcome, { kind: "nothing-to-merge", pullRequest: 2202 });
+  assert.deepEqual(gitWrites(calls), []);
+});
+
+test("raiseBudgetOnPullRequest commits nothing when the default branch cannot be merged into the pull request's branch without a conflict", async () => {
+  const github = fakeGitHub({ budgets: DEFAULT_BRANCH_RAISED, mergeError: httpError(409) });
+
+  const { outcome, calls } = await raise({ github, measured: { entry: 100_000, total: 401_600 } });
 
   assert.deepEqual(outcome, { kind: "merge-conflict", pullRequest: 2202 });
   assert.deepEqual(gitWrites(calls), []);
 });
 
 test("raiseBudgetOnPullRequest fails when merging the default branch fails for any reason but a conflict", async () => {
-  const github = fakeGitHub({ budgets: DIVERGED_BUDGETS, mergeError: httpError(403) });
+  const github = fakeGitHub({ budgets: DEFAULT_BRANCH_RAISED, mergeError: httpError(403) });
 
-  await assert.rejects(raise({ github }), { status: 403 });
+  await assert.rejects(raise({ github, measured: { entry: 100_000, total: 401_600 } }), {
+    status: 403,
+  });
   assert.deepEqual(gitWrites(github.calls), []);
-});
-
-test("raiseBudgetOnPullRequest merges nothing when the pull request's branch holds the default branch's budget", async () => {
-  const { calls } = await raise();
-
-  assert.deepEqual(
-    calls.filter(([name]) => name === "repos.merge"),
-    [],
-  );
 });
 
 test("raiseBudgetOnPullRequest looks the pull request up by its branch in this repository", async () => {
