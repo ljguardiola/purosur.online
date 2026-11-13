@@ -4,14 +4,19 @@ import { findDeferredSale } from "./find-deferred-sale.js";
 import { AdjustableClock } from "./test-support/adjustable-clock.js";
 import {
   deferredSaleFacts,
+  deferredSaleLine,
   FakeDeferredSaleLookup,
 } from "./test-support/fake-deferred-sale-lookup.js";
 
 const NOW = new Date("2026-10-08T15:00:00.000Z");
 const SHORT_CODE = { kind: "short_code", shortCode: "7KQ4M2P9" } as const;
 
-function find(input: Parameters<typeof findDeferredSale>[1], sales = [deferredSaleFacts()]) {
-  const lookup = new FakeDeferredSaleLookup(sales);
+function find(
+  input: Parameters<typeof findDeferredSale>[1],
+  sales = [deferredSaleFacts()],
+  lines: ConstructorParameters<typeof FakeDeferredSaleLookup>[1] = {},
+) {
+  const lookup = new FakeDeferredSaleLookup(sales, lines);
   return {
     lookup,
     outcome: findDeferredSale(
@@ -22,8 +27,22 @@ function find(input: Parameters<typeof findDeferredSale>[1], sales = [deferredSa
 }
 
 describe("findDeferredSale", () => {
-  it("finds a pending sale by its short code", () => {
-    const { outcome } = find(SHORT_CODE);
+  it("finds a pending sale by its short code, with its lines and how many items it has", () => {
+    const almonds = deferredSaleLine({
+      productName: "Almendras peladas",
+      saleUnit: "KG",
+      quantity: 500,
+      listUnitPrice: 1_890_000,
+      lineTotal: 945_000,
+    });
+    const yerba = deferredSaleLine({
+      productName: "Yerba mate orgánica 1 kg",
+      saleUnit: "UNIT",
+      quantity: 1,
+      listUnitPrice: 695_000,
+      lineTotal: 695_000,
+    });
+    const { outcome } = find(SHORT_CODE, [deferredSaleFacts()], { "sale-1": [almonds, yerba] });
 
     expect(outcome).toEqual({
       kind: "found",
@@ -33,6 +52,8 @@ describe("findDeferredSale", () => {
       shortCode: "7KQ4M2P9",
       invoice: { kind: "pending" },
       originalPrinted: false,
+      lines: [almonds, yerba],
+      itemCount: 2,
     });
   });
 

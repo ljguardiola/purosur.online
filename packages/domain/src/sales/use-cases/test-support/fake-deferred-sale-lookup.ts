@@ -1,6 +1,7 @@
 import type { DeferredSaleFacts } from "../../model/deferred-sale-lookup.js";
 import type {
   DeferredSaleInvoicing,
+  DeferredSaleLine,
   DeferredSaleInvoicingOutcome,
   DeferredSaleLookup,
   DeferredSaleSearch,
@@ -22,12 +23,32 @@ export function deferredSaleFacts(overrides: Partial<DeferredSaleFacts> = {}): D
   };
 }
 
+export function deferredSaleLine(overrides: Partial<DeferredSaleLine> = {}): DeferredSaleLine {
+  return {
+    productName: "Yerba mate orgánica 1 kg",
+    saleUnit: "UNIT",
+    quantity: 1,
+    listUnitPrice: 695_000,
+    lineTotal: 695_000,
+    ...overrides,
+  };
+}
+
 export class FakeDeferredSaleLookup implements DeferredSaleLookup {
   readonly searches: DeferredSaleSearch[] = [];
   private sales: DeferredSaleFacts[];
+  private readonly lines: Readonly<Record<string, DeferredSaleLine[]>>;
 
-  constructor(sales: DeferredSaleFacts[] = [deferredSaleFacts()]) {
+  constructor(
+    sales: DeferredSaleFacts[] = [deferredSaleFacts()],
+    lines: Readonly<Record<string, DeferredSaleLine[]>> = {},
+  ) {
     this.sales = sales;
+    this.lines = lines;
+  }
+
+  linesOf(saleId: string): DeferredSaleLine[] {
+    return this.lines[saleId] ?? [];
   }
 
   find(search: DeferredSaleSearch): DeferredSaleFacts | null {
