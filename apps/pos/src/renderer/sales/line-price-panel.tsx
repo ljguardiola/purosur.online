@@ -298,7 +298,9 @@ export function LinePricePanel({
                   value:
                     previewShown === undefined
                       ? NOT_PREVIEWED
-                      : `– ${formatCents(previewShown.discount_amount)}`,
+                      : previewShown.line_total_reduction < 0
+                        ? `+ ${formatCents(-previewShown.line_total_reduction)}`
+                        : `– ${formatCents(previewShown.line_total_reduction)}`,
                 },
               ]),
         ]}
