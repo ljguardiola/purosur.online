@@ -42,9 +42,18 @@ describe("FirstSignInPinStep", () => {
     await expect.element(screen.getByRole("heading", { name: "Ingresá tu PIN" })).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeDisabled();
-    const back = screen.getByRole("link", { name: "Volver" });
-    expect(back.element().getAttribute("href")).toBe("/sign-in");
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("0-9", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Volver" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("goes back to the sign-in with Escape", async () => {
+    const screen = await renderStep(answering({ kind: "unavailable" }).signIn);
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 
   it("sends the person and the PIN as typed", async () => {
@@ -133,6 +142,19 @@ describe("FirstSignInPinStep", () => {
     await expectNoAccessibilityViolations(screen.container);
 
     await userEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
+  });
+
+  it("shows the Esc key on the lockout and goes back to the sign-in with Escape", async () => {
+    const screen = await renderStep(answering({ kind: "locked", consecutive_failures: 8 }).signIn);
+
+    await enter(screen, "1234");
+    await expect.element(screen.getByRole("heading", { name: "Ada está bloqueado" })).toBeVisible();
+
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
 
     await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });

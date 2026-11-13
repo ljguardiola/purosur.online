@@ -23,6 +23,7 @@ async function renderScreen(
   {
     requested = { kind: "sent" } as FirstPinCodeRequestOutcome,
     redeemed = { kind: "redeemed" } as PinCodeRedemptionOutcome,
+    signedIn = SIGNED_IN as SignInOutcome,
   } = {},
 ) {
   const lookups: string[] = [];
@@ -37,7 +38,7 @@ async function renderScreen(
       }}
       signIn={async (userId, pin) => {
         attempts.push({ userId, pin });
-        return SIGNED_IN;
+        return signedIn;
       }}
       requestCode={async (userId) => {
         requests.push(userId);
@@ -51,6 +52,7 @@ async function renderScreen(
       }}
       NoPinStep={FirstSignInNoPin}
       CodeStep={FirstSignInCodeStep}
+      version="1.4.212"
     />,
   );
   return { screen, lookups, attempts, requests, redemptions };
@@ -69,6 +71,8 @@ it("starts by asking for the email", async () => {
     .toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: "Correo" })).toBeVisible();
   await expect.element(screen.getByRole("img", { name: "Puro Sur" })).toBeVisible();
+  await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
+  await expect.element(screen.getByText("Tab", { exact: true })).not.toBeInTheDocument();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -146,4 +150,40 @@ it("stays on the no-PIN step when no code could be sent", async () => {
   await expect
     .element(screen.getByRole("heading", { name: "Elegí tu PIN" }))
     .not.toBeInTheDocument();
+});
+
+async function reachCodeStep() {
+  const rendered = await renderScreen(
+    { kind: "no_pin", user: { id: "u1", first_name: "Ada" } },
+    { signedIn: { kind: "no_register_permission" } },
+  );
+  await lookUp(rendered.screen);
+  await userEvent.click(
+    rendered.screen.getByRole("button", { name: "Mandarme un código por correo" }),
+  );
+  await expect
+    .element(rendered.screen.getByRole("heading", { name: "Elegí tu PIN" }))
+    .toBeVisible();
+  return rendered.screen;
+}
+
+it("shows the Tab key as Campo above the version while the code and the PINs are asked for", async () => {
+  const screen = await reachCodeStep();
+
+  await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
+  await expect.element(screen.getByRole("listitem")).toBeVisible();
+  expect(screen.getByRole("listitem").element().textContent).toBe("TabCampo");
+  await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
+});
+
+it("drops the Tab legend once the new PIN is saved and the person could not enter", async () => {
+  const screen = await reachCodeStep();
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
+  await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
+  await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar y entrar" }));
+
+  await expect.element(screen.getByRole("heading", { name: "PIN nuevo guardado" })).toBeVisible();
+  await expect.element(screen.getByText("Tab", { exact: true })).not.toBeInTheDocument();
 });

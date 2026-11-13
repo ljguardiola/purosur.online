@@ -1,8 +1,9 @@
 import type { FirstPinCodeRequestOutcome, SignInUser } from "@purosur/contracts";
 import { Button, InlineNotice } from "@purosur/ui";
-import { ArrowLeft, Mail } from "lucide-react";
-import { FirstSignInPanel } from "../shell/first-sign-in-panel";
-import { ScreenLink } from "../shell/screen-link";
+import { KeyRound, Mail } from "lucide-react";
+import { useKeys } from "../platform/key-layer";
+import { useEscapeToSignIn } from "../platform/use-escape-to-sign-in";
+import { BrandPanelCard } from "../shell/brand-panel-card";
 import { useFirstPinCodeRequest } from "./use-first-pin-code-request";
 
 export type FirstSignInNoPinProps = {
@@ -16,9 +17,16 @@ export function FirstSignInNoPin({ person, requestCode, onSent }: FirstSignInNoP
     request: () => requestCode(person.id),
     onSent,
   });
+  useEscapeToSignIn();
+  useKeys([{ key: "Enter", run: () => void ask(), enabled: !asking }]);
 
   return (
-    <FirstSignInPanel eyebrow={person.first_name} title="No tenés PIN todavía">
+    <BrandPanelCard
+      icon={<KeyRound />}
+      eyebrow={person.first_name}
+      title="No tenés PIN todavía"
+      escapeKeycap
+    >
       {notice === undefined ? null : (
         <InlineNotice
           tone="error"
@@ -27,10 +35,16 @@ export function FirstSignInNoPin({ person, requestCode, onSent }: FirstSignInNoP
           description={notice.description}
         />
       )}
-      <Button fullWidth icon={<Mail />} disabled={asking} onPress={ask}>
+      <Button
+        fullWidth
+        icon={<Mail />}
+        iconPosition="start"
+        keycap="Enter"
+        disabled={asking}
+        onPress={ask}
+      >
         Mandarme un código por correo
       </Button>
-      <ScreenLink to="/sign-in" icon={<ArrowLeft />} label="Volver" />
-    </FirstSignInPanel>
+    </BrandPanelCard>
   );
 }

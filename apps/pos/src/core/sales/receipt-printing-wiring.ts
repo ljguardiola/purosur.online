@@ -1,3 +1,4 @@
+import { receiptPrintOfferDeadline } from "@purosur/domain";
 import type { ReceiptPrinters } from "@purosur/domain/sales/use-cases";
 import type { SaleCompletingRequests } from "../backups/ticketed-renderer-requests";
 import type { LocalDatabase } from "../platform/local-database";
@@ -178,13 +179,14 @@ export function createReceiptPrinting({
           return false;
         }
       },
-      holdForAnswer: (saleId: string) => jobs.holdForAnswer(saleId),
+      holdForAnswer: (saleId: string) =>
+        jobs.holdForAnswer(saleId, receiptPrintOfferDeadline(now())),
     },
   };
   return {
     afterCompletedSale: (charge) => charge && printingCompletedSales(asking, charge),
     afterEachCompletedSale: (follow) => follow && printingEachCompletedSale(printing, follow),
-    receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
+    receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId, syncNow),
     answerReceiptQuestion: (answer) => answerReceiptQuestionFor(deps, syncNow, answer),
     printOriginalReceipt: (saleId) => printOriginalReceiptFor(deps, saleId),
     findDeferredSale: (reading) => findDeferredSaleFor(deps, reading),

@@ -137,6 +137,12 @@ export type {
   HandTypedWeightsReportReader,
 } from "./hand-typed-weights-report-reader.js";
 export type {
+  LapseReceiptPrintOfferInput,
+  LapseReceiptPrintOfferOutcome,
+  LapseReceiptPrintOfferPorts,
+} from "./lapse-receipt-print-offer.js";
+export { lapseReceiptPrintOffer } from "./lapse-receipt-print-offer.js";
+export type {
   ManualDiscountsQuery,
   ManualDiscountsReportReader,
 } from "./manual-discounts-report-reader.js";

@@ -3,8 +3,8 @@ import type {
   PinCodeRedemptionOutcome,
   SignInOutcome,
 } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { FirstSignInCodeStep } from "./first-sign-in-code-step";
@@ -63,20 +63,45 @@ async function saveWithCode(screen: Screen) {
 }
 
 describe("FirstSignInCodeStep", () => {
-  it("tells the person the code went to their email and how long it lasts, and asks for it with the new PIN", async () => {
+  it("asks for the code and the new PIN, with no description and the keys that leave, save or ask again", async () => {
     const { screen } = await renderStep();
 
     await expect.element(screen.getByText("Ada", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "Elegí tu PIN" })).toBeVisible();
     await expect
       .element(screen.getByText("Te mandamos un código por correo. Vale 15 minutos."))
-      .toBeVisible();
+      .not.toBeInTheDocument();
     await expect.element(screen.getByRole("textbox", { name: "Código" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: ANOTHER_CODE })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Volver" }).element().getAttribute("href")).toBe(
-      "/sign-in",
-    );
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("F2", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("0-9", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("link", { name: "Volver" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("opens with the code focused, since it arrives by email and starts empty", async () => {
+    const { screen } = await renderStep();
+
+    await expect.element(screen.getByRole("textbox", { name: "Código" })).toHaveFocus();
+  });
+
+  it("goes back to the sign-in with Escape", async () => {
+    const { screen } = await renderStep();
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
+  });
+
+  it("asks for another code with F2", async () => {
+    const { screen, requests } = await renderStep();
+
+    await userEvent.keyboard("{F2}");
+
+    await expect.element(screen.getByText("Te mandamos un código nuevo")).toBeVisible();
+    expect(requests).toEqual(["u1"]);
   });
 
   it("redeems the code and signs the person in with the PIN they chose", async () => {
@@ -105,11 +130,15 @@ describe("FirstSignInCodeStep", () => {
 
     await expect.element(screen.getByRole("heading", { name: "PIN nuevo guardado" })).toBeVisible();
     await expect.element(screen.getByText("Sin permisos en la caja")).toBeVisible();
-    expect(
-      screen.getByRole("link", { name: "Volver al inicio" }).element().getAttribute("href"),
-    ).toBe("/sign-in");
+    await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).not.toBeInTheDocument();
     await expect.element(screen.getByLabelText(PIN_LABEL)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 
   it.each([
@@ -126,12 +155,44 @@ describe("FirstSignInCodeStep", () => {
         .element(screen.getByRole("heading", { name: "PIN nuevo guardado" }))
         .toBeVisible();
       await expect.element(screen.getByText("No se pudo entrar")).toBeVisible();
+      expect(
+        getComputedStyle(
+          screen.getByText("No se pudo entrar").element().parentElement
+            ?.parentElement as HTMLElement,
+        ).backgroundColor,
+      ).toBe(tokenRgb("warning-subtle"));
       await expect
         .element(screen.getByText("Tu PIN nuevo quedó guardado. Entrá con él desde el inicio."))
         .toBeVisible();
-      await expect.element(screen.getByRole("link", { name: "Volver al inicio" })).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
     },
   );
+
+  it("says the new PIN was saved and only the opener can enter when the cash session was opened by another person", async () => {
+    const { screen, signIns } = await renderStep({
+      redeemed: { kind: "cash_session_opened_by_another" },
+    });
+
+    await saveWithCode(screen);
+
+    await expect.element(screen.getByText("Ada", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Elegí tu PIN" })).toBeVisible();
+    await expect.element(screen.getByText("PIN nuevo guardado")).toBeVisible();
+    await expect
+      .element(screen.getByText("La caja está abierta: solo puede entrar quien la abrió."))
+      .toBeVisible();
+    expect(
+      getComputedStyle(
+        screen.getByText("La caja está abierta: solo puede entrar quien la abrió.").element()
+          .parentElement?.parentElement as HTMLElement,
+      ).backgroundColor,
+    ).toBe(tokenRgb("success-subtle"));
+    await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByLabelText(PIN_LABEL)).not.toBeInTheDocument();
+    expect(signIns).toEqual([]);
+    await expectNoAccessibilityViolations(screen.container);
+  });
 
   it("asks for another code for the person and says the previous one no longer works", async () => {
     const { screen, requests } = await renderStep();

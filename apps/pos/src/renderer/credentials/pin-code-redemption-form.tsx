@@ -1,8 +1,10 @@
 import type { PinCodeRedemptionOutcome, PinPolicy } from "@purosur/contracts";
 import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
-import { Check, Lock, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
+import { Check, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { focusFirstInput } from "../platform/focus-first-input";
+import { BrandPanelLegend } from "../shell/brand-panel-screen";
 import { retryAfterText } from "../shell/retry-after-text";
 import { usePinPolicyQuery } from "./credentials-queries";
 import {
@@ -25,13 +27,8 @@ function noticeFor(outcome: PinCodeRedemptionOutcome, newCodeAskedIn: NewCodePla
     case "resumed":
     case "pin_rejected":
     case "invalid_input":
-      return undefined;
     case "cash_session_opened_by_another":
-      return {
-        icon: <Lock />,
-        title: "La caja está abierta",
-        description: "El PIN nuevo quedó guardado, pero solo puede entrar quien abrió la caja.",
-      };
+      return undefined;
     case "code_invalid":
       return {
         icon: <ShieldX />,
@@ -72,6 +69,8 @@ function noticeFor(outcome: PinCodeRedemptionOutcome, newCodeAskedIn: NewCodePla
   }
 }
 
+const FIELD_LEGEND = [{ keyName: "Tab", label: "Campo" }] as const;
+
 const CODE_OUTCOMES = new Set<PinCodeRedemptionOutcome["kind"]>([
   "code_invalid",
   "code_expired",
@@ -83,6 +82,7 @@ export type PinCodeRedemptionFormProps = {
   checkRedemption: (typedCode: string, newPin: string) => Promise<("reset_code" | "new_pin")[]>;
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   onRedeemed: (newPin: string) => void | Promise<void>;
+  onCashSessionOpenedByAnother: () => void;
   submitLabel: string;
   newCodeAskedIn: NewCodePlace;
   children?: ReactNode;
@@ -93,6 +93,7 @@ export function PinCodeRedemptionForm({
   checkRedemption,
   redeem,
   onRedeemed,
+  onCashSessionOpenedByAnother,
   submitLabel,
   newCodeAskedIn,
   children,
@@ -100,6 +101,7 @@ export function PinCodeRedemptionForm({
   const minDigits = usePinPolicyQuery(loadPinPolicy).min_digits;
   const [outcome, setOutcome] = useState<PinCodeRedemptionOutcome>();
   const noticeId = useId();
+  const formElement = useRef<HTMLFormElement | null>(null);
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PIN_REDEMPTION_FORM,
     request: { schema: pinRedemptionRequestSchema, from: pinRedemptionRequestFrom },
@@ -111,6 +113,9 @@ export function PinCodeRedemptionForm({
         (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
       );
       setOutcome(answered);
+      if (CODE_OUTCOMES.has(answered.kind)) {
+        focusFirstInput(formElement.current);
+      }
       switch (answered.kind) {
         case "redeemed":
           reset({ ...values, newPin: "", repeat: "" });
@@ -120,7 +125,7 @@ export function PinCodeRedemptionForm({
           reset({ ...values, newPin: "", repeat: "" });
           break;
         case "cash_session_opened_by_another":
-          reset();
+          onCashSessionOpenedByAnother();
           break;
         case "pin_rejected":
           showWireFieldError("new_pin");
@@ -139,6 +144,7 @@ export function PinCodeRedemptionForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    formElement.current = event.currentTarget;
     if (submitting) {
       return;
     }
@@ -147,7 +153,7 @@ export function PinCodeRedemptionForm({
   }
 
   return (
-    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+    <form ref={focusFirstInput} className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
       <form.AppField name="code">
         {(code) => {
           const message = fieldErrorMessage(code.state.meta.errors);
@@ -155,6 +161,7 @@ export function PinCodeRedemptionForm({
             <TextField
               kind="plain-text"
               label="Código"
+              errorRingWhileFocused
               value={code.state.value}
               onChange={code.handleChange}
               {...(message === undefined && codeRejected
@@ -166,23 +173,14 @@ export function PinCodeRedemptionForm({
       </form.AppField>
       <form.AppField name="newPin">
         {(newPin) => (
-          <newPin.TextField
-            kind="plain-text"
-            type="password"
-            inputMode="numeric"
+          <newPin.PinDotsField
             label={`PIN nuevo, de al menos ${minDigits} dígitos`}
+            digitsKeycap={false}
           />
         )}
       </form.AppField>
       <form.AppField name="repeat">
-        {(repeat) => (
-          <repeat.TextField
-            kind="plain-text"
-            type="password"
-            inputMode="numeric"
-            label="Repetí el PIN nuevo"
-          />
-        )}
+        {(repeat) => <repeat.PinDotsField label="Repetí el PIN nuevo" digitsKeycap={false} />}
       </form.AppField>
       {notice === undefined ? null : (
         <div id={noticeId}>
@@ -194,10 +192,18 @@ export function PinCodeRedemptionForm({
           />
         </div>
       )}
-      <Button type="submit" fullWidth icon={<Check />} disabled={submitting}>
+      <Button
+        type="submit"
+        fullWidth
+        icon={<Check />}
+        iconPosition="start"
+        keycap="Enter"
+        disabled={submitting}
+      >
         {submitLabel}
       </Button>
       {children}
+      <BrandPanelLegend items={FIELD_LEGEND} />
     </form>
   );
 }
