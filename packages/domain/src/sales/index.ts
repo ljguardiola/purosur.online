@@ -7,6 +7,8 @@ export { stockMovementsMatchLines } from "./model/completed-sale.js";
 export type { CreditNoteReceiptContent } from "./model/credit-note-receipt-content.js";
 export type { DeferredSaleFacts, DeferredSaleInvoice } from "./model/deferred-sale-lookup.js";
 export type { SaleLinesGroup } from "./model/hand-typed-weights-report.js";
+export type { LiveScaleReading } from "./model/live-scale-reading.js";
+export { liveScaleReading } from "./model/live-scale-reading.js";
 export type { ManualAdjustment, ManualAdjustmentValue } from "./model/manual-adjustment.js";
 export {
   manualAdjustmentReason,

@@ -936,6 +936,7 @@ export type {
   LineDiscountRecord,
   LinePromotion,
   ListPrice,
+  LiveScaleReading,
   ManualAdjustment,
   ManualAdjustmentValue,
   ManualDiscountRecords,
