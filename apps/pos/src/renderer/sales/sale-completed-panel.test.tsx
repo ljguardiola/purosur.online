@@ -418,6 +418,17 @@ describe("SaleCompletedPanel", () => {
       await expect.poll(() => screen.router.state.location.pathname).toBe("/receipt-printer");
     });
 
+    it("shows the link to change the printer as text with no icon", async () => {
+      const { screen } = await renderPanel(CASH, {
+        readReceiptStatus: async () => found("paper_out"),
+        mayChangePrinter: true,
+      });
+      const change = screen.getByRole("button", { name: "Cambiar impresora" });
+      await expect.element(change).toBeVisible();
+
+      expect((change.element() as HTMLElement).querySelector("svg")).toBeNull();
+    });
+
     it("does nothing on F2 for a person who may not configure the printer", async () => {
       const { screen } = await renderPanel(CASH, {
         readReceiptStatus: async () => found("paper_out"),
