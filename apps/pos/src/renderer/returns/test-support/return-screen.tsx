@@ -133,7 +133,6 @@ export async function renderScreen(overrides: Overrides = {}) {
       <ReturnScreen
         person={overrides.person ?? CASHIER}
         {...(overrides.saleId === undefined ? {} : { saleId: overrides.saleId })}
-        registerName="Caja 1"
         lock={() => {}}
         findSaleForReturn={findSaleForReturn}
         previewReturn={previewReturn}
@@ -173,7 +172,7 @@ export function linesTable(screen: RenderedScreen) {
   return screen.getByRole("table", { name: "Líneas de la venta" });
 }
 
-export async function lookUp(screen: RenderedScreen, text = "0003-00001192") {
+export async function lookUp(screen: RenderedScreen, text = "00003-00001192") {
   await userEvent.fill(searchBox(screen), text);
   await userEvent.keyboard("{Enter}");
 }

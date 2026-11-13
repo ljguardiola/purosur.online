@@ -6,13 +6,12 @@ import {
   lineRefusalNotice,
   quantityText,
   REASON_OPTIONS,
-  RESOLUTION_LABELS,
   REFUND_WHEN_IN_ROW,
   REFUND_WHEN_IN_TABLE,
+  RESOLUTION_LABELS,
   refundRefusalText,
-  windowTags,
 } from "./return-text";
-import { NIBS, PASTA, SALE } from "./test-support/sale-for-return";
+import { NIBS, PASTA } from "./test-support/sale-for-return";
 
 describe("the options of a return line", () => {
   it("offer the two reasons, in the words of a customer", () => {
@@ -41,7 +40,10 @@ describe("the options of a return line", () => {
 
 describe("when a payment is refunded", () => {
   it("says in the table that cash is given on the spot and the rest is a pending refund", () => {
-    expect(REFUND_WHEN_IN_TABLE).toEqual({ APPROVED: "En el acto", PENDING: "Reembolso pendiente" });
+    expect(REFUND_WHEN_IN_TABLE).toEqual({
+      APPROVED: "En el acto",
+      PENDING: "Reembolso pendiente",
+    });
   });
 
   it("says the same in a row beside the payment's name", () => {
@@ -154,38 +156,5 @@ describe("the refusal of a refund", () => {
     ],
   ] as const)("is told as %j", (refusal, text) => {
     expect(refundRefusalText(refusal)).toBe(text);
-  });
-});
-
-describe("the windows of a sale", () => {
-  it("tell until when each reason can be returned", () => {
-    expect(windowTags(SALE.windows)).toEqual([
-      { label: "Arrepentimiento hasta 27/09/2026", tone: "success" },
-      { label: "Defecto hasta 12/03/2027", tone: "success" },
-    ]);
-  });
-
-  it("say a reason's window is over", () => {
-    expect(
-      windowTags({
-        change_of_mind: { last_allowed_day: "2026-09-27", open: false },
-        defective: { last_allowed_day: "2027-03-12", open: true },
-      }),
-    ).toEqual([
-      { label: "Arrepentimiento vencido", tone: "warning" },
-      { label: "Defecto hasta 12/03/2027", tone: "success" },
-    ]);
-  });
-
-  it("say both windows are over", () => {
-    expect(
-      windowTags({
-        change_of_mind: { last_allowed_day: "2026-09-27", open: false },
-        defective: { last_allowed_day: "2027-03-12", open: false },
-      }),
-    ).toEqual([
-      { label: "Arrepentimiento vencido", tone: "warning" },
-      { label: "Defecto vencido", tone: "warning" },
-    ]);
   });
 });

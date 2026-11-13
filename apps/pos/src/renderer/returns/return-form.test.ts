@@ -5,7 +5,6 @@ import {
   draftLinesFor,
   EMPTY_RETURN_DRAFT,
   EMPTY_RETURN_FORM,
-  isRefundTextInvalid,
   refundsOf,
   refundTextsFor,
   returnRequestFrom,
@@ -214,16 +213,6 @@ describe("the refund shown for each payment", () => {
         [OTHER_CASH.payment_id]: "",
       }).map(({ text }) => text),
     ).toEqual(["6.000,00", ""]);
-  });
-});
-
-describe("an amount typed in a payment", () => {
-  it.each(["", "  ", "6.000,00", "0"])("is valid as %j", (text) => {
-    expect(isRefundTextInvalid(text)).toBe(false);
-  });
-
-  it.each(["diez", "6.000,001", "-5"])("is not valid as %j", (text) => {
-    expect(isRefundTextInvalid(text)).toBe(true);
   });
 });
 

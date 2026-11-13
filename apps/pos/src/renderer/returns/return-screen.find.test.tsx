@@ -68,7 +68,7 @@ describe("ReturnScreen asking for the ticket", () => {
   it("looks the sale up by the printed number typed in the search, with Enter", async () => {
     const { screen, findSaleForReturn } = await renderScreen();
 
-    await lookUp(screen, "0003-00001192");
+    await lookUp(screen, "00003-00001192");
 
     expect(findSaleForReturn).toHaveBeenCalledExactlyOnceWith(
       { kind: "typed", point_of_sale: 3, number: 1192 },
@@ -79,7 +79,7 @@ describe("ReturnScreen asking for the ticket", () => {
   it("looks the sale up with the Buscar button", async () => {
     const { screen, findSaleForReturn } = await renderScreen();
 
-    await userEvent.fill(searchBox(screen), "0003-00001192");
+    await userEvent.fill(searchBox(screen), "00003-00001192");
     await userEvent.click(screen.getByRole("button", { name: "Buscar" }));
 
     expect(findSaleForReturn).toHaveBeenCalledOnce();
@@ -104,7 +104,7 @@ describe("ReturnScreen asking for the ticket", () => {
     await lookUp(screen, "1192");
 
     await expect
-      .element(screen.getByText("Tipeá el número impreso del ticket, como 0003-00001192."))
+      .element(screen.getByText("Tipeá el número impreso del ticket, como 00003-00001192."))
       .toBeVisible();
     expect(findSaleForReturn).not.toHaveBeenCalled();
   });
