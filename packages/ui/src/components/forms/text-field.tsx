@@ -65,7 +65,6 @@ type TextFieldCommonProps = {
   decimals?: number;
   // A key the field answers to, drawn at the right end of the label row. The caller binds it.
   labelKeycap?: KeyName;
-  // Keeps the error ring instead of the focus ring while an invalid field is focused.
   errorRingWhileFocused?: boolean;
 };
 
