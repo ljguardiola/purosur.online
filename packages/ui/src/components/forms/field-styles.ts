@@ -16,6 +16,7 @@ type FieldBoxState = {
   // Opening a menu portaled outside the box moves DOM focus out of it, so `focus-within` alone
   // would drop the focused border the instant the menu opens.
   forcedFocus?: boolean;
+  errorRingWhileFocused?: boolean;
 };
 
 // Drawn as an inset box-shadow rather than a real border so it never participates in layout.
@@ -28,6 +29,7 @@ export function fieldBoxStateClassName({
   invalid = false,
   readOnly = false,
   forcedFocus = false,
+  errorRingWhileFocused = false,
 }: FieldBoxState): string {
   if (disabled) {
     return "bg-surface inset-ring-2 inset-ring-border";
@@ -38,10 +40,11 @@ export function fieldBoxStateClassName({
   if (forcedFocus) {
     return "bg-surface inset-ring-2 inset-ring-action";
   }
+  const keepsErrorRing = invalid && errorRingWhileFocused;
   return (
     `bg-surface inset-ring-2 ${invalid ? "inset-ring-error" : "inset-ring-border"} ` +
     "hover:not-focus-within:bg-surface-subtle " +
-    "focus-within:inset-ring-action"
+    (keepsErrorRing ? "" : "focus-within:inset-ring-action")
   );
 }
 

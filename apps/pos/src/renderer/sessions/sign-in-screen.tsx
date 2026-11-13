@@ -1,8 +1,6 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
-import type { CardPanelProps } from "@purosur/ui";
 import {
   Button,
-  CardPanel,
   EmptyState,
   LoadFailure,
   LoadingPlaceholder,
@@ -18,6 +16,7 @@ import { useKeys } from "../platform/key-layer";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { SignInLockout } from "../platform/sign-in-lockout";
 import { usePinAttempt } from "../platform/use-pin-attempt";
+import { BrandPanelCard } from "../shell/brand-panel-card";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import { useSignInUsersQuery } from "./sessions-queries";
@@ -32,14 +31,6 @@ function alphabetically(users: readonly SignInUser[]): SignInUser[] {
     order: textOrder((user: SignInUser) => user.first_name),
     direction: "ascending",
   });
-}
-
-function SignInCard(props: CardPanelProps) {
-  return (
-    <main className="max-w-full">
-      <CardPanel {...props} />
-    </main>
-  );
 }
 
 function ChangePinLink() {
@@ -143,14 +134,14 @@ function SignInPanel({ loadUsers, signIn }: SignInScreenProps) {
 
   if (refusal?.kind === "locked") {
     return (
-      <SignInCard
+      <BrandPanelCard
         icon={<Lock />}
         title={`${refusal.firstName} está bloqueado`}
         titleRef={attempt.heading}
         escapeKeycap
       >
         <SignInLockout consecutiveFailures={refusal.consecutiveFailures} />
-      </SignInCard>
+      </BrandPanelCard>
     );
   }
 
@@ -178,14 +169,14 @@ function SignInPanel({ loadUsers, signIn }: SignInScreenProps) {
 
   if (firstOption === undefined) {
     return (
-      <SignInCard icon={<UsersRound />} title="¿Quién abre la caja?">
+      <BrandPanelCard icon={<UsersRound />} title="¿Quién abre la caja?">
         {usersState}
-      </SignInCard>
+      </BrandPanelCard>
     );
   }
 
   return (
-    <SignInCard>
+    <BrandPanelCard>
       <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
         <UserSelect
           label="USUARIO"
@@ -197,7 +188,7 @@ function SignInPanel({ loadUsers, signIn }: SignInScreenProps) {
         <PinAttemptControls attempt={attempt} pinInput={attempt.pinInput} />
       </form>
       {usersState}
-    </SignInCard>
+    </BrandPanelCard>
   );
 }
 

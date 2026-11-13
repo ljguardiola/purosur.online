@@ -1858,11 +1858,13 @@ describe("App", () => {
     it("stays locked and says only the opener can use a code when someone else redeemed it", async () => {
       const screen = await redeemFromLocked({ kind: "cash_session_opened_by_another" });
 
-      await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+      await expect
+        .element(screen.getByText("La caja está abierta: solo puede entrar quien la abrió."))
+        .toBeVisible();
       await expect
         .element(screen.getByRole("combobox", { name: "Producto" }))
         .not.toBeInTheDocument();
-      await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+      await userEvent.click(screen.getByRole("button", { name: "Volver al inicio" }));
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     });
   });
