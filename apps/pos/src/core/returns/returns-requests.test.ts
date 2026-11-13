@@ -304,6 +304,7 @@ describe("finding the sale to return", () => {
         remaining: 6000,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "APPROVED",
       },
       {
         payment_id: "pay-transfer",
@@ -314,6 +315,7 @@ describe("finding the sale to return", () => {
         remaining: 5500,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "PENDING",
       },
     ]);
   });
@@ -341,6 +343,7 @@ describe("finding the sale to return", () => {
         card_type: cardType,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "PENDING",
       });
     },
   );

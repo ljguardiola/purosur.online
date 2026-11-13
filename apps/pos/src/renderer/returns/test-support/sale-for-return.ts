@@ -61,6 +61,7 @@ export const CASH: PaymentForReturn = {
   remaining: 1_500_000,
   eligible: true,
   ineligible_reason: null,
+  refund_state: "APPROVED",
 };
 
 export const TRANSFER: PaymentForReturn = {
@@ -72,6 +73,7 @@ export const TRANSFER: PaymentForReturn = {
   remaining: 1_033_500,
   eligible: true,
   ineligible_reason: null,
+  refund_state: "PENDING",
 };
 
 export const SALE: SaleForReturn = {
