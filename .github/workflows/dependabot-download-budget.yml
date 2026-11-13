@@ -3,7 +3,7 @@ name: Dependabot download budget
 on:
   pull_request:
 
-# Builds the dependency the pull request brings in, so this workflow runs untrusted code: it holds
+# Builds the dependency Dependabot brings in, so this workflow runs untrusted code: it holds
 # no write permission and reads no secret. The commit that raises the budget is made by
 # dependabot-download-budget-commit.yml, which runs none of this code and treats the measurement
 # uploaded here as untrusted data.
