@@ -60,7 +60,7 @@ jobs:
       # job installs without the cache instead.
       - name: Restore the pnpm store
         id: restore-pnpm-store
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         continue-on-error: true
         timeout-minutes: 2
         with:
@@ -149,7 +149,7 @@ jobs:
       # job installs without the cache instead.
       - name: Restore the pnpm store
         id: restore-pnpm-store
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         continue-on-error: true
         timeout-minutes: 2
         with:
@@ -354,7 +354,7 @@ jobs:
       # job installs without the cache instead.
       - name: Restore the pnpm store
         id: restore-pnpm-store
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         continue-on-error: true
         timeout-minutes: 2
         with:
@@ -445,7 +445,7 @@ jobs:
       # job installs without the cache instead.
       - name: Restore the pnpm store
         id: restore-pnpm-store
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         continue-on-error: true
         timeout-minutes: 2
         with:
