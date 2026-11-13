@@ -1,8 +1,11 @@
 import type {
   CashBalance,
+  CashCountPreview,
+  CloseCashSessionOutcome,
   ListedCashMovement,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
+  SessionOpenSale,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import type { ReactNode } from "react";
@@ -28,6 +31,28 @@ export const BALANCE: CashBalance = {
   expenses: { amount: 50_000, direction: "out" },
   withdrawals: { amount: 0, direction: "out" },
   expected: 4_620_000,
+};
+
+export const CLOSED: CloseCashSessionOutcome = {
+  kind: "closed",
+  session: {
+    id: "s1",
+    expected_cash: 4_620_000,
+    counted_cash: 4_600_000,
+    difference: -20_000,
+    opened_at: OPENED_AT,
+    closed_at: "2026-09-30T20:14:00.000-03:00",
+  },
+};
+
+export const OPEN_SALE: SessionOpenSale = {
+  id: "sale-1",
+  total: 2_519_250,
+  paid: 0,
+  has_approved_payment: false,
+  cancellable: true,
+  cancel_refusal: null,
+  refunds_on_cancel: [],
 };
 
 export const OPENING: ListedCashMovement = {
@@ -75,6 +100,11 @@ export async function renderScreen(
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashMovements?: () => Promise<ListedCashMovement[] | null | "unavailable">;
     recordCashMovement?: () => Promise<RecordCashMovementOutcome>;
+    loadSessionOpenSale?: () => Promise<SessionOpenSale | null | "unavailable">;
+    loadCashCountPreview?: (
+      countedCash: number,
+    ) => Promise<CashCountPreview | null | "unavailable">;
+    closeCashSession?: (countedCash: number) => Promise<CloseCashSessionOutcome>;
     clockGuard?: ReactNode;
   } = {},
 ) {
@@ -94,6 +124,12 @@ export async function renderScreen(
         recordCashMovement={
           props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))
         }
+        loadSessionOpenSale={props.loadSessionOpenSale ?? (async () => null)}
+        loadCashCountPreview={
+          props.loadCashCountPreview ??
+          (async (counted) => ({ difference: counted - BALANCE.expected }))
+        }
+        closeCashSession={props.closeCashSession ?? (async () => CLOSED)}
         clockGuard={props.clockGuard}
       />
     </RegisterWindow>,
