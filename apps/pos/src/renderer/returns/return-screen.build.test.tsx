@@ -123,6 +123,9 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
   it("does not let a fully returned line be marked", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
+    await expect
+      .element(lineRow(screen, "Té verde en hebras 100 g").getByText("Ya se devolvió completa"))
+      .toBeVisible();
     await selectLine(screen, "Té verde en hebras 100 g");
 
     await userEvent.keyboard(" ");

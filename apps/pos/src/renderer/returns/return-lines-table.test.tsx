@@ -1,6 +1,6 @@
 import { tokenRgb } from "@purosur/ui/test";
-import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { ReturnLinesTableProps } from "./return-lines-table";
 import { ReturnLinesTable } from "./return-lines-table";
@@ -13,10 +13,12 @@ const ROWS: ReturnLinesTableProps["rows"] = [
 ];
 
 async function renderTable(overrides: Partial<ReturnLinesTableProps> = {}) {
+  await page.viewport(1366, 768);
+  onTestFinished(() => page.viewport(414, 896));
   const onSelect = vi.fn();
   const onMark = vi.fn();
   const screen = await render(
-    <div className="h-96">
+    <div className="h-screen">
       <ReturnLinesTable
         rows={ROWS}
         selectedLineId={PASTA.id}
@@ -81,8 +83,8 @@ describe("ReturnLinesTable", () => {
     await vi.waitFor(() => expect(onMark).toHaveBeenCalledExactlyOnceWith("line-nibs", false));
     await expect.element(screen.getByRole("checkbox", { name: /Té verde/ })).toBeDisabled();
     await expect
-      .poll(() => screen.getByRole("row", { name: /Té verde/ }).element().textContent)
-      .toMatch(/Ya se devolvió completa/);
+      .element(screen.getByRole("row", { name: /Té verde/ }).getByText("Ya se devolvió completa"))
+      .toBeVisible();
   });
 
   it("says there are no sales when it has no row", async () => {
