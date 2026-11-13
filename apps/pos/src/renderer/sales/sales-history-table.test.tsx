@@ -191,4 +191,10 @@ describe("SalesHistoryTable", () => {
       .element(screen.getByRole("button", { name: "Reintentar" }))
       .not.toBeInTheDocument();
   });
+
+  it("keeps the column headers above the failure to read the sales", async () => {
+    const { table } = await renderTable({ history: { status: "failed", retry: vi.fn() } });
+
+    await expect.element(table.getByRole("columnheader", { name: "Hora" })).toBeVisible();
+  });
 });

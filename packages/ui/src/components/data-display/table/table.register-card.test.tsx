@@ -1,5 +1,5 @@
 import { Barcode, TriangleAlert } from "lucide-react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { tokenRgb } from "../../../test/token-colors";
@@ -252,4 +252,52 @@ test("keeps the legend at the bottom under a headed empty state", async () => {
   ).getBoundingClientRect();
   expect(cardBox.bottom - footerBox.bottom).toBeLessThanOrEqual(1);
   expect(screen.getByRole("columnheader").elements()).toHaveLength(2);
+});
+
+const loadFailure = {
+  variant: "centered" as const,
+  icon: <TriangleAlert />,
+  title: "No se pudo cargar la venta",
+  description: "Volvé a intentarlo en unos segundos.",
+};
+
+test("keeps the column headers over a centered failure when asked to", async () => {
+  const screen = await render(
+    <div style={{ height: 480, width: 600 }}>
+      <LinesTable fill failureKeepsHeaders items={[]} failure={loadFailure} />
+    </div>,
+  );
+
+  expect(screen.getByRole("columnheader").elements()).toHaveLength(2);
+  const cardBox = card(screen.getByRole("table").element()).getBoundingClientRect();
+  const headerBox = screen.getByRole("columnheader").first().element().getBoundingClientRect();
+  const title = screen.getByText("No se pudo cargar la venta").element();
+  const blockBox = (title.parentElement as HTMLElement).getBoundingClientRect();
+  const above = blockBox.top - headerBox.bottom;
+  const below = cardBox.bottom - blockBox.bottom;
+  expect(Math.abs(above - below)).toBeLessThanOrEqual(2);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("retries from a failure that keeps the column headers", async () => {
+  const onRetry = vi.fn();
+  const screen = await render(
+    <div style={{ height: 480, width: 600 }}>
+      <LinesTable fill failureKeepsHeaders items={[]} failure={{ ...loadFailure, onRetry }} />
+    </div>,
+  );
+
+  await screen.getByRole("button", { name: "Reintentar" }).click();
+
+  expect(onRetry).toHaveBeenCalledTimes(1);
+});
+
+test("still shows only the failure when the headers are not asked for", async () => {
+  const screen = await render(
+    <div style={{ height: 480, width: 600 }}>
+      <LinesTable fill items={[]} failure={loadFailure} />
+    </div>,
+  );
+
+  expect(screen.getByRole("columnheader").elements()).toHaveLength(0);
 });
