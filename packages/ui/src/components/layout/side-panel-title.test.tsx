@@ -1,6 +1,6 @@
-import { Undo2, Wallet } from "lucide-react";
+import { CreditCard, Undo2, Wallet } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
@@ -223,4 +223,41 @@ test("draws no close button for a label without a way to close", async () => {
   );
 
   await expect.element(screen.getByRole("button")).not.toBeInTheDocument();
+});
+
+test("keeps a two-word title on one line beside its labelled close in a wide register panel", async () => {
+  await page.viewport(1366, 768);
+  const screen = await render(
+    <div style={{ display: "flex", height: "768px", justifyContent: "flex-end" }}>
+      <SidePanel
+        label="Point crédito"
+        width="wide"
+        header={
+          <SidePanelTitle
+            icon={<CreditCard />}
+            title="Point crédito"
+            onClose={() => undefined}
+            closeLabel="Cambiar de medio"
+          />
+        }
+      >
+        <p>Contenido</p>
+      </SidePanel>
+    </div>,
+  );
+  const titleText = screen.getByRole("heading").element().firstChild as Text;
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(titleText);
+  const lineTops = new Set(Array.from(titleRange.getClientRects(), (line) => line.top));
+
+  expect(lineTops.size).toBe(1);
+});
+
+test("paints the icon badge of the neutral tone in the info colors", async () => {
+  const screen = await render(<SidePanelTitle icon={<CreditCard />} title="Point crédito" />);
+  const badge = screen.container.querySelector("span[aria-hidden='true']") as Element;
+  const style = getComputedStyle(badge);
+
+  expect(style.backgroundColor).toBe(tokenRgb("info-subtle"));
+  expect(style.color).toBe(tokenRgb("info-strong"));
 });
