@@ -78,3 +78,25 @@ export const FullWidth: Story = {
     ),
   ],
 };
+
+export const FullWidthLongOptions: StoryObj<
+  typeof SegmentedControl<"newPrice" | "percent" | "amount">
+> = {
+  args: {
+    size: "large",
+    fullWidth: true,
+    value: "newPrice",
+    options: [
+      { value: "newPrice", label: "Precio nuevo" },
+      { value: "percent", label: "Descuento %" },
+      { value: "amount", label: "Descuento $" },
+    ],
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-88">
+        <Story />
+      </div>
+    ),
+  ],
+};

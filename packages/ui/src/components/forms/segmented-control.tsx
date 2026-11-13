@@ -31,8 +31,13 @@ const iconWrapperClassName: Record<SegmentedControlSize, string> = {
   medium: `${iconSlotClassName.sm} text-text-subtle group-data-selected:text-text-accent`,
 };
 
+const optionPaddingClassName = {
+  content: "px-4",
+  fullWidth: "min-w-0 flex-1 basis-0 px-2",
+};
+
 const optionClassName =
-  "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
+  "group flex cursor-pointer items-center justify-center rounded-md outline-none " +
   "data-hovered:bg-surface-subtle " +
   "data-selected:bg-action-subtle " +
   "data-hovered:data-selected:bg-action-subtle " +
@@ -49,7 +54,7 @@ function SegmentedOption<V extends string>({
     <AriaRadio
       value={value}
       aria-label={label}
-      className={`${optionClassName} ${sizeClassName[size]} ${fullWidth ? "flex-1" : ""}`}
+      className={`${optionClassName} ${sizeClassName[size]} ${optionPaddingClassName[fullWidth ? "fullWidth" : "content"]}`}
     >
       {icon ? (
         <span aria-hidden="true" className={iconWrapperClassName[size]}>
