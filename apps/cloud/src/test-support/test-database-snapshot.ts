@@ -8,14 +8,18 @@ import { MIGRATIONS_FOLDER } from "../platform/db/migrations-folder.js";
 // Loaded outside any test worker (by the node project's global setup), so this module must not
 // import "vitest".
 
+export async function openFreshCluster(clusterDumpPath: string): Promise<PGlite> {
+  return new PGlite({
+    loadDataDir: new Blob([await readFile(clusterDumpPath)]),
+    extensions: { unaccent },
+  });
+}
+
 export async function migrateFreshDatabase(
   migrationsFolder: string,
   clusterDumpPath: string,
 ): Promise<PGlite> {
-  const client = new PGlite({
-    loadDataDir: new Blob([await readFile(clusterDumpPath)]),
-    extensions: { unaccent },
-  });
+  const client = await openFreshCluster(clusterDumpPath);
   try {
     await migrate(drizzle(client), { migrationsFolder });
     return client;
