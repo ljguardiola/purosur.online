@@ -17,7 +17,7 @@ const AUTHORIZERS: SignInUser[] = [
   { id: "u2", first_name: "Grace" },
 ];
 
-export const APPLIED: ApplySaleDiscountOutcome = { kind: "applied", sale: SALE_OF_YERBA };
+const APPLIED: ApplySaleDiscountOutcome = { kind: "applied", sale: SALE_OF_YERBA };
 export const FIVE_PERCENT: PreviewSaleDiscountOutcome = {
   kind: "preview",
   subtotal: 5_070_000,
