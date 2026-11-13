@@ -17,6 +17,7 @@ import {
   chargeSaleInCashOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
   findProductByCodeOutcomeSchema,
+  liveScaleReadingOutcomeSchema,
   previewSaleDiscountOutcomeSchema,
   removeSaleLineOutcomeSchema,
   saleSchema,
@@ -573,6 +574,30 @@ describe("addWeighedProductOutcomeSchema", () => {
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(addWeighedProductOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("liveScaleReadingOutcomeSchema", () => {
+  it.each([
+    { kind: "not_configured" },
+    { kind: "no_reading" },
+    { kind: "settling" },
+    { kind: "reading", weight_thousandths: 410, settled: true },
+    { kind: "reading", weight_thousandths: 0, settled: false },
+  ])("accepts the outcome %j", (outcome) => {
+    expect(liveScaleReadingOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "reading" },
+    { kind: "reading", weight_thousandths: 410 },
+    { kind: "reading", settled: true },
+    { kind: "reading", weight_thousandths: -1, settled: true },
+    { kind: "reading", weight_thousandths: 1.5, settled: true },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(liveScaleReadingOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
