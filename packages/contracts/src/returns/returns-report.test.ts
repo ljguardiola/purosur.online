@@ -75,6 +75,7 @@ const report = {
   range: { from: "2026-10-05", to: "2026-10-06" },
   typed: { rows: [row], totals },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+  history: { rows: [], totals: { returns: 0, refunded: 0 } },
   voids: { rows: [voidRow], totals: { voids: 1, voided: 5_000 } },
   totals: summary,
   by_cashier: [{ cashier: row.cashier, ...summary }],
@@ -84,6 +85,12 @@ const report = {
 describe("returnsReportSchema", () => {
   it("accepts the returns of a range kept apart by how they were started", () => {
     expect(returnsReportSchema.parse(report)).toEqual(report);
+  });
+
+  it("accepts the returns started from the sales history in a group of their own", () => {
+    expect(
+      returnsReportSchema.parse({ ...report, history: { rows: [row], totals } }).history.rows,
+    ).toEqual([row]);
   });
 
   it("accepts a return of a sale without an operation number, an invoice or an authorizer", () => {
@@ -139,6 +146,7 @@ describe("returnsReportSchema", () => {
   });
 
   it.each([
+    ["a report without the returns started from the history", { history: undefined }],
     ["a report without voids", { voids: undefined }],
     ["a report without overall totals", { totals: undefined }],
     ["a report without the summary by cashier", { by_cashier: undefined }],

@@ -37,10 +37,17 @@ const scannedReadingSchema = z
   })
   .transform(({ text }) => ({ source: "QR" as const, ticket: text }));
 
+const knownSaleReadingSchema = z
+  .object({ kind: z.literal("sale"), sale_id: z.string().min(1) })
+  .transform(({ sale_id: saleId }) => ({
+    source: "HISTORY" as const,
+    ticket: { kind: "sale" as const, saleId },
+  }));
+
 export const findSaleForReturnMessageSchema = z.object({
   type: z.literal("find-sale-for-return"),
   request_id: requestIdSchema,
-  reading: z.union([typedReadingSchema, scannedReadingSchema]),
+  reading: z.union([typedReadingSchema, scannedReadingSchema, knownSaleReadingSchema]),
   authorization: authorizationSchema.optional(),
 });
 
@@ -56,6 +63,7 @@ export const completeReturnMessageSchema = z.object({
   request_id: requestIdSchema,
   sale_id: z.string(),
   ticket_source: ticketSourceSchema,
+  ticket_verified: z.boolean(),
   lines: z.array(returnDraftLineSchema),
   refunds: z.array(refundAllocationSchema),
   authorization: authorizationSchema.optional(),
