@@ -821,14 +821,27 @@ describe("closing a locked register's cash session", () => {
     expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
-  it("accepts the session that was closed with its expected cash, counted cash, difference and movements", () => {
+  it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
+    const message = {
+      type: "close-locked-cash-session-result",
+      request_id: REQUEST_ID,
+      outcome: { kind: "closed", session: CLOSED_SESSION },
+    };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("drops the closed session's movements from the result", () => {
     const message = {
       type: "close-locked-cash-session-result",
       request_id: REQUEST_ID,
       outcome: { kind: "closed", session: CLOSED_SESSION, movements: [CLOSED_SESSION_MOVEMENT] },
     };
 
-    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual({
+      ...message,
+      outcome: { kind: "closed", session: CLOSED_SESSION },
+    });
   });
 
   it.each([
@@ -856,12 +869,6 @@ describe("closing a locked register's cash session", () => {
     {
       kind: "closed",
       session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, opened_at: "x" },
-    },
-    { kind: "closed", session: CLOSED_SESSION },
-    {
-      kind: "closed",
-      session: CLOSED_SESSION,
-      movements: [{ ...CLOSED_SESSION_MOVEMENT, amount: "5230000" }],
     },
     { kind: "open_sale" },
     { kind: "open_sale", total: "4500" },

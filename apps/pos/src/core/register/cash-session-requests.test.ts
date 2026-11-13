@@ -653,7 +653,6 @@ describe("closing a locked register's cash session with another person's PIN", (
         opened_at: "2026-09-30T09:00:00.000-03:00",
         closed_at: "2026-09-30T20:14:00.000-03:00",
       },
-      movements: closedSessionMovements({ user_id: "u9", first_name: "Grace" }),
     });
     expect(movementsOf("CLOSING")).toEqual([{ amount: 4800, actor_id: "u9", authorized_by: null }]);
     expect(closedSessionRow()).toMatchObject({ state: "CLOSED", closed_by: "u9" });
