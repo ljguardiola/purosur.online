@@ -188,3 +188,24 @@ export const DisabledOptions: StoryObj<typeof OptionCardGroup<PaymentMethodValue
     />
   ),
 };
+
+const twoColumnReasonOptions: [NarrowedOption<ReasonValue>, ...NarrowedOption<ReasonValue>[]] = [
+  { value: "broken_or_spilled", label: "Rotura o derrame" },
+  { value: "spoiled", label: "Mal estado" },
+  { value: "theft", label: "Otro" },
+];
+
+export const TwoColumnGrid: Story = {
+  render: () => (
+    <div className="w-96">
+      <OptionCardGroup
+        layout="grid"
+        columns={2}
+        label="Motivo"
+        options={twoColumnReasonOptions}
+        value="spoiled"
+        onChange={() => {}}
+      />
+    </div>
+  ),
+};

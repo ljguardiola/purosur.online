@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { BranchSettings, fetchBranchSettings } from "./branch-settings-api";
 import type {
@@ -20,12 +20,12 @@ export function useBranchSettingsQuery(params: {
   fetchBranchSettings: typeof fetchBranchSettings;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<BranchSettings>({
     queryKey: branchKeys.settings,
     read: params.fetchBranchSettings,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -33,12 +33,12 @@ export function useGoodConditionReturnDaysQuery(params: {
   fetchGoodConditionReturnDays: typeof fetchGoodConditionReturnDays;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<number>({
     queryKey: branchKeys.goodConditionReturnDays,
     read: params.fetchGoodConditionReturnDays,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -46,12 +46,12 @@ export function useSupplierPriceListDailyCapQuery(params: {
   fetchSupplierPriceListDailyCap: typeof fetchSupplierPriceListDailyCap;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<number>({
     queryKey: branchKeys.supplierPriceListDailyCap,
     read: params.fetchSupplierPriceListDailyCap,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

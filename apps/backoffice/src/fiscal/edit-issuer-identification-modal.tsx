@@ -15,7 +15,7 @@ import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -75,7 +75,7 @@ function LoadedEditIssuerIdentificationModal({
   services,
   now,
 }: LoadedEditIssuerIdentificationModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const {
     saveIssuerIdentification,
     fetchSessionAuthorizationOptions,
@@ -125,7 +125,7 @@ function LoadedEditIssuerIdentificationModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "stale_version") {

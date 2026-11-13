@@ -13,11 +13,12 @@ export type SegmentedControlProps<V extends string> = OptionChoiceProps<
   label: string;
   size?: SegmentedControlSize;
   variant?: SegmentedControlVariant;
+  fullWidth?: boolean;
   disabled?: boolean;
 };
 
 const containerClassName =
-  "inline-flex flex-row items-stretch gap-1 rounded-lg border border-border p-1 data-disabled:opacity-disabled";
+  "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1 data-disabled:opacity-disabled";
 
 const fieldContainerClassName =
   "flex w-full flex-row items-stretch gap-1 rounded-lg bg-surface-soft p-1 data-disabled:opacity-disabled";
@@ -37,8 +38,13 @@ const iconWrapperClassName: Record<SegmentedControlSize, string> = {
   medium: `${iconSlotClassName.sm} text-text-subtle group-data-selected:text-text-accent`,
 };
 
+const optionPaddingClassName = {
+  content: "px-4",
+  fullWidth: "min-w-0 flex-1 basis-0 px-2",
+};
+
 const optionClassName =
-  "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
+  "group flex cursor-pointer items-center justify-center rounded-md outline-none " +
   "data-disabled:cursor-default " +
   "data-hovered:bg-surface-subtle " +
   "data-selected:bg-action-subtle " +
@@ -46,7 +52,7 @@ const optionClassName =
   "data-focus-visible:focus-ring";
 
 const fieldOptionClassName =
-  "group flex min-w-0 flex-1 cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
+  "group flex cursor-pointer items-center justify-center rounded-md outline-none " +
   "data-disabled:cursor-default " +
   "data-selected:bg-surface " +
   "data-focus-visible:focus-ring";
@@ -57,15 +63,17 @@ function SegmentedOption<V extends string>({
   icon,
   size,
   variant,
+  fullWidth,
 }: NarrowedOption<V, never, "icon"> & {
   size: SegmentedControlSize;
   variant: SegmentedControlVariant;
+  fullWidth: boolean;
 }) {
   return (
     <AriaRadio
       value={value}
       aria-label={label}
-      className={`${variant === "field" ? fieldOptionClassName : optionClassName} ${sizeClassName[size]}`}
+      className={`${variant === "field" ? fieldOptionClassName : optionClassName} ${sizeClassName[size]} ${optionPaddingClassName[fullWidth || variant === "field" ? "fullWidth" : "content"]}`}
     >
       {icon ? (
         <span aria-hidden="true" className={iconWrapperClassName[size]}>
@@ -84,6 +92,7 @@ export function SegmentedControl<V extends string>({
   onChange,
   size = "medium",
   variant = "outlined",
+  fullWidth = false,
   disabled = false,
 }: SegmentedControlProps<V>) {
   const group = (
@@ -100,11 +109,17 @@ export function SegmentedControl<V extends string>({
       className={
         variant === "field"
           ? `${fieldContainerClassName} ${containerSizeClassName[size]}`
-          : `${containerClassName} ${containerSizeClassName[size]}`
+          : `${containerClassName} ${fullWidth ? "w-full" : "w-fit"} ${containerSizeClassName[size]}`
       }
     >
       {options.map((option) => (
-        <SegmentedOption key={option.value} {...option} size={size} variant={variant} />
+        <SegmentedOption
+          key={option.value}
+          {...option}
+          size={size}
+          variant={variant}
+          fullWidth={fullWidth}
+        />
       ))}
     </AriaRadioGroup>
   );

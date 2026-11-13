@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { paymentLabel } from "../platform/payment-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { refundReason } from "./refund-reason";
 import type { confirmRefund } from "./refunds-api";
 
@@ -48,7 +48,7 @@ export function SendRefundModal({
   services,
 }: SendRefundModalProps) {
   const { confirmRefund } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PendingRefund | null>(null);
   const [notice, setNotice] = useState<SendNotice | null>(null);
@@ -78,7 +78,7 @@ export function SendRefundModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

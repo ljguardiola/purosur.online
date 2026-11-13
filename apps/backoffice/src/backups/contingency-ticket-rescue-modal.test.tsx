@@ -171,7 +171,7 @@ test("ends the session when the cloud says there is none", async () => {
   await vi.waitFor(() => expect(onSessionEnded).toHaveBeenCalled());
 });
 
-test("sends the person to Mi cuenta when the cloud refuses the permission", async () => {
+test("opens the own account panel when the cloud refuses the permission", async () => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = createServices();
   vi.mocked(services.rescueContingencyBackupTicket).mockResolvedValue({ kind: "forbidden" });

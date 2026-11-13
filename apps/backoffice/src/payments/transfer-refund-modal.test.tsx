@@ -156,7 +156,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when recording comes back forbidden", async () => {
+test("opens the own account panel when recording comes back forbidden", async () => {
   window.history.pushState(null, "", "/refunds");
   const recordRefundTransfer = vi
     .fn<TransferRefundModalServices["recordRefundTransfer"]>()

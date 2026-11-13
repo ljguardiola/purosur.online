@@ -285,7 +285,7 @@ test("shows the time to wait when the cloud rate-limits the receipt", async () =
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 });
 
-test("sends the person to Mi cuenta when the receipt is forbidden, and ends the session when it finds none", async () => {
+test("opens the own account panel when the receipt is forbidden, and ends the session when it finds none", async () => {
   const services = createServices();
   vi.mocked(services.receivePurchaseOrder).mockResolvedValueOnce({ kind: "forbidden" });
   const onSessionEnded = vi.fn();
@@ -410,7 +410,7 @@ test("keeps the register action disabled while the purchase choices load, and af
     .toBeDisabled();
 });
 
-test("navigates to Mi cuenta when the draft comes back forbidden, and ends the session when it finds none", async () => {
+test("opens the own account panel when the draft comes back forbidden, and ends the session when it finds none", async () => {
   await renderScreen(
     createServices({
       fetchPurchaseOrderReceiptDraft: vi.fn().mockResolvedValue({ kind: "forbidden" }),

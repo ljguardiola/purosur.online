@@ -64,3 +64,17 @@ test("shows the keypad plus and minus keys as one pair with a single label", asy
   expect(screen.getByRole("listitem").element().textContent).toBe("+/−Cantidad");
   expect(screen.container.querySelectorAll("kbd")).toHaveLength(1);
 });
+
+test("shows the Tab key beside a field label and the arrows beside an option label", async () => {
+  const screen = await render(
+    <KeyLegend
+      items={[
+        { keyName: "Tab", label: "Campo" },
+        { keyName: "ArrowLeftRight", label: "Opción" },
+      ]}
+    />,
+  );
+
+  const entries = screen.getByRole("listitem").elements();
+  expect(entries.map((entry) => entry.textContent)).toEqual(["TabCampo", "←→Opción"]);
+});

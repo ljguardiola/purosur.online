@@ -11,7 +11,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Check, QrCode, TriangleAlert } from "lucide-react";
 import { type ComponentType, useRef, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useContingencyTicketRecoveriesQuery, useRefreshBackups } from "./backups-queries";
 import type {
   ContingencyTicketRecovery,
@@ -156,7 +156,7 @@ export function ContingencyTicketRescueModal({
   onSessionEnded,
   services,
 }: ContingencyTicketRescueModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const recoveries = useContingencyTicketRecoveriesQuery({
     fetchContingencyTicketRecoveries: services.fetchContingencyTicketRecoveries,
     onSessionEnded,
@@ -182,7 +182,7 @@ export function ContingencyTicketRescueModal({
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     }
   }
 

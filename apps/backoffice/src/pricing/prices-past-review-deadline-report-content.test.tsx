@@ -275,7 +275,7 @@ test("ends the session when the cloud says it is over", async () => {
   await expect.poll(() => onSessionEnded).toHaveBeenCalled();
 });
 
-test("navigates to Mi cuenta when the report request comes back forbidden", async () => {
+test("opens the own account panel when the report request comes back forbidden", async () => {
   const services = createServices();
   vi.mocked(services.fetchPricesPastReviewDeadlineReport).mockResolvedValue({ kind: "forbidden" });
 

@@ -161,7 +161,7 @@ test("says the register has no point of sale record when the cloud does not list
   expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();
 });
 
-test("sends to Mi cuenta when a load comes back forbidden", async () => {
+test("opens the own account panel when a load comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const services = createServices({
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "forbidden" }),

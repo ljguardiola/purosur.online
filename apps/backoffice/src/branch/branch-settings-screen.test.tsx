@@ -385,7 +385,7 @@ test("ends the session when the load finds it closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the load comes back forbidden", async () => {
+test("opens the own account panel when the load comes back forbidden", async () => {
   window.history.pushState(null, "", "/branch");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "forbidden" });
@@ -397,7 +397,7 @@ test("navigates to Mi cuenta when the load comes back forbidden", async () => {
     .toBe("/?account=credentials");
 });
 
-test("navigates to Mi cuenta when the save comes back forbidden", async () => {
+test("opens the own account panel when the save comes back forbidden", async () => {
   window.history.pushState(null, "", "/branch");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
@@ -414,7 +414,7 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
     .toBe("/?account=credentials");
 });
 
-test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
+test("opens the own account panel when Recargar comes back forbidden", async () => {
   window.history.pushState(null, "", "/branch");
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "ok", value: loaded });

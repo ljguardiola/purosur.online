@@ -1753,11 +1753,9 @@ describe("the register's router", () => {
 
       const screen = await render(<RouterProvider router={router} />);
 
-      await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
-      await expect
-        .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
+      await expect.element(screen.getByRole("dialog", { name: "Reloj atrasado" })).toBeVisible();
     });
 
     it("shows nothing about the clock on the no-session screen while it does not lag", async () => {
@@ -1766,7 +1764,7 @@ describe("the register's router", () => {
       const screen = await render(<RouterProvider router={router} />);
 
       await expect.element(screenFor["/"](screen)).toBeVisible();
-      await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Reloj atrasado")).not.toBeInTheDocument();
     });
 
     it("shows it among the pending items of the startup screen without keeping the person from selling", async () => {
@@ -1783,7 +1781,7 @@ describe("the register's router", () => {
 
       const screen = await render(<RouterProvider router={router} />);
 
-      await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+      await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ir a vender" })).toBeEnabled();
     });
     it("offers correcting the clock on the cash movements screen while a session is open and it lags", async () => {
@@ -1798,11 +1796,9 @@ describe("the register's router", () => {
 
       const screen = await render(<RouterProvider router={router} />);
 
-      await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
-      await expect
-        .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
+      await expect.element(screen.getByRole("dialog", { name: "Reloj atrasado" })).toBeVisible();
     });
 
     it("shows nothing about the clock on the cash movements screen while it does not lag", async () => {
@@ -1817,7 +1813,7 @@ describe("the register's router", () => {
       await expect
         .element(screen.getByRole("heading", { level: 1, name: "Movimientos de efectivo" }))
         .toBeInTheDocument();
-      await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Reloj atrasado")).not.toBeInTheDocument();
     });
   });
 
@@ -2229,6 +2225,7 @@ describe("the register's router", () => {
           rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2308,6 +2305,7 @@ describe("the register's router", () => {
           rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2813,11 +2811,9 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
-    await userEvent.click(screen.getByRole("button", { name: "Vaciar carrito" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
 
-    await userEvent.click(
-      screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }),
-    );
+    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }));
 
     await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);
   });
@@ -3145,6 +3141,7 @@ describe("the register's header", () => {
       rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
+      refund_now_on_cancel: 0,
       cancel_authorization_required: false,
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,
@@ -3298,6 +3295,7 @@ describe("the charge route's Mercado Pago QR", () => {
       rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
+      refund_now_on_cancel: 0,
       cancel_authorization_required: false,
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,

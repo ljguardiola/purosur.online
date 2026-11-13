@@ -12,7 +12,7 @@ import { Check, FileText, Globe, Truck, Upload, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { creatableChoice } from "../platform/creatable-options";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { NewSupplierModal, type NewSupplierModalServices } from "./new-supplier-modal";
 import { purchaseSupplierOptions, withCreatedSupplier } from "./purchase-form";
@@ -83,7 +83,7 @@ export function UploadSupplierPriceListModal({
   onClose,
   onSessionEnded,
 }: UploadSupplierPriceListModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<ReadNotice | null>(null);
   const [refusedPage, setRefusedPage] = useState<{
     reason: WebPageRefusalReason;
@@ -128,7 +128,7 @@ export function UploadSupplierPriceListModal({
           onSessionEnded();
           return;
         case "forbidden":
-          sendToMyAccount();
+          sendToOwnAccount();
           return;
         case "validation_failed":
           if (!showWireFieldError(outcome.field)) {

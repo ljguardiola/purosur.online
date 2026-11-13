@@ -1,5 +1,5 @@
 import type { Clock } from "../../shared/index.js";
-import { chargeLine } from "../model/line-pricing.js";
+import { chargeLine, lineTotalReduction } from "../model/line-pricing.js";
 import type { ManualAdjustmentValue } from "../model/manual-adjustment.js";
 import {
   type ManualAdjustmentRefusal,
@@ -30,7 +30,12 @@ export type PreviewSaleLineAdjustmentOutcome =
   | SaleLineChangeRefusal
   | { kind: "unknown_line" }
   | ManualAdjustmentRefusal
-  | { kind: "preview"; discountAmount: number; lineTotal: number };
+  | {
+      kind: "preview";
+      discountAmount: number;
+      lineTotal: number;
+      lineTotalReduction: number;
+    };
 
 export function previewSaleLineAdjustment(
   { ledger, restoration, clock }: PreviewSaleLineAdjustmentPorts,
@@ -55,6 +60,11 @@ export function previewSaleLineAdjustment(
       line.promotions,
       adjustment,
     );
-    return { kind: "preview", discountAmount, lineTotal };
+    return {
+      kind: "preview",
+      discountAmount,
+      lineTotal,
+      lineTotalReduction: lineTotalReduction(line.lineTotal, lineTotal),
+    };
   });
 }

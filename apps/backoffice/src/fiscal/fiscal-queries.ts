@@ -13,7 +13,7 @@ import type { ZoneRules } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { mapCloudData } from "../platform/map-cloud-data";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import type {
@@ -104,12 +104,12 @@ export function useIssuerIdentificationQuery(params: {
   fetchIssuerIdentification: typeof fetchIssuerIdentification;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<IssuerIdentification>({
     queryKey: fiscalKeys.issuerIdentification,
     read: params.fetchIssuerIdentification,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -130,12 +130,12 @@ export function useBuyerIdentificationThresholdsQuery(params: {
   fetchBuyerIdentificationThresholds: typeof fetchBuyerIdentificationThresholds;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<BuyerIdentificationThresholds>({
     queryKey: fiscalKeys.buyerIdentificationThresholds,
     read: params.fetchBuyerIdentificationThresholds,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -157,13 +157,13 @@ export function useFiscalAddressesQuery(params: {
   fetchFiscalAddresses: typeof fetchFiscalAddresses;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<FiscalAddress[]>({
     enabled: params.enabled,
     queryKey: fiscalKeys.fiscalAddresses,
     read: params.fetchFiscalAddresses,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -185,13 +185,13 @@ export function useRegisterPointsOfSaleQuery(params: {
   fetchRegisterPointsOfSale: typeof fetchRegisterPointsOfSale;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RegisterPointOfSale[]>({
     enabled: params.enabled,
     queryKey: fiscalKeys.registerPointsOfSale,
     read: params.fetchRegisterPointsOfSale,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -213,13 +213,13 @@ export function useFortnightPresentationsQuery(params: {
   fetchFortnightPresentations: typeof fetchFortnightPresentations;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<FortnightPresentation[]>({
     enabled: params.enabled,
     queryKey: fiscalKeys.fortnightPresentations,
     read: params.fetchFortnightPresentations,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -227,12 +227,12 @@ export function useClockCorrectionsQuery(params: {
   fetchClockCorrections: typeof fetchClockCorrections;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ClockCorrection[]>({
     queryKey: fiscalKeys.clockCorrections,
     read: params.fetchClockCorrections,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -241,13 +241,13 @@ export function useOfflinePointsOfSaleQuery(params: {
   fetchOfflinePointsOfSale: typeof fetchOfflinePointsOfSale;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<OfflinePointOfSale[]>({
     enabled: params.enabled,
     queryKey: fiscalKeys.offlinePointsOfSale,
     read: params.fetchOfflinePointsOfSale,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -266,13 +266,13 @@ export function useBuyerTaxStatusesQuery(params: {
   enabled: boolean;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<BuyerTaxStatus[]>({
     queryKey: fiscalKeys.buyerTaxStatuses,
     read: params.fetchBuyerTaxStatuses,
     enabled: params.enabled,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -280,12 +280,12 @@ export function useFiscalTasksQuery(params: {
   fetchFiscalTasks: typeof fetchFiscalTasks;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<FiscalTasks>({
     queryKey: fiscalKeys.fiscalTasks,
     read: params.fetchFiscalTasks,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -337,13 +337,13 @@ export function useIssuerZoneRulesQuery(params: {
   enabled: boolean;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ZoneRules>({
     queryKey: fiscalKeys.zoneRules,
     read: params.fetchCurrentZoneRules,
     enabled: params.enabled,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -352,13 +352,13 @@ export function useIssuedFiscalDocumentsQuery(params: {
   fetchIssuedFiscalDocuments: typeof fetchIssuedFiscalDocuments;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<IssuedFiscalDocumentsBody>({
     queryKey: fiscalKeys.issuedDocuments(params.query),
     keepPreviousData: true,
     read: () => params.fetchIssuedFiscalDocuments(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -381,12 +381,12 @@ export function useIssuedFiscalDocumentQuery(params: {
   fetchIssuedFiscalDocument: typeof fetchIssuedFiscalDocument;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<IssuedFiscalDocumentRead>({
     queryKey: fiscalKeys.issuedDocument(params.voucher),
     read: () => readIssuedFiscalDocument(params.voucher, params.fetchIssuedFiscalDocument),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -396,7 +396,7 @@ export function useExceptionShareYearQuery(params: {
   fetchExceptionShareYear: typeof fetchExceptionShareYear;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { fiscalAddressId, year } = params;
   return useCloudQuery<ExceptionShareYearRead>({
     queryKey: fiscalKeys.exceptionShareYear(fiscalAddressId ?? "", year),
@@ -413,7 +413,7 @@ export function useExceptionShareYearQuery(params: {
       return outcome.kind === "not_found" ? { kind: "ok", value: { kind: "not_found" } } : outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -422,12 +422,12 @@ export function useIssuedFiscalDocumentsReportQuery(params: {
   fetchIssuedFiscalDocumentsReport: typeof fetchIssuedFiscalDocumentsReport;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<IssuedFiscalDocumentsReportBody>({
     queryKey: fiscalKeys.issuedDocumentsReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchIssuedFiscalDocumentsReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }

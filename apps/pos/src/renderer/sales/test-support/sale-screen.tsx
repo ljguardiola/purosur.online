@@ -94,6 +94,7 @@ export const SALE_OF_QUESO: OpenSale = {
   rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
+  refund_now_on_cancel: 0,
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
@@ -116,6 +117,7 @@ export const SALE_OF_YERBA: OpenSale = {
   rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
+  refund_now_on_cancel: 0,
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
@@ -138,6 +140,7 @@ export const SALE_OF_YERBA_AND_ALFAJOR: OpenSale = {
   rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
+  refund_now_on_cancel: 0,
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
@@ -320,3 +323,18 @@ export const SALE_OF_FOUR_LINES: OpenSale = {
   gross_subtotal: 2_519_250,
   subtotal: 2_519_250,
 };
+
+export async function chooseRadio(
+  screen: Awaited<ReturnType<typeof renderScreen>>["screen"],
+  name: string,
+) {
+  const label = screen.getByRole("radio", { name }).element().closest("label");
+  if (label === null) {
+    throw new Error(`no label found for the option ${name}`);
+  }
+  await userEvent.click(label);
+}
+
+export function legendOf() {
+  return Array.from(document.querySelectorAll("main ul li"), (item) => item.textContent);
+}

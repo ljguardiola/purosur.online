@@ -239,7 +239,7 @@ export function LockedCashCount({
                 disabled={busy}
                 onPress={() => void askToCancelOpenSale()}
               >
-                {openSale.has_approved_payment ? "Cancelar la venta" : "Vaciar carrito"}
+                {openSale.has_approved_payment ? "Cancelar la venta" : "Vaciar venta"}
               </Button>
             }
           />

@@ -348,7 +348,7 @@ test("ends the session when the PDF finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the PDF comes back forbidden", async () => {
+test("opens the own account panel when the PDF comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
   const dialog = await renderModal(
     createServices({ fetchPurchaseOrderPdf: vi.fn().mockResolvedValue({ kind: "forbidden" }) }),
@@ -448,7 +448,7 @@ test("ends the session when sharing finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when sharing comes back forbidden", async () => {
+test("opens the own account panel when sharing comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
   const dialog = await renderModal(
     createServices({ sharePurchaseOrder: vi.fn().mockResolvedValue({ kind: "forbidden" }) }),

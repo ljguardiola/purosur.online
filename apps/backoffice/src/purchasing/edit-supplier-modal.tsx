@@ -4,7 +4,7 @@ import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-reac
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { SupplierReload } from "./purchasing-queries";
 import {
   EMPTY_SUPPLIER_FORM,
@@ -45,7 +45,7 @@ export function EditSupplierModal({
   services,
 }: EditSupplierModalProps) {
   const { editSupplier } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [loaded, setLoaded] = useState<SupplierSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
@@ -70,7 +70,7 @@ export function EditSupplierModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

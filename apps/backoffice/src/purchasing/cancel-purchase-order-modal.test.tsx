@@ -147,7 +147,7 @@ test("ends the session when cancelling finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when cancelling comes back forbidden", async () => {
+test("opens the own account panel when cancelling comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
   const cancelPurchaseOrder = vi
     .fn<CancelPurchaseOrderModalServices["cancelPurchaseOrder"]>()

@@ -670,7 +670,7 @@ test("ends the session when the cloud finds none open", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("sends a person the cloud forbids to Mi cuenta", async () => {
+test("sends a person the cloud forbids to the own account panel", async () => {
   window.history.pushState(null, "", "/assembly-batches");
 
   await registerMixWith(

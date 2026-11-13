@@ -3,7 +3,7 @@ import { LogOut, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { endEverySession } from "./session-api";
 
 export type EndEverySessionModalServices = {
@@ -25,7 +25,7 @@ export function EndEverySessionModal({
   onSessionEnded,
   services,
 }: EndEverySessionModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,7 +45,7 @@ export function EndEverySessionModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setNotice(

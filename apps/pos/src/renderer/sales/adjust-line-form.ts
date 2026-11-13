@@ -9,12 +9,34 @@ export const adjustLineFormRequestSchema = adjustSaleLineMessageSchema.pick({
 
 export type AdjustmentKind = ManualAdjustmentRequest["kind"];
 
-export type AdjustLineFormValues = { kind: AdjustmentKind; value: string; reason: string };
+export const OTHER_REASON = "Otro";
+
+export const ADJUST_LINE_REASONS = ["Precio de etiqueta", "Producto dañado", OTHER_REASON] as const;
+
+type ReasonOption = { value: string; label: string };
+
+export function reasonOptionsOf(
+  reasons: readonly [string, ...string[]],
+): [ReasonOption, ...ReasonOption[]] {
+  const [first, ...rest] = reasons;
+  return [
+    { value: first, label: first },
+    ...rest.map((reason) => ({ value: reason, label: reason })),
+  ];
+}
+
+export type AdjustLineFormValues = {
+  kind: AdjustmentKind;
+  value: string;
+  reasonOption: string;
+  otherReason: string;
+};
 
 export const EMPTY_ADJUST_LINE_FORM: AdjustLineFormValues = {
-  kind: "PERCENT",
+  kind: "PRICE",
   value: "",
-  reason: "",
+  reasonOption: "Precio de etiqueta",
+  otherReason: "",
 };
 
 export const REQUIRED_REASON_MESSAGE = "Escribí un motivo.";
@@ -27,20 +49,31 @@ export function parsedValue(kind: AdjustmentKind, value: string): number {
   return parseAmountCents(value) ?? Number.NaN;
 }
 
-export function adjustLineRequestFrom({ kind, value, reason }: AdjustLineFormValues): {
+export function reasonFrom({
+  reasonOption,
+  otherReason,
+}: Pick<AdjustLineFormValues, "reasonOption" | "otherReason">): string {
+  return reasonOption === OTHER_REASON ? otherReason.trim() : reasonOption;
+}
+
+export function adjustLineRequestFrom(values: AdjustLineFormValues): {
   adjustment: { kind: AdjustmentKind; value: number };
   reason: string;
 } {
-  return { adjustment: { kind, value: parsedValue(kind, value) }, reason };
+  return {
+    adjustment: { kind: values.kind, value: parsedValue(values.kind, values.value) },
+    reason: reasonFrom(values),
+  };
 }
 
 export function previewAdjustmentFrom({
   kind,
   value,
 }: Pick<AdjustLineFormValues, "kind" | "value">): ManualAdjustmentRequest | undefined {
-  const parsed = adjustLineFormRequestSchema.shape.adjustment.safeParse(
-    adjustLineRequestFrom({ kind, value, reason: "" }).adjustment,
-  );
+  const parsed = adjustLineFormRequestSchema.shape.adjustment.safeParse({
+    kind,
+    value: parsedValue(kind, value),
+  });
   return parsed.success ? parsed.data : undefined;
 }
 

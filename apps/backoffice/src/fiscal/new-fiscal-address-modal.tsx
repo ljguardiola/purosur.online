@@ -6,7 +6,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -53,7 +53,7 @@ export function NewFiscalAddressModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<
     { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number } | null
   >(null);
@@ -88,7 +88,7 @@ export function NewFiscalAddressModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "name_taken") {

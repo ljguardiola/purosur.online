@@ -750,7 +750,7 @@ test("ends the session when linking finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when linking comes back forbidden", async () => {
+test("opens the own account panel when linking comes back forbidden", async () => {
   window.history.pushState(null, "", "/lists");
   const services = createServices();
   vi.mocked(services.linkSupplierPriceListRow).mockResolvedValue({ kind: "forbidden" });

@@ -2,7 +2,7 @@ import { type PurchaseSummary, purchaseHeaderCorrectionBodySchema } from "@puros
 import { Button, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type PurchaseCorrectionNotice,
   PurchaseCorrectionNotices,
@@ -36,7 +36,7 @@ export function CorrectPurchaseHeaderModal({
   onClose,
   onSessionEnded,
 }: CorrectPurchaseHeaderModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PurchaseSummary | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -67,7 +67,7 @@ export function CorrectPurchaseHeaderModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "unchanged") {

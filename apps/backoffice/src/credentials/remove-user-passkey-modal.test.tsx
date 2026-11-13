@@ -200,7 +200,7 @@ test("ends the session when removing finds it already closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta, without the authorization modal, when removing the passkey comes back forbidden", async () => {
+test("opens the own account panel, without the authorization modal, when removing the passkey comes back forbidden", async () => {
   window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "forbidden" });
@@ -214,7 +214,7 @@ test("navigates to Mi cuenta, without the authorization modal, when removing the
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
-test("navigates to Mi cuenta when the removal retried after the authorization comes back forbidden", async () => {
+test("opens the own account panel when the removal retried after the authorization comes back forbidden", async () => {
   window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   vi.mocked(services.removeUserPasskey).mockResolvedValueOnce({ kind: "authorization_required" });

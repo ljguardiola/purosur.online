@@ -11,7 +11,7 @@ import type { RoleCreationModal } from "../platform/creation-parts";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { RoleSummary } from "../platform/roles-api";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -63,7 +63,7 @@ export function EditUserModal({
 }: EditUserModalProps) {
   const { editUser, fetchSessionAuthorizationOptions, authorizeSession, startAuthentication } =
     services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<EditUserModalNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const { run, modal } = useAuthorization<EditUserOutcome>({
@@ -98,7 +98,7 @@ export function EditUserModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

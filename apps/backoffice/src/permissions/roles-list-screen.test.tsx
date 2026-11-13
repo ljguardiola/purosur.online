@@ -393,7 +393,7 @@ test("ends the session when the roles request finds no open session", async () =
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
+test("opens the own account panel when the roles request comes back forbidden", async () => {
   window.history.pushState(null, "", "/roles");
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "forbidden" });

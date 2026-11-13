@@ -140,7 +140,7 @@ test("shows a load failure, and Reintentar goes back to the placeholder before l
   await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 });
 
-test("sends to Mi cuenta when the load comes back forbidden", async () => {
+test("opens the own account panel when the load comes back forbidden", async () => {
   window.history.pushState(null, "", "/fiscal-settings");
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "forbidden" });
@@ -663,7 +663,7 @@ test("lists the clock corrections it reads under their own heading", async () =>
   await expect.element(screen.getByText("Corrigió Ada", { exact: true })).toBeVisible();
 });
 
-test("sends to Mi cuenta when reading the clock corrections comes back forbidden", async () => {
+test("opens the own account panel when reading the clock corrections comes back forbidden", async () => {
   window.history.pushState(null, "", "/fiscal-settings");
   const services = createServices({
     fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "forbidden" }),
@@ -741,7 +741,7 @@ test("shows a load failure for the fiscal addresses, and Reintentar loads them a
     .toBeVisible();
 });
 
-test("sends to Mi cuenta when the fiscal addresses come back forbidden", async () => {
+test("opens the own account panel when the fiscal addresses come back forbidden", async () => {
   const services = createServices({
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

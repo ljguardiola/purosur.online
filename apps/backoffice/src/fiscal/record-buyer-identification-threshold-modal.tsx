@@ -10,7 +10,7 @@ import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { formatDisplayDate } from "../platform/display-date";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -62,7 +62,7 @@ export function RecordBuyerIdentificationThresholdModal({
   onSessionEnded,
   services,
 }: RecordBuyerIdentificationThresholdModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const {
     recordBuyerIdentificationThreshold,
     fetchSessionAuthorizationOptions,
@@ -88,7 +88,7 @@ export function RecordBuyerIdentificationThresholdModal({
       return true;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return true;
     }
     return false;

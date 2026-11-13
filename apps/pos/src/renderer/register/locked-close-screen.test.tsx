@@ -184,9 +184,9 @@ describe("LockedCloseScreen", () => {
     });
     await identifySofia(screen);
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect
       .poll(() => cancelSale.mock.calls)

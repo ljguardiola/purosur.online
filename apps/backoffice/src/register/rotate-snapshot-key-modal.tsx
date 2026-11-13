@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -51,7 +51,7 @@ export function RotateSnapshotKeyModal({
     authorizeSession,
     startAuthentication,
   } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<Notice | null>(null);
   const [rotating, setRotating] = useState(false);
   const { run, modal } = useAuthorization<RotateSnapshotKeyOutcome>({
@@ -79,7 +79,7 @@ export function RotateSnapshotKeyModal({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "not_found") {
       onRegisterNotFound();
     } else if (outcome.kind === "no_key_yet") {

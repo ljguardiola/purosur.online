@@ -13,7 +13,7 @@ import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { formatCentsWithUnit } from "./money";
 import { PriceCostBreakdown } from "./price-cost-breakdown";
 import {
@@ -82,7 +82,7 @@ export function PriceChangeModal({
   setPrice,
   confirmPrice,
 }: PriceChangeModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [current, setCurrent] = useState<PriceProduct | null>(null);
   const [title, setTitle] = useState("");
@@ -152,7 +152,7 @@ export function PriceChangeModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "not_found") {
@@ -187,7 +187,7 @@ export function PriceChangeModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "not_found") {
@@ -252,7 +252,7 @@ export function PriceChangeModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {

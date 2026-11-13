@@ -13,7 +13,7 @@ import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { downloadFile } from "../platform/download-file";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   fetchPurchaseOrderPdf,
   fetchPurchaseOrderText,
@@ -56,7 +56,7 @@ export function SharePurchaseOrderModal({
   onClose,
   onSessionEnded,
 }: SharePurchaseOrderModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const text = usePurchaseOrderTextQuery({
     orderId: target?.id ?? null,
     fetchPurchaseOrderText: services.fetchPurchaseOrderText,
@@ -109,7 +109,7 @@ export function SharePurchaseOrderModal({
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds ?? 0 });
     } else if (outcome.kind === "not_found") {

@@ -12,7 +12,7 @@ import { Ban, Check, Laptop, LogOut, Play, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type CompromiseResponse,
   type CompromiseResponseItem,
@@ -84,7 +84,7 @@ export function RespondToCompromiseModal({
   onSessionEnded,
   services,
 }: RespondToCompromiseModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const data = useCompromiseResponseQuery({
     fetchCompromiseResponse: services.fetchCompromiseResponse,
     onSessionEnded,
@@ -121,7 +121,7 @@ export function RespondToCompromiseModal({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {
@@ -143,7 +143,7 @@ export function RespondToCompromiseModal({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {

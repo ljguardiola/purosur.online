@@ -1,7 +1,7 @@
 import type { PublicKeyCredentialCreationOptionsJSON } from "@simplewebauthn/browser";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchPasskeys } from "./passkey-api";
 import type { Passkey } from "./passkey-list";
@@ -25,7 +25,7 @@ export function useUserPasskeysQuery(params: {
   now: () => Date;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PasskeyList>({
     queryKey: credentialsKeys.userPasskeys(params.userId),
     read: async () => {
@@ -36,7 +36,7 @@ export function useUserPasskeysQuery(params: {
       return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -45,7 +45,7 @@ export function useOwnPasskeysQuery(params: {
   now: () => Date;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PasskeyList>({
     queryKey: credentialsKeys.ownPasskeys,
     read: async () => {
@@ -55,7 +55,7 @@ export function useOwnPasskeysQuery(params: {
         : outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

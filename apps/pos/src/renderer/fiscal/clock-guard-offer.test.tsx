@@ -49,7 +49,6 @@ async function renderOffer(
   const onSessionInvalid = vi.fn();
   const screen = await render(
     <ClockGuardOffer
-      registerName="Caja 1"
       cashSessionOpen={false}
       readClockGuard={readClockGuard}
       correctRegisterClock={correctRegisterClock}
@@ -63,7 +62,7 @@ describe("ClockGuardOffer", () => {
   it("tells that invoices are not issued while the clock lags, that selling goes on, and offers to correct the clock", async () => {
     const { screen } = await renderOffer([BLOCKED]);
 
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+    await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
     await expect
       .element(
         screen.getByText(
@@ -71,16 +70,16 @@ describe("ClockGuardOffer", () => {
         ),
       )
       .toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Corregir el reloj" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Confirmar hora" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
   it("informs without the action to a person who may not correct the clock", async () => {
     const { screen } = await renderOffer([{ ...BLOCKED, may_correct: false }]);
 
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+    await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Corregir el reloj" }))
+      .element(screen.getByRole("button", { name: "Confirmar hora" }))
       .not.toBeInTheDocument();
   });
 
@@ -100,9 +99,9 @@ describe("ClockGuardOffer", () => {
       },
     ]);
 
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+    await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Corregir el reloj" }))
+      .element(screen.getByRole("button", { name: "Confirmar hora" }))
       .not.toBeInTheDocument();
   });
 
@@ -111,7 +110,7 @@ describe("ClockGuardOffer", () => {
       { ...BLOCKED, correction: "already_corrected_in_period" },
     ]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
 
     await expect
       .element(
@@ -126,38 +125,31 @@ describe("ClockGuardOffer", () => {
     const { screen, readClockGuard } = await renderOffer([{ ...BLOCKED, blocks: [] }]);
 
     await vi.waitFor(() => expect(readClockGuard).toHaveBeenCalled());
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Reloj atrasado")).not.toBeInTheDocument();
   });
 
   it("shows nothing while the core has not answered", async () => {
     const pending = deferred<ReadClockGuardOutcome>();
     const { screen } = await renderOffer(() => pending.promise);
 
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Reloj atrasado")).not.toBeInTheDocument();
   });
 
   it("shows nothing when the core cannot answer", async () => {
     const { screen, readClockGuard } = await renderOffer([{ kind: "unavailable" }]);
 
     await vi.waitFor(() => expect(readClockGuard).toHaveBeenCalled());
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Reloj atrasado")).not.toBeInTheDocument();
   });
 
-  it("opens the correction with the register, the point of sale and the readings", async () => {
+  it("opens the correction with the readings", async () => {
     const { screen } = await renderOffer([BLOCKED]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
 
-    const dialog = screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" });
-    await expect.element(dialog.getByText("Caja 1 · Punto de venta 00003")).toBeVisible();
+    const dialog = screen.getByRole("dialog", { name: "Reloj atrasado" });
     await expect.element(dialog.getByText("15/09/2026 · 09:10")).toBeVisible();
-    await expect
-      .element(
-        dialog
-          .getByText("Se puede confirmar una sola vez hasta la próxima apertura de caja")
-          .first(),
-      )
-      .toBeVisible();
+    await expect.element(dialog.getByText("16/09/2026 · 11:31")).toBeVisible();
   });
 
   it("closes the correction and reads the clock guard again once the clock is confirmed, telling it", async () => {
@@ -165,17 +157,21 @@ describe("ClockGuardOffer", () => {
       BLOCKED,
       { ...BLOCKED, blocks: [] },
     ]);
-    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "Reloj atrasado" })
+        .getByRole("button", { name: /^Confirmar hora/ }),
+    );
 
     expect(correctRegisterClock).toHaveBeenCalledOnce();
     await expect.element(screen.getByText("La hora de la caja quedó confirmada")).toBeVisible();
     await expect.element(screen.getByText("Las facturas se emiten de nuevo.")).toBeVisible();
     await expect
-      .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
+      .element(screen.getByRole("dialog", { name: "Reloj atrasado" }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Reloj atrasado")).not.toBeInTheDocument();
     expect(readClockGuard).toHaveBeenCalledTimes(2);
   });
 
@@ -195,18 +191,22 @@ describe("ClockGuardOffer", () => {
         correction: "not_behind",
       },
     ]);
-    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "Reloj atrasado" })
+        .getByRole("button", { name: /^Confirmar hora/ }),
+    );
 
     await expect
-      .element(screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" }))
+      .element(screen.getByRole("dialog", { name: "Reloj atrasado" }))
       .not.toBeInTheDocument();
     await expect
-      .element(screen.getByRole("button", { name: "Corregir el reloj" }))
+      .element(screen.getByRole("button", { name: "Confirmar hora" }))
       .not.toBeInTheDocument();
     expect(readClockGuard).toHaveBeenCalledTimes(2);
-    await expect.element(screen.getByText("El reloj de la caja atrasa")).toBeVisible();
+    await expect.element(screen.getByText("Reloj atrasado")).toBeVisible();
     expect(screen.getByText("La hora de la caja quedó confirmada").query()).toBeNull();
   });
 
@@ -215,11 +215,15 @@ describe("ClockGuardOffer", () => {
       [BLOCKED, { ...BLOCKED, blocks: [] }],
       async () => ({ kind: "not_behind" }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "Reloj atrasado" })
+        .getByRole("button", { name: /^Confirmar hora/ }),
+    );
 
-    const dialog = screen.getByRole("dialog", { name: "No se pueden emitir comprobantes" });
+    const dialog = screen.getByRole("dialog", { name: "Reloj atrasado" });
     await expect
       .element(dialog.getByText("La hora de la caja ya no está atrasada").first())
       .toBeVisible();
@@ -230,9 +234,13 @@ describe("ClockGuardOffer", () => {
     const { screen, onSessionInvalid } = await renderOffer([BLOCKED], async () => ({
       kind: "not_signed_in",
     }));
-    await userEvent.click(screen.getByRole("button", { name: "Corregir el reloj" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar hora" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "La hora de la caja es correcta" }));
+    await userEvent.click(
+      screen
+        .getByRole("dialog", { name: "Reloj atrasado" })
+        .getByRole("button", { name: /^Confirmar hora/ }),
+    );
 
     await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
   });

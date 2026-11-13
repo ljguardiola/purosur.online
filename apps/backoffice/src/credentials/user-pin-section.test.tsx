@@ -197,7 +197,7 @@ test("reports the session ended when the emission comes back unauthenticated", a
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
-test("sends the person to Mi cuenta when the emission comes back forbidden", async () => {
+test("opens the own account panel when the emission comes back forbidden", async () => {
   const services = createServices();
   vi.mocked(services.emitUserPinCode).mockResolvedValue({ kind: "forbidden" });
   const screen = await renderSection(services);

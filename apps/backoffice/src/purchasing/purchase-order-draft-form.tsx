@@ -4,7 +4,7 @@ import { Check, Send, ShieldX, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { PurchaseProducts } from "./purchase-form";
 import {
   PURCHASE_ORDER_FIELDS,
@@ -49,7 +49,7 @@ export function PurchaseOrderDraftForm({
   onShareOrder,
   onSessionEnded,
 }: PurchaseOrderDraftFormProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -75,7 +75,7 @@ export function PurchaseOrderDraftForm({
           onSessionEnded();
           return;
         case "forbidden":
-          sendToMyAccount();
+          sendToOwnAccount();
           return;
         case "not_editable":
           onNotEditable();

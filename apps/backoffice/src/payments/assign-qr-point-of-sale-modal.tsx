@@ -8,7 +8,7 @@ import type {
   RegisterPaymentsTarget,
 } from "../platform/register-payments-target";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   EMPTY_QR_POINT_OF_SALE_FORM,
   qrPointOfSaleFormValuesFrom,
@@ -45,7 +45,7 @@ export function AssignQrPointOfSaleModal({
   onSessionEnded,
   services,
 }: AssignQrPointOfSaleModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { assignQrPointOfSale } = services;
   const open = target !== null;
   const [seededFrom, setSeededFrom] = useState<RegisterPaymentsTarget | null>(null);
@@ -67,7 +67,7 @@ export function AssignQrPointOfSaleModal({
       return true;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return true;
     }
     if (outcome.kind === "not_found") {
@@ -151,7 +151,7 @@ export function AssignQrPointOfSaleModal({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "rate_limited") {
       setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
     } else {

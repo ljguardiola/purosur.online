@@ -204,7 +204,7 @@ test("shows the rate-limited notice with a retry action", async () => {
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("navigates to Mi cuenta when a read comes back forbidden", async () => {
+test("opens the own account panel when a read comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const services = createServices();
   vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "forbidden" });

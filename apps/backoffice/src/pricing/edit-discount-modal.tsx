@@ -18,7 +18,7 @@ import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { creatableChoice } from "../platform/creatable-options";
 import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   DISCOUNT_EDIT_FIELDS,
   DISCOUNT_KIND_CARDS,
@@ -80,7 +80,7 @@ export function EditDiscountModal({
   services,
 }: EditDiscountModalProps) {
   const { editDiscount } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [loaded, setLoaded] = useState<DiscountSummary | null>(null);
   const [notice, setNotice] = useState<EditNotice | null>(null);
@@ -106,7 +106,7 @@ export function EditDiscountModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

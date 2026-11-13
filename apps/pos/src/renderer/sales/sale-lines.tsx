@@ -120,7 +120,7 @@ export function SaleLines({
 }: {
   lines: OpenSale["lines"];
   selectedLineId: string | undefined;
-  legend: readonly KeyLegendItem[];
+  legend: readonly KeyLegendItem[] | undefined;
   failed: boolean;
   actions: SaleLineActions;
   onSelect: (line: SaleLine) => void;
@@ -172,7 +172,7 @@ export function SaleLines({
       table={table}
       aria-label="Líneas de la venta"
       fill
-      legend={legend}
+      {...(legend === undefined ? {} : { legend })}
       rowState={(line) => (line.id === selectedLineId ? "selected" : undefined)}
       onRowPress={onSelect}
       empty={{ variant: "blank", icon: <ShoppingBasket />, title: "La venta está vacía" }}

@@ -202,14 +202,17 @@ test.each([
   ["/purchases/freights", "suppliers"],
   ["/supplier-price-lists", "purchases"],
   [`/supplier-price-lists/${READ_LIST.id}`, "suppliers"],
-] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
-  const services = purchasingServices([capability]);
-  window.history.pushState(null, "", path);
+] as const)(
+  "sends a user who may not open %s to the own account panel",
+  async (path, capability) => {
+    const services = purchasingServices([capability]);
+    window.history.pushState(null, "", path);
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-});
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  },
+);
 
 test("redirects the old supplier price lists address to the tab, keeping its search", async () => {
   const services = purchasingServices(["supplier_price_lists"]);
@@ -298,7 +301,7 @@ test("lists Pedidos beside the supplier price lists for whoever compares prices"
 });
 
 test.each(["/purchase-orders/comparison", "/purchase-orders/suggestion"])(
-  "sends a user who may not compare prices away from %s to Mi cuenta",
+  "sends a user who may not compare prices away from %s to the own account panel",
   async (path) => {
     const services = purchasingServices(["supplier_price_lists"]);
     window.history.pushState(null, "", path);
@@ -321,7 +324,7 @@ test("hides the purchase orders from whoever may only manage the lists", async (
   expect(screen.getByRole("link", { name: "Pedidos" }).query()).toBeNull();
 });
 
-test("sends a user who may not read purchase orders away from them to Mi cuenta", async () => {
+test("sends a user who may not read purchase orders away from them to the own account panel", async () => {
   const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", "/purchase-orders");
 
@@ -330,7 +333,7 @@ test("sends a user who may not read purchase orders away from them to Mi cuenta"
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
-test("sends a user who may not read purchase orders away from an order to Mi cuenta", async () => {
+test("sends a user who may not read purchase orders away from an order to the own account panel", async () => {
   const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
 
@@ -341,7 +344,7 @@ test("sends a user who may not read purchase orders away from an order to Mi cue
 });
 
 test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
-  "sends a session granted managing but not reading purchase orders away from %s to Mi cuenta",
+  "sends a session granted managing but not reading purchase orders away from %s to the own account panel",
   async (path) => {
     const services = purchasingServices(["supplier_price_lists", "purchase_orders"]);
     window.history.pushState(null, "", path);
@@ -429,7 +432,7 @@ test("lists the purchase orders for whoever may only receive them", async () => 
   expect(screen.getByRole("link", { name: "Pedidos" }).query()).not.toBeNull();
 });
 
-test("sends a user who may not receive orders away from the receipt to Mi cuenta", async () => {
+test("sends a user who may not receive orders away from the receipt to the own account panel", async () => {
   const services = purchasingServices(["purchase_order_reads"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}/receive`);
 

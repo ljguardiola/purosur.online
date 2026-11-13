@@ -262,7 +262,7 @@ describe("SaleScreen with a paid order not yet applied", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect.element(screen.getByRole("complementary", { name: "Vaciar venta" })).toBeVisible();
     expect(screen.router.state.location.pathname).not.toBe("/charge");
   });
 

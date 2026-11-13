@@ -14,6 +14,10 @@ export function listLineTotal(quantity: SoldQuantity, unitPrice: number): number
   return roundHalfUp(lineAmount(quantity, unitPrice));
 }
 
+export function lineTotalReduction(currentTotal: number, adjustedTotal: number): number {
+  return currentTotal - adjustedTotal;
+}
+
 export function chargeLine(
   quantity: SoldQuantity,
   unitPrice: number,

@@ -26,6 +26,7 @@ import type {
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { KeyLegendItem } from "@purosur/ui";
 import {
   EmptyState,
   formatWeight,
@@ -51,14 +52,14 @@ import { PaidSaleCancelledModal } from "../shell/paid-sale-cancelled-modal";
 import type { Refund } from "../shell/refund-lines";
 import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { AdjustLineModal } from "./adjust-line-modal";
-import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
-import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
-import { CancelSaleModal } from "./cancel-sale-modal";
+import { CancelPaidSalePanel } from "./cancel-paid-sale-panel";
 import { changedLineId } from "./changed-line";
 import type { KeyedChargeMethod } from "./charge-method-availability";
+import { EmptySalePanel } from "./empty-sale-panel";
+import { LinePricePanel } from "./line-price-panel";
 import { PaymentPanel } from "./payment-panel";
-import { SaleLines } from "./sale-lines";
+import { SaleDiscountPanel } from "./sale-discount-panel";
+import { LockedSaleLines, SaleLines } from "./sale-lines";
 import {
   useCurrentSaleQuery,
   useFindProductByCode,
@@ -167,6 +168,11 @@ type SaleEditFailure = Extract<
 
 const LETTER = /\p{L}/u;
 
+const PANEL_LEGEND: readonly KeyLegendItem[] = [
+  { keyName: "Tab", label: "Campo" },
+  { keyName: "ArrowLeftRight", label: "Opción" },
+];
+
 const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
   approved_payment: "La venta ya no se puede cambiar porque tiene un pago aprobado.",
   mercado_pago_charge_in_progress: "Hay un cobro con Mercado Pago en curso. Esperá a que termine.",
@@ -202,7 +208,12 @@ function discountsRemovedFrom(
 }
 
 function focusScanField(form: HTMLFormElement | null) {
-  form?.querySelector("input")?.focus();
+  const input = form?.querySelector("input");
+  if (input?.getAttribute("aria-disabled") === "true") {
+    form?.focus();
+    return;
+  }
+  input?.focus();
 }
 
 // A scanner types the next code at the caret, so a refused code left unselected would be joined
@@ -793,10 +804,6 @@ export function SaleScreen({
     }
   }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing, adjusting, discounting]);
 
-  const found = results?.query === code.trim() && !dismissed ? results : undefined;
-  const choosing = found !== undefined && found.products.length > 0;
-  const chosen = choosing ? found.products[activeIndex] : undefined;
-
   const priceByCode = useProductByCodeQuery({
     code:
       weighing?.kind === "add" && weighing.priced === "by_code" ? weighing.submitted : undefined,
@@ -810,7 +817,21 @@ export function SaleScreen({
   const sale = answer === undefined || answer === "not_permitted" ? null : answer;
   const linesLock = sale?.lines_lock ?? null;
   const editable = linesLock === null;
-  useBarcodeReadings(editable ? (reading) => void takeReading(reading) : undefined);
+  const panel =
+    adjusting !== undefined && sale !== null
+      ? "price"
+      : discounting && sale !== null
+        ? "discount"
+        : confirmingCancel
+          ? "empty"
+          : confirmingPaidCancel && sale !== null
+            ? "cancel"
+            : undefined;
+  const panelOpen = panel !== undefined;
+  const found = results?.query === code.trim() && !dismissed && !panelOpen ? results : undefined;
+  const choosing = found !== undefined && found.products.length > 0;
+  const chosen = choosing ? found.products[activeIndex] : undefined;
+  useBarcodeReadings(editable && !panelOpen ? (reading) => void takeReading(reading) : undefined);
   const saleLines = sale?.lines ?? [];
   const selectedLine = saleLines.find(({ id }) => id === selectedLineId) ?? saleLines.at(-1);
   const paidOrderToApply =
@@ -850,6 +871,8 @@ export function SaleScreen({
   const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
   const searchEmpty = code === "";
   const canChargeNow = canCharge && weighing === undefined;
+  const canCancel = sale !== null && saleLines.length > 0 && !editing && weighing === undefined;
+  const canDiscount = sale !== null && sale.sale_discount_refusal === null && editable && !editing;
 
   function moveSelection(pressed: string) {
     const index = saleLines.findIndex(({ id }) => id === selectedLine?.id);
@@ -915,72 +938,98 @@ export function SaleScreen({
         enabled: canChargePaidOrder && searchEmpty && weighing === undefined,
       },
     ],
-    { within: field },
+    { within: field, active: !panelOpen },
   );
 
   const unitLineSelected = selectedLine?.sale_unit === "UNIT";
-  const legend = useKeys([
-    {
-      key: "ArrowUpDown",
-      label: "Líneas",
-      run: moveSelection,
-      enabled: saleLines.length > 0 && !choosing,
-    },
-    {
-      key: "F2",
-      label: "Buscar",
-      run: () => focusScanField(field.current),
-      enabled: answer !== undefined && answer !== "not_permitted",
-    },
-    {
-      key: "F3",
-      label: "Pesar",
-      run: () => {
-        if (selectedLine !== undefined) {
-          askForWeight({ kind: "change", line: selectedLine });
-        }
+  const legend = useKeys(
+    [
+      {
+        key: "ArrowUpDown",
+        label: "Líneas",
+        run: moveSelection,
+        enabled: saleLines.length > 0 && !choosing,
       },
-      enabled: selectedLine?.sale_unit === "KG" && editable && !editing && weighing === undefined,
-    },
-    {
-      key: "Delete",
-      label: "Quitar",
-      run: () => {
-        if (selectedLine !== undefined) {
-          void edit(() => removeSaleLine(selectedLine.id), { kind: "remove_failed" });
-        }
+      {
+        key: "F2",
+        label: "Buscar",
+        run: () => focusScanField(field.current),
+        enabled: answer !== undefined && answer !== "not_permitted",
       },
-      enabled: selectedLine !== undefined && editable && !editing && weighing === undefined,
-    },
-    {
-      key: "NumpadAddSubtract",
-      label: "Cantidad",
-      whileTyping: true,
-      run: stepSelectedQuantity,
-      enabled: unitLineSelected && editable && !editing,
-    },
-    {
-      key: "R",
-      label: "Reintentar",
-      whileTyping: true,
-      run: () => {
-        if (current.status === "failed") {
-          current.retry();
-        }
-        focusScanField(field.current);
+      {
+        key: "F3",
+        label: "Pesar",
+        run: () => {
+          if (selectedLine !== undefined) {
+            askForWeight({ kind: "change", line: selectedLine });
+          }
+        },
+        enabled: selectedLine?.sale_unit === "KG" && editable && !editing && weighing === undefined,
       },
-      enabled: current.status === "failed" && searchEmpty,
-    },
-    { key: "F12", run: () => charge("CASH"), enabled: canChargeNow },
-    { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canChargeNow && !pointBelowMinimum },
-    { key: "F10", run: () => charge("POINT_CREDIT"), enabled: canChargeNow && !pointBelowMinimum },
-    { key: "F11", run: () => charge("QR"), enabled: canChargeNow && !qrBelowMinimum },
-    { key: "F1", run: () => charge(undefined), enabled: canChargeNow },
-  ]);
+      {
+        key: "F6",
+        label: "Precio",
+        run: () => askToAdjust(selectedLine),
+        enabled: selectedLine !== undefined && editable && !editing && weighing === undefined,
+      },
+      { key: "F7", label: "Descuento", run: () => askToDiscount(true), enabled: canDiscount },
+      {
+        key: "F8",
+        label: sale?.lines_lock === "approved_payment" ? "Cancelar venta" : "Vaciar",
+        run: () => void askToCancelSale(),
+        enabled: canCancel,
+      },
+      {
+        key: "Delete",
+        label: "Quitar",
+        run: () => {
+          if (selectedLine !== undefined) {
+            void edit(() => removeSaleLine(selectedLine.id), { kind: "remove_failed" });
+          }
+        },
+        enabled: selectedLine !== undefined && editable && !editing && weighing === undefined,
+      },
+      {
+        key: "NumpadAddSubtract",
+        label: "Cantidad",
+        whileTyping: true,
+        run: stepSelectedQuantity,
+        enabled: unitLineSelected && editable && !editing,
+      },
+      {
+        key: "R",
+        label: "Reintentar",
+        whileTyping: true,
+        run: () => {
+          if (current.status === "failed") {
+            current.retry();
+          }
+          focusScanField(field.current);
+        },
+        enabled: current.status === "failed" && searchEmpty,
+      },
+      { key: "F12", run: () => charge("CASH"), enabled: canChargeNow },
+      { key: "F9", run: () => charge("POINT_DEBIT"), enabled: canChargeNow && !pointBelowMinimum },
+      {
+        key: "F10",
+        run: () => charge("POINT_CREDIT"),
+        enabled: canChargeNow && !pointBelowMinimum,
+      },
+      { key: "F11", run: () => charge("QR"), enabled: canChargeNow && !qrBelowMinimum },
+      { key: "F1", run: () => charge(undefined), enabled: canChargeNow },
+    ],
+    { active: !panelOpen },
+  );
   const notPermitted = messageFor({ kind: "not_permitted" });
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
   const lockedReason = linesLock === null ? undefined : LOCKED_REASONS[linesLock];
+  const scanFieldLocked = lockedReason !== undefined;
+  useEffect(() => {
+    if (scanFieldLocked && document.activeElement === document.body) {
+      field.current?.focus();
+    }
+  }, [scanFieldLocked]);
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
 
   async function askToCancelSale() {
@@ -999,34 +1048,90 @@ export function SaleScreen({
     }
   }
 
+  const asidePanel =
+    panel === "price" && adjusting !== undefined && sale !== null ? (
+      <LinePricePanel
+        lineId={adjusting.id}
+        productName={adjusting.product_name}
+        listUnitPrice={adjusting.list_unit_price}
+        quantity={adjusting.quantity}
+        lineTotal={adjusting.line_total}
+        saleUnit={adjusting.sale_unit}
+        authorizationRequired={sale.adjust_authorization_required}
+        loadAuthorizers={loadAuthorizers}
+        adjustSaleLine={adjustSaleLine}
+        previewAdjustment={previewSaleLineAdjustment}
+        onAdjusted={(adjusted, removedSaleDiscount) =>
+          void takeAdjustedSale(adjusted, removedSaleDiscount)
+        }
+        onSaleGone={() => void readSaleAgainAfterAdjusting()}
+        onSessionInvalid={onSessionInvalid}
+        onClose={() => askToAdjust(undefined)}
+      />
+    ) : panel === "discount" && sale !== null ? (
+      <SaleDiscountPanel
+        subtotal={sale.subtotal}
+        authorizationRequired={sale.sale_discount_authorization_required}
+        loadAuthorizers={loadAuthorizers}
+        applySaleDiscount={applySaleDiscount}
+        previewSaleDiscount={previewSaleDiscount}
+        onApplied={(discounted) => void takeDiscountedSale(discounted)}
+        onSaleGone={() => void readSaleAgainAfterDiscounting()}
+        onSessionInvalid={onSessionInvalid}
+        onClose={() => askToDiscount(false)}
+      />
+    ) : panel === "empty" ? (
+      <EmptySalePanel
+        lineCount={saleLines.length}
+        total={sale?.total ?? 0}
+        busy={editing}
+        onClose={() => askToCancel(false)}
+        onEmpty={() => void edit(cancelSale, { kind: "empty_failed" })}
+      />
+    ) : panel === "cancel" && sale !== null ? (
+      <CancelPaidSalePanel
+        saleId={sale.id}
+        total={sale.total}
+        refundNow={sale.refund_now_on_cancel}
+        refunds={refundsOnCancel}
+        authorizationRequired={sale.cancel_authorization_required}
+        loadAuthorizers={loadAuthorizers}
+        cancelPaidSale={cancelPaidSale}
+        onCancelled={(refunds) => void takeCancelledPaidSale(refunds)}
+        onSaleGone={() => void readSaleAgain()}
+        onSessionInvalid={onSessionInvalid}
+        onClose={() => askToCancelPaid(false)}
+      />
+    ) : (
+      <PaymentPanel
+        saleStatus={current.status}
+        lineCount={saleLines.length}
+        grossSubtotal={sale?.gross_subtotal ?? 0}
+        promotionSavings={sale?.promotion_savings ?? 0}
+        saleDiscount={sale?.sale_discount ?? null}
+        total={sale?.total ?? 0}
+        paid={sale?.paid ?? 0}
+        pending={sale?.pending ?? 0}
+        cancellable={answer !== undefined}
+        hasApprovedPayment={sale?.lines_lock === "approved_payment"}
+        chargeRefusal={sale?.charge_refusal ?? null}
+        paidOrderToApply={paidOrderToApply ?? undefined}
+        availability={availability.status === "loaded" ? availability.value : undefined}
+        canCharge={canChargeNow}
+        canCancel={canCancel}
+        canDiscount={canDiscount}
+        onDiscount={() => askToDiscount(true)}
+        onCharge={charge}
+        onChargePaidOrder={chargePaidOrder}
+        onCancel={() => void askToCancelSale()}
+      />
+    );
+
   return (
     <RegisterFrame
       background="subtle"
       rail={<OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />}
-      aside={
-        <PaymentPanel
-          saleStatus={current.status}
-          lineCount={saleLines.length}
-          grossSubtotal={sale?.gross_subtotal ?? 0}
-          promotionSavings={sale?.promotion_savings ?? 0}
-          saleDiscount={sale?.sale_discount ?? null}
-          total={sale?.total ?? 0}
-          paid={sale?.paid ?? 0}
-          pending={sale?.pending ?? 0}
-          cancellable={answer !== undefined}
-          hasApprovedPayment={sale?.lines_lock === "approved_payment"}
-          chargeRefusal={sale?.charge_refusal ?? null}
-          paidOrderToApply={paidOrderToApply ?? undefined}
-          availability={availability.status === "loaded" ? availability.value : undefined}
-          canCharge={canChargeNow}
-          canCancel={sale !== null && !editing && weighing === undefined}
-          canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
-          onDiscount={() => askToDiscount(true)}
-          onCharge={charge}
-          onChargePaidOrder={chargePaidOrder}
-          onCancel={() => void askToCancelSale()}
-        />
-      }
+      aside={asidePanel}
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         {diskFull === undefined ? null : (
@@ -1038,10 +1143,18 @@ export function SaleScreen({
           />
         )}
         <div className="flex items-start gap-4">
-          <form ref={field} noValidate className="relative min-w-0 flex-1" onSubmit={submit}>
+          <form
+            ref={field}
+            noValidate
+            tabIndex={-1}
+            className="relative min-w-0 flex-1 outline-none"
+            onSubmit={submit}
+          >
             <SearchField
               label="Producto"
-              {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
+              {...(lockedReason === undefined
+                ? { disabled: panelOpen }
+                : { disabledReason: lockedReason })}
               placeholder="Escaneá o escribí el nombre"
               icon={LETTER.test(code) ? <Search /> : <ScanBarcode />}
               invalid={shownProblem?.kind === "unknown_code"}
@@ -1132,14 +1245,26 @@ export function SaleScreen({
             description={notPermitted.help}
           />
         ) : null}
-        {(answer !== undefined && answer !== "not_permitted") || current.status === "failed" ? (
+        {panel === "cancel" ? (
+          <LockedSaleLines lines={saleLines} label="Líneas bloqueadas" />
+        ) : null}
+        {panel !== "cancel" &&
+        ((answer !== undefined && answer !== "not_permitted") || current.status === "failed") ? (
           <SaleLines
             lines={saleLines}
-            selectedLineId={selectedLine?.id}
-            legend={legend}
+            selectedLineId={
+              panel === "price" ? adjusting?.id : panelOpen ? undefined : selectedLine?.id
+            }
+            legend={
+              panel === "price" || panel === "discount"
+                ? PANEL_LEGEND
+                : panelOpen
+                  ? undefined
+                  : legend
+            }
             failed={current.status === "failed"}
             actions={{
-              busy: editing,
+              busy: editing || panelOpen,
               weighing: weighing !== undefined,
               editable,
               onChangeWeight: (line) => askForWeight({ kind: "change", line }),
@@ -1147,66 +1272,14 @@ export function SaleScreen({
               onRemove: (line) =>
                 void edit(() => removeSaleLine(line.id), { kind: "remove_failed" }),
             }}
-            onSelect={(line) => setSelectedLineId(line.id)}
+            onSelect={(line) => {
+              if (!panelOpen) {
+                setSelectedLineId(line.id);
+              }
+            }}
           />
         ) : null}
       </main>
-      <CancelSaleModal
-        open={confirmingCancel}
-        lineCount={saleLines.length}
-        total={sale?.total ?? 0}
-        busy={editing}
-        onClose={() => askToCancel(false)}
-        onCancelSale={() => void edit(cancelSale, { kind: "empty_failed" })}
-      />
-      {adjusting !== undefined && sale !== null ? (
-        <AdjustLineModal
-          lineId={adjusting.id}
-          productName={adjusting.product_name}
-          listUnitPrice={adjusting.list_unit_price}
-          quantity={adjusting.quantity}
-          saleUnit={adjusting.sale_unit}
-          authorizationRequired={sale.adjust_authorization_required}
-          loadAuthorizers={loadAuthorizers}
-          adjustSaleLine={adjustSaleLine}
-          previewAdjustment={previewSaleLineAdjustment}
-          onAdjusted={(adjusted, removedSaleDiscount) =>
-            void takeAdjustedSale(adjusted, removedSaleDiscount)
-          }
-          onSaleGone={() => void readSaleAgainAfterAdjusting()}
-          onSessionInvalid={onSessionInvalid}
-          onClose={() => askToAdjust(undefined)}
-        />
-      ) : null}
-      {discounting && sale !== null ? (
-        <ApplySaleDiscountModal
-          lineCount={sale.lines.length}
-          subtotal={sale.subtotal}
-          authorizationRequired={sale.sale_discount_authorization_required}
-          loadAuthorizers={loadAuthorizers}
-          applySaleDiscount={applySaleDiscount}
-          previewSaleDiscount={previewSaleDiscount}
-          onApplied={(discounted) => void takeDiscountedSale(discounted)}
-          onSaleGone={() => void readSaleAgainAfterDiscounting()}
-          onSessionInvalid={onSessionInvalid}
-          onClose={() => askToDiscount(false)}
-        />
-      ) : null}
-      {confirmingPaidCancel && sale !== null ? (
-        <CancelPaidSaleModal
-          saleId={sale.id}
-          total={sale.total}
-          paid={sale.paid}
-          refunds={refundsOnCancel}
-          authorizationRequired={sale.cancel_authorization_required}
-          loadAuthorizers={loadAuthorizers}
-          cancelPaidSale={cancelPaidSale}
-          onCancelled={(refunds) => void takeCancelledPaidSale(refunds)}
-          onSaleGone={() => void readSaleAgain()}
-          onSessionInvalid={onSessionInvalid}
-          onClose={() => askToCancelPaid(false)}
-        />
-      ) : null}
       {cancelledRefunds === undefined ? null : (
         <PaidSaleCancelledModal refunds={cancelledRefunds} onClose={closeCancelledPaidSale} />
       )}

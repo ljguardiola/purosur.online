@@ -322,6 +322,7 @@ describe("scanning a product on the register", () => {
         mercado_pago_charge_in_progress: null,
         rebuilt_paid_order: null,
         refunds_on_cancel: [],
+        refund_now_on_cancel: 0,
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
@@ -607,6 +608,7 @@ describe("adding a searched product on the register", () => {
         mercado_pago_charge_in_progress: null,
         rebuilt_paid_order: null,
         refunds_on_cancel: [],
+        refund_now_on_cancel: 0,
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
@@ -713,6 +715,7 @@ describe("adding a product sold by weight on the register", () => {
         mercado_pago_charge_in_progress: null,
         rebuilt_paid_order: null,
         refunds_on_cancel: [],
+        refund_now_on_cancel: 0,
         cancel_authorization_required: true,
         adjust_authorization_required: true,
         sale_discount_authorization_required: true,
@@ -1223,6 +1226,7 @@ describe("the sale in progress", () => {
       mercado_pago_charge_in_progress: null,
       rebuilt_paid_order: null,
       refunds_on_cancel: [],
+      refund_now_on_cancel: 0,
       cancel_authorization_required: true,
       adjust_authorization_required: true,
       sale_discount_authorization_required: true,
@@ -1424,6 +1428,21 @@ describe("the sale in progress", () => {
         },
       ],
     });
+  });
+
+  it("says how much of the refunds on cancelling it is handed back at the register now", async () => {
+    const saleId = await sellTwoForPayments();
+    const ids = idsStartingWith("payment");
+    await chargeSaleInCashFor(deps({ ids }), { saleId, tendered: 1000 });
+    await chargeSaleByTransferFor(deps({ ids }), { saleId, amount: 500 });
+
+    expect(await currentSaleFor(deps())).toMatchObject({ refund_now_on_cancel: 1000 });
+  });
+
+  it("says that nothing is handed back at the register now when no payment was made", async () => {
+    await sellTwoForPayments();
+
+    expect(await currentSaleFor(deps())).toMatchObject({ refund_now_on_cancel: 0 });
   });
 
   it("says that cancelling it needs another person's authorization to a person without the void sale permission", async () => {
@@ -1892,18 +1911,19 @@ describe("previewing an adjustment of a line", () => {
   }
 
   it.each([
-    ["a percentage off", { kind: "PERCENT", value: 10 }, 300, 2700],
-    ["an amount off", { kind: "AMOUNT", value: 500 }, 500, 2500],
-    ["an overridden price", { kind: "PRICE", value: 1200 }, 0, 2400],
+    ["a percentage off", { kind: "PERCENT", value: 10 }, 300, 2700, 300],
+    ["an amount off", { kind: "AMOUNT", value: 500 }, 500, 2500, 500],
+    ["an overridden price", { kind: "PRICE", value: 1200 }, 0, 2400, 600],
   ] as const)(
     "answers what %s would leave the line at, to a cashier without the permission to adjust",
-    async (_case, adjustment, discountAmount, lineTotal) => {
+    async (_case, adjustment, discountAmount, lineTotal, lineTotalReduction) => {
       const lineId = await sellTwoYerbas();
 
       expect(await preview(lineId, adjustment)).toEqual({
         kind: "preview",
         discount_amount: discountAmount,
         line_total: lineTotal,
+        line_total_reduction: lineTotalReduction,
       });
     },
   );

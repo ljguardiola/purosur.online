@@ -35,7 +35,7 @@ import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields"
 import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import type { createTag } from "../platform/tag-creation-api";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -124,7 +124,7 @@ export function CreateProductFromSupplierItemModal({
   onClose,
   onSessionEnded,
 }: CreateProductFromSupplierItemModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<SupplierPriceListRow | null>(null);
   const [notice, setNotice] = useState<SupplierPriceListChangeNotice | null>(null);
@@ -173,7 +173,7 @@ export function CreateProductFromSupplierItemModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

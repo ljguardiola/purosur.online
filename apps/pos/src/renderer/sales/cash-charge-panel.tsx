@@ -501,7 +501,7 @@ export function CashChargePanel({
         <InlineNotice
           tone="warning"
           icon={<TriangleAlert />}
-          title={`Reemplaza el descuento sobre el total ya aplicado (${formatCents(appliedDiscountAmount)})`}
+          title={`Reemplaza el descuento al total ya aplicado (${formatCents(appliedDiscountAmount)})`}
         />
       ) : null}
       {answer.status === "failed" ? (

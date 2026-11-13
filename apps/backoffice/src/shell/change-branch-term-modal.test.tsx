@@ -172,7 +172,7 @@ test("reports the end of the session when the save comes back unauthenticated", 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the save comes back forbidden", async () => {
+test("opens the own account panel when the save comes back forbidden", async () => {
   window.history.pushState(null, "", "/stock");
   const services = createBranchTermServices({
     saveBranchSettings: vi.fn().mockResolvedValue({ kind: "forbidden" }),

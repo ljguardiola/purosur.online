@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 
-export function useSendToMyAccount(): () => void {
+export function useSendToOwnAccount(): () => void {
   const navigate = useNavigate();
   return () => {
     void navigate({ to: "/", search: { account: "credentials" }, replace: true });

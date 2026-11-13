@@ -594,7 +594,6 @@ const signedInRoute = createRoute({
       correctRegisterClock,
       refreshCashSession,
     } = signedInRoute.useRouteContext();
-    const registerName = useRegisterName();
     return (
       <NoSessionScreen
         person={person}
@@ -602,7 +601,6 @@ const signedInRoute = createRoute({
         offers={
           <>
             <ClockGuardOffer
-              registerName={registerName}
               cashSessionOpen={false}
               readClockGuard={readClockGuard}
               correctRegisterClock={correctRegisterClock}
@@ -845,7 +843,6 @@ function StartupPendingRoute() {
     correctRegisterClock,
     refreshCashSession,
   } = startupPendingRoute.useRouteContext();
-  const registerName = useRegisterName();
   const navigate = startupPendingRoute.useNavigate();
   const router = useRouter();
   const goToSale = () => {
@@ -868,7 +865,6 @@ function StartupPendingRoute() {
       loadAuthorizers={authorizers}
       clockGuard={
         <ClockGuardOffer
-          registerName={registerName}
           cashSessionOpen
           readClockGuard={readClockGuard}
           correctRegisterClock={correctRegisterClock}
@@ -1077,7 +1073,6 @@ const cashRoute = createRoute({
       correctRegisterClock,
       refreshCashSession,
     } = cashRoute.useRouteContext();
-    const registerName = useRegisterName();
     return (
       <CashScreen
         sessionId={id}
@@ -1091,7 +1086,6 @@ const cashRoute = createRoute({
         recordCashMovement={recordCashMovement}
         clockGuard={
           <ClockGuardOffer
-            registerName={registerName}
             cashSessionOpen
             readClockGuard={readClockGuard}
             correctRegisterClock={correctRegisterClock}

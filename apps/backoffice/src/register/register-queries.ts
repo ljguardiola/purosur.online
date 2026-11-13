@@ -1,6 +1,6 @@
 import type { CashMovementsBody, CashSessionClosesBody, ReportQuery } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCashMovements } from "./cash-movements-api";
 import type { fetchCashSessionCloses } from "./cash-session-closes-api";
@@ -34,13 +34,13 @@ export function useCashMovementsQuery(params: {
   fetchCashMovements: typeof fetchCashMovements;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<CashMovementsBody>({
     queryKey: registerKeys.cashMovements(params.query),
     keepPreviousData: true,
     read: () => params.fetchCashMovements(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -49,13 +49,13 @@ export function useCashSessionClosesQuery(params: {
   fetchCashSessionCloses: typeof fetchCashSessionCloses;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<CashSessionClosesBody>({
     queryKey: registerKeys.cashSessionCloses(params.query),
     keepPreviousData: true,
     read: () => params.fetchCashSessionCloses(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -64,14 +64,14 @@ export function useSnapshotBackupsQuery(params: {
   fetchSnapshotBackups: typeof fetchSnapshotBackups;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { registerId, fetchSnapshotBackups } = params;
   return useCloudQuery<SnapshotBackups>({
     queryKey: registerKeys.snapshotBackups(registerId ?? ""),
     read: () => fetchSnapshotBackups(registerId ?? ""),
     enabled: registerId !== undefined,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

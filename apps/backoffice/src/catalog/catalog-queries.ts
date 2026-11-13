@@ -8,7 +8,7 @@ import type {
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchBrands } from "./brands-api";
 import type { fetchCategories } from "./categories-api";
@@ -28,12 +28,12 @@ export function useCategoriesQuery(params: {
   fetchCategories: typeof fetchCategories;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<CategorySummary[]>({
     queryKey: catalogKeys.categories,
     read: params.fetchCategories,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -41,22 +41,22 @@ export function useBrandsQuery(params: {
   fetchBrands: typeof fetchBrands;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<BrandSummary[]>({
     queryKey: catalogKeys.brands,
     read: params.fetchBrands,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useTagsQuery(params: { fetchTags: typeof fetchTags; onSessionEnded: () => void }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<TagList>({
     queryKey: catalogKeys.tags,
     read: params.fetchTags,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -65,12 +65,12 @@ export function useProductsQuery(params: {
   fetchProducts: typeof fetchProducts;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ListedProduct[]>({
     queryKey: catalogKeys.products(params.status),
     read: () => params.fetchProducts(params.status),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

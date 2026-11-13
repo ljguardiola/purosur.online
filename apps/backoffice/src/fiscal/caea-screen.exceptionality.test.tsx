@@ -467,7 +467,7 @@ test("tells the fiscal address is not found when the cloud does not know it", as
   expect(screen.getByText(/Meses que incumplieron|Ningún mes incumplió/).query()).toBeNull();
 });
 
-test("navigates to Mi cuenta when the year comes back forbidden", async () => {
+test("opens the own account panel when the year comes back forbidden", async () => {
   window.history.pushState(null, "", "/exceptionality");
   const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({ kind: "forbidden" });

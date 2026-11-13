@@ -5,7 +5,7 @@ import { type KeyboardEvent, useId, useRef, useState } from "react";
 import { useFailureText } from "./action-failure-notice";
 import { type BarcodeListValue, internalBarcodeGenerationRequestFrom } from "./barcode-list";
 import type { generateInternalBarcode } from "./internal-barcodes-api";
-import { useSendToMyAccount } from "./send-to-my-account";
+import { useSendToOwnAccount } from "./send-to-own-account";
 
 export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED = `No se pudo generar el código interno. Probá de nuevo.`;
 
@@ -182,7 +182,7 @@ export function useGenerateInternalBarcode(
   clearRateLimited: () => void,
   generateFailedMessage: string,
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [generating, setGenerating] = useState(false);
   const [generateFailed, setGenerateFailed] = useState(false);
   const generateError = useFailureText(generateFailedMessage);
@@ -214,7 +214,7 @@ export function useGenerateInternalBarcode(
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {

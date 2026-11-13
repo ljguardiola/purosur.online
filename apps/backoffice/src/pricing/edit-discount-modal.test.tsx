@@ -653,7 +653,7 @@ test("ends the session when the cloud finds none open", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("sends the user to Mi cuenta when the cloud refuses the permission", async () => {
+test("opens the own account panel when the cloud refuses the permission", async () => {
   window.history.pushState(null, "", "/discounts");
   const services = createServices();
   vi.mocked(services.editDiscount).mockResolvedValue({ kind: "forbidden" });

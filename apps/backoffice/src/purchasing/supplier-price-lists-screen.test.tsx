@@ -565,7 +565,7 @@ test("ends the session when refreshing finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when refreshing comes back forbidden", async () => {
+test("opens the own account panel when refreshing comes back forbidden", async () => {
   window.history.pushState(null, "", "/supplier-price-lists");
   const services = createServices();
   vi.mocked(services.refreshSupplierPriceList).mockResolvedValue({ kind: "forbidden" });
@@ -630,7 +630,7 @@ test("ends the session when the lists come back unauthenticated", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the lists come back forbidden", async () => {
+test("opens the own account panel when the lists come back forbidden", async () => {
   window.history.pushState(null, "", "/supplier-price-lists");
   const services = createServices();
   vi.mocked(services.fetchSupplierPriceLists).mockResolvedValue({ kind: "forbidden" });

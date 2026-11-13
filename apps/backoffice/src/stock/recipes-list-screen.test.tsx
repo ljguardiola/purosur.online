@@ -254,7 +254,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the recipes request comes back forbidden", async () => {
+test("opens the own account panel when the recipes request comes back forbidden", async () => {
   window.history.pushState(null, "", "/recipes");
   const services = createServices();
   vi.mocked(services.fetchRecipes).mockResolvedValue({ kind: "forbidden" });

@@ -22,7 +22,7 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import {
   directedQuantity,
@@ -95,7 +95,7 @@ export function StockMovementModal({
   onSessionEnded,
   onRegistered,
 }: StockMovementModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshStock = useRefreshStock();
   const [kind, setKind] = useState<MovementKind>(kinds[0]);
   const [notice, setNotice] = useState<StockMovementNotice | null>(null);
@@ -133,7 +133,7 @@ export function StockMovementModal({
     } else if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
     } else if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
       void refreshStock();

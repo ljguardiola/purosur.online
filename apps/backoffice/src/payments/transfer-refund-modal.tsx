@@ -4,7 +4,7 @@ import { Landmark, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   EMPTY_REFUND_TRANSFER_FORM,
   REFUND_TRANSFER_FIELDS,
@@ -50,7 +50,7 @@ export function TransferRefundModal({
   onSessionEnded,
   services,
 }: TransferRefundModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PendingRefund | null>(null);
   const [notice, setNotice] = useState<TransferNotice | null>(null);
@@ -78,7 +78,7 @@ export function TransferRefundModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

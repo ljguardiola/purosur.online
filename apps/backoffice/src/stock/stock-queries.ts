@@ -21,7 +21,7 @@ import type {
 } from "@purosur/contracts";
 import type { ZoneRules } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import type {
@@ -84,12 +84,12 @@ type ReadParams = { onSessionEnded: () => void };
 export function useStockBalancesQuery(
   params: ReadParams & { fetchStockBalances: typeof fetchStockBalances },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<StockBalanceList>({
     queryKey: stockKeys.balances,
     read: params.fetchStockBalances,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -99,13 +99,13 @@ export function useExpiringLotsReportQuery(
     fetchExpiringLotsReport: typeof fetchExpiringLotsReport;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ExpiringLotsReportBody>({
     queryKey: stockKeys.expiringLotsReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchExpiringLotsReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -115,13 +115,13 @@ export function useLossesByReasonReportQuery(
     fetchLossesByReasonReport: typeof fetchLossesByReasonReport;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<LossesByReasonReportBody>({
     queryKey: stockKeys.lossesByReasonReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchLossesByReasonReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -131,37 +131,37 @@ export function useMarginReportQuery(
     fetchMarginReport: typeof fetchMarginReport;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<MarginReportBody>({
     queryKey: stockKeys.marginReport(params.query),
     keepPreviousData: true,
     read: () => params.fetchMarginReport(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useExpiringLotsQuery(
   params: ReadParams & { fetchExpiringLots: typeof fetchExpiringLots },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ExpiringLotList>({
     queryKey: stockKeys.expiringLots,
     read: params.fetchExpiringLots,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useStockProductsQuery(
   params: ReadParams & { fetchStockProducts: typeof fetchStockProducts },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<StockProductList>({
     queryKey: stockKeys.products,
     read: params.fetchStockProducts,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -172,14 +172,14 @@ export function useStockCountsQuery(
     enabled?: boolean;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<StockCountList>({
     queryKey: stockKeys.counts(params.days),
     keepPreviousData: true,
     enabled: params.enabled ?? true,
     read: () => params.fetchStockCounts(params.days),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -190,26 +190,26 @@ export function useStockMovementsQuery(
     enabled?: boolean;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<StockMovementList>({
     queryKey: stockKeys.movements(params.days),
     keepPreviousData: true,
     enabled: params.enabled ?? true,
     read: () => params.fetchStockMovements(params.days),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useStockMovementReasonsQuery(
   params: ReadParams & { fetchStockMovementReasons: typeof fetchStockMovementReasons },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<StockMovementReasonList>({
     queryKey: stockKeys.movementReasons,
     read: params.fetchStockMovementReasons,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -221,7 +221,7 @@ export function useExpectedBalanceQuery(
     fetchExpectedBalance: typeof fetchExpectedBalance;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<StockProductBalance>({
     queryKey: stockKeys.expectedBalance(params.productId, params.at),
     keepPreviousData: true,
@@ -231,7 +231,7 @@ export function useExpectedBalanceQuery(
       return outcome.kind === "not_found" ? { kind: "failed" } : outcome;
     },
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -241,26 +241,26 @@ export function useInitialInventoryLotsQuery(
     fetchInitialInventoryLots: typeof fetchInitialInventoryLots;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<InitialInventoryLotList>({
     queryKey: stockKeys.initialLots(params.filters),
     keepPreviousData: true,
     read: () => params.fetchInitialInventoryLots(params.filters),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
 export function useRecipesQuery(
   params: ReadParams & { fetchRecipes: typeof fetchRecipes; enabled?: boolean },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RecipeList>({
     queryKey: stockKeys.recipes,
     enabled: params.enabled ?? true,
     read: params.fetchRecipes,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -271,14 +271,14 @@ export function useAssemblyBatchesQuery(
     enabled?: boolean;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<AssemblyBatchList>({
     queryKey: stockKeys.assemblyBatches(params.days),
     enabled: params.enabled ?? true,
     keepPreviousData: true,
     read: () => params.fetchAssemblyBatches(params.days),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -288,7 +288,7 @@ export function useAssemblyBatchProposalQuery(
     fetchAssemblyBatchPreview: typeof fetchAssemblyBatchPreview;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { request } = params;
   return useCloudQuery<AssemblyBatchPreview>({
     queryKey: stockKeys.assemblyBatchProposal(request ?? { productId: "", size: 0 }),
@@ -298,7 +298,7 @@ export function useAssemblyBatchProposalQuery(
         ? Promise.resolve({ kind: "failed" })
         : params.fetchAssemblyBatchPreview(request),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -308,7 +308,7 @@ export function useAssemblyBatchLotQuery(
     fetchAssemblyBatchPreview: typeof fetchAssemblyBatchPreview;
   },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { request } = params;
   return useCloudQuery<AssemblyBatchPreview>({
     queryKey: stockKeys.assemblyBatchLot(request ?? { productId: "", size: 0 }),
@@ -318,7 +318,7 @@ export function useAssemblyBatchLotQuery(
         ? Promise.resolve({ kind: "failed" })
         : params.fetchAssemblyBatchPreview(request),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -335,11 +335,11 @@ export function useRefreshStock(): () => Promise<void> {
 export function useCountZoneRulesQuery(
   params: ReadParams & { fetchCurrentZoneRules: typeof fetchCurrentZoneRules },
 ) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<ZoneRules>({
     queryKey: stockKeys.zoneRules,
     read: params.fetchCurrentZoneRules,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }

@@ -64,7 +64,7 @@ test("shows the rate-limited notice when deactivating is refused for too many re
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when deactivating comes back forbidden", async () => {
+test("opens the own account panel when deactivating comes back forbidden", async () => {
   window.history.pushState(null, "", "/products");
   const services = createServices();
   vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "forbidden" });

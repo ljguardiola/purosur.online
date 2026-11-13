@@ -5,7 +5,7 @@ import { Check, CircleCheck, ShieldX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   EMPTY_FISCAL_TASK_CLOSING_FORM,
   fiscalTaskClosingNoteMessage,
@@ -41,7 +41,7 @@ export function CloseFiscalTaskModal({
   onSessionEnded,
   services,
 }: CloseFiscalTaskModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const openingRef = useRef(0);
   const { form, submit, submitting, reset } = useRequestForm({
@@ -69,7 +69,7 @@ export function CloseFiscalTaskModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "already_closed" || outcome.kind === "not_found") {

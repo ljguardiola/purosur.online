@@ -124,7 +124,7 @@ test("ends the session when discarding finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when discarding comes back forbidden", async () => {
+test("opens the own account panel when discarding comes back forbidden", async () => {
   window.history.pushState(null, "", "/lists");
   const discardSupplierPriceList = vi
     .fn<DiscardSupplierPriceListModalServices["discardSupplierPriceList"]>()

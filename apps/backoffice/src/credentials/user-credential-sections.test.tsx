@@ -93,7 +93,7 @@ test("ends the session when the passkeys list finds it closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the passkeys list comes back forbidden", async () => {
+test("opens the own account panel when the passkeys list comes back forbidden", async () => {
   const services = createServices({
     fetchUserPasskeys: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });

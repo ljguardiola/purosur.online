@@ -15,7 +15,7 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Package, Replace, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   type PurchaseCorrectionNotice,
   PurchaseCorrectionNotices,
@@ -59,7 +59,7 @@ export function ChangePurchaseLineProductModal({
   onClose,
   onSessionEnded,
 }: ChangePurchaseLineProductModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [shown, setShown] = useState<PurchaseLineProductTarget | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -97,7 +97,7 @@ export function ChangePurchaseLineProductModal({
           onSessionEnded();
           return;
         case "forbidden":
-          sendToMyAccount();
+          sendToOwnAccount();
           return;
         case "unchanged":
           setNotice({ kind: "unchanged" });

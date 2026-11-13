@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ADJUST_LINE_REASONS,
   adjustLineFormRequestSchema,
   adjustLineRequestFrom,
   adjustLineValueMessage,
@@ -13,7 +14,8 @@ describe("adjustLineRequestFrom", () => {
     const request = adjustLineRequestFrom({
       kind: "PRICE",
       value: "1.500,50",
-      reason: "Vence pronto",
+      reasonOption: "Otro",
+      otherReason: "Vence pronto",
     });
 
     expect(request).toEqual({
@@ -27,7 +29,8 @@ describe("adjustLineRequestFrom", () => {
     const request = adjustLineRequestFrom({
       kind: "AMOUNT",
       value: "500",
-      reason: "Envase dañado",
+      reasonOption: "Otro",
+      otherReason: "Envase dañado",
     });
 
     expect(request.adjustment).toEqual({ kind: "AMOUNT", value: 50_000 });
@@ -38,7 +41,8 @@ describe("adjustLineRequestFrom", () => {
     const request = adjustLineRequestFrom({
       kind: "PERCENT",
       value: "10",
-      reason: "Cliente frecuente",
+      reasonOption: "Otro",
+      otherReason: "Cliente frecuente",
     });
 
     expect(request.adjustment).toEqual({ kind: "PERCENT", value: 10 });
@@ -52,7 +56,12 @@ describe("adjustLineRequestFrom", () => {
     ["PERCENT", ""],
     ["PERCENT", "10,5"],
   ] as const)("leaves %s %j for the shape to refuse", (kind, value) => {
-    const request = adjustLineRequestFrom({ kind, value, reason: "Motivo" });
+    const request = adjustLineRequestFrom({
+      kind,
+      value,
+      reasonOption: "Otro",
+      otherReason: "Motivo",
+    });
 
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(false);
   });
@@ -62,7 +71,12 @@ describe("adjustLineRequestFrom", () => {
     ["PERCENT", "101"],
     ["AMOUNT", "0"],
   ] as const)("has the shape refuse %s %j", (kind, value) => {
-    const request = adjustLineRequestFrom({ kind, value, reason: "Motivo" });
+    const request = adjustLineRequestFrom({
+      kind,
+      value,
+      reasonOption: "Otro",
+      otherReason: "Motivo",
+    });
 
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(false);
   });
@@ -71,14 +85,57 @@ describe("adjustLineRequestFrom", () => {
     const request = adjustLineRequestFrom({
       ...EMPTY_ADJUST_LINE_FORM,
       value: "100",
-      reason: "   ",
+      reasonOption: "Otro",
+      otherReason: "   ",
     });
 
     expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(false);
   });
 
-  it("starts as a percentage discount with nothing typed", () => {
-    expect(EMPTY_ADJUST_LINE_FORM).toEqual({ kind: "PERCENT", value: "", reason: "" });
+  it("sends the chosen chip's text as the reason", () => {
+    const request = adjustLineRequestFrom({
+      kind: "PRICE",
+      value: "7.000",
+      reasonOption: "Producto dañado",
+      otherReason: "ignored text",
+    });
+
+    expect(request.reason).toBe("Producto dañado");
+    expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(true);
+  });
+
+  it("sends what was typed, trimmed, when the reason is Otro", () => {
+    const request = adjustLineRequestFrom({
+      kind: "PRICE",
+      value: "7.000",
+      reasonOption: "Otro",
+      otherReason: "  Vence pronto  ",
+    });
+
+    expect(request.reason).toBe("Vence pronto");
+  });
+
+  it("has the shape refuse Otro with nothing typed", () => {
+    const request = adjustLineRequestFrom({
+      ...EMPTY_ADJUST_LINE_FORM,
+      value: "7.000",
+      reasonOption: "Otro",
+    });
+
+    expect(adjustLineFormRequestSchema.safeParse(request).success).toBe(false);
+  });
+
+  it("offers the label price, a damaged product and Otro as reasons", () => {
+    expect(ADJUST_LINE_REASONS).toEqual(["Precio de etiqueta", "Producto dañado", "Otro"]);
+  });
+
+  it("starts on a new price with the label price as the reason", () => {
+    expect(EMPTY_ADJUST_LINE_FORM).toEqual({
+      kind: "PRICE",
+      value: "",
+      reasonOption: "Precio de etiqueta",
+      otherReason: "",
+    });
   });
 });
 

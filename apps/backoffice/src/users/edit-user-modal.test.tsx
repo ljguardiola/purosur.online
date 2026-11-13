@@ -401,7 +401,7 @@ test("ends the session when the change itself finds it closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta, without the authorization modal, when the email change comes back forbidden", async () => {
+test("opens the own account panel, without the authorization modal, when the email change comes back forbidden", async () => {
   window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   const { dialog } = await renderModal(services);
@@ -416,7 +416,7 @@ test("navigates to Mi cuenta, without the authorization modal, when the email ch
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
-test("navigates to Mi cuenta when the email change retried after the authorization comes back forbidden", async () => {
+test("opens the own account panel when the email change retried after the authorization comes back forbidden", async () => {
   window.history.pushState(null, "", "/users/user-1");
   const services = createServices();
   const { screen, dialog } = await renderModal(services);

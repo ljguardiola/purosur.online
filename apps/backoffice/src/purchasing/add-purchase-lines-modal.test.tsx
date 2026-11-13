@@ -322,7 +322,7 @@ test("ends the session when saving finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when saving comes back forbidden", async () => {
+test("opens the own account panel when saving comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchases");
   const addPurchaseLines = vi
     .fn<AddPurchaseLinesModalServices["addPurchaseLines"]>()

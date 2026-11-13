@@ -24,7 +24,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { BranchTermChange } from "../shell/branch-term-change";
@@ -199,7 +199,7 @@ export function ExpiringLotsScreen({
   const [shownNoticeCount, setShownNoticeCount] = useState(0);
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const retryAdvice = useRetryAdvice();
 
   useEffect(() => {
@@ -267,7 +267,7 @@ export function ExpiringLotsScreen({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "ok") {

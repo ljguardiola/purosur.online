@@ -8,6 +8,7 @@ import {
   formatCalendarDayRange,
   formatCents,
   formatCentsFraction,
+  formatCentsReduction,
   formatClockTime,
   formatCountdown,
   formatDate,
@@ -171,6 +172,22 @@ describe("formatSignedCents", () => {
   it("writes a positive amount and zero as formatCents does", () => {
     expect(formatSignedCents(5_070_000)).toBe("$ 50.700,00");
     expect(formatSignedCents(0)).toBe("$ 0,00");
+  });
+});
+
+describe("formatCentsReduction", () => {
+  it("writes an amount taken off with an en dash before the currency", () => {
+    expect(formatCentsReduction(20_000)).toBe("– $ 200,00");
+    expect(formatCentsReduction(5)).toBe("– $ 0,05");
+  });
+
+  it("writes a negative reduction as the amount added, with a plus sign", () => {
+    expect(formatCentsReduction(-124_000)).toBe("+ $ 1.240,00");
+    expect(formatCentsReduction(-1)).toBe("+ $ 0,01");
+  });
+
+  it("writes no reduction with no sign", () => {
+    expect(formatCentsReduction(0)).toBe("$ 0,00");
   });
 });
 

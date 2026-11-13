@@ -270,7 +270,7 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
   }
 });
 
-test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
+test("ends the session with the expired notice when the own account panel's passkeys request finds it already ended", async () => {
   const services = createAppServices();
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
     kind: "unauthenticated",

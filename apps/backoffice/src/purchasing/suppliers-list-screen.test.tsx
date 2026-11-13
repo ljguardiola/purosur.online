@@ -220,7 +220,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the suppliers request comes back forbidden", async () => {
+test("opens the own account panel when the suppliers request comes back forbidden", async () => {
   window.history.pushState(null, "", "/suppliers");
   const services = createServices();
   vi.mocked(services.fetchSuppliers).mockResolvedValue({ kind: "forbidden" });

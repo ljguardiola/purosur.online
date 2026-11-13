@@ -145,7 +145,7 @@ test("redirects the old /reports/ai-cost-by-period address to /ai-cost keeping t
   expect(window.location.search).toBe("?from=2026-10-01&group=day&to=2026-10-31");
 });
 
-test("sends a user without the branch area to Mi cuenta", async () => {
+test("sends a user without the branch area to the own account panel", async () => {
   const services = reportsServices(["reports_area"]);
   window.history.pushState(null, "", "/ai-cost");
 
@@ -155,7 +155,7 @@ test("sends a user without the branch area to Mi cuenta", async () => {
   expect(services.aiCostReportScreen.fetchAiCostReport).not.toHaveBeenCalled();
 });
 
-test("sends a user without the reports area to Mi cuenta", async () => {
+test("sends a user without the reports area to the own account panel", async () => {
   const services = reportsServices(["branch_area"]);
   window.history.pushState(null, "", "/ai-cost");
 

@@ -421,7 +421,7 @@ test("ends the session when registering finds it over", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when registering comes back forbidden", async () => {
+test("opens the own account panel when registering comes back forbidden", async () => {
   window.history.pushState(null, "", "/stock/counts");
   const services = createServices();
   vi.mocked(services.registerCount).mockResolvedValue({ kind: "forbidden" });

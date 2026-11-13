@@ -268,7 +268,7 @@ test.each([
 test.each([
   ["goodConditionReturnDays", "fetchGoodConditionReturnDays"],
   ["supplierPriceListDailyExtractionCap", "fetchSupplierPriceListDailyCap"],
-] as const)("navigates to Mi cuenta when %s is read forbidden", async (term, fetch) => {
+] as const)("opens the own account panel when %s is read forbidden", async (term, fetch) => {
   window.history.pushState(null, "", "/stock");
 
   await inPage(

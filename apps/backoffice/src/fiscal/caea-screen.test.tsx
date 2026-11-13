@@ -216,7 +216,7 @@ test("shows a load failure for the registers, and Reintentar loads them again", 
   await expect.element(screen.getByText("00012")).toBeVisible();
 });
 
-test("sends to Mi cuenta when a load comes back forbidden", async () => {
+test("opens the own account panel when a load comes back forbidden", async () => {
   window.history.pushState(null, "", "/fiscal/caea");
   const services = createServices({
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "forbidden" }),

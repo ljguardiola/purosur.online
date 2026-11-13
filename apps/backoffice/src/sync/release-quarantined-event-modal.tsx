@@ -3,7 +3,7 @@ import { LockOpen, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { quarantinedEventSentenceText } from "./quarantined-event-labels";
 import { type QuarantinedEvent, releaseQuarantinedEvent } from "./quarantined-events-api";
 
@@ -32,7 +32,7 @@ export function ReleaseQuarantinedEventModal({
   onSessionEnded,
   services = defaultServices,
 }: ReleaseQuarantinedEventModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [shown, setShown] = useState<QuarantinedEvent | null>(null);
   const [notice, setNotice] = useState<ReleaseNotice | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,7 +61,7 @@ export function ReleaseQuarantinedEventModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "not_quarantined" || outcome.kind === "not_found") {
