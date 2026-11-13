@@ -19,8 +19,9 @@ env:
 jobs:
   # Runs main's scripts, never the pull request's, and installs nothing: the only input from the
   # pull request's run is the measurement artifact, which is read as data and capped. A commit
-  # pushed with GITHUB_TOKEN would not start the pull request's checks again, so the commit is made
-  # with the budget App's token instead.
+  # pushed with GITHUB_TOKEN would not start the pull request's checks again, so the raised budget,
+  # or the merge of the default branch when its budget differs from the branch's, is pushed with the
+  # budget App's token instead.
   commit:
     name: commit the raised budget
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'dependabot/') }}

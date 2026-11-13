@@ -4,6 +4,7 @@ import { isDependabotAuthor } from "./validate-pr.mjs";
 const RAISE_CAP_BYTES = 2048;
 const BUDGET_PATH = "apps/backoffice/download-budget.json";
 const MEASUREMENT_FIELDS = ["entry", "total", "missing"];
+const MERGE_CONFLICT_STATUS = 409;
 
 export function decideBudgetRaise(measured, budget) {
   if (!holdsExactlyTheMeasures(budget) || measured.missing.length > 0) {
@@ -74,7 +75,21 @@ export async function raiseBudgetOnPullRequest({
     readBudgetText({ reader, owner, repo, ref: baseBranch }),
   ]);
   if (headBudgetText !== baseBudgetText) {
-    return { kind: "budget-diverged", pullRequest: pullRequest.number };
+    try {
+      await writer.repos.merge({
+        owner,
+        repo,
+        base: run.head_branch,
+        head: baseBranch,
+        commit_message: `chore(deps): merge ${baseBranch} to measure against its download budget`,
+      });
+    } catch (error) {
+      if (error?.status === MERGE_CONFLICT_STATUS) {
+        return { kind: "merge-conflict", pullRequest: pullRequest.number };
+      }
+      throw error;
+    }
+    return { kind: "merged-default-branch", pullRequest: pullRequest.number };
   }
   const budget = JSON.parse(headBudgetText);
 
