@@ -5,6 +5,7 @@ import { FakeRegisterSalesHistory } from "./test-support/fake-register-sales-his
 
 const CONTINGENCY_INVOICE: SaleFiscalFacts = {
   deferred: false,
+  deferredInvoicePending: false,
   fiscalDocument: {
     state: "AUTHORIZED",
     documentType: "factura_c",
@@ -21,7 +22,6 @@ function historyOf(fiscal: SaleFiscalFacts) {
       entry: {
         saleId: "sale-1",
         occurredAt: new Date("2026-10-07T15:00:00.000Z"),
-        operationNumber: 482,
         paymentMethods: ["CASH"],
         total: 7500,
         fiscal,

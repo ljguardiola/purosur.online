@@ -1,9 +1,10 @@
-import { LogOut, Undo2 } from "lucide-react";
+import { Ban, LogOut, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { tokenRgb } from "../../test/token-colors";
 import { ConfirmationPanel, type ConfirmationPanelProps } from "./confirmation-panel";
 
 function panel(overrides: Partial<ConfirmationPanelProps> = {}) {
@@ -150,4 +151,42 @@ test("does not accept a panel without its screen's text", () => {
   expectTypeOf<Omit<ConfirmationPanelProps, "title">>().not.toExtend<ConfirmationPanelProps>();
   expectTypeOf<Omit<ConfirmationPanelProps, "fieldLabel">>().not.toExtend<ConfirmationPanelProps>();
   expectTypeOf<Omit<ConfirmationPanelProps, "value">>().not.toExtend<ConfirmationPanelProps>();
+});
+
+test("paints the icon circle in the error tone and the action as a destructive button", async () => {
+  const neutral = await render(panel({ icon: <Ban /> }));
+  const neutralAction = getComputedStyle(
+    neutral.getByRole("button", { name: "Salir" }).element(),
+  ).backgroundColor;
+  await neutral.unmount();
+
+  const failing = await render(panel({ icon: <Ban />, tone: "error" }));
+  const circle = failing.getByRole("heading").element().previousElementSibling as Element;
+  const action = failing.getByRole("button", { name: "Salir" }).element();
+
+  expect(getComputedStyle(circle).backgroundColor).toBe(tokenRgb("error-subtle"));
+  expect(getComputedStyle(action).backgroundColor).toBe(tokenRgb("error"));
+  expect(neutralAction).not.toBe(tokenRgb("error"));
+});
+
+test("keeps the action regular in the warning tone", async () => {
+  const screen = await render(panel({ icon: <Undo2 />, tone: "warning" }));
+
+  expect(
+    getComputedStyle(screen.getByRole("button", { name: "Salir" }).element()).backgroundColor,
+  ).not.toBe(tokenRgb("error"));
+});
+
+test("passes its lock to the title", async () => {
+  const screen = await render(panel({ locked: true }));
+
+  await expect
+    .element(screen.getByRole("heading"))
+    .toHaveTextContent("¿Salir de la caja? Pide autorización");
+});
+
+test("shows no lock unless it is locked", async () => {
+  const screen = await render(panel());
+
+  expect(screen.container.textContent).not.toContain("Pide autorización");
 });

@@ -17,7 +17,7 @@ import {
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
-const ASK = { session: "all", state: "all", page: 1 } as const;
+const ASK = { session: "all", page: 1, document: null } as const;
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -58,6 +58,7 @@ interface SaleSeed {
   operationNumber: number;
   deferred?: boolean;
   authorizedDocumentNumber?: number;
+  pointOfSale?: number;
   state?: "COMPLETED" | "VOIDED";
   session?: string;
   pointCardType?: "DEBIT" | "CREDIT";
@@ -69,6 +70,7 @@ function addSale({
   operationNumber,
   deferred = false,
   authorizedDocumentNumber,
+  pointOfSale = 3,
   state = "COMPLETED",
   session = "s1",
   pointCardType,
@@ -114,9 +116,9 @@ function addSale({
         `INSERT INTO fiscal_documents (
            id, sale_id, point_of_sale, document_type, number, issued_on, document, state,
            authorization_code, authorization_code_due_on, reserved_at, resolved_at
-         ) VALUES (?, ?, 3, 'factura_c', ?, '2026-10-08', '{}', 'AUTHORIZED', '75123456789012', '2026-10-18', ?, ?)`,
+         ) VALUES (?, ?, ?, 'factura_c', ?, '2026-10-08', '{}', 'AUTHORIZED', '75123456789012', '2026-10-18', ?, ?)`,
       )
-      .run(`doc-${id}`, id, authorizedDocumentNumber, occurredAt, occurredAt);
+      .run(`doc-${id}`, id, pointOfSale, authorizedDocumentNumber, occurredAt, occurredAt);
   }
 }
 
@@ -188,7 +190,6 @@ describe("the sales history", () => {
             point_of_sale: 3,
             number: 1204,
           },
-          operation_number: 2,
           payment_methods: ["CASH"],
           total: 3000,
           state: "completed",
@@ -197,7 +198,6 @@ describe("the sales history", () => {
           sale_id: "early",
           occurred_at: "2026-10-08T06:00:00.000-03:00",
           comprobante: { kind: "none" },
-          operation_number: 1,
           payment_methods: ["CASH"],
           total: 3000,
           state: "completed",
@@ -224,23 +224,7 @@ describe("the sales history", () => {
     });
   });
 
-  it("answers the sales of the state asked", async () => {
-    addSale({ id: "plain", occurredAt: "2026-10-08T09:00:00.000Z", operationNumber: 1 });
-    addSale({
-      id: "offline",
-      occurredAt: "2026-10-08T10:00:00.000Z",
-      operationNumber: 2,
-      deferred: true,
-    });
-
-    const answer = await salesHistoryFor(deps(), { ...ASK, state: "deferred" });
-
-    expect(answer.kind === "found" && answer.rows.map(({ sale_id }) => sale_id)).toEqual([
-      "offline",
-    ]);
-  });
-
-  it("shows a voided sale as voided and answers the voided sales when asked for them", async () => {
+  it("shows a voided sale as voided", async () => {
     addSale({ id: "plain", occurredAt: "2026-10-08T09:00:00.000Z", operationNumber: 1 });
     addSale({
       id: "gone",
@@ -250,13 +234,11 @@ describe("the sales history", () => {
     });
 
     const all = await salesHistoryFor(deps(), ASK);
-    const voided = await salesHistoryFor(deps(), { ...ASK, state: "voided" });
 
     expect(all.kind === "found" && all.rows.map(({ sale_id, state }) => [sale_id, state])).toEqual([
       ["gone", "voided"],
       ["plain", "completed"],
     ]);
-    expect(voided.kind === "found" && voided.rows.map(({ sale_id }) => sale_id)).toEqual(["gone"]);
   });
 
   it("answers the sales of the open session only when asked for it", async () => {
@@ -288,6 +270,86 @@ describe("the sales history", () => {
       "sale-1",
     ]);
     expect(answer.kind === "found" && answer.total).toBe(51);
+  });
+});
+
+describe("searching the sales history by document number", () => {
+  it("answers the sales whose invoice has the number in any point of sale", async () => {
+    addSale({
+      id: "wanted",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 1,
+      authorizedDocumentNumber: 187,
+    });
+    addSale({
+      id: "other",
+      occurredAt: "2026-10-08T10:00:00.000Z",
+      operationNumber: 2,
+      authorizedDocumentNumber: 188,
+    });
+
+    const answer = await salesHistoryFor(deps(), {
+      ...ASK,
+      document: { pointOfSale: null, number: 187 },
+    });
+
+    expect(answer).toMatchObject({ kind: "found", total: 1, page_size: 50 });
+    expect(answer.kind === "found" && answer.rows.map(({ sale_id }) => sale_id)).toEqual([
+      "wanted",
+    ]);
+  });
+
+  it("answers nothing when the point of sale typed is not the invoice's", async () => {
+    addSale({
+      id: "wanted",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 1,
+      authorizedDocumentNumber: 187,
+    });
+
+    const answer = await salesHistoryFor(deps(), {
+      ...ASK,
+      document: { pointOfSale: 4, number: 187 },
+    });
+
+    expect(answer).toEqual({ kind: "found", rows: [], total: 0, page_size: 50 });
+  });
+
+  it("combines the search with the session asked", async () => {
+    database.exec(
+      `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state, closed_at)
+       VALUES ('s0', 'r1', 'device-1', 'clerk', '2026-10-07T08:00:00.000Z', 0, 'CLOSED', '2026-10-07T20:00:00.000Z');`,
+    );
+    addSale({
+      id: "today",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 2,
+      authorizedDocumentNumber: 187,
+    });
+    addSale({
+      id: "yesterday",
+      occurredAt: "2026-10-07T09:00:00.000Z",
+      operationNumber: 1,
+      authorizedDocumentNumber: 187,
+      pointOfSale: 4,
+    });
+    database.exec("UPDATE sales SET session_id = 's0' WHERE id = 'yesterday'");
+
+    const open = await salesHistoryFor(deps(), {
+      ...ASK,
+      session: "open",
+      document: { pointOfSale: null, number: 187 },
+    });
+
+    expect(open.kind === "found" && open.rows.map(({ sale_id }) => sale_id)).toEqual(["today"]);
+  });
+
+  it("still requires the permission to view the sales history", async () => {
+    signedInPerson.set("cashier");
+
+    expect(
+      await salesHistoryFor(deps(), { ...ASK, document: { pointOfSale: null, number: 187 } }),
+    ).toEqual({ kind: "lacks_permission" });
   });
 });
 
@@ -333,7 +395,8 @@ describe("the detail of a sale of the history", () => {
         },
         operation_number: 482,
         served_by_first_name: "Linus",
-        line_count: 1,
+        lines: [{ product_name: "Yerba", sale_unit: "UNIT", quantity: 2, line_total: 3000 }],
+        cash_rounding: 0,
         payments: [{ method: "CASH", card_type: null, amount: 3000 }],
         state: "completed",
         voidability: {
@@ -344,12 +407,12 @@ describe("the detail of a sale of the history", () => {
               card_type: null,
               amount: 3000,
               state: "APPROVED",
-              sent_by_cloud: false,
             },
           ],
           credit_note_corrects: { point_of_sale: 3, number: 1204 },
         },
         void_authorization_required: true,
+        reprint_authorization_required: true,
         credit_notes: [],
         reprint: { kind: "available" },
         next_copy: { kind: "original" },
@@ -377,7 +440,6 @@ describe("the detail of a sale of the history", () => {
           card_type: null,
           amount: 3000,
           state: "APPROVED",
-          sent_by_cloud: false,
         },
       ],
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
@@ -402,7 +464,6 @@ describe("the detail of a sale of the history", () => {
           card_type: null,
           amount: 3000,
           state: "APPROVED",
-          sent_by_cloud: false,
         },
       ],
       credit_note_corrects: null,
@@ -439,6 +500,21 @@ describe("the detail of a sale of the history", () => {
     const answer = await saleHistoryDetailFor(deps(), "sale-1");
 
     expect(answer.kind === "found" && answer.detail.void_authorization_required).toBe(false);
+  });
+
+  it("answers that reprinting needs another person's authorization to a person who may not reprint", async () => {
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.reprint_authorization_required).toBe(true);
+  });
+
+  it("answers that reprinting needs no other person's authorization to a person who may reprint", async () => {
+    addPerson("supervisor", "Grace", ["view_sales_history", "reprint_receipt"]);
+    signedInPerson.set("supervisor");
+
+    const answer = await saleHistoryDetailFor(deps(), "sale-1");
+
+    expect(answer.kind === "found" && answer.detail.reprint_authorization_required).toBe(false);
   });
 
   it("answers that a sale of a closed session cannot be voided", async () => {
@@ -851,7 +927,7 @@ describe("the detail of a sale of the history", () => {
 
       expect(answer.kind === "found" && answer.detail).toMatchObject({
         comprobante: { kind: "fiscal", point_of_sale: 3, number: 1205 },
-        state: "completed",
+        state: "deferred",
         deferred_invoice_next_copy: { kind: "original" },
       });
     });

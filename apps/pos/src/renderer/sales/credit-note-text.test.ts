@@ -29,14 +29,14 @@ describe("creditNoteRow", () => {
   it("names a credit note issued under the contingency code with its point of sale and number", () => {
     expect(creditNoteRow(ISSUED_OFFLINE)).toEqual({
       label: "Nota de crédito C · CAEA",
-      value: "PV 00009 · Nº 00000041",
+      value: "00009-00000041",
     });
   });
 
   it("names the point of sale and number of an authorized credit note", () => {
     expect(creditNoteRow(AUTHORIZED)).toEqual({
       label: "Nota de crédito C",
-      value: "PV 00004 · Nº 00000012",
+      value: "00004-00000012",
     });
   });
 
@@ -72,8 +72,8 @@ describe("creditNoteRowOf", () => {
   });
 
   it.each([
-    [AUTHORIZED, "Nota de crédito C de devolución", "PV 00004 · Nº 00000012"],
-    [ISSUED_OFFLINE, "Nota de crédito C de devolución · CAEA", "PV 00009 · Nº 00000041"],
+    [AUTHORIZED, "Nota de crédito C de devolución", "00004-00000012"],
+    [ISSUED_OFFLINE, "Nota de crédito C de devolución · CAEA", "00009-00000041"],
     [{ kind: "in_progress" } as const, "Nota de crédito C de devolución", "En trámite con ARCA"],
   ])("says a return's credit note is the return's: %j", (standing, label, value) => {
     expect(creditNoteRowOf({ origin: "sale_return", standing })).toEqual({ label, value });
@@ -93,13 +93,13 @@ describe("creditNotePrintButton", () => {
         { standing: ISSUED_OFFLINE, next_copy: { kind: "duplicate", order_number: 2 } },
         false,
       ),
-    ).toBe("Reimprimir duplicado de nota de crédito");
+    ).toBe("Reimprimir nota de crédito");
   });
 
   it("names the original of one of several credit notes by its point of sale and number", () => {
     expect(
       creditNotePrintButton({ standing: AUTHORIZED, next_copy: { kind: "original" } }, true),
-    ).toBe("Imprimir nota de crédito PV 00004 · Nº 00000012");
+    ).toBe("Imprimir nota de crédito 00004-00000012");
   });
 
   it("names the duplicate of one of several credit notes by its point of sale and number", () => {
@@ -108,7 +108,7 @@ describe("creditNotePrintButton", () => {
         { standing: ISSUED_OFFLINE, next_copy: { kind: "duplicate", order_number: 2 } },
         true,
       ),
-    ).toBe("Reimprimir duplicado de nota de crédito PV 00009 · Nº 00000041");
+    ).toBe("Reimprimir nota de crédito 00009-00000041");
   });
 
   it.each([

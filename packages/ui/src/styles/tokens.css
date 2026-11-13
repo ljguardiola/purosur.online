@@ -196,6 +196,10 @@
   grid-template-columns: minmax(4rem, max-content) minmax(0, 1fr);
 }
 
+@utility grid-cols-line-items {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 /* react-aria caps a popover's max-height to the space the viewport leaves it. */
 @utility max-h-inherit {
   max-height: inherit;

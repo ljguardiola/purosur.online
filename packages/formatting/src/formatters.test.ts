@@ -13,6 +13,7 @@ import {
   formatDate,
   formatDayAndTime,
   formatDayMonthAndTime,
+  formatDayMonthAndTimeInColumn,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,
@@ -430,6 +431,16 @@ describe("formatDayMonthAndTime", () => {
 
   it("writes them on the clock of the instant's own offset, not the machine's", () => {
     expect(formatDayMonthAndTime("2026-11-04T23:14:00.000Z")).toBe("04/11 · 23:14");
+  });
+});
+
+describe("formatDayMonthAndTimeInColumn", () => {
+  it("writes the day, the month and the time of the clock the instant is written in, apart by a space", () => {
+    expect(formatDayMonthAndTimeInColumn("2026-11-04T15:32:00.000-03:00")).toBe("04/11 15:32");
+  });
+
+  it("writes them on the clock of the instant's own offset, not the machine's", () => {
+    expect(formatDayMonthAndTimeInColumn("2026-11-04T23:14:00.000Z")).toBe("04/11 23:14");
   });
 });
 

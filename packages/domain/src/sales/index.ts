@@ -25,6 +25,7 @@ export { PRINTED_DOCUMENTS } from "./model/printed-document.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
 export { receiptContent } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";
+export { nextReceiptCopy } from "./model/receipt-copy.js";
 export type { SalePrintState, SaleReprint } from "./model/receipt-events.js";
 export { RECEIPT_PRINT_OFFER_MS, receiptPrintOfferDeadline } from "./model/receipt-print-offer.js";
 export type {
@@ -63,15 +64,14 @@ export {
 export type {
   DeferredSaleRecord,
   SaleComprobante,
+  SaleDocumentNumber,
   SaleFiscalDocument,
   SaleFiscalFacts,
   SaleStanding,
-  SaleStandingDefinition,
 } from "./model/sale-history.js";
 export {
   isDeferralPending,
-  PENDING_DEFERRED_SALE_RECORD,
-  SALE_STANDING_DEFINITIONS,
+  isDeferredInvoicePending,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   saleComprobanteOf,

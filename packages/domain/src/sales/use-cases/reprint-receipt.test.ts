@@ -221,8 +221,27 @@ describe("reprintReceipt", () => {
     expect(rig.printer.sent).toEqual([]);
   });
 
-  it("answers sale_voided and records and sends nothing for a voided sale", async () => {
+  it("reprints a duplicate of a voided sale's receipt once its original was attempted", async () => {
     const rig = receiptRig([voidedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+
+    const printing = reprintReceipt(rig.ports, INPUT, rig.watch);
+    await rig.printer.whenWaiting();
+    rig.printer.becomeReady();
+
+    expect(await printing).toEqual({
+      kind: "printed",
+      copy: { kind: "duplicate", orderNumber: 1 },
+    });
+    expect(rig.ledger.state.sales[0]?.reprints).toEqual([
+      expect.objectContaining({
+        orderNumber: 1,
+        reason: { kind: "requested", text: INPUT.reason },
+      }),
+    ]);
+  });
+
+  it("answers sale_voided and records and sends nothing for a voided sale whose original was never attempted", async () => {
+    const rig = receiptRig([voidedSale()]);
 
     expect(await reprintReceipt(rig.ports, INPUT, rig.watch)).toEqual({ kind: "sale_voided" });
     expect(rig.printer.sent).toEqual([]);

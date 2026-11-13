@@ -1,41 +1,27 @@
 import type { EmptyStateProps, TableLoadingState } from "@purosur/ui";
 import {
-  actionsColumn,
   dataColumn,
   formatCents,
   formatClockTime,
-  formatNumber,
-  ListFilter,
-  Pagination,
-  plural,
+  formatDayMonthAndTimeInColumn,
   Table,
   TableCellText,
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { Eye, ReceiptText, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
+import type { LegendItem } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
-import { comprobantePresentation } from "../shell/sale-receipt-text";
-import { operationText, paymentMethodsText, saleStatePresentation } from "./sale-history-text";
+import { comprobanteLine, paymentMethodsText, saleStatePresentation } from "./sale-history-text";
 import type { ShownSalesHistory } from "./sales-queries";
 
 type Row = Extract<ShownSalesHistory, { kind: "found" }>["rows"][number];
 
-export type SessionFilter = "open" | "all";
-export type StateFilter = "all" | "completed" | "voided" | "in_progress" | "deferred";
-
-const SESSION_OPTIONS = [
-  { value: "open", label: "La abierta" },
-  { value: "all", label: "Todas" },
-] as const;
-
-const STATE_OPTIONS = [
-  { value: "all", label: "Todos" },
-  { value: "completed", label: "Completada" },
-  { value: "voided", label: "Anulada" },
-  { value: "in_progress", label: "En trámite" },
-  { value: "deferred", label: "Diferida" },
-] as const;
+const CLOCK_TIME_WIDTH = 48;
+const DATE_AND_TIME_WIDTH = 100;
+const METHODS_WIDTH = 190;
+const TOTAL_WIDTH = 120;
+const STATE_WIDTH = 100;
 
 function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
   if (state.status === "loading") {
@@ -44,109 +30,66 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
   return state.refreshing ? "updating" : false;
 }
 
-function pageRange(page: number, pageSize: number, total: number): string {
-  const sales = plural(total, { one: "venta", other: "ventas" });
-  if (total <= pageSize) {
-    return `${formatNumber(total)} ${sales}`;
-  }
-  const first = (page - 1) * pageSize + 1;
-  const last = Math.min(page * pageSize, total);
-  return `${formatNumber(first)} a ${formatNumber(last)} de ${formatNumber(total)} ${sales}`;
-}
-
-function emptyState(session: SessionFilter, state: StateFilter): EmptyStateProps {
-  if (state !== "all") {
-    return { icon: <ReceiptText />, title: "No hay ventas en ese estado", variant: "filtered" };
-  }
-  return session === "open"
-    ? { icon: <ReceiptText />, title: "No hay ventas en la sesión abierta", variant: "filtered" }
-    : { icon: <ReceiptText />, title: "Todavía no hay ventas", variant: "blank" };
-}
-
 export type SalesHistoryTableProps = {
   history: CoreData<ShownSalesHistory>;
-  session: SessionFilter;
-  state: StateFilter;
-  page: number;
+  withDate: boolean;
   selectedSaleId: string | undefined;
-  onSessionChange: (session: SessionFilter) => void;
-  onStateChange: (state: StateFilter) => void;
-  onPageChange: (page: number) => void;
+  inactive: boolean;
+  legend: readonly LegendItem[];
+  empty: EmptyStateProps;
   onSelect: (saleId: string) => void;
 };
 
 export function SalesHistoryTable({
   history,
-  session,
-  state,
-  page,
+  withDate,
   selectedSaleId,
-  onSessionChange,
-  onStateChange,
-  onPageChange,
+  inactive,
+  legend,
+  empty,
   onSelect,
 }: SalesHistoryTableProps) {
-  const found =
-    history.status === "loaded" && history.value.kind === "found" ? history.value : undefined;
-  const rows = found === undefined ? [] : found.rows;
+  const rows =
+    history.status === "loaded" && history.value.kind === "found" ? history.value.rows : [];
   const columns = [
     dataColumn({
       id: "time",
       header: "Hora",
-      render: (row: Row) => formatClockTime(row.occurred_at),
+      width: withDate ? DATE_AND_TIME_WIDTH : CLOCK_TIME_WIDTH,
+      render: (row: Row) => (
+        <TableCellText strong>
+          {withDate
+            ? formatDayMonthAndTimeInColumn(row.occurred_at)
+            : formatClockTime(row.occurred_at)}
+        </TableCellText>
+      ),
     }),
     dataColumn({
       id: "comprobante",
       header: "Comprobante",
-      render: (row: Row) => {
-        const comprobante = comprobantePresentation(row.comprobante);
-        const operation =
-          row.operation_number === null ? undefined : operationText(row.operation_number);
-        return comprobante === undefined ? (
-          <TableCellText>{operation ?? "—"}</TableCellText>
-        ) : (
-          <TableCellText
-            description={
-              <>
-                <span className="block">{comprobante.detail}</span>
-                {operation === undefined ? null : <span className="block">{operation}</span>}
-              </>
-            }
-          >
-            {comprobante.name}
-          </TableCellText>
-        );
-      },
+      render: (row: Row) => comprobanteLine(row.comprobante),
     }),
     dataColumn({
       id: "methods",
       header: "Medios",
+      width: METHODS_WIDTH,
       render: (row: Row) => paymentMethodsText(row.payment_methods),
     }),
     dataColumn({
       id: "total",
       header: "Total",
       align: "end",
-      render: (row: Row) => formatCents(row.total),
+      width: TOTAL_WIDTH,
+      render: (row: Row) => <TableCellText strong>{formatCents(row.total)}</TableCellText>,
     }),
     dataColumn({
       id: "state",
       header: "Estado",
+      width: STATE_WIDTH,
       render: (row: Row) => {
         const { label, tone } = saleStatePresentation(row.state);
         return <Tag tone={tone}>{label}</Tag>;
       },
-    }),
-    actionsColumn({
-      id: "detail",
-      header: "Detalle",
-      actions: [
-        (row: Row) => ({
-          icon: <Eye />,
-          "aria-label": `Ver la venta de las ${formatClockTime(row.occurred_at)}`,
-          onPress: () => onSelect(row.sale_id),
-        }),
-      ],
     }),
   ] as const;
   const table = useTableModel({
@@ -156,56 +99,27 @@ export function SalesHistoryTable({
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <ListFilter
-          name="session"
-          label="Sesión:"
-          options={SESSION_OPTIONS}
-          value={session}
-          onChange={onSessionChange}
-        />
-        <ListFilter
-          name="state"
-          label="Estado:"
-          options={STATE_OPTIONS}
-          value={state}
-          onChange={onStateChange}
-        />
-      </div>
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-        <Table
-          aria-label="Ventas"
-          table={table}
-          rowState={(row) => (row.sale_id === selectedSaleId ? "selected" : undefined)}
-          {...(history.status === "failed"
-            ? {
-                failure: {
-                  icon: <TriangleAlert />,
-                  title: "No se pudieron leer las ventas",
-                  description: "Volvé a intentarlo en unos segundos.",
-                  onRetry: history.retry,
-                },
-              }
-            : { loading: loadingOf(history) })}
-          empty={emptyState(session, state)}
-          footer={
-            found === undefined || found.rows.length === 0 ? undefined : (
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-text-subtle text-detail">
-                  {pageRange(page, found.page_size, found.total)}
-                </p>
-                <Pagination
-                  page={page}
-                  pageCount={Math.ceil(found.total / found.page_size)}
-                  onPageChange={onPageChange}
-                  label="Páginas de ventas"
-                />
-              </div>
-            )
+    <Table
+      aria-label="Ventas"
+      table={table}
+      fill
+      emptyKeepsHeaders
+      failureKeepsHeaders
+      inactive={inactive}
+      {...(legend.length === 0 ? {} : { legend })}
+      rowState={(row) => (row.sale_id === selectedSaleId ? "selected" : undefined)}
+      onRowPress={(row) => onSelect(row.sale_id)}
+      {...(history.status === "failed"
+        ? {
+            failure: {
+              variant: "centered" as const,
+              icon: <TriangleAlert />,
+              title: "No se pudieron leer las ventas",
+              description: "Volvé a intentarlo en unos segundos.",
+            },
           }
-        />
-      </div>
-    </div>
+        : { loading: loadingOf(history) })}
+      empty={empty}
+    />
   );
 }

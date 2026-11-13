@@ -2,18 +2,18 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalAuthorization,
   type FiscalDocumentState,
-  IN_PROGRESS_FISCAL_DOCUMENT_STATES,
   isDeferralPending,
-  PENDING_DEFERRED_SALE_RECORD,
-  SALE_STANDING_DEFINITIONS,
+  isDeferredInvoicePending,
+  type ReceiptDelivery,
+  type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
-  type SaleStanding,
-  type SaleStandingDefinition,
+  type SaleUnit,
   saleFiscalDocumentAmong,
 } from "@purosur/domain";
 import type {
   RegisterSalesHistory,
+  SaleHistoryLine,
   SaleHistoryRecord,
   SalesHistoryEntry,
   SalesHistoryFilter,
@@ -24,20 +24,28 @@ import { readCreditNotesOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { saleTotalOf } from "./sqlite-sale-total";
 
 interface SaleRow {
   id: string;
   occurred_at: string;
-  operation_number: number | null;
   voided: 0 | 1;
 }
 
 interface DetailRow extends SaleRow {
+  operation_number: number | null;
   first_name: string;
-  line_count: number;
   in_open_session: 0 | 1;
   deferred_short_code: string | null;
+  cash_rounding: number;
+}
+
+interface LineRow {
+  product_name: string;
+  sale_unit: SaleUnit;
+  quantity: number;
+  line_total: number;
 }
 
 interface FiscalDocumentRow {
@@ -57,68 +65,6 @@ const VOIDED = "(sales.state = 'VOIDED')";
 
 const DEFERRED_SALE_SATISFIED = "(deferred_sales.satisfied_at IS NOT NULL)";
 
-const DEFERRED = `EXISTS (
-  SELECT 1 FROM deferred_sales
-  WHERE deferred_sales.sale_id = sales.id
-    AND deferred_sales.cancelled_at IS NULL
-    AND ${DEFERRED_SALE_SATISFIED} = ${Number(PENDING_DEFERRED_SALE_RECORD.satisfied)}
-)`;
-
-const DOCUMENT_BEING_REQUESTED = `EXISTS (
-  SELECT 1 FROM fiscal_documents
-  WHERE fiscal_documents.sale_id = sales.id
-    AND fiscal_documents.state IN (${IN_PROGRESS_FISCAL_DOCUMENT_STATES.map(() => "?").join(", ")})
-)`;
-
-interface Condition {
-  sql: string;
-  parameters: string[];
-}
-
-function factCondition(sql: string, parameters: string[], holds: boolean): Condition {
-  return { sql: holds ? sql : `NOT ${sql}`, parameters };
-}
-
-function definitionCondition({
-  voided,
-  deferred,
-  documentBeingRequested,
-}: SaleStandingDefinition): Condition {
-  const facts = [factCondition(VOIDED, [], voided)];
-  if (deferred !== undefined) {
-    facts.push(factCondition(DEFERRED, [], deferred));
-  }
-  if (documentBeingRequested !== undefined) {
-    facts.push(
-      factCondition(
-        DOCUMENT_BEING_REQUESTED,
-        [...IN_PROGRESS_FISCAL_DOCUMENT_STATES],
-        documentBeingRequested,
-      ),
-    );
-  }
-  return {
-    sql: `(${facts.map(({ sql }) => sql).join(" AND ")})`,
-    parameters: facts.flatMap(({ parameters }) => parameters),
-  };
-}
-
-function standingCondition(standing: SaleStanding | undefined): Condition {
-  switch (standing) {
-    case undefined:
-      return { sql: "1 = 1", parameters: [] };
-    case "completed": {
-      const others = Object.values(SALE_STANDING_DEFINITIONS).map(definitionCondition);
-      return {
-        sql: others.map(({ sql }) => `NOT ${sql}`).join(" AND "),
-        parameters: others.flatMap(({ parameters }) => parameters),
-      };
-    }
-    default:
-      return definitionCondition(SALE_STANDING_DEFINITIONS[standing]);
-  }
-}
-
 export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
   private readonly database: LocalDatabase;
 
@@ -134,13 +80,21 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return this.page(OF_THIS_REGISTER, filter);
   }
 
+  salesOfOpenSessionWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[] {
+    return this.withDocument(`${OF_THIS_REGISTER} AND ${IN_THE_OPEN_SESSION}`, document);
+  }
+
+  salesOfRegisterWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[] {
+    return this.withDocument(OF_THIS_REGISTER, document);
+  }
+
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {
     const sale = this.database
       .prepare<[string], DetailRow>(
         `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
                 sales.operation_number AS operation_number, users.first_name AS first_name,
+                sales.cash_rounding AS cash_rounding,
                 ${VOIDED} AS voided, (${IN_THE_OPEN_SESSION}) AS in_open_session,
-                (SELECT count(*) FROM sale_lines WHERE sale_lines.sale_id = sales.id) AS line_count,
                 (SELECT short_code FROM deferred_sales WHERE deferred_sales.sale_id = sales.id)
                   AS deferred_short_code
          FROM sales JOIN users ON users.id = sales.actor_id
@@ -155,7 +109,8 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       occurredAt: new Date(sale.occurred_at),
       operationNumber: sale.operation_number,
       servedByFirstName: sale.first_name,
-      lineCount: sale.line_count,
+      lines: this.linesOf(sale.id),
+      cashRounding: sale.cash_rounding,
       total: this.totalOf(sale.id),
       payments: readSalePayments(this.database, sale.id).map((payment) => ({
         method: payment.method,
@@ -178,20 +133,43 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     };
   }
 
-  private page(scope: string, { standing, offset, limit }: SalesHistoryFilter): SalesHistoryPage {
-    const { sql, parameters } = standingCondition(standing);
-    const where = `${scope} AND ${sql}`;
+  private withDocument(
+    scope: string,
+    { pointOfSale, number }: SaleDocumentNumber,
+  ): SalesHistoryEntry[] {
     const rows = this.database
-      .prepare<(string | number)[], SaleRow>(
-        `SELECT sales.id AS id, sales.occurred_at AS occurred_at,
-                sales.operation_number AS operation_number, ${VOIDED} AS voided
-         FROM sales WHERE ${where}
+      .prepare<{ number: number; point_of_sale: number | null }, SaleRow>(
+        `SELECT sales.id AS id, sales.occurred_at AS occurred_at, ${VOIDED} AS voided
+         FROM sales WHERE ${scope} AND (
+           EXISTS (
+             SELECT 1 FROM fiscal_documents
+             WHERE fiscal_documents.sale_id = sales.id AND fiscal_documents.number = @number
+               AND (@point_of_sale IS NULL OR fiscal_documents.point_of_sale = @point_of_sale)
+           ) OR EXISTS (
+             SELECT 1 FROM offline_fiscal_documents
+             WHERE offline_fiscal_documents.sale_id = sales.id
+               AND offline_fiscal_documents.document_type = 'factura_c'
+               AND offline_fiscal_documents.number = @number
+               AND (@point_of_sale IS NULL OR offline_fiscal_documents.point_of_sale = @point_of_sale)
+           )
+         )
+         ORDER BY sales.occurred_at DESC, sales.rowid DESC`,
+      )
+      .all({ number, point_of_sale: pointOfSale });
+    return rows.map((row) => this.entryOf(row));
+  }
+
+  private page(scope: string, { offset, limit }: SalesHistoryFilter): SalesHistoryPage {
+    const rows = this.database
+      .prepare<[number, number], SaleRow>(
+        `SELECT sales.id AS id, sales.occurred_at AS occurred_at, ${VOIDED} AS voided
+         FROM sales WHERE ${scope}
          ORDER BY sales.occurred_at DESC, sales.rowid DESC LIMIT ? OFFSET ?`,
       )
-      .all(...parameters, limit, offset);
+      .all(limit, offset);
     const counted = this.database
-      .prepare<string[], { total: number }>(`SELECT count(*) AS total FROM sales WHERE ${where}`)
-      .get(...parameters);
+      .prepare<[], { total: number }>(`SELECT count(*) AS total FROM sales WHERE ${scope}`)
+      .get();
     return {
       entries: rows.map((row) => this.entryOf(row)),
       total: counted?.total ?? 0,
@@ -208,12 +186,26 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return {
       saleId: row.id,
       occurredAt: new Date(row.occurred_at),
-      operationNumber: row.operation_number,
       paymentMethods: methods.map(({ method }) => method),
       total: this.totalOf(row.id),
       fiscal: this.fiscalFactsOfSale(row.id),
       voided: row.voided === 1,
     };
+  }
+
+  private linesOf(saleId: string): SaleHistoryLine[] {
+    return this.database
+      .prepare<[string], LineRow>(
+        `SELECT product_name, sale_unit, quantity, line_total FROM sale_lines
+         WHERE sale_id = ? ORDER BY position`,
+      )
+      .all(saleId)
+      .map(({ product_name, sale_unit, quantity, line_total }) => ({
+        productName: product_name,
+        saleUnit: sale_unit,
+        quantity,
+        lineTotal: line_total,
+      }));
   }
 
   private hasReturn(saleId: string): boolean {
@@ -226,6 +218,14 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
 
   private totalOf(saleId: string): number {
     return saleTotalOf(this.database, saleId);
+  }
+
+  private deferredInvoiceDelivery(saleId: string): ReceiptDelivery | null {
+    return (
+      new SqliteReceiptLedger(this.database).transaction((tx) =>
+        tx.receiptDelivery({ document: "deferred_invoice", saleId }),
+      ) ?? null
+    );
   }
 
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
@@ -252,9 +252,13 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
         `SELECT ${DEFERRED_SALE_SATISFIED} AS satisfied FROM deferred_sales WHERE sale_id = ? AND cancelled_at IS NULL`,
       )
       .get(saleId);
+    const record =
+      deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 };
     return {
-      deferred: isDeferralPending(
-        deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 },
+      deferred: isDeferralPending(record),
+      deferredInvoicePending: isDeferredInvoicePending(
+        record,
+        this.deferredInvoiceDelivery(saleId),
       ),
       fiscalDocument: saleFiscalDocumentAmong(attempts),
     };

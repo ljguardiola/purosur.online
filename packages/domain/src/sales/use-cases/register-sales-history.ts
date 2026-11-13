@@ -1,12 +1,12 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import type { CreditNoteOrigin, SaleInvoice, VoidCreditNoteStanding } from "../../fiscal/index.js";
 import type { PointCardType } from "../../payments/index.js";
 import type { CompletedSalePayment } from "../model/completed-sale.js";
-import type { SaleFiscalFacts, SaleStanding } from "../model/sale-history.js";
+import type { SaleDocumentNumber, SaleFiscalFacts } from "../model/sale-history.js";
 
 type PaymentMethod = CompletedSalePayment["method"];
 
 export interface SalesHistoryFilter {
-  standing: SaleStanding | undefined;
   offset: number;
   limit: number;
 }
@@ -14,7 +14,6 @@ export interface SalesHistoryFilter {
 export interface SalesHistoryEntry {
   saleId: string;
   occurredAt: Date;
-  operationNumber: number | null;
   paymentMethods: PaymentMethod[];
   total: number;
   fiscal: SaleFiscalFacts;
@@ -32,12 +31,20 @@ export interface SaleHistoryCreditNote {
   standing: VoidCreditNoteStanding;
 }
 
+export interface SaleHistoryLine {
+  productName: string;
+  saleUnit: SaleUnit;
+  quantity: number;
+  lineTotal: number;
+}
+
 export interface SaleHistoryRecord {
   saleId: string;
   occurredAt: Date;
   operationNumber: number | null;
   servedByFirstName: string;
-  lineCount: number;
+  lines: SaleHistoryLine[];
+  cashRounding: number;
   total: number;
   payments: { method: PaymentMethod; amount: number; cardType: PointCardType | null }[];
   fiscal: SaleFiscalFacts;
@@ -53,6 +60,8 @@ export interface SaleHistoryRecord {
 export interface RegisterSalesHistory {
   salesOfOpenSession(filter: SalesHistoryFilter): SalesHistoryPage;
   salesOfRegister(filter: SalesHistoryFilter): SalesHistoryPage;
+  salesOfOpenSessionWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[];
+  salesOfRegisterWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[];
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined;
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts;
 }

@@ -1,12 +1,10 @@
 import { invoiceToCorrect, type VoucherReference } from "../../fiscal/index.js";
 import {
-  isRefundSentByCloud,
   type PlannedRefundState,
   type PointCardType,
   plannedRefundState,
-  SALE_VOIDED_REFUND_ORIGIN,
 } from "../../payments/index.js";
-import type { ReceiptCopy } from "../model/receipt-copy.js";
+import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
 import {
   receiptPrintAvailability,
   type SaleReceiptAvailability,
@@ -43,7 +41,6 @@ export type SaleVoidability =
         cardType: PointCardType | null;
         amount: number;
         state: PlannedRefundState;
-        sentByCloud: boolean;
       }[];
       creditNoteCorrects: VoucherReference | null;
     }
@@ -60,7 +57,8 @@ export interface SaleHistoryDetail {
   comprobante: SaleComprobante;
   operationNumber: number | null;
   servedByFirstName: string;
-  lineCount: number;
+  lines: SaleHistoryRecord["lines"];
+  cashRounding: number;
   payments: SaleHistoryRecord["payments"];
   standing: SaleStanding;
   voidability: SaleVoidability;
@@ -80,8 +78,10 @@ export function readSaleHistoryDetail(
   { saleId }: ReadSaleHistoryDetailInput,
 ): ReadSaleHistoryDetailOutcome {
   const record = history.saleOfRegister(saleId);
-  const delivery = receiptDeliveryOf({ ledger }, { document: "sale_receipt", saleId });
-  if (record === undefined || delivery.kind === "not_found") {
+  const delivery = ledger.transaction((tx) =>
+    tx.receiptDelivery({ document: "sale_receipt", saleId }),
+  );
+  if (record === undefined || delivery === undefined) {
     return { kind: "not_found" };
   }
   const {
@@ -109,8 +109,12 @@ export function readSaleHistoryDetail(
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record),
-      reprint: receiptPrintAvailability("sale_receipt", { voided }),
-      nextCopy: delivery.nextCopy,
+      reprint: receiptPrintAvailability(
+        "sale_receipt",
+        { ...delivery, voided },
+        "reprint_with_reason",
+      ),
+      nextCopy: nextReceiptCopy(delivery),
       deferredInvoiceNextCopy:
         deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,
       shortCode: deferredShortCode,
@@ -153,7 +157,6 @@ function saleVoidabilityOf({
       cardType,
       amount,
       state: plannedRefundState(method),
-      sentByCloud: isRefundSentByCloud({ method, origin: SALE_VOIDED_REFUND_ORIGIN }),
     })),
     creditNoteCorrects: invoiceToCorrect(invoices)?.voucher ?? null,
   };

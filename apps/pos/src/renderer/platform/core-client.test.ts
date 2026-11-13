@@ -2867,7 +2867,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const history = client.salesHistory({ session: "open", state: "deferred", page: 2 });
+    const history = client.salesHistory({ session: "open", page: 2 });
     port.answer({
       type: "sales-history-result",
       request_id: "request-1",
@@ -2880,10 +2880,46 @@ describe("createCoreClient", () => {
         type: "sales-history",
         request_id: "request-1",
         session: "open",
-        state: "deferred",
         page: 2,
+        document: null,
       },
     ]);
+  });
+
+  it("asks the core for the sales whose invoice has the typed document number", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.salesHistory({
+      session: "all",
+      page: 1,
+      document: { pointOfSale: 3, number: 187 },
+    });
+
+    expect(port.posted).toEqual([
+      {
+        type: "sales-history",
+        request_id: "request-1",
+        session: "all",
+        page: 1,
+        document: { point_of_sale: 3, number: 187 },
+      },
+    ]);
+  });
+
+  it("asks for the number in any point of sale with a null point of sale", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.salesHistory({
+      session: "all",
+      page: 1,
+      document: { pointOfSale: null, number: 187 },
+    });
+
+    expect(port.posted).toMatchObject([{ document: { point_of_sale: null, number: 187 } }]);
   });
 
   it("asks the core for one sale's detail and resolves with the outcome", async () => {
