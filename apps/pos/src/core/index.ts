@@ -112,6 +112,7 @@ import {
 import {
   cashBalanceFor,
   cashCountPreviewFor,
+  cashMovementPreviewFor,
   currentCashSession,
   identifyLockedCloserFor,
   lockedClosersFor,
@@ -1174,6 +1175,10 @@ const rendererRequestDeps: RendererRequestDeps = {
     localDatabase === undefined
       ? undefined
       : (countedCash) => cashCountPreviewFor(localDatabase, countedCash),
+  cashMovementPreview:
+    localDatabase === undefined
+      ? undefined
+      : (movement) => cashMovementPreviewFor(localDatabase, movement),
   sessionOpenSale:
     localDatabase === undefined ? undefined : () => sessionOpenSaleFor(localDatabase, now()),
   startupPending:

@@ -116,6 +116,13 @@ const cashCountPreviewRequestMessageSchema = z.object({
   counted_cash: z.int(),
 });
 
+const cashMovementPreviewRequestMessageSchema = z.object({
+  type: z.literal("cash-movement-preview-request"),
+  request_id: requestId,
+  kind: z.enum(CASH_MOVEMENT_KINDS),
+  amount: z.int(),
+});
+
 const sessionOpenSaleRequestMessageSchema = z.object({
   type: z.literal("session-open-sale-request"),
   request_id: requestId,
@@ -180,6 +187,7 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   identifyLockedCloserMessageSchema,
   cashBalanceRequestMessageSchema,
   cashCountPreviewRequestMessageSchema,
+  cashMovementPreviewRequestMessageSchema,
   sessionOpenSaleRequestMessageSchema,
   startupPendingRequestMessageSchema,
   lockedClosersRequestMessageSchema,
@@ -258,6 +266,12 @@ export type CashBalance = z.infer<typeof cashBalanceSchema>;
 
 const cashCountPreviewSchema = z.object({ difference: z.number() });
 export type CashCountPreview = z.infer<typeof cashCountPreviewSchema>;
+
+const cashMovementPreviewSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("remaining"), cash: z.number() }),
+  z.object({ kind: z.literal("exceeds_expected_cash"), expected: z.number() }),
+]);
+export type CashMovementPreview = z.infer<typeof cashMovementPreviewSchema>;
 
 const sessionOpenSaleSchema = z.object({
   id: z.string(),
@@ -488,6 +502,12 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     preview: cashCountPreviewSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-count-preview-unavailable"), request_id: requestId }),
+  z.object({
+    type: z.literal("cash-movement-preview"),
+    request_id: requestId,
+    preview: cashMovementPreviewSchema.nullable(),
+  }),
+  z.object({ type: z.literal("cash-movement-preview-unavailable"), request_id: requestId }),
   z.object({
     type: z.literal("session-open-sale"),
     request_id: requestId,

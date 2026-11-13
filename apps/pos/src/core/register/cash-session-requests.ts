@@ -3,6 +3,7 @@ import type {
   AuthorizationRefusal,
   CashBalance,
   CashCountPreview,
+  CashMovementPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
@@ -12,9 +13,10 @@ import type {
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
-import type { ZoneRules, ZoneRulesSource } from "@purosur/domain";
+import type { CashMovementKind, ZoneRules, ZoneRulesSource } from "@purosur/domain";
 import {
   amountToCharge,
+  cashAfterMovement,
   type ClosedCashSession,
   cashBreakdown,
   cashCountDifference,
@@ -261,6 +263,17 @@ export function cashBalanceFor(database: LocalDatabase): CashBalance | null {
     withdrawals: balance.withdrawals,
     expected: balance.expected,
   };
+}
+
+export function cashMovementPreviewFor(
+  database: LocalDatabase,
+  movement: { kind: CashMovementKind; amount: number },
+): CashMovementPreview | null {
+  const session = readOpenSession(database);
+  if (session === undefined) {
+    return null;
+  }
+  return cashAfterMovement(readSessionMovements(database, session.id), movement);
 }
 
 export function cashCountPreviewFor(
