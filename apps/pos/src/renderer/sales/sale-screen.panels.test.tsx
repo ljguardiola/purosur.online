@@ -295,6 +295,18 @@ describe("SaleScreen while a panel is open", () => {
     expect(legendOf()).toEqual([]);
   });
 
+  it("lets the lines reach the bottom of their card with the confirmation to empty the sale", async () => {
+    const { screen } = await renderFourLines();
+
+    await userEvent.keyboard("{F8}");
+
+    await expect.element(panelNamed(screen, EMPTY_SALE)).toBeVisible();
+    const lines = screen.getByRole("table", { name: "Líneas de la venta" }).element();
+    const scroller = lines.parentElement as HTMLElement;
+    const card = scroller.parentElement as HTMLElement;
+    expect(card.lastElementChild).toBe(scroller);
+  });
+
   it("selects the same line again when the panel closes", async () => {
     const { screen } = await renderFourLines();
     await userEvent.keyboard("{ArrowUp}");
