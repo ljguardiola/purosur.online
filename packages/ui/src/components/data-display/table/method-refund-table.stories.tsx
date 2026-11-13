@@ -46,14 +46,16 @@ export const SecondSelected: Story = {
 
 function TypingTable(props: MethodRefundTableProps) {
   const [selectedIndex, setSelectedIndex] = useState(props.selectedIndex);
-  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [rows, setRows] = useState(props.rows);
   return (
     <MethodRefundTable
       {...props}
       selectedIndex={selectedIndex}
       onSelect={setSelectedIndex}
-      rows={props.rows.map((row) => ({ ...row, amount: amounts[row.id] ?? row.amount }))}
-      onAmountChange={(id, amount) => setAmounts((current) => ({ ...current, [id]: amount }))}
+      rows={rows}
+      onAmountChange={(id, amount) =>
+        setRows((current) => current.map((row) => (row.id === id ? { ...row, amount } : row)))
+      }
     />
   );
 }
