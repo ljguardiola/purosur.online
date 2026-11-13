@@ -1,0 +1,51 @@
+name: Dependabot download budget
+
+on:
+  pull_request:
+
+# Builds the dependency the pull request brings in, so this workflow runs untrusted code: it holds
+# no write permission and reads no secret. The commit that raises the budget is made by
+# dependabot-download-budget-commit.yml, which runs none of this code and treats the measurement
+# uploaded here as untrusted data.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  GIT_HTTP_LOW_SPEED_LIMIT: "1000"
+  GIT_HTTP_LOW_SPEED_TIME: "30"
+
+jobs:
+  measure:
+    name: measure the backoffice download
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.user.type == 'Bot' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        env:
+          npm_config_audit: "false"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @purosur/backoffice build
+
+      - run: node .github/scripts/dependabot-budget-measure.mjs "$RUNNER_TEMP/download-measurement.json"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: download-measurement
+          path: ${{ runner.temp }}/download-measurement.json
+          retention-days: 1
+          if-no-files-found: error

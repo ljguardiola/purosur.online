@@ -1,0 +1,73 @@
+name: Dependabot download budget commit
+
+on:
+  workflow_run:
+    workflows: [Dependabot download budget]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+env:
+  GIT_HTTP_LOW_SPEED_LIMIT: "1000"
+  GIT_HTTP_LOW_SPEED_TIME: "30"
+
+jobs:
+  # Runs main's scripts, never the pull request's, and installs nothing: the only input from the
+  # pull request's run is the measurement artifact, which is read as data and capped. A commit
+  # pushed with GITHUB_TOKEN would not start the pull request's checks again, so the commit is made
+  # with the budget App's token instead.
+  commit:
+    name: commit the raised budget
+    if: ${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'dependabot/') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: download-measurement
+          path: ${{ runner.temp }}/measurement
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ secrets.DOWNLOAD_BUDGET_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DOWNLOAD_BUDGET_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+        with:
+          script: |
+            const { readFile } = await import("node:fs/promises");
+            const { raiseBudgetOnPullRequest } = await import(
+              `${process.env.GITHUB_WORKSPACE}/.github/scripts/dependabot-budget-raise.mjs`
+            );
+
+            const outcome = await raiseBudgetOnPullRequest({
+              reader: github.rest,
+              writer: getOctokit(process.env.APP_TOKEN).rest,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run: context.payload.workflow_run,
+              measurementText: await readFile(
+                `${process.env.RUNNER_TEMP}/measurement/download-measurement.json`,
+                "utf8",
+              ),
+            });
+            core.info(JSON.stringify(outcome));
