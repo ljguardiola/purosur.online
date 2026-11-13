@@ -1,11 +1,5 @@
 import type { PinCodeRedemptionOutcome, PinPolicy } from "@purosur/contracts";
-import {
-  Button,
-  fieldErrorMessage,
-  InlineNotice,
-  TextField,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, fieldErrorMessage, InlineNotice, TextField, useRequestForm } from "@purosur/ui";
 import { Check, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useId, useRef, useState } from "react";
