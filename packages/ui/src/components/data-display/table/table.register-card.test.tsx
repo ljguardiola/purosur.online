@@ -283,7 +283,12 @@ test("retries from a failure that keeps the column headers", async () => {
   const onRetry = vi.fn();
   const screen = await render(
     <div style={{ height: 480, width: 600 }}>
-      <LinesTable fill failureKeepsHeaders items={[]} failure={{ ...loadFailure, onRetry }} />
+      <LinesTable
+        fill
+        failureKeepsHeaders
+        items={[]}
+        failure={{ icon: <TriangleAlert />, title: "No se pudo cargar la venta", onRetry }}
+      />
     </div>,
   );
 
