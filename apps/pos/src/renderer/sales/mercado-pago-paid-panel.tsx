@@ -19,6 +19,7 @@ export type MercadoPagoPaidPanelProps = {
   pending: number | undefined;
   children?: ReactNode;
   onContinue: () => void;
+  onClose?: () => void;
 };
 
 export function MercadoPagoPaidPanel({
@@ -29,14 +30,16 @@ export function MercadoPagoPaidPanel({
   pending,
   children,
   onContinue,
+  onClose,
 }: MercadoPagoPaidPanelProps) {
+  useKeys([{ key: "Escape", run: () => onClose?.(), enabled: onClose !== undefined }]);
   useKeys([{ key: "Enter", run: onContinue }], { fallback: true });
 
   return (
     <SidePanel
       label={title}
       width="wide"
-      header={<SidePanelTitle icon={icon} title={title} />}
+      header={<SidePanelTitle icon={icon} title={title} onClose={onClose} />}
       footer={
         <Button
           size="large"

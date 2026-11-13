@@ -10,6 +10,7 @@ import {
   renderCombinedPayment,
   renderScreen,
   SALE_OF_ONE_LINE,
+  SALE_OF_TWO_LINES,
   saleWithChargeInProgress,
 } from "./test-support/charge-screen";
 
@@ -41,7 +42,7 @@ describe("ChargeScreen · Point", () => {
       .toHaveAttribute("aria-disabled", "true");
     await userEvent.keyboard("{F9}{F10}{F11}");
     await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .element(screen.getByRole("heading", { name: "Point débito" }))
       .not.toBeInTheDocument();
     expect(startMercadoPagoCharge).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
@@ -61,7 +62,7 @@ describe("ChargeScreen · Point", () => {
     await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
     await userEvent.keyboard("{F9}{F10}");
     await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .element(screen.getByRole("heading", { name: "Point débito" }))
       .not.toBeInTheDocument();
     expect(startMercadoPagoCharge).not.toHaveBeenCalled();
     await expectNoAccessibilityViolations(screen.container);
@@ -89,6 +90,55 @@ describe("ChargeScreen · Point", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("shows the sale's lines locked on the left beside the Point panel, asking for the amount and then waiting", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => SALE_OF_TWO_LINES,
+      startMercadoPagoCharge: async () => POINT_ORDER_SHOWN,
+    });
+
+    await choosePoint(screen);
+
+    const lines = screen.getByRole("table", { name: "Líneas de la venta" });
+    await expect.element(lines.getByText("Alfajor triple")).toBeVisible();
+    await expect.element(lines.getByRole("img", { name: "Líneas bloqueadas" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro con Point débito" }))
+      .toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Efectivo" })).not.toBeInTheDocument();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("Esperando el pago")).toBeVisible();
+    await expect.element(lines.getByText("Alfajor triple")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro con Point débito" }))
+      .toBeVisible();
+  });
+
+  it("sends the charge to the terminal with Enter, and Esc goes back to the methods before sending", async () => {
+    const { screen, startMercadoPagoCharge } = await renderScreen({
+      startMercadoPagoCharge: async () => POINT_ORDER_SHOWN,
+    });
+
+    await choosePoint(screen);
+    await userEvent.keyboard("{Escape}");
+    await expect
+      .element(screen.getByRole("complementary", { name: "Panel de cobro" }))
+      .toBeVisible();
+    expect(startMercadoPagoCharge).not.toHaveBeenCalled();
+
+    await userEvent.keyboard("{F9}");
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("Esperando el pago")).toBeVisible();
+    expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(
+      "sale-1",
+      { method: "POINT", cardType: "DEBIT" },
+      476_000,
+    );
+  });
+
   it("reads the availability of the sale again when it opens the methods after a partial payment", async () => {
     const { screen, paymentMethodAvailability } = await renderScreen({
       followMercadoPagoCharge: async () => ({
@@ -100,9 +150,7 @@ describe("ChargeScreen · Point", () => {
       }),
     });
     await choosePoint(screen);
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     const readsBefore = paymentMethodAvailability.mock.calls.length;
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
@@ -120,14 +168,12 @@ describe("ChargeScreen · Point", () => {
     const { screen } = await renderScreen();
 
     await choosePoint(screen);
-    await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
     await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
+      .element(screen.getByRole("heading", { name: "Point débito" }))
       .not.toBeInTheDocument();
   });
 
@@ -149,11 +195,8 @@ describe("ChargeScreen · Point", () => {
       followMercadoPagoCharge: async () => ({ kind: "waiting", remaining_seconds: 119 }),
     });
 
-    await expect
-      .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-      .toBeVisible();
-    await expect.element(screen.getByRole("dialog").getByText("$ 3.000,00")).toBeVisible();
-    await expect.element(screen.getByRole("dialog").getByText("POINT · CRÉDITO")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Point crédito" })).toBeVisible();
+    await expect.element(screen.getByText("$ 3.000,00")).toBeVisible();
     await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
   });
 
@@ -168,17 +211,11 @@ describe("ChargeScreen · Point", () => {
         }),
       });
 
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }))
-        .toBeVisible();
-      await expect.element(screen.getByRole("dialog").getByText("POINT · DÉBITO")).toBeVisible();
-
+      await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
@@ -191,18 +228,14 @@ describe("ChargeScreen · Point", () => {
         followMercadoPagoCharge: async () => ({ kind: "declined" }),
       });
 
-      await expect
-        .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect
-        .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
     });
 
-    it("shows the whole wait as the total while the sale is read again", async () => {
+    it("keeps counting the time left while the sale is read again", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(
           saleWithChargeInProgress(DEBIT_CHARGE, 120),
@@ -214,41 +247,39 @@ describe("ChargeScreen · Point", () => {
       await expect
         .poll(() => currentSale.mock.calls.length, { timeout: NEXT_ASK_TIMEOUT_MS })
         .toBeGreaterThan(1);
-      await expect.element(screen.getByText("de 3:00")).toBeVisible();
+      await expect
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("1:30"))
+        .toBeVisible();
     });
 
-    it("shows the whole wait as the total of a charge reopened after its wait", async () => {
+    it("shows the time as run out for a charge reopened after its wait", async () => {
       const { screen } = await renderScreen({
         currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 0)),
         followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
       });
 
+      await expect.element(screen.getByText("Tiempo de espera agotado")).toBeVisible();
       await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .element(screen.getByRole("timer", { name: "TIEMPO PARA PAGAR" }).getByText("0:00"))
         .toBeVisible();
-      await expect.element(screen.getByText("de 3:00")).toBeVisible();
     });
 
-    it("tells the order expired and goes back to the methods from Elegir otro medio", async () => {
+    it("tells the order expired and goes back to the methods from Cambiar de medio", async () => {
       const { screen, currentSale } = await renderScreen({
         currentSale: readsInTurn(saleWithChargeInProgress(DEBIT_CHARGE, 120), SALE_OF_ONE_LINE),
         followMercadoPagoCharge: async () => ({ kind: "expired" }),
       });
 
-      await expect
-        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("El cobro venció en la terminal")).toBeVisible();
       const readsBefore = currentSale.mock.calls.length;
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect
-        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }))
+        .element(screen.getByText("El cobro venció en la terminal"))
         .not.toBeInTheDocument();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
       await choosePoint(screen);
-      await expect
-        .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con la Point?" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     });
   });
 
@@ -267,9 +298,7 @@ describe("ChargeScreen · Point", () => {
     await choosePoint(screen);
     await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     await expect.element(screen.getByText(/Cobrá con otro medio/)).not.toBeInTheDocument();
     await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
   });
@@ -282,9 +311,7 @@ describe("ChargeScreen · Point", () => {
     await choosePoint(screen);
     await userEvent.click(screen.getByRole("button", { name: "Enviar a la terminal" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
     expect(startMercadoPagoCharge).toHaveBeenCalledExactlyOnceWith(
       "sale-1",
       { method: "POINT", cardType: "DEBIT" },
@@ -336,9 +363,7 @@ describe("ChargeScreen · Point", () => {
     it("follows the order the core created", async () => {
       const { screen, followMercadoPagoCharge } = await waitOnTerminal();
 
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente paga en la terminal" }))
-        .toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Point débito" })).toBeVisible();
       await expect.poll(() => followMercadoPagoCharge.mock.calls[0]).toEqual([POINT_PAYMENT_ID]);
     });
 
@@ -365,37 +390,35 @@ describe("ChargeScreen · Point", () => {
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 
-    it("tells the wait is over and goes back to the methods from Elegir otro medio", async () => {
+    it("tells the wait is over and goes back to the methods from Cambiar de medio", async () => {
       const { screen } = await waitOnTerminal({
         followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
         abandonMercadoPagoCharge: async () => ({ kind: "replaced" }),
       });
 
       await expect
-        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }), {
+        .element(screen.getByText("Tiempo de espera agotado"), {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
         .toBeVisible();
       await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
+        .element(screen.getByRole("button", { name: "Cambiar de medio" }), {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
         .toBeEnabled();
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect.element(screen.getByText("FALTA")).toBeVisible();
     });
 
-    it("goes back to the methods from Elegir otro medio once the terminal declines the payment", async () => {
+    it("goes back to the methods from Cambiar de medio once the terminal declines the payment", async () => {
       const { screen, currentSale } = await waitOnTerminal({
         followMercadoPagoCharge: async () => ({ kind: "declined" }),
       });
       const readsBefore = currentSale.mock.calls.length;
 
-      await expect
-        .element(screen.getByRole("heading", { name: "La terminal rechazó el pago" }))
-        .toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await expect.element(screen.getByRole("alert")).toHaveTextContent("Pago rechazado.");
+      await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect.element(screen.getByText("FALTA")).toBeVisible();
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);

@@ -21,6 +21,7 @@ function renderPanel(props: Partial<PaymentPanelProps> = {}) {
       hasApprovedPayment={false}
       chargeRefusal={null}
       paidOrderToApply={undefined}
+      availability={undefined}
       canCharge
       canCancel
       canDiscount
@@ -33,7 +34,47 @@ function renderPanel(props: Partial<PaymentPanelProps> = {}) {
   );
 }
 
+const AVAILABLE = {
+  qr: "available",
+  point: "available",
+  point_minimum: 1_500,
+  qr_minimum: 1_500,
+} as const;
+
 describe("PaymentPanel", () => {
+  describe("when the core says a method is not offered for the total", () => {
+    it("shows an amber notice with the Point minimum and turns the Point tiles off", async () => {
+      const screen = await renderPanel({
+        availability: { ...AVAILABLE, point: "below_minimum" },
+      });
+
+      await expect
+        .element(screen.getByRole("status"))
+        .toHaveTextContent("Point: no se ofrece para cobrar menos de $ 15,00");
+      await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "Point crédito" })).toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Cobrar en efectivo" }))
+        .toBeEnabled();
+    });
+
+    it("turns the QR tile off below its minimum, with no notice", async () => {
+      const screen = await renderPanel({ availability: { ...AVAILABLE, qr: "below_minimum" } });
+
+      await expect.element(screen.getByRole("button", { name: "QR" })).toBeDisabled();
+      await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
+      await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("leaves every tile on while the core has not answered", async () => {
+      const screen = await renderPanel({ availability: undefined });
+
+      await expect.element(screen.getByRole("button", { name: "Point débito" })).toBeEnabled();
+      await expect.element(screen.getByRole("button", { name: "QR" })).toBeEnabled();
+    });
+  });
+
   it("draws the total as the design system's figure stat", async () => {
     const screen = await renderPanel();
 
