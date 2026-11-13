@@ -208,7 +208,12 @@ function discountsRemovedFrom(
 }
 
 function focusScanField(form: HTMLFormElement | null) {
-  form?.querySelector("input")?.focus();
+  const input = form?.querySelector("input");
+  if (input?.getAttribute("aria-disabled") === "true") {
+    form?.focus();
+    return;
+  }
+  input?.focus();
 }
 
 // A scanner types the next code at the caret, so a refused code left unselected would be joined
