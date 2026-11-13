@@ -67,13 +67,13 @@ it("warns that the discount typed replaces the one already applied on the total"
   const { screen } = panel;
 
   await expect
-    .element(screen.getByText(/Reemplaza el descuento sobre el total ya aplicado/))
+    .element(screen.getByText(/Reemplaza el descuento al total ya aplicado/))
     .not.toBeInTheDocument();
   await typeDiscount(panel, "100");
 
   await expect
     .element(screen.getByRole("status"))
-    .toHaveTextContent("Reemplaza el descuento sobre el total ya aplicado ($ 200,00)");
+    .toHaveTextContent("Reemplaza el descuento al total ya aplicado ($ 200,00)");
 });
 
 it("shows the amount before the discount on the total as the base of the discount typed when it replaces one already applied", async () => {
@@ -99,7 +99,7 @@ it("shows no replacement warning when the sale has no discount on its total", as
   await typeDiscount(panel, "100");
 
   await expect
-    .element(panel.screen.getByText(/Reemplaza el descuento sobre el total ya aplicado/))
+    .element(panel.screen.getByText(/Reemplaza el descuento al total ya aplicado/))
     .not.toBeInTheDocument();
 });
 

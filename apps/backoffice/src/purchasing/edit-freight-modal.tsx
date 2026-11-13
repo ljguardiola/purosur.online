@@ -2,7 +2,7 @@ import type { Freight, FreightSummary } from "@purosur/contracts";
 import { Button, Modal } from "@purosur/ui";
 import { Check, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   FreightFields,
   type FreightNotice,
@@ -35,7 +35,7 @@ export function EditFreightModal({
   onClose,
   onSessionEnded,
 }: EditFreightModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const open = target !== null;
   const [shown, setShown] = useState<FreightSummary | null>(null);
@@ -62,7 +62,7 @@ export function EditFreightModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

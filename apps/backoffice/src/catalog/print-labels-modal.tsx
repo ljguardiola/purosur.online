@@ -23,7 +23,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { downloadFile } from "../platform/download-file";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
 import type { LabelPrinterChoice, LabelPrinterPort } from "./label-printer-port";
 import type { LabelToPrint } from "./label-printer-print-sequence";
@@ -159,7 +159,7 @@ export function PrintLabelsModal({
     chooseLabelPrinter,
     printOnLabelPrinter,
   } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [counts, setCounts] = useState(NO_LABELS);
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -224,7 +224,7 @@ export function PrintLabelsModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     if (outcome.kind === "rate_limited") {

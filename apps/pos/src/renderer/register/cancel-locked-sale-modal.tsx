@@ -49,7 +49,7 @@ export function CancelLockedSaleModal({
             disabled={busy}
             onPress={onCancelSale}
           >
-            Vaciar carrito
+            Vaciar venta
           </Button>
         </>
       }

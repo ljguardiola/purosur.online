@@ -358,7 +358,7 @@ test("ends the session once when the alerts request comes back unauthenticated",
   expect(services.fetchAlertsOverview).toHaveBeenCalledTimes(1);
 });
 
-test("navigates to Mi cuenta when the alerts request comes back forbidden", async () => {
+test("opens the own account panel when the alerts request comes back forbidden", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue({ kind: "forbidden" });
 
@@ -425,7 +425,7 @@ test("ends the session once when the registers request comes back unauthenticate
   expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
 
-test("navigates to Mi cuenta when the registers request comes back forbidden", async () => {
+test("opens the own account panel when the registers request comes back forbidden", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisterSyncStatus).mockResolvedValue({ kind: "forbidden" });
 

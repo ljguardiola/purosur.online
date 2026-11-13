@@ -95,7 +95,7 @@ test("reports the session as ended when it was already closed", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the cloud refuses the action", async () => {
+test("opens the own account panel when the cloud refuses the action", async () => {
   window.history.pushState(null, "", "/users");
   const services = createServices();
   vi.mocked(services.endEverySession).mockResolvedValue({ kind: "forbidden" });

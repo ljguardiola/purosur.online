@@ -236,7 +236,7 @@ test("ends the session when the cloud finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("sends the person to Mi cuenta when the cloud refuses the capability", async () => {
+test("opens the own account panel when the cloud refuses the capability", async () => {
   window.history.pushState(null, "", "/fiscal-tasks");
   const services = createServices();
   vi.mocked(services.closeFiscalTask).mockResolvedValue({ kind: "forbidden" });

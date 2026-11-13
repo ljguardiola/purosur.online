@@ -18,7 +18,7 @@ import { Check, Eye, FileText, RefreshCw, Search, SearchX, Upload } from "lucide
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
 import { ReadBranchTermChange } from "../shell/branch-term-change";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
@@ -103,7 +103,7 @@ export function SupplierPriceListsScreen({
     onSessionEnded,
   });
   const refreshPurchasing = useRefreshPurchasing();
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const [search, setSearch] = useState(filters.search);
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const [upload, setUpload] = useState<{ supplierId: string | null } | null>(null);
@@ -133,7 +133,7 @@ export function SupplierPriceListsScreen({
           onSessionEnded();
           return;
         case "forbidden":
-          sendToMyAccount();
+          sendToOwnAccount();
           return;
         default:
           setNotice(readNoticeOf(outcome));

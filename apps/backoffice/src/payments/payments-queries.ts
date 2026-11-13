@@ -9,7 +9,7 @@ import type {
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { mapCloudData } from "../platform/map-cloud-data";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { type CloudData, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchMercadoPagoChargeCosts } from "./mercado-pago-charge-costs-api";
 import type { fetchHandConfirmedPayments, fetchSalesByPaymentMethod } from "./payments-report-api";
@@ -45,12 +45,12 @@ export function usePendingRefundsQuery(params: {
   onSessionEnded: () => void;
   fetchPendingRefunds: typeof fetchPendingRefunds;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PendingRefundsBody>({
     queryKey: paymentsKeys.pendingRefunds,
     read: params.fetchPendingRefunds,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -80,13 +80,13 @@ export function useSalesByPaymentMethodQuery(params: {
   fetchSalesByPaymentMethod: typeof fetchSalesByPaymentMethod;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<SalesByPaymentMethodBody>({
     queryKey: paymentsKeys.salesByPaymentMethod(params.query),
     keepPreviousData: true,
     read: () => params.fetchSalesByPaymentMethod(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -95,13 +95,13 @@ export function useHandConfirmedPaymentsQuery(params: {
   fetchHandConfirmedPayments: typeof fetchHandConfirmedPayments;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<HandConfirmedPaymentsBody>({
     queryKey: paymentsKeys.handConfirmedPayments(params.query),
     keepPreviousData: true,
     read: () => params.fetchHandConfirmedPayments(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -110,13 +110,13 @@ export function useMercadoPagoChargeCostsQuery(params: {
   fetchMercadoPagoChargeCosts: typeof fetchMercadoPagoChargeCosts;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<MercadoPagoChargeCostsBody>({
     queryKey: paymentsKeys.mercadoPagoChargeCosts(params.query),
     keepPreviousData: true,
     read: () => params.fetchMercadoPagoChargeCosts(params.query),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

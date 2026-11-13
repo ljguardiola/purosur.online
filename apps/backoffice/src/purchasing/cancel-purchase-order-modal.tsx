@@ -4,7 +4,7 @@ import { RotateCcw, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { cancelPurchaseOrder } from "./purchase-orders-api";
 
 export type CancelPurchaseOrderModalServices = {
@@ -34,7 +34,7 @@ export function CancelPurchaseOrderModal({
   onClose,
   onSessionEnded,
 }: CancelPurchaseOrderModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -64,7 +64,7 @@ export function CancelPurchaseOrderModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

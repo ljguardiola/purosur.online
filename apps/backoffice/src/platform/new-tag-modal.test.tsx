@@ -138,7 +138,7 @@ test("ends the session when creating finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when creating comes back forbidden", async () => {
+test("opens the own account panel when creating comes back forbidden", async () => {
   window.history.pushState(null, "", "/tags");
   const createTag = vi.fn<NewTagModalServices["createTag"]>().mockResolvedValue({
     kind: "forbidden",

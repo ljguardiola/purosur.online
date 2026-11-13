@@ -356,7 +356,7 @@ test("shows the time to wait when the cloud rate-limits the submission", async (
   await expect.element(form.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
 });
 
-test("sends the person to Mi cuenta when the submission is forbidden, and ends the session when it finds none", async () => {
+test("opens the own account panel when the submission is forbidden, and ends the session when it finds none", async () => {
   const submit = vi.fn().mockResolvedValueOnce({ kind: "forbidden" });
   const onSessionEnded = vi.fn();
   const form = await opened({ submit, onSessionEnded });

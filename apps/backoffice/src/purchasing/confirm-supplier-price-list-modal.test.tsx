@@ -207,7 +207,7 @@ test("ends the session when confirming finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when confirming comes back forbidden", async () => {
+test("opens the own account panel when confirming comes back forbidden", async () => {
   window.history.pushState(null, "", "/lists");
   const confirmSupplierPriceList = vi
     .fn<ConfirmSupplierPriceListModalServices["confirmSupplierPriceList"]>()

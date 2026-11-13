@@ -4,7 +4,7 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import type { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import type { fetchRoles, RoleSummary } from "../platform/roles-api";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchRole, RoleDetail } from "./roles-api";
 
@@ -17,12 +17,12 @@ const permissionsKeys = {
 };
 
 function useRolesQuery(params: { fetchRoles: typeof fetchRoles; onSessionEnded: () => void }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RoleSummary[]>({
     queryKey: permissionsKeys.roles,
     read: params.fetchRoles,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -30,12 +30,12 @@ export function usePermissionCatalogQuery(params: {
   fetchPermissionCatalog: typeof fetchPermissionCatalog;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<PermissionCatalogWire>({
     queryKey: permissionsKeys.permissionCatalog,
     read: params.fetchPermissionCatalog,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -77,13 +77,13 @@ export function useRoleQuery(params: {
   fetchRole: typeof fetchRole;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RoleRead>({
     queryKey: permissionsKeys.role(params.roleId),
     read: readRole(params.fetchRole, params.roleId),
     gcTime: 0,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

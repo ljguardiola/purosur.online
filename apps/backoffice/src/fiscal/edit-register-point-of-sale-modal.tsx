@@ -17,7 +17,7 @@ import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { creatableChoice } from "../platform/creatable-options";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
@@ -82,7 +82,7 @@ export function EditRegisterPointOfSaleModal({
   onSessionEnded,
   services,
 }: EditRegisterPointOfSaleModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const {
     configureRegisterPointOfSale,
     fetchSessionAuthorizationOptions,
@@ -132,7 +132,7 @@ export function EditRegisterPointOfSaleModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "not_found") {

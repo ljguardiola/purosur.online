@@ -11,11 +11,12 @@ export type SegmentedControlProps<V extends string> = OptionChoiceProps<
 > & {
   label: string;
   size?: SegmentedControlSize;
+  fullWidth?: boolean;
   disabled?: boolean;
 };
 
 const containerClassName =
-  "inline-flex flex-row items-stretch gap-1 rounded-lg border border-border p-1 data-disabled:opacity-disabled";
+  "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1 data-disabled:opacity-disabled";
 
 const containerSizeClassName: Record<SegmentedControlSize, string> = {
   large: "h-control-4xl",
@@ -32,8 +33,13 @@ const iconWrapperClassName: Record<SegmentedControlSize, string> = {
   medium: `${iconSlotClassName.sm} text-text-subtle group-data-selected:text-text-accent`,
 };
 
+const optionPaddingClassName = {
+  content: "px-4",
+  fullWidth: "min-w-0 flex-1 basis-0 px-2",
+};
+
 const optionClassName =
-  "group flex cursor-pointer items-center justify-center rounded-md px-4 outline-none " +
+  "group flex cursor-pointer items-center justify-center rounded-md outline-none " +
   "data-disabled:cursor-default " +
   "data-hovered:bg-surface-subtle " +
   "data-selected:bg-action-subtle " +
@@ -45,12 +51,13 @@ function SegmentedOption<V extends string>({
   label,
   icon,
   size,
-}: NarrowedOption<V, never, "icon"> & { size: SegmentedControlSize }) {
+  fullWidth,
+}: NarrowedOption<V, never, "icon"> & { size: SegmentedControlSize; fullWidth: boolean }) {
   return (
     <AriaRadio
       value={value}
       aria-label={label}
-      className={`${optionClassName} ${sizeClassName[size]}`}
+      className={`${optionClassName} ${sizeClassName[size]} ${optionPaddingClassName[fullWidth ? "fullWidth" : "content"]}`}
     >
       {icon ? (
         <span aria-hidden="true" className={iconWrapperClassName[size]}>
@@ -68,6 +75,7 @@ export function SegmentedControl<V extends string>({
   value,
   onChange,
   size = "medium",
+  fullWidth = false,
   disabled = false,
 }: SegmentedControlProps<V>) {
   return (
@@ -81,10 +89,10 @@ export function SegmentedControl<V extends string>({
           onChange(nextValue);
         }
       }}
-      className={`${containerClassName} ${containerSizeClassName[size]}`}
+      className={`${containerClassName} ${fullWidth ? "w-full" : "w-fit"} ${containerSizeClassName[size]}`}
     >
       {options.map((option) => (
-        <SegmentedOption key={option.value} {...option} size={size} />
+        <SegmentedOption key={option.value} {...option} size={size} fullWidth={fullWidth} />
       ))}
     </AriaRadioGroup>
   );

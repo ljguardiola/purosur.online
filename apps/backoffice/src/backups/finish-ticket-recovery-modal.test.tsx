@@ -132,7 +132,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
   await expect.element(dialog.getByText("Se puede volver a intentar en 1 minuto.")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when finishing comes back forbidden", async () => {
+test("opens the own account panel when finishing comes back forbidden", async () => {
   window.history.pushState(null, "", "/rescue");
   const finishContingencyTicketRecovery = vi
     .fn<FinishTicketRecoveryModalServices["finishContingencyTicketRecovery"]>()

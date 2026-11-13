@@ -385,26 +385,29 @@ test.each([
   "/reports/cash-rounding",
   "/reports/average-ticket",
   "/reports/returns",
-])("sends a user without the reports permission who opens %s to Mi cuenta", async (path) => {
-  const services = reportsServices(["stock_area"]);
-  window.history.pushState(null, "", path);
+])(
+  "sends a user without the reports permission who opens %s to the own account panel",
+  async (path) => {
+    const services = reportsServices(["stock_area"]);
+    window.history.pushState(null, "", path);
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
-  expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
-  expect(
-    services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
-  ).not.toHaveBeenCalled();
-  expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
-  expect(services.handTypedWeightsScreen.fetchHandTypedWeights).not.toHaveBeenCalled();
-  expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
-  expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
-  expect(services.cashRoundingScreen.fetchCashRounding).not.toHaveBeenCalled();
-  expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
-  expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
-});
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+    expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
+    expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
+    expect(
+      services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
+    ).not.toHaveBeenCalled();
+    expect(services.salesByCashierScreen.fetchSalesByCashier).not.toHaveBeenCalled();
+    expect(services.handTypedWeightsScreen.fetchHandTypedWeights).not.toHaveBeenCalled();
+    expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
+    expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
+    expect(services.cashRoundingScreen.fetchCashRounding).not.toHaveBeenCalled();
+    expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
+    expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
+  },
+);
 
 test("shows no open alerts count in Reportes' top bar", async () => {
   const services = reportsServices([]);

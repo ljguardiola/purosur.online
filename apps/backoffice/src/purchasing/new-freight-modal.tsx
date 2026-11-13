@@ -3,7 +3,7 @@ import type { Freight } from "@purosur/contracts";
 import { Button, Modal } from "@purosur/ui";
 import { Check, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import {
   FreightFields,
   type FreightNotice,
@@ -36,7 +36,7 @@ export function NewFreightModal({
   onClose,
   onSessionEnded,
 }: NewFreightModalProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [notice, setNotice] = useState<FreightNotice | null>(null);
   const [datedOn, setDatedOn] = useState<string | null>(null);
@@ -59,7 +59,7 @@ export function NewFreightModal({
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "purchase_not_found") {

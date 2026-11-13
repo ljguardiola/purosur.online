@@ -73,6 +73,7 @@ const SALE: OpenSale = {
   rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
+  refund_now_on_cancel: 0,
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
@@ -771,6 +772,7 @@ describe("adjustment preview query", () => {
     kind: "preview",
     discount_amount: 47_600,
     line_total: 428_400,
+    line_total_reduction: 47_600,
   };
 
   it.each<[string, string, number, ManualAdjustmentRequest]>([
