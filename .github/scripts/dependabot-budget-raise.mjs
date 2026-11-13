@@ -38,11 +38,17 @@ export function readMeasurement(text) {
 
 const budgetFileContent = (budget) => `${JSON.stringify(budget, null, 2)}\n`;
 
+async function readBudgetText({ reader, owner, repo, ref }) {
+  const { data: file } = await reader.repos.getContent({ owner, repo, path: BUDGET_PATH, ref });
+  return Buffer.from(file.content, file.encoding).toString("utf8");
+}
+
 export async function raiseBudgetOnPullRequest({
   reader,
   writer,
   owner,
   repo,
+  baseBranch,
   run,
   measurementText,
 }) {
@@ -63,13 +69,14 @@ export async function raiseBudgetOnPullRequest({
   if (pullRequest.head.sha !== run.head_sha)
     return { kind: "stale", pullRequest: pullRequest.number };
 
-  const { data: file } = await reader.repos.getContent({
-    owner,
-    repo,
-    path: BUDGET_PATH,
-    ref: run.head_sha,
-  });
-  const budget = JSON.parse(Buffer.from(file.content, file.encoding).toString("utf8"));
+  const [headBudgetText, baseBudgetText] = await Promise.all([
+    readBudgetText({ reader, owner, repo, ref: run.head_sha }),
+    readBudgetText({ reader, owner, repo, ref: baseBranch }),
+  ]);
+  if (headBudgetText !== baseBudgetText) {
+    return { kind: "budget-diverged", pullRequest: pullRequest.number };
+  }
+  const budget = JSON.parse(headBudgetText);
 
   const decision = decideBudgetRaise(measured, budget);
   if (decision.kind !== "raise") return { ...decision, pullRequest: pullRequest.number };

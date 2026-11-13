@@ -64,6 +64,7 @@ jobs:
               writer: getOctokit(process.env.APP_TOKEN).rest,
               owner: context.repo.owner,
               repo: context.repo.repo,
+              baseBranch: context.payload.repository.default_branch,
               run: context.payload.workflow_run,
               measurementText: await readFile(
                 `${process.env.RUNNER_TEMP}/measurement/download-measurement.json`,
