@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -130,6 +131,43 @@ describe("pendingUpdateFiles", () => {
     await pendingUpdateFiles(folder).clearPending();
 
     expect(readdirSync(folder)).toEqual([]);
+  });
+
+  describe("when an entry of the folder can not be removed", () => {
+    let held: string;
+
+    beforeEach(() => {
+      mkdirSync(folder);
+      writeFileSync(join(folder, "a-old-installer.exe"), "old");
+      held = join(folder, "held");
+      mkdirSync(held);
+      writeFileSync(join(held, "in-use.exe"), "in use");
+      writeFileSync(join(folder, "z-old-installer.exe"), "old");
+      chmodSync(held, 0o555);
+    });
+
+    afterEach(() => {
+      chmodSync(held, 0o755);
+    });
+
+    it("removes every other entry and rejects with the failure", async () => {
+      await expect(pendingUpdateFiles(folder).clearPending()).rejects.toMatchObject({
+        code: "EACCES",
+      });
+
+      expect(readdirSync(folder)).toEqual(["held"]);
+    });
+  });
+
+  it("overwrites a file left behind under the same name", async () => {
+    mkdirSync(folder);
+    writeFileSync(join(folder, "installer.exe"), "older and longer bytes");
+
+    const file = await pendingUpdateFiles(folder).open("installer.exe");
+    await file.write(encoder.encode("new"));
+    await file.close();
+
+    expect(readFileSync(join(folder, "installer.exe"), "utf8")).toBe("new");
   });
 
   it("writes the bytes it is given into a named file", async () => {
