@@ -48,12 +48,14 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     element.click();
     element.click();
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("dialog").getByText("QR de Mercado Pago", { exact: true }))
+      .element(
+        screen
+          .getByRole("complementary", { name: "Venta completada" })
+          .getByText("QR de Mercado Pago", { exact: true }),
+      )
       .toBeVisible();
     expect(chargeSaleWithPaidOrder).toHaveBeenCalledExactlyOnceWith("sale-1");
   });
@@ -73,9 +75,9 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
 
     await userEvent.click(screen.getByRole("button", { name: APPLY }));
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     await expect
-      .element(screen.getByRole("dialog").getByRole("status"))
+      .element(screen.getByRole("complementary", { name: "Venta completada" }).getByRole("status"))
       .toHaveTextContent(
         "Reembolso pendiente de $ 240,00 por Mercado Pago La nube lo envía a Mercado Pago cuando alguien lo confirma en el backoffice.",
       );
@@ -114,7 +116,9 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await userEvent.click(screen.getByRole("button", { name: APPLY }));
 
     await expect.element(screen.getByRole("button", { name: APPLY })).not.toBeInTheDocument();
-    await expect.element(screen.getByText("VENTA COMPLETADA")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("heading", { name: "Venta completada" }))
+      .not.toBeInTheDocument();
     const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
     await expect.element(panel.getByText("– $ 5.000,00")).toBeVisible();
     await expect.element(panel.getByText("$ 4.000,00")).toBeVisible();

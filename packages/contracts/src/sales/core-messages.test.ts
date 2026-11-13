@@ -1689,6 +1689,7 @@ describe("asking how a sale's receipt print stands", () => {
       printed: false,
       standing: null,
       comprobante: COMPROBANTE,
+      offer: null,
     },
     {
       kind: "found",
@@ -1696,6 +1697,7 @@ describe("asking how a sale's receipt print stands", () => {
       printed: true,
       standing: "printed",
       comprobante: { kind: "none" },
+      offer: null,
     },
     {
       kind: "found",
@@ -1703,6 +1705,23 @@ describe("asking how a sale's receipt print stands", () => {
       printed: false,
       standing: null,
       comprobante: { kind: "deferred_non_fiscal" },
+      offer: null,
+    },
+    {
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: "awaiting_answer",
+      comprobante: { kind: "none" },
+      offer: { remaining_ms: 1800, length_ms: 3000 },
+    },
+    {
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: "awaiting_answer",
+      comprobante: { kind: "none" },
+      offer: { remaining_ms: 0, length_ms: 3000 },
     },
     ...[
       "printing",
@@ -1721,6 +1740,7 @@ describe("asking how a sale's receipt print stands", () => {
       printed: false,
       standing,
       comprobante: COMPROBANTE,
+      offer: null,
     })),
   ])("accepts the answer %j", (outcome) => {
     const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
@@ -1734,6 +1754,7 @@ describe("asking how a sale's receipt print stands", () => {
     printed: false,
     standing: null,
     comprobante: COMPROBANTE,
+    offer: null,
   };
 
   it.each([
@@ -1748,6 +1769,11 @@ describe("asking how a sale's receipt print stands", () => {
     { ...FOUND, comprobante: undefined },
     { ...FOUND, comprobante: { kind: "other" } },
     { ...FOUND, comprobante: { ...COMPROBANTE, authorization: undefined } },
+    { ...FOUND, offer: undefined },
+    { ...FOUND, offer: { remaining_ms: -1, length_ms: 3000 } },
+    { ...FOUND, offer: { remaining_ms: 1.5, length_ms: 3000 } },
+    { ...FOUND, offer: { remaining_ms: 0, length_ms: 0 } },
+    { ...FOUND, offer: { remaining_ms: 1000 } },
     { kind: "lacks_permission" },
   ])("rejects the answer %j", (outcome) => {
     const message = { type: "receipt-print-status-result", request_id: REQUEST_ID, outcome };
@@ -1792,6 +1818,7 @@ describe("answering whether to print the customer's ticket", () => {
     { kind: "not_signed_in" },
     { kind: "not_found" },
     { kind: "not_awaiting" },
+    { kind: "lapsed" },
     { kind: "unavailable" },
   ])("accepts the result %j", (outcome) => {
     const message = { type: "answer-receipt-question-result", request_id: REQUEST_ID, outcome };

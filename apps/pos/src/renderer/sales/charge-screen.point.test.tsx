@@ -218,8 +218,14 @@ describe("ChargeScreen · Point", () => {
       await expect.element(screen.getByText("Pagado en la terminal")).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
-      await expect.element(screen.getByRole("dialog").getByText("Point · Débito")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
+      await expect
+        .element(
+          screen
+            .getByRole("complementary", { name: "Venta completada" })
+            .getByText("Point · Débito"),
+        )
+        .toBeVisible();
     });
 
     it("keeps the declined notice after the sale stops showing the charge", async () => {
@@ -344,7 +350,11 @@ describe("ChargeScreen · Point", () => {
         476_000,
       );
       await expect
-        .element(screen.getByRole("dialog").getByText(name, { exact: true }))
+        .element(
+          screen
+            .getByRole("complementary", { name: "Venta completada" })
+            .getByText(name, { exact: true }),
+        )
         .toBeVisible();
     },
   );
@@ -435,9 +445,13 @@ describe("ChargeScreen · Point", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
-      await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
       await expect
-        .element(screen.getByRole("dialog").getByText("Point · Débito", { exact: true }))
+        .element(
+          screen
+            .getByRole("complementary", { name: "Venta completada" })
+            .getByText("Point · Débito", { exact: true }),
+        )
         .toBeVisible();
       await expect.poll(() => receiptPrintStatus.mock.calls).toEqual([["sale-1"]]);
     });
