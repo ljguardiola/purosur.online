@@ -168,6 +168,7 @@ export function PinCodeRedemptionForm({
             <TextField
               kind="plain-text"
               label="Código"
+              errorRingWhileFocused
               value={code.state.value}
               onChange={code.handleChange}
               {...(message === undefined && codeRejected
