@@ -159,7 +159,11 @@ describe("saleActionsOf whether the sale may be returned", () => {
   });
 
   it("offers no return when the core says the sale is not returnable", () => {
-    const { canReturn } = saleActionsOf({ ...DETAIL, voidability: NOT_VOIDABLE, returnable: false });
+    const { canReturn } = saleActionsOf({
+      ...DETAIL,
+      voidability: NOT_VOIDABLE,
+      returnable: false,
+    });
 
     expect(canReturn).toBe(false);
   });

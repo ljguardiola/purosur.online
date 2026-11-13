@@ -9,13 +9,13 @@ import {
   receiptPrintAvailability,
   type SaleReceiptAvailability,
 } from "../model/receipt-print-availability.js";
+import type { SaleState } from "../model/sale.js";
 import {
   type SaleComprobante,
   type SaleStanding,
   saleComprobanteOf,
   saleStandingOf,
 } from "../model/sale-history.js";
-import type { SaleState } from "../model/sale.js";
 import { saleMayBeReturned } from "../model/sale-returnability.js";
 import { type SaleVoidRefusal, saleVoidRefusal } from "../model/sale-void.js";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
