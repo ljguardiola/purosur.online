@@ -335,6 +335,7 @@ function coreAnswering(
             printed: true,
             standing: "printed",
             comprobante: { kind: "none" },
+            offer: null,
           }
         : sales.receiptPrintStatus(saleId);
     },
@@ -2168,7 +2169,7 @@ describe("App", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
-    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    await expect.element(screen.getByText("VUELTO", { exact: true })).toBeVisible();
     expect(charges).toEqual([["sale-1", 250_000]]);
   });
 
@@ -2271,7 +2272,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
-    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    await expect.element(screen.getByText("VUELTO", { exact: true })).toBeVisible();
     await expect
       .element(
         screen
@@ -2400,7 +2401,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
     await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
     await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
-    await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
+    await expect.element(screen.getByText("VUELTO", { exact: true })).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
@@ -2476,9 +2477,7 @@ describe("App", () => {
     await userEvent.fill(amount, "2380,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
   });
 
@@ -2540,9 +2539,7 @@ describe("App", () => {
     await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago" }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(charges).toEqual([["sale-1", 238_000]]);
   });
 
@@ -2607,9 +2604,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Registrar transferencia" }));
-    await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
@@ -2748,7 +2743,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }), {
+      .element(screen.getByRole("heading", { name: "Venta completada" }), {
         timeout: 5_000,
       })
       .toBeVisible();
@@ -2830,7 +2825,7 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
-      .element(screen.getByRole("heading", { name: "No hay vuelto para entregar" }), {
+      .element(screen.getByRole("heading", { name: "Venta completada" }), {
         timeout: 5_000,
       })
       .toBeVisible();
@@ -3822,6 +3817,7 @@ describe("App", () => {
               printed: false,
               standing: "paper_out",
               comprobante: { kind: "none" },
+              offer: null,
             };
           },
         },
@@ -3833,9 +3829,7 @@ describe("App", () => {
       await userEvent.fill(screen.getByRole("textbox", { name: "RECIBIDO" }), "2500,00");
       await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
-      await expect
-        .element(screen.getByRole("heading", { name: "No se pudo imprimir el ticket" }))
-        .toBeVisible();
+      await expect.element(screen.getByText("Pendiente de imprimir")).toBeVisible();
       expect(asked).toContain("sale-1");
     });
   });

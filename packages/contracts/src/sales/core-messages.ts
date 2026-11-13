@@ -371,6 +371,12 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
       ])
       .nullable(),
     comprobante: comprobanteSchema,
+    offer: z
+      .object({
+        remaining_ms: z.number().int().nonnegative(),
+        length_ms: z.number().int().positive(),
+      })
+      .nullable(),
   }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_signed_in") }),
@@ -384,6 +390,7 @@ const answerReceiptQuestionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_awaiting") }),
+  z.object({ kind: z.literal("lapsed") }),
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type AnswerReceiptQuestionOutcome = z.infer<typeof answerReceiptQuestionOutcomeSchema>;

@@ -9,7 +9,7 @@ import type { PointCardType } from "@purosur/domain";
 import type { CompletedCharge } from "./cash-charge-panel";
 import type { CompletedPointPayment } from "./point-payment-wait-panel";
 import type { CompletedQrPayment } from "./qr-payment-wait-panel";
-import { SaleCompletedModal } from "./sale-completed-modal";
+import { SaleCompletedPanel } from "./sale-completed-panel";
 import type { CompletedStandaloneTerminal } from "./standalone-terminal-charge-panel";
 import type { CompletedTransfer } from "./transfer-charge-panel";
 
@@ -23,7 +23,7 @@ export type CompletedPayment =
   | { method: "POINT"; cardType: PointCardType | null; charge: CompletedPointPayment }
   | { method: "PAID_ORDER"; orderMethod: "QR" | "POINT"; charge: CompletedPaidOrder };
 
-export function ChargeCompletedModal({
+export function ChargeCompletedPanel({
   saleId,
   payment,
   readReceiptStatus,
@@ -54,16 +54,17 @@ export function ChargeCompletedModal({
   switch (payment.method) {
     case "CASH":
       return (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           tendered={payment.charge.tendered}
           change={payment.charge.change}
+          cashRounding={payment.charge.cash_rounding}
         />
       );
     case "TRANSFER":
       return (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           method="TRANSFER"
@@ -72,7 +73,7 @@ export function ChargeCompletedModal({
       );
     case "STANDALONE_TERMINAL":
       return (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           method="STANDALONE_TERMINAL"
@@ -81,7 +82,7 @@ export function ChargeCompletedModal({
       );
     case "QR":
       return (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           method="QR"
@@ -90,7 +91,7 @@ export function ChargeCompletedModal({
       );
     case "POINT":
       return (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           method="POINT"
@@ -100,7 +101,7 @@ export function ChargeCompletedModal({
       );
     case "PAID_ORDER":
       return payment.orderMethod === "QR" ? (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           method="QR"
@@ -111,7 +112,7 @@ export function ChargeCompletedModal({
           }}
         />
       ) : (
-        <SaleCompletedModal
+        <SaleCompletedPanel
           {...shared}
           total={payment.charge.total}
           method="POINT"

@@ -8,17 +8,22 @@ import type { PointCardType } from "@purosur/domain";
 import {
   Button,
   DocumentList,
+  Eyebrow,
   FigureStat,
   formatCents,
   InlineNotice,
-  Modal,
+  SidePanel,
+  SidePanelTitle,
   SummaryRowGroup,
   Tag,
+  TimedOfferCard,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert, Undo2 } from "lucide-react";
-import { useEffect } from "react";
+import { Check, Plus, Printer, Receipt, TriangleAlert, Undo2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { pointCardName } from "../platform/payment-method-names";
+import { useCountdown } from "../platform/use-countdown";
 import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import type { ReceiptPrintStatus } from "./sales-queries";
 import {
@@ -120,13 +125,13 @@ function backupTicketStatus(standing: BackupStanding, printerFailure: PrinterFai
     case "to_print": {
       const failure = printerFailure === null ? undefined : backupPrinterState(printerFailure);
       return failure === undefined ? (
-        <Tag tone="info">Imprimiendo</Tag>
+        <Tag tone="neutral">Por imprimir</Tag>
       ) : (
         <Tag tone="warning">{failure}</Tag>
       );
     }
     case "awaiting_customer_document":
-      return <Tag tone="info">Imprimiendo</Tag>;
+      return <Tag tone="neutral">Por imprimir</Tag>;
   }
 }
 
@@ -138,7 +143,7 @@ const SURPLUS_SENT_BY_CLOUD =
 const SURPLUS_MADE_BY_HAND =
   "Lo devuelve una persona desde Mercado Pago, cuando lo atiende en el backoffice.";
 
-export type SaleCompletedModalProps = {
+export type SaleCompletedPanelProps = {
   saleId: string;
   total: number;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
@@ -148,7 +153,7 @@ export type SaleCompletedModalProps = {
   mayChangePrinter: boolean;
   onNewSale: () => void;
 } & (
-  | { tendered: number; change: number; method?: "CASH" }
+  | { tendered: number; change: number; cashRounding: number; method?: "CASH" }
   | { method: "TRANSFER"; amount: number }
   | { method: "QR"; amount: number; surplusRefund?: SurplusRefund }
   | {
@@ -160,7 +165,37 @@ export type SaleCompletedModalProps = {
   | { method: "STANDALONE_TERMINAL"; amount: number }
 );
 
-export function SaleCompletedModal(props: SaleCompletedModalProps) {
+type ReceiptOffer = NonNullable<ReceiptPrintStatus["offer"]>;
+
+function PrintOffer({
+  offer,
+  disabled,
+  onPrint,
+  onSkip,
+}: {
+  offer: ReceiptOffer;
+  disabled: boolean;
+  onPrint: () => void;
+  onSkip: () => void;
+}) {
+  const [seed] = useState(() => ({ seconds: Math.ceil(offer.remaining_ms / 1000) }));
+  const remainingSeconds = useCountdown(seed);
+  return (
+    <TimedOfferCard
+      icon={<Printer />}
+      title="¿Imprimir ticket?"
+      skip={{ label: "Omitir", onPress: onSkip }}
+      countdown={{
+        remainingSeconds,
+        totalSeconds: Math.ceil(offer.length_ms / 1000),
+        label: "Tiempo para imprimir",
+      }}
+      accept={{ label: "Sí", icon: <Check />, onPress: onPrint, disabled }}
+    />
+  );
+}
+
+export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
   const {
     saleId,
     total,
@@ -173,10 +208,16 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   } = props;
   const navigate = useNavigate();
   const change = "change" in props ? props.change : 0;
+  const cashRounding = "cashRounding" in props ? props.cashRounding : 0;
   const surplusRefund = "surplusRefund" in props ? props.surplusRefund : undefined;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const answer = useAnswerReceiptQuestionMutation({ saleId, answer: answerReceiptQuestion });
   const asking = receipt.status === "loaded" && receipt.value.standing === "awaiting_answer";
+  const offer = asking ? receipt.value.offer : null;
+  const [offered, setOffered] = useState(false);
+  if (asking && !offered) {
+    setOffered(true);
+  }
   const mayStartNewSale =
     receipt.status === "failed" ||
     (receipt.status === "loaded" && receipt.value.standing !== "preparing");
@@ -185,9 +226,16 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     (answer.data !== undefined &&
       (answer.data.kind === "printing" ||
         answer.data.kind === "declined" ||
+        answer.data.kind === "lapsed" ||
         answer.data.kind === "not_awaiting"));
   const answerFailed = answer.isError || (answer.data !== undefined && !answerSent);
   const mayAnswer = asking && !answerSent;
+  const lapsed =
+    answer.data?.kind === "lapsed" ||
+    (offered &&
+      !answerSent &&
+      receipt.status === "loaded" &&
+      receipt.value.standing === "declined");
   const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
   const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
   const backupPrinterFailure = useBackupPrinterFailureQuery({
@@ -203,99 +251,121 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           ? { label: pointCardName(props.cardType), value: formatCents(props.amount) }
           : props.method === "STANDALONE_TERMINAL"
             ? { label: "Terminal independiente", value: formatCents(props.amount) }
-            : { label: "Efectivo entregado", value: formatCents(props.tendered) };
-  useEffect(() => {
-    if (!mayAnswer) {
-      return;
-    }
-    const answerNoOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        answer.mutate(false);
-      }
-    };
-    document.addEventListener("keydown", answerNoOnEscape);
-    return () => document.removeEventListener("keydown", answerNoOnEscape);
-  }, [mayAnswer, answer.mutate]);
+            : { label: "Efectivo", value: formatCents(props.tendered) };
   const failedStanding = receipt.status === "loaded" ? failedStandingOf(receipt.value) : undefined;
+  const mayChangeFailedPrinter = mayChangePrinter && failedStanding !== undefined;
+
+  useEffect(() => {
+    if (lapsed) {
+      onNewSale();
+    }
+  }, [lapsed, onNewSale]);
+
+  function print() {
+    if (mayAnswer) {
+      answer.mutate(true);
+    }
+  }
+
+  function skip() {
+    if (mayAnswer) {
+      answer.mutate(false);
+      onNewSale();
+    }
+  }
+
+  function changePrinter() {
+    void navigate({ to: "/receipt-printer" });
+  }
+
+  useKeys([
+    { key: "Escape", run: skip },
+    { key: "F2", run: changePrinter, enabled: mayChangeFailedPrinter },
+  ]);
+  useKeys(
+    [
+      {
+        key: "Enter",
+        run: asking ? print : onNewSale,
+        enabled: asking ? mayAnswer : mayStartNewSale,
+      },
+    ],
+    { fallback: true },
+  );
+
+  const header = <SidePanelTitle icon={<Check />} title="Venta completada" />;
+  const changeFigure =
+    change > 0 ? <FigureStat size="hero" label="VUELTO" value={formatCents(change)} /> : null;
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
-    const changePrinter = mayChangePrinter ? (
-      <Button
-        variant="secondary"
-        size="large"
-        icon={<Printer />}
-        onPress={() => void navigate({ to: "/receipt-printer" })}
-      >
-        Cambiar impresora
-      </Button>
-    ) : null;
     const failure = FAILURES[failedStanding];
     return (
-      <Modal
-        open
-        onOpenChange={() => {}}
-        width="standard"
-        tone="error"
-        icon={<Printer />}
-        context="IMPRESORA"
-        contextTone="error"
-        title="No se pudo imprimir el ticket"
+      <SidePanel
+        label="Venta completada"
+        header={header}
         footer={
-          <>
-            {changePrinter}
-            <Button size="large" fullWidth icon={<ArrowRight />} onPress={onNewSale}>
-              Seguir vendiendo
-            </Button>
-          </>
+          <Button
+            size="large"
+            fullWidth
+            icon={<Plus />}
+            iconPosition="start"
+            keycap="Enter"
+            onPress={onNewSale}
+          >
+            Seguir vendiendo
+          </Button>
         }
       >
-        <div className="flex flex-col gap-4">
-          <SummaryRowGroup
-            rows={[
-              { label: "Venta", value: "Confirmada · no se deshace" },
-              ...(change > 0 ? [{ label: "Vuelto a entregar", value: formatCents(change) }] : []),
-              ...(failure.printerState === undefined
-                ? []
-                : [{ label: "Impresora térmica", value: failure.printerState }]),
-              { label: "Ticket", value: "Pendiente de imprimir" },
-            ]}
-          />
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            description={failure.help}
-            {...(failure.title === undefined ? {} : { title: failure.title })}
-          />
-        </div>
-      </Modal>
+        {changeFigure}
+        <SummaryRowGroup
+          variant="plain"
+          rows={[
+            { label: "Venta", value: "Confirmada · no se deshace" },
+            ...(failure.printerState === undefined
+              ? []
+              : [{ label: "Impresora térmica", value: failure.printerState }]),
+            { label: "Ticket", value: "Pendiente de imprimir" },
+          ]}
+        />
+        <InlineNotice
+          tone="error"
+          icon={<Printer />}
+          description={failure.help}
+          {...(failure.title === undefined ? {} : { title: failure.title })}
+        />
+        {mayChangePrinter ? (
+          <div className="flex">
+            <Button variant="text" keycap="F2" onPress={changePrinter}>
+              Cambiar impresora
+            </Button>
+          </div>
+        ) : null}
+      </SidePanel>
     );
   }
 
   const contingency =
     receipt.status === "loaded" &&
     receipt.value.comprobante.kind === "fiscal" &&
-    receipt.value.comprobante.authorization === "offline_code"
-      ? receipt.value
-      : undefined;
+    receipt.value.comprobante.authorization === "offline_code";
   const deferred =
     receipt.status === "loaded" && receipt.value.comprobante.kind === "deferred_non_fiscal";
   const printState = receiptRowValue(receipt);
   const printed = receipt.status === "loaded" && receipt.value.printed;
-  const customerDocument =
-    contingency !== undefined
-      ? { title: "Factura C", detail: "Para el cliente" }
-      : deferred
-        ? {
-            title: "Documento no válido como factura",
-            detail: "Para el cliente · con la indicación de volver por la factura",
-          }
-        : undefined;
+  const customerDocument = contingency
+    ? { title: "Factura C", detail: "Para el cliente" }
+    : deferred
+      ? {
+          title: "Documento no válido como factura",
+          detail: "Para el cliente · con la indicación de volver por la factura",
+        }
+      : undefined;
   const documentRows = [
     customerDocument === undefined
       ? undefined
       : {
           ...customerDocument,
-          status: asking ? null : (
+          status: (
             <Tag tone={printed ? "success" : printState === "No impreso" ? "neutral" : "info"}>
               {printState}
             </Tag>
@@ -330,107 +400,70 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       : undefined;
 
   return (
-    <Modal
-      open
-      onOpenChange={() => {}}
-      width="standard"
-      tone="success"
-      icon={<CircleCheck />}
-      context="VENTA COMPLETADA"
-      contextTone="success"
-      title={
-        asking
-          ? "¿Imprimir ticket?"
-          : change > 0
-            ? "Entregá el vuelto"
-            : "No hay vuelto para entregar"
-      }
+    <SidePanel
+      label="Venta completada"
+      header={header}
       footer={
-        asking ? (
-          <>
-            <Button
-              variant="secondary"
-              size="large"
-              disabled={answerSent}
-              onPress={() => answer.mutate(false)}
-            >
-              No
-            </Button>
-            <Button
-              size="large"
-              fullWidth
-              autoFocus
-              disabled={answerSent}
-              onPress={() => answer.mutate(true)}
-            >
-              Sí
-            </Button>
-          </>
-        ) : (
+        offer === null ? (
           <Button
             size="large"
             fullWidth
             icon={<Plus />}
+            iconPosition="start"
+            keycap="Enter"
             disabled={!mayStartNewSale}
             onPress={onNewSale}
           >
             Nueva venta
           </Button>
+        ) : (
+          <PrintOffer offer={offer} disabled={answerSent} onPrint={print} onSkip={skip} />
         )
       }
     >
-      <div className="flex flex-col gap-5">
-        {change > 0 ? <FigureStat label="VUELTO" value={formatCents(change)} /> : null}
+      {changeFigure}
+      {contingency || deferred ? null : (
         <SummaryRowGroup
+          variant="plain"
           rows={[
             { label: "Total", value: formatCents(total) },
+            ...(cashRounding === 0
+              ? []
+              : [{ label: "Redondeo", value: `– ${formatCents(cashRounding)}` }]),
             paymentRow,
-            ...(contingency !== undefined
-              ? [
-                  {
-                    label: "Modo fiscal",
-                    value: <Tag tone="warning">Contingencia con CAEA</Tag>,
-                  },
-                ]
-              : deferred
-                ? [
-                    {
-                      label: "Modo fiscal",
-                      value: <Tag tone="warning">Venta diferida · sin factura en el momento</Tag>,
-                    },
-                  ]
-                : asking
-                  ? []
-                  : [{ label: "Ticket", value: printState }]),
+            ...(asking ? [] : [{ label: "Ticket", value: printState }]),
           ]}
         />
-        {surplusRefund !== undefined && surplusRefund.amount > 0 ? (
-          <InlineNotice
-            tone="info"
-            icon={<Undo2 />}
-            title={`Reembolso pendiente de ${formatCents(surplusRefund.amount)} por Mercado Pago`}
-            description={surplusRefund.sentByCloud ? SURPLUS_SENT_BY_CLOUD : SURPLUS_MADE_BY_HAND}
-          />
-        ) : null}
-        {firstDocument === undefined ? null : (
+      )}
+      {surplusRefund !== undefined && surplusRefund.amount > 0 ? (
+        <InlineNotice
+          tone="info"
+          icon={<Undo2 />}
+          title={`Reembolso pendiente de ${formatCents(surplusRefund.amount)} por Mercado Pago`}
+          description={surplusRefund.sentByCloud ? SURPLUS_SENT_BY_CLOUD : SURPLUS_MADE_BY_HAND}
+        />
+      ) : null}
+      {firstDocument === undefined ? null : (
+        <div className="flex flex-col gap-2">
+          <Eyebrow text="DOCUMENTOS" />
           <DocumentList label="Documentos" rows={[firstDocument, ...otherDocuments]} />
-        )}
-        {answerFailed ? (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo enviar la respuesta. Probá de nuevo."
-          />
-        ) : null}
-        {keepNotice === undefined ? null : (
-          <InlineNotice
-            tone="warning"
-            icon={<TriangleAlert />}
-            title={keepNotice.title}
-            description={keepNotice.description}
-          />
-        )}
-      </div>
-    </Modal>
+        </div>
+      )}
+      {answerFailed ? (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title="No se pudo enviar la respuesta. Probá de nuevo."
+        />
+      ) : null}
+      {keepNotice === undefined ? null : (
+        <InlineNotice
+          tone="warning"
+          icon={<Receipt />}
+          title={keepNotice.title}
+          description={keepNotice.description}
+        />
+      )}
+    </SidePanel>
   );
 }

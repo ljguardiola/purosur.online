@@ -915,6 +915,7 @@ describe("receipt print status query", () => {
         printed: false,
         standing: "paper_out",
         comprobante: { kind: "none" },
+        offer: null,
       }),
     );
     const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
@@ -942,6 +943,7 @@ describe("receipt print status query", () => {
         printed: false,
         standing: "printing",
         comprobante: { kind: "none" },
+        offer: null,
       },
       {
         kind: "found",
@@ -949,6 +951,7 @@ describe("receipt print status query", () => {
         printed: true,
         standing: "printed",
         comprobante: { kind: "none" },
+        offer: null,
       },
     ];
     const read = vi.fn(
@@ -959,6 +962,7 @@ describe("receipt print status query", () => {
           printed: true,
           standing: "printed" as const,
           comprobante: { kind: "none" as const },
+          offer: null,
         },
     );
     const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
@@ -982,6 +986,7 @@ describe("receipt print status query", () => {
           printed: false,
           standing,
           comprobante: { kind: "none" },
+          offer: null,
         }),
       );
       const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);

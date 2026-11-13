@@ -5,10 +5,16 @@ import type {
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
 } from "@purosur/contracts";
-import type { PrintedDocumentKey, ReceiptCopy, ZoneRulesSource } from "@purosur/domain";
+import {
+  type PrintedDocumentKey,
+  RECEIPT_PRINT_OFFER_MS,
+  type ReceiptCopy,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import {
   type Clock,
   type IdGenerator,
+  lapseReceiptPrintOffer,
   type OperationAuthority,
   type OperationAuthorization,
   printOriginalReceipt,
@@ -87,8 +93,9 @@ function standingShown(
   jobs: ReceiptPrintJobs,
   saleId: string,
   delivery: Extract<ReceiptDeliveryOfOutcome, { kind: "found" }>,
+  offerOpen: boolean,
 ): ReceiptPrintStatusFound["standing"] {
-  if (jobs.isHeldForAnswer(saleId)) {
+  if (offerOpen) {
     return "awaiting_answer";
   }
   if (jobs.isPreparing(saleId)) {
@@ -97,12 +104,36 @@ function standingShown(
   return jobs.standingOf(saleId) ?? (delivery.standing === "declined" ? "declined" : null);
 }
 
-export async function receiptPrintStatusFor(
-  { database, signedInUserId, jobs }: ReceiptRequestDeps,
+export function lapsedOfferReleased(
+  { database, now, jobs }: ReceiptRequestDeps,
   saleId: string,
+): { deadline: Date; offer: ReturnType<typeof lapseReceiptPrintOffer> } | undefined {
+  const deadline = jobs.offerDeadlineOf(saleId);
+  if (deadline === undefined) {
+    return undefined;
+  }
+  const offer = lapseReceiptPrintOffer(
+    { ledger: new SqliteReceiptLedger(database), clock: { now } },
+    { saleId, deadline },
+  );
+  if (offer.kind === "lapsed") {
+    jobs.releaseAnswer(saleId);
+  }
+  return { deadline, offer };
+}
+
+export async function receiptPrintStatusFor(
+  deps: ReceiptRequestDeps,
+  saleId: string,
+  syncNow: () => void = () => {},
 ): Promise<ReceiptPrintStatusOutcome> {
+  const { database, signedInUserId, jobs } = deps;
   if (signedInUserId() === undefined) {
     return { kind: "not_signed_in" };
+  }
+  const held = lapsedOfferReleased(deps, saleId);
+  if (held?.offer.kind === "lapsed") {
+    syncNow();
   }
   const delivery = receiptDeliveryOf(
     { ledger: new SqliteReceiptLedger(database) },
@@ -114,7 +145,11 @@ export async function receiptPrintStatusFor(
         kind: "found",
         next_copy: toWireCopy(delivery.nextCopy),
         printed: delivery.printedAt !== null,
-        standing: standingShown(jobs, saleId, delivery),
+        standing: standingShown(jobs, saleId, delivery, held?.offer.kind === "open"),
+        offer:
+          held?.offer.kind === "open"
+            ? { remaining_ms: held.offer.remainingMs, length_ms: RECEIPT_PRINT_OFFER_MS }
+            : null,
         comprobante: toWireComprobante(
           readSaleComprobante({ history: new SqliteRegisterSalesHistory(database) }, { saleId }),
         ),

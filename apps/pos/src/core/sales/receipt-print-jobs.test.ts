@@ -38,17 +38,18 @@ function printingSale({ jobs, printer }: Rig, saleId = "sale-1") {
 }
 
 describe("receipt print jobs", () => {
-  it("holds a sale for the cashier's answer until the answer releases it", () => {
+  it("holds a sale for the cashier's answer, remembering its deadline, until the answer releases it", () => {
     const { jobs } = rig();
+    const deadline = new Date("2026-10-08T12:00:03.000Z");
 
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(false);
+    expect(jobs.offerDeadlineOf("sale-1")).toBeUndefined();
 
-    jobs.holdForAnswer("sale-1");
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
-    expect(jobs.isHeldForAnswer("sale-2")).toBe(false);
+    jobs.holdForAnswer("sale-1", deadline);
+    expect(jobs.offerDeadlineOf("sale-1")).toEqual(deadline);
+    expect(jobs.offerDeadlineOf("sale-2")).toBeUndefined();
 
     expect(jobs.releaseAnswer("sale-1")).toBe(true);
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(false);
+    expect(jobs.offerDeadlineOf("sale-1")).toBeUndefined();
     expect(jobs.releaseAnswer("sale-1")).toBe(false);
   });
 
@@ -69,10 +70,10 @@ describe("receipt print jobs", () => {
     const { jobs } = rig();
     jobs.prepare("sale-1");
 
-    jobs.holdForAnswer("sale-1");
+    jobs.holdForAnswer("sale-1", new Date("2026-10-08T12:00:03.000Z"));
 
     expect(jobs.isPreparing("sale-1")).toBe(false);
-    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
+    expect(jobs.offerDeadlineOf("sale-1")).toBeDefined();
   });
 
   it("ends preparing a sale as soon as its print starts", () => {
