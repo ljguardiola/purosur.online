@@ -47,9 +47,12 @@ describe("ProductConsultationScreen showing a consulted product", () => {
 
     await expect.element(screen.getByText("$ 6.260,00")).toBeVisible();
     await expect.element(screen.getByText("Artículos")).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: /Cobrar en efectivo/ }))
-      .not.toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /Cobrar en efectivo/ })
+        .element()
+        .closest("[inert]"),
+    ).not.toBeNull();
   });
 
   it("asks the core about the product it opened with", async () => {
@@ -170,7 +173,7 @@ describe("ProductConsultationScreen finding the product to consult", () => {
 
     await userEvent.fill(field, "alm");
     await expect.element(screen.getByRole("option", { name: /Almendras peladas/ })).toBeVisible();
-    await expect.element(screen.getByText("Consultar")).toBeVisible();
+    await expect.element(screen.getByRole("listitem").filter({ hasText: /^EnterConsultar$/ })).toBeVisible();
     await userEvent.keyboard("{Enter}");
 
     await vi.waitFor(() =>

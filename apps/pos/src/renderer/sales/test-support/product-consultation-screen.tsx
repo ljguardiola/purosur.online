@@ -6,6 +6,8 @@ import type {
 import { onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
 import { BarcodeReadings } from "../../shell/barcode-readings";
+import type { RegisterStatusData } from "../../shell/register-status-context";
+import { RegisterStatusProvider } from "../../shell/register-status-context";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ProductConsultationScreenProps } from "../product-consultation-screen";
 import { ProductConsultationScreen } from "../product-consultation-screen";
@@ -43,6 +45,25 @@ const PERSON: ProductConsultationScreenProps["person"] = {
   abilities: ["open_cash_session"],
 };
 
+const REGISTER_STATUS: RegisterStatusData = {
+  person: PERSON,
+  registerName: "Caja 1",
+  cashSession: { status: "none" },
+  status: {
+    status: "loaded",
+    value: {
+      conditions: [],
+      cloud: "reachable",
+      serial_devices: { scale: "matching", reader: "matching" },
+      serial_devices_setup_offered: false,
+      contingency: null,
+    },
+    refreshing: false,
+  },
+  backupTickets: { status: "loading" },
+  onDiscardBackupTickets: () => {},
+};
+
 export const FIELD_NAME = "Producto";
 
 type Overrides = Partial<ProductConsultationScreenProps>;
@@ -64,25 +85,27 @@ export async function renderScreen(overrides: Overrides = {}) {
     );
   const readers = new Set<(code: string) => void>();
   const screen = await render(
-    <BarcodeReadings
-      onBarcodeRead={(listener) => {
-        readers.add(listener);
-        return () => {
-          readers.delete(listener);
-        };
-      }}
-    >
-      <ProductConsultationScreen
-        sessionId="session-1"
-        person={overrides.person ?? PERSON}
-        lock={overrides.lock ?? (() => {})}
-        currentSale={overrides.currentSale ?? (async () => SALE_OF_YERBA_AND_ALFAJOR)}
-        consultProduct={consultProduct}
-        searchProducts={searchProducts}
-        productId={"productId" in overrides ? overrides.productId : "almendras"}
-        onSessionInvalid={overrides.onSessionInvalid ?? (() => {})}
-      />
-    </BarcodeReadings>,
+    <RegisterStatusProvider value={REGISTER_STATUS}>
+      <BarcodeReadings
+        onBarcodeRead={(listener) => {
+          readers.add(listener);
+          return () => {
+            readers.delete(listener);
+          };
+        }}
+      >
+        <ProductConsultationScreen
+          sessionId="session-1"
+          person={overrides.person ?? PERSON}
+          lock={overrides.lock ?? (() => {})}
+          currentSale={overrides.currentSale ?? (async () => SALE_OF_YERBA_AND_ALFAJOR)}
+          consultProduct={consultProduct}
+          searchProducts={searchProducts}
+          productId={"productId" in overrides ? overrides.productId : "almendras"}
+          onSessionInvalid={overrides.onSessionInvalid ?? (() => {})}
+        />
+      </BarcodeReadings>
+    </RegisterStatusProvider>,
   );
   return {
     screen,

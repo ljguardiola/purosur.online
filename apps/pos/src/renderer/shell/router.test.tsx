@@ -3454,7 +3454,7 @@ describe("the Consulta route", () => {
     const router = createRegisterRouter(
       routeTree,
       { ...contextWith("up", "enrolled", undefined, undefined, OPEN_SESSION), addProduct },
-      "/session",
+      "/consult",
     );
     await render(<RouterProvider router={router} />);
 
