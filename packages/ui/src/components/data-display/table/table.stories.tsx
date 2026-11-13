@@ -831,6 +831,26 @@ export const RegisterCardEmptyWithHeaders: Story = {
   ),
 };
 
+export const RegisterCardFailureWithHeaders: Story = {
+  decorators: [inTallCard],
+  render: () => (
+    <ProductsTable
+      aria-label="Líneas de la venta"
+      columns={baseColumns}
+      items={noProducts}
+      fill
+      failureKeepsHeaders
+      legend={[{ keyName: "R", label: "Reintentar" }]}
+      failure={{
+        variant: "centered",
+        icon: <TriangleAlert />,
+        title: "No se pudo cargar la venta",
+        description: "Volvé a intentarlo en unos segundos.",
+      }}
+    />
+  ),
+};
+
 export const RegisterCardFailure: Story = {
   decorators: [inTallCard],
   render: () => (

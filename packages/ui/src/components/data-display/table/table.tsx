@@ -50,6 +50,7 @@ export function Table<T extends RowData>({
   legend,
   fill = false,
   emptyKeepsHeaders = false,
+  failureKeepsHeaders = false,
   locked,
   inactive = false,
 }: TableProps<T>): ReactElement {
@@ -63,9 +64,11 @@ export function Table<T extends RowData>({
   );
   const rowsDisabled = locked !== undefined || inactive;
   const emptyBelowHeaders = fill && emptyKeepsHeaders && displayMode === "empty";
+  const failureBelowHeaders = fill && failureKeepsHeaders && displayMode === "failure";
   const showEmptyState = displayMode === "empty" && !emptyBelowHeaders;
   const showingPlaceholders = displayMode === "placeholders";
-  const messageOnly = fill && (displayMode === "failure" || showEmptyState);
+  const messageOnly =
+    fill && ((displayMode === "failure" && !failureBelowHeaders) || showEmptyState);
 
   const tableElement = (
     <>
@@ -89,7 +92,7 @@ export function Table<T extends RowData>({
           className={rowsDisabled ? "opacity-disabled" : ""}
         >
           {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
-          {failure !== undefined && (
+          {failure !== undefined && !failureBelowHeaders && (
             <tr>
               <td colSpan={columns.length} className="h-70 p-4 align-top">
                 <LoadFailure {...failure} />
@@ -187,6 +190,13 @@ export function Table<T extends RowData>({
             {tableElement}
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
               <EmptyState {...empty} />
+            </div>
+          </>
+        ) : failureBelowHeaders && failure !== undefined ? (
+          <>
+            {tableElement}
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
+              <LoadFailure {...failure} />
             </div>
           </>
         ) : (

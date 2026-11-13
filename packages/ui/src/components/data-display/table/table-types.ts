@@ -100,6 +100,8 @@ export type TableProps<T extends RowData> = {
   fill?: boolean;
   // With `fill`, keeps the column headers above the empty state instead of replacing them with it.
   emptyKeepsHeaders?: boolean;
+  // With `fill`, keeps the column headers above the load failure instead of replacing them with it.
+  failureKeepsHeaders?: boolean;
   locked?: TableLock;
   inactive?: boolean;
 } & TableLoadProps;

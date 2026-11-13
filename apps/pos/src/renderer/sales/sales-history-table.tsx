@@ -104,6 +104,7 @@ export function SalesHistoryTable({
       table={table}
       fill
       emptyKeepsHeaders
+      failureKeepsHeaders
       inactive={inactive}
       {...(legend.length === 0 ? {} : { legend })}
       rowState={(row) => (row.sale_id === selectedSaleId ? "selected" : undefined)}
