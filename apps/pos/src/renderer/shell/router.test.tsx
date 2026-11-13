@@ -3439,7 +3439,11 @@ describe("the charge route's Mercado Pago QR", () => {
       const screen = await render(<RouterProvider router={router} />);
 
       await expect
-        .element(screen.getByText("Esa venta está anulada: no se puede devolver."))
+        .element(
+          screen
+            .getByRole("alert")
+            .filter({ hasText: "Esa venta está anulada: no se puede devolver." }),
+        )
         .toBeVisible();
       expect(findSaleForReturn).toHaveBeenCalledExactlyOnceWith(
         { kind: "sale", sale_id: "sale-9" },

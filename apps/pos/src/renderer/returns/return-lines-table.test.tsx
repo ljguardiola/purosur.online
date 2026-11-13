@@ -75,7 +75,8 @@ describe("ReturnLinesTable", () => {
   it("marks a line with its checkbox, and offers none for a line returned in full", async () => {
     const { screen, onMark } = await renderTable();
 
-    await screen.getByRole("checkbox", { name: "Nibs de cacao" }).click({ force: true });
+    const nibs = screen.getByRole("checkbox", { name: "Nibs de cacao" }).element();
+    await userEvent.click(nibs.closest("label") as HTMLElement);
 
     await vi.waitFor(() => expect(onMark).toHaveBeenCalledExactlyOnceWith("line-nibs", false));
     await expect.element(screen.getByRole("checkbox", { name: /Té verde/ })).toBeDisabled();

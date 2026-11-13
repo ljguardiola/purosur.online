@@ -36,7 +36,7 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
       "Miel pura de abeja 1 kg",
       "Té verde en hebras 100 g",
     ]) {
-      await expect.element(linesTable(screen).getByText(product, { exact: true })).toBeVisible();
+      await expect.element(lineRow(screen, product)).toBeVisible();
     }
     await expect.element(linesTable(screen).getByText("0,350 kg")).toBeVisible();
     expect(
