@@ -13,7 +13,7 @@ import {
   SummaryRowGroup,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, CircleX, DoorClosed, TriangleAlert, UserX } from "lucide-react";
+import { Check, DoorClosed, TriangleAlert, UserX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
@@ -194,7 +194,7 @@ export function CloseCashSessionPanel({
       {notice === undefined ? null : (
         <InlineNotice
           tone="error"
-          icon={notice.icon === "permission" ? <UserX /> : <CircleX />}
+          icon={notice.icon === "permission" ? <UserX /> : <TriangleAlert />}
           title={notice.title}
         />
       )}

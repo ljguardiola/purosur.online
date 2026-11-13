@@ -173,7 +173,7 @@ export function CashScreen({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <CashMovementsTable state={movements} legend={LEGEND} locked={panelOpen} />
         </div>
-        {recording === undefined && !closing ? null : <KeyLegend items={FIELD_LEGEND} />}
+        {recording === undefined ? null : <KeyLegend items={FIELD_LEGEND} />}
       </main>
     </RegisterFrame>
   );
