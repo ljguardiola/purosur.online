@@ -1,6 +1,6 @@
 import type { ListedCashMovement } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -55,6 +55,10 @@ function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
 
 function timesOf(screen: Awaited<ReturnType<typeof renderTable>>) {
   return rowsOf(screen).map((row) => row.match(/\d\d:\d\d/)?.[0]);
+}
+
+function emptyStateIconColor(title: Element) {
+  return getComputedStyle(title.previousElementSibling as Element).color;
 }
 
 function movementsEveryMinute(count: number) {
@@ -210,6 +214,16 @@ describe("CashMovementsTable", () => {
     await expect.element(screen.getByRole("button", { name: "Tipo: Gasto" })).toBeVisible();
   });
 
+  it("draws the empty state as filtered when the chosen type hides every movement", async () => {
+    const screen = await renderTable([movement()]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
+
+    const title = screen.getByText("No hay movimientos de este tipo").element();
+    expect(emptyStateIconColor(title)).toBe(tokenRgb("text-subtle"));
+  });
+
   it("lists the newest 25 movements and counts all of them", async () => {
     const screen = await renderTable(movementsEveryMinute(30));
 
@@ -288,10 +302,42 @@ describe("CashMovementsTable", () => {
     expect(rowsOf(screen)).toHaveLength(1);
   });
 
+  it("shows the type filter, the count and the pager in the key legend's strip, beside the keys", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
+    const legend = screen.container.querySelector("ul") as HTMLElement;
+    const strip = legend.parentElement as HTMLElement;
+    const legendBox = legend.getBoundingClientRect();
+    for (const element of [
+      screen.getByRole("button", { name: "Tipo: Todos" }).element(),
+      screen.getByText("30 movimientos").element(),
+      screen.getByRole("navigation", { name: "Páginas de movimientos" }).element(),
+    ]) {
+      expect(strip.contains(element)).toBe(true);
+      const box = element.getBoundingClientRect();
+      expect(box.left).toBeGreaterThanOrEqual(legendBox.right);
+      expect(box.top).toBeLessThan(legendBox.bottom);
+      expect(box.bottom).toBeGreaterThan(legendBox.top);
+    }
+  });
+
+  it("offers no filter, count or pager while the screen is locked by a panel", async () => {
+    const screen = await renderTable(movementsEveryMinute(30), { locked: true });
+
+    await expect.element(screen.getByRole("img", { name: "Movimientos bloqueados" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: /Tipo/ })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("30 movimientos")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .not.toBeInTheDocument();
+  });
+
   it("says there are no movements yet when the session has none", async () => {
     const screen = await renderTable([]);
 
     await expect.element(screen.getByText("Todavía no hay movimientos")).toBeVisible();
+    const title = screen.getByText("Todavía no hay movimientos").element();
+    expect(emptyStateIconColor(title)).toBe(tokenRgb("text-accent"));
   });
 
   it("shows no movement while they load", async () => {

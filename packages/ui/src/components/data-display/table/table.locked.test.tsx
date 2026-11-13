@@ -90,3 +90,15 @@ test("shows no key legend while locked", async () => {
 
   expect(screen.container.querySelector("kbd")).toBeNull();
 });
+
+test("shows nothing beside the legend while locked", async () => {
+  const screen = await render(
+    <LinesTable
+      locked={locked}
+      legend={[{ keyName: "F2", label: "Buscar" }]}
+      legendAside={<button type="button">Página 2</button>}
+    />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Página 2" })).not.toBeInTheDocument();
+});
