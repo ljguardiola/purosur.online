@@ -1026,6 +1026,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -1151,6 +1152,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -1271,6 +1273,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -1390,6 +1393,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1538,6 +1542,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1676,6 +1681,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1818,6 +1824,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1968,6 +1975,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -2085,6 +2093,7 @@ describe("the register's local migrations", () => {
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
         "0102_payment_approval_order",
+        "0103_returns_started_from_history",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before

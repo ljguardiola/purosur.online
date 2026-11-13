@@ -247,7 +247,7 @@ test("keeps a return without lines as one row with no product", () => {
 test("has no rows in the table sheets when there are no voids and no returns", () => {
   const sheets = returnsReportSpreadsheet(noReturnsReport, "Todas").sheets;
 
-  expect(sheets.slice(1).map(({ rows }) => rows)).toEqual([[], [], [], [], []]);
+  expect(sheets.slice(1).map(({ rows }) => rows)).toEqual([[], [], [], [], [], []]);
 });
 
 test("writes each return's refund once, so the column adds up to the refunded total", () => {

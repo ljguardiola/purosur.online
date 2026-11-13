@@ -212,11 +212,11 @@ describe("finding the sale to return", () => {
   it("answers how the return was started and that a scanned or typed ticket must be verified", async () => {
     const scanned = await findSaleForReturnFor(deps(), {
       ticketSource: "QR",
-      ticket: BRANCH_SALE_TICKET,
+      ticket: { kind: "invoice", pointOfSale: 12, number: 41 },
     });
     const typed = await findSaleForReturnFor(deps(), {
       ticketSource: "TYPED",
-      ticket: BRANCH_SALE_TICKET,
+      ticket: { kind: "invoice", pointOfSale: 12, number: 41 },
     });
 
     expect(scanned).toMatchObject({
@@ -390,7 +390,6 @@ describe("finding the sale to return", () => {
     expect(readRetainedBranchSale(database, "sale-elsewhere")).toEqual({
       sale: BRANCH_SALE.sale,
       invoiceStanding: BRANCH_SALE.invoiceStanding,
-      ticketSource: "QR",
       ticket: BRANCH_SALE_TICKET,
       countedReturnIds: [],
     });
