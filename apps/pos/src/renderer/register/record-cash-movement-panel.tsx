@@ -18,7 +18,7 @@ import {
   SidePanelTitle,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, TriangleAlert } from "lucide-react";
+import { Check, CircleX, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { CashMovementInput } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
@@ -263,12 +263,12 @@ function MovementPanel({
         onConfirm={handleSubmit}
       />
       {missingCash !== undefined ? (
-        <InlineNotice tone="error" icon={<TriangleAlert />} title={exceedsMessage(missingCash)} />
+        <InlineNotice tone="error" icon={<CircleX />} title={exceedsMessage(missingCash)} />
       ) : preview?.kind === "remaining" ? (
-        <HighlightedFigure label="QUEDA" value={formatCents(preview.cash)} />
+        <HighlightedFigure label="QUEDA" tone="neutral" value={formatCents(preview.cash)} />
       ) : null}
       {notice === undefined ? null : (
-        <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
+        <InlineNotice tone="error" icon={<CircleX />} title={notice} />
       )}
     </SidePanel>
   );
