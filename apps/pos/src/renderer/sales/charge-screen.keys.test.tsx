@@ -75,7 +75,7 @@ describe("ChargeScreen · Otros medios by keys", () => {
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).toHaveValue("4.760,00");
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(chargeSaleByTransfer).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
   });
 
@@ -121,7 +121,7 @@ describe("ChargeScreen · Otros medios by keys", () => {
     await expect.element(screen.getByRole("textbox", { name: "IMPORTE" })).toHaveValue("4.760,00");
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Venta completada" })).toBeVisible();
     expect(chargeSaleOnStandaloneTerminal).toHaveBeenCalledExactlyOnceWith("sale-1", 476_000);
   });
 });

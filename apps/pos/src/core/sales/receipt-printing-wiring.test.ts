@@ -113,6 +113,7 @@ describe("the register's receipt printing over its local database", () => {
   let connections: { port: number; host: string; socket: ScriptedSocket }[];
   let syncs: number;
   let idCount: number;
+  let moment: Date;
 
   function printingOverDatabase(beforePrinting?: (saleId: string) => Promise<void>) {
     const signedInPerson = createSignedInPerson();
@@ -125,9 +126,9 @@ describe("the register's receipt printing over its local database", () => {
         signedInPerson,
         readPepper: async () => Buffer.alloc(32, 7).toString("base64url"),
         hashPin: async () => "hash-of-another-pin",
-        now: () => NOW,
+        now: () => moment,
       }),
-      now: () => NOW,
+      now: () => moment,
       ids: {
         next: () => {
           idCount += 1;
@@ -182,6 +183,7 @@ describe("the register's receipt printing over its local database", () => {
     connections = [];
     syncs = 0;
     idCount = 0;
+    moment = NOW;
   });
 
   afterEach(() => {
@@ -330,6 +332,7 @@ describe("the register's receipt printing over its local database", () => {
         next_copy: { kind: "original" },
         printed: false,
         standing: "paper_out",
+        offer: null,
         comprobante: { kind: "none" },
       });
       expect(
@@ -361,7 +364,38 @@ describe("the register's receipt printing over its local database", () => {
       expect(connections).toEqual([]);
       expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
         standing: "awaiting_answer",
+        offer: { remaining_ms: 3000, length_ms: 3000 },
       });
+    });
+
+    it("lapses without printing, recording the decline and syncing, when nobody answers within the offer", async () => {
+      const printing = await completed();
+      moment = new Date(NOW.getTime() + 3000);
+
+      expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+        standing: "declined",
+        offer: null,
+      });
+
+      expect(connections).toEqual([]);
+      expect(syncs).toBe(2);
+      expect(
+        database.prepare("SELECT print_declined_at FROM sales WHERE id = 'sale-1'").get(),
+      ).toEqual({ print_declined_at: moment.toISOString() });
+      expect(await printing.answerReceiptQuestion?.({ saleId: "sale-1", print: true })).toEqual({
+        kind: "not_awaiting",
+      });
+    });
+
+    it("answers lapsed to a yes that comes after the offer", async () => {
+      const printing = await completed();
+      moment = new Date(NOW.getTime() + 3001);
+
+      expect(await printing.answerReceiptQuestion?.({ saleId: "sale-1", print: true })).toEqual({
+        kind: "lapsed",
+      });
+
+      expect(connections).toEqual([]);
     });
 
     it("stands as preparing while what comes before printing has not settled, then asks", async () => {
@@ -441,6 +475,7 @@ describe("the register's receipt printing over its local database", () => {
       next_copy: { kind: "original" },
       printed: false,
       standing: null,
+      offer: null,
       comprobante: { kind: "none" },
     });
     expect(await printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" })).toEqual({

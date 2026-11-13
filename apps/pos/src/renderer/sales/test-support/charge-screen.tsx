@@ -250,6 +250,7 @@ const PRINTED: ReceiptPrintStatusOutcome = {
   printed: true,
   standing: "printed",
   comprobante: { kind: "none" },
+  offer: null,
 };
 
 export async function renderScreen(overrides: Overrides = {}) {

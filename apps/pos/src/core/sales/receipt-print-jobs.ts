@@ -39,8 +39,8 @@ export interface ReceiptPrintJobs {
   prepare(saleId: string): void;
   isPreparing(saleId: string): boolean;
   endPreparing(saleId: string): void;
-  holdForAnswer(saleId: string): void;
-  isHeldForAnswer(saleId: string): boolean;
+  holdForAnswer(saleId: string, deadline: Date): void;
+  offerDeadlineOf(saleId: string): Date | undefined;
   releaseAnswer(saleId: string): boolean;
   start<TOutcome>(
     saleId: string,
@@ -71,7 +71,7 @@ interface Entry {
 export function createReceiptPrintJobs({ reportFailure }: ReceiptPrintJobsDeps): ReceiptPrintJobs {
   const entries = new Map<string, Entry>();
   const preparing = new Set<string>();
-  const heldForAnswer = new Set<string>();
+  const heldForAnswer = new Map<string, Date>();
 
   return {
     prepare(saleId) {
@@ -86,13 +86,13 @@ export function createReceiptPrintJobs({ reportFailure }: ReceiptPrintJobsDeps):
       preparing.delete(saleId);
     },
 
-    holdForAnswer(saleId) {
+    holdForAnswer(saleId, deadline) {
       preparing.delete(saleId);
-      heldForAnswer.add(saleId);
+      heldForAnswer.set(saleId, deadline);
     },
 
-    isHeldForAnswer(saleId) {
-      return heldForAnswer.has(saleId);
+    offerDeadlineOf(saleId) {
+      return heldForAnswer.get(saleId);
     },
 
     releaseAnswer(saleId) {

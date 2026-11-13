@@ -114,7 +114,7 @@ it("shows the total charged with the discount typed once the charge is completed
 
   await userEvent.click(screen.getByRole("button", { name: "Cobrar" }));
 
-  const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+  const panel = screen.getByRole("complementary", { name: "Venta completada" });
   await expect.element(panel.getByText("$ 4.750,00").first()).toBeVisible();
   await expect.element(panel.getByText("$ 4.760,00")).not.toBeInTheDocument();
 });
