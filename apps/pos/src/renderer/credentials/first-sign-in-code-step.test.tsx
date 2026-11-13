@@ -81,10 +81,10 @@ describe("FirstSignInCodeStep", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("opens with the new PIN focused", async () => {
+  it("opens with the code focused, since it arrives by email and starts empty", async () => {
     const { screen } = await renderStep();
 
-    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveFocus();
+    await expect.element(screen.getByRole("textbox", { name: "Código" })).toHaveFocus();
   });
 
   it("goes back to the sign-in with Escape", async () => {
