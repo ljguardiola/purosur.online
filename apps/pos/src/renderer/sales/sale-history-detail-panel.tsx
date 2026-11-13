@@ -18,7 +18,7 @@ import {
   SidePanel,
   SummaryRowGroup,
 } from "@purosur/ui";
-import { FileSearch, Lock, Printer, ReceiptText, RefreshCw, TriangleAlert } from "lucide-react";
+import { FileSearch, Lock, Printer, Receipt, RefreshCw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import type { SaleDetail } from "../shell/sale-receipt-text";
@@ -265,7 +265,7 @@ export function SaleHistoryDetailPanel({
       <Message>
         <EmptyState
           variant="blank"
-          icon={<ReceiptText />}
+          icon={<Receipt />}
           title="Elegí una venta para ver su detalle"
         />
       </Message>

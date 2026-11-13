@@ -20,7 +20,7 @@ import {
   SegmentedControl,
   ToastStack,
 } from "@purosur/ui";
-import { CircleX, Lock, Printer, ReceiptText, Search, TriangleAlert } from "lucide-react";
+import { CircleX, Lock, Printer, Receipt, Search, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
@@ -152,11 +152,11 @@ function emptyStateOf(
     };
   }
   if (searching) {
-    return { variant: "filtered", icon: <ReceiptText />, title: NO_SALES_WITH_NUMBER };
+    return { variant: "filtered", icon: <Receipt />, title: NO_SALES_WITH_NUMBER };
   }
   return session === "open"
-    ? { variant: "filtered", icon: <ReceiptText />, title: "No hay ventas en la sesión abierta" }
-    : { variant: "blank", icon: <ReceiptText />, title: "Todavía no hay ventas" };
+    ? { variant: "filtered", icon: <Receipt />, title: "No hay ventas en la sesión abierta" }
+    : { variant: "blank", icon: <Receipt />, title: "Todavía no hay ventas" };
 }
 
 export function SalesHistoryScreen({
