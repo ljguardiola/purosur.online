@@ -102,6 +102,7 @@ const saleForReturnSchema = z.object({
       remaining: cents,
       eligible: z.boolean(),
       ineligible_reason: z.enum(["nothing_left"]).nullable(),
+      refund_state: z.enum(PLANNED_REFUND_STATES),
     }),
   ),
 });
