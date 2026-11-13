@@ -7,7 +7,11 @@ import {
   FakeRegisterSalesHistory,
 } from "./test-support/fake-register-sales-history.js";
 
-const NO_DOCUMENT: SaleFiscalFacts = { deferred: false, fiscalDocument: null };
+const NO_DOCUMENT: SaleFiscalFacts = {
+  deferred: false,
+  deferredInvoicePending: false,
+  fiscalDocument: null,
+};
 
 function sale(
   number: number,
@@ -57,6 +61,7 @@ describe("readSalesHistory", () => {
       sale(1, {
         fiscal: {
           deferred: false,
+          deferredInvoicePending: false,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -82,10 +87,11 @@ describe("readSalesHistory", () => {
 
   it("shows a deferred sale with its non-fiscal comprobante and a sale being requested as in progress", () => {
     const history = new FakeRegisterSalesHistory([
-      sale(1, { fiscal: { deferred: true, fiscalDocument: null } }),
+      sale(1, { fiscal: { deferred: true, deferredInvoicePending: false, fiscalDocument: null } }),
       sale(2, {
         fiscal: {
           deferred: false,
+          deferredInvoicePending: false,
           fiscalDocument: {
             state: "REQUESTING",
             documentType: "factura_c",
@@ -102,6 +108,30 @@ describe("readSalesHistory", () => {
     expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
       ["deferred_non_fiscal", "deferred"],
       ["none", "in_progress"],
+    ]);
+  });
+
+  it("shows a sale whose deferred invoice is still to print as deferred, with its invoice number", () => {
+    const history = new FakeRegisterSalesHistory([
+      sale(1, {
+        fiscal: {
+          deferred: false,
+          deferredInvoicePending: true,
+          fiscalDocument: {
+            state: "AUTHORIZED",
+            documentType: "factura_c",
+            authorization: "real_time",
+            pointOfSale: 3,
+            number: 187,
+          },
+        },
+      }),
+    ]);
+
+    const { rows } = readSalesHistory({ history }, { session: "all", page: 1 });
+
+    expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
+      ["fiscal", "deferred"],
     ]);
   });
 
@@ -152,6 +182,7 @@ describe("readSalesHistory searching by document number", () => {
   ): SaleFiscalFacts {
     return {
       deferred: false,
+      deferredInvoicePending: false,
       fiscalDocument: {
         state: "AUTHORIZED",
         documentType: "factura_c",

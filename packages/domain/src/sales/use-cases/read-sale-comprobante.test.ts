@@ -5,6 +5,7 @@ import { FakeRegisterSalesHistory } from "./test-support/fake-register-sales-his
 
 const CONTINGENCY_INVOICE: SaleFiscalFacts = {
   deferred: false,
+  deferredInvoicePending: false,
   fiscalDocument: {
     state: "AUTHORIZED",
     documentType: "factura_c",

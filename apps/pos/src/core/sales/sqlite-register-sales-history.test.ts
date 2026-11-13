@@ -9,6 +9,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { markPrintAttempted } from "./sqlite-receipt-ledger";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 
 interface SaleSeed {
@@ -324,7 +325,7 @@ describe("SqliteRegisterSalesHistory", () => {
           occurredAt: new Date("2026-10-08T12:34:00.000Z"),
           paymentMethods: ["CASH", "TRANSFER"],
           total: 4000,
-          fiscal: { deferred: false, fiscalDocument: null },
+          fiscal: { deferred: false, deferredInvoicePending: false, fiscalDocument: null },
           voided: false,
         },
       ]);
@@ -377,6 +378,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(all().entries[0]?.fiscal).toEqual({
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -392,6 +394,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(all().entries[0]?.fiscal).toEqual({
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -409,6 +412,7 @@ describe("SqliteRegisterSalesHistory", () => {
       const history = new SqliteRegisterSalesHistory(database);
       expect(history.fiscalFactsOfSale("sale-1")).toEqual({
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -419,6 +423,7 @@ describe("SqliteRegisterSalesHistory", () => {
       });
       expect(history.fiscalFactsOfSale("deferred")).toEqual({
         deferred: true,
+        deferredInvoicePending: false,
         fiscalDocument: null,
       });
     });
@@ -430,6 +435,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(new SqliteRegisterSalesHistory(database).fiscalFactsOfSale("sale-1")).toEqual({
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -449,13 +455,21 @@ describe("SqliteRegisterSalesHistory", () => {
     it("shows a deferred sale whose record was cancelled as no longer deferred", () => {
       addSale({ id: "sale-1", state: "VOIDED", deferred: "cancelled" });
 
-      expect(all().entries[0]?.fiscal).toEqual({ deferred: false, fiscalDocument: null });
+      expect(all().entries[0]?.fiscal).toEqual({
+        deferred: false,
+        deferredInvoicePending: false,
+        fiscalDocument: null,
+      });
     });
 
     it("shows that a sale was deferred", () => {
       addSale({ id: "sale-1", deferred: true });
 
-      expect(all().entries[0]?.fiscal).toEqual({ deferred: true, fiscalDocument: null });
+      expect(all().entries[0]?.fiscal).toEqual({
+        deferred: true,
+        deferredInvoicePending: false,
+        fiscalDocument: null,
+      });
     });
   });
 
@@ -486,6 +500,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(adopted?.fiscal).toEqual({
         deferred: false,
+        deferredInvoicePending: true,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -496,17 +511,55 @@ describe("SqliteRegisterSalesHistory", () => {
       });
     });
 
-    it("is completed, while a sale whose document was released or conflicting stays deferred", () => {
-      const standingOf = (saleId: string) => {
-        const entry = all().entries.find((candidate) => candidate.saleId === saleId);
-        return entry && saleStandingOf({ ...entry.fiscal, voided: entry.voided });
-      };
+    const standingOf = (saleId: string) => {
+      const entry = all().entries.find((candidate) => candidate.saleId === saleId);
+      return entry && saleStandingOf({ ...entry.fiscal, voided: entry.voided });
+    };
 
+    it("stays deferred until its deferred invoice's original copy is printed, like a sale whose document was released or conflicting", () => {
       expect(["adopted", "conflicting", "released"].map(standingOf)).toEqual([
-        "completed",
+        "deferred",
         "deferred",
         "deferred",
       ]);
+    });
+
+    it("is completed once the print of its deferred invoice was attempted", () => {
+      markPrintAttempted(
+        database,
+        { document: "deferred_invoice", saleId: "adopted" },
+        new Date("2026-10-08T12:20:00.000Z"),
+      );
+
+      expect(standingOf("adopted")).toBe("completed");
+      expect(all().entries.find(({ saleId }) => saleId === "adopted")?.fiscal).toMatchObject({
+        deferred: false,
+        deferredInvoicePending: false,
+      });
+    });
+
+    it("is listed by its invoice number as deferred, and as completed once the print was attempted", () => {
+      const found = () => history.salesOfRegisterWithDocument({ pointOfSale: 7, number: 1204 });
+
+      expect(found().map(({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }))).toEqual([
+        "deferred",
+      ]);
+
+      markPrintAttempted(
+        database,
+        { document: "deferred_invoice", saleId: "adopted" },
+        new Date("2026-10-08T12:20:00.000Z"),
+      );
+
+      expect(found().map(({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }))).toEqual([
+        "completed",
+      ]);
+    });
+
+    it("stays voided whatever its deferred invoice's print", () => {
+      database.prepare("UPDATE sales SET state = 'VOIDED' WHERE id = 'adopted'").run();
+
+      expect(standingOf("adopted")).toBe("voided");
     });
   });
 
@@ -558,7 +611,11 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(entry).toMatchObject({
         saleId: "late",
-        fiscal: { deferred: false, fiscalDocument: { state: "AUTHORIZED", number: 187 } },
+        fiscal: {
+          deferred: false,
+          deferredInvoicePending: true,
+          fiscalDocument: { state: "AUTHORIZED", number: 187 },
+        },
       });
     });
 
@@ -661,6 +718,7 @@ describe("SqliteRegisterSalesHistory", () => {
           total: 4000,
           fiscal: {
             deferred: false,
+            deferredInvoicePending: false,
             fiscalDocument: {
               state: "AUTHORIZED",
               documentType: "factura_c",
@@ -779,6 +837,7 @@ describe("SqliteRegisterSalesHistory", () => {
         ],
         fiscal: {
           deferred: false,
+          deferredInvoicePending: false,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -986,6 +1045,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
       const invoiced = {
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
