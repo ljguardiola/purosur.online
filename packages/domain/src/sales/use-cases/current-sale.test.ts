@@ -73,6 +73,7 @@ describe("currentSale", () => {
       kind: "open",
       sale: SALE,
       balance: { paid: 0, pending: 5000 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -136,6 +137,7 @@ describe("currentSale", () => {
     expect(read(ledger({ payments: [payment, elsewhere] }))).toMatchObject({
       kind: "open",
       balance: { paid: 1200, pending: 3800 },
+      approvedPayments: [{ method: "CASH", cardType: null, amount: 1200 }],
       linesLock: "approved_payment",
       cancellable: false,
       cancelRefusal: null,
@@ -202,6 +204,7 @@ describe("current-sale with a discount on the total", () => {
         kind: "open",
         sale: discounted,
         balance: { paid: 0, pending: 4500 },
+        approvedPayments: [],
       }),
     );
   });

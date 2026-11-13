@@ -25,6 +25,7 @@ function sale(...lines: ReturnType<typeof line>[]): OpenSale {
     total: lines.reduce((sum, item) => sum + item.line_total, 0),
     paid: 0,
     pending: lines.reduce((sum, item) => sum + item.line_total, 0),
+    payments: [],
     lines_lock: null,
     cancel_refusal: null,
     charge_refusal: null,

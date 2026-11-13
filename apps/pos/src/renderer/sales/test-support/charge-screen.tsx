@@ -67,6 +67,7 @@ export const SALE_OF_ONE_LINE: OpenSale = {
   total: 476_000,
   paid: 0,
   pending: 476_000,
+  payments: [],
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
@@ -89,6 +90,7 @@ export const SALE_OF_TWO_LINES: OpenSale = {
   total: 626_000,
   paid: 0,
   pending: 626_000,
+  payments: [],
   lines_lock: null,
   cancel_refusal: null,
   charge_refusal: null,
@@ -130,6 +132,7 @@ export const SALE_WITH_PART_PAID: OpenSale = {
   ...SALE_OF_ONE_LINE,
   paid: 100_000,
   pending: 376_000,
+  payments: [{ method: "TRANSFER", card_type: null, amount: 100_000 }],
   lines_lock: "approved_payment",
   cancel_refusal: null,
 };

@@ -223,8 +223,8 @@ importers:
         specifier: 12.0.0
         version: 12.0.0
       node-forge:
-        specifier: ^1.4.1
-        version: 1.4.1
+        specifier: ^1.4.3
+        version: 1.4.3
       pdf-lib:
         specifier: 1.17.1
         version: 1.17.1
@@ -5075,8 +5075,8 @@ packages:
   node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}
 
-  node-forge@1.4.1:
-    resolution: {integrity: sha512-w5/MfWaeMrpR/5ba6fZyAUTLSuE6aYz7H/3cYrqwZEmf5eQS3IaaLgJt4MBv7HglGFWmV22K8h4U18RJQmw/ow==}
+  node-forge@1.4.3:
+    resolution: {integrity: sha512-P6wzfh6t70avmV8FrVEAd/36sOPJQ+hkaJVX1Laap9J/77m7M0eyozDvc8SwnDf4P7MP94gwbAAo0rg3YVXT+g==}
     engines: {node: '>= 6.13.0'}
 
   node-gyp-build@4.8.4:
@@ -10718,7 +10718,7 @@ snapshots:
     dependencies:
       semver: 7.8.5
 
-  node-forge@1.4.1: {}
+  node-forge@1.4.3: {}
 
   node-gyp-build@4.8.4: {}
 

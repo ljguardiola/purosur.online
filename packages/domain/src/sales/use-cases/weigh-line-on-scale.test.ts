@@ -118,6 +118,7 @@ describe("weighLineOnScale confirming the weight", () => {
       removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [changed, YERBA_LINE] },
       balance: { paid: 0, pending: 30000 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,

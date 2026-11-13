@@ -20,6 +20,7 @@ const SALE_WITH_POINT_PAYMENT: OpenSale = {
   ...SALE_OF_YERBA,
   paid: 100_000,
   pending: 376_000,
+  payments: [{ method: "CASH", card_type: null, amount: 100_000 }],
   lines_lock: "approved_payment",
   cancel_refusal: null,
 };

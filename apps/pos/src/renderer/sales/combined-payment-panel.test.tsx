@@ -27,7 +27,7 @@ async function renderPanel(props: Partial<CombinedPaymentPanelProps> = {}) {
   const screen = await render(
     <CombinedPaymentPanel
       total={2_519_250}
-      paid={1_000_000}
+      payments={[{ method: "TRANSFER", card_type: null, amount: 1_000_000 }]}
       pending={1_519_250}
       methods={ALL_OFFERED}
       cancelledNotice={false}
@@ -41,22 +41,57 @@ async function renderPanel(props: Partial<CombinedPaymentPanelProps> = {}) {
 }
 
 describe("CombinedPaymentPanel", () => {
-  it("shows what is missing, the total and what is paid", async () => {
+  it("shows what is missing, the total and the transfer paid", async () => {
     const { screen } = await renderPanel();
 
     await expect.element(screen.getByText("FALTA")).toBeVisible();
     await expect.element(screen.getByText("$ 15.192,50")).toBeVisible();
     await expect.element(screen.getByText("Total")).toBeVisible();
     await expect.element(screen.getByText("$ 25.192,50")).toBeVisible();
-    await expect.element(screen.getByText("Pagado")).toBeVisible();
+    await expect.element(screen.getByText("Transferencia")).toBeVisible();
     await expect.element(screen.getByText("– $ 10.000,00").first()).toBeVisible();
+    await expect.element(screen.getByText("Pagado")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
-  it("shows no paid row, and no header, before anything is paid", async () => {
-    const { screen } = await renderPanel({ paid: 0, pending: 2_519_250 });
+  it("shows a row for each payment, in the order they were approved", async () => {
+    const { screen } = await renderPanel({
+      payments: [
+        { method: "TRANSFER", card_type: null, amount: 1_000_000 },
+        { method: "CASH", card_type: null, amount: 500_000 },
+      ],
+      pending: 1_019_250,
+    });
 
-    await expect.element(screen.getByText("Pagado")).not.toBeInTheDocument();
+    const shown = screen.container.textContent ?? "";
+    const positions = ["Total", "Transferencia", "Efectivo"].map((label) => shown.indexOf(label));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    await expect.element(screen.getByText("– $ 10.000,00")).toBeVisible();
+    await expect.element(screen.getByText("– $ 5.000,00")).toBeVisible();
+  });
+
+  it.each([
+    ["Efectivo", { method: "CASH", card_type: null }],
+    ["Point débito", { method: "POINT", card_type: "DEBIT" }],
+    ["Point crédito", { method: "POINT", card_type: "CREDIT" }],
+    ["Point", { method: "POINT", card_type: null }],
+    ["QR", { method: "QR", card_type: null }],
+    ["Transferencia", { method: "TRANSFER", card_type: null }],
+    ["Terminal independiente", { method: "STANDALONE_TERMINAL", card_type: null }],
+  ] as const)("labels a payment %s", async (label, payment) => {
+    const { screen } = await renderPanel({
+      payments: [{ ...payment, amount: 1_000_000 }],
+      methods: {},
+    });
+
+    await expect.element(screen.getByText(label, { exact: true })).toBeVisible();
+  });
+
+  it("shows no payment row, and no header, before anything is paid", async () => {
+    const { screen } = await renderPanel({ payments: [], pending: 2_519_250 });
+
+    await expect.element(screen.getByText("Transferencia")).not.toBeInTheDocument();
     await expect.element(screen.getByRole("heading")).not.toBeInTheDocument();
     await expect.element(screen.getByText("$ 25.192,50").first()).toBeVisible();
   });

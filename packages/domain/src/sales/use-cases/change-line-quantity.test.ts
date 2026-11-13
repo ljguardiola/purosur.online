@@ -148,6 +148,7 @@ describe("changeLineQuantity", () => {
         lines: [{ ...YERBA_LINE, quantity: 5, lineTotal: 12500 }, AZUCAR_LINE],
       },
       balance: { paid: 0, pending: 13700 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -171,6 +172,7 @@ describe("changeLineQuantity", () => {
       removedSaleDiscount: false,
       sale: { ...OPEN_SALE, lines: [{ ...YERBA_LINE, quantity: 1, lineTotal: 2500 }, AZUCAR_LINE] },
       balance: { paid: 0, pending: 3700 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -274,6 +276,7 @@ describe("changeLineQuantity", () => {
       removedSaleDiscount: false,
       sale: OPEN_SALE,
       balance: { paid: 0, pending: 8700 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -587,6 +590,7 @@ describe("changeLineQuantity on a sale with a discount on the total", () => {
         removedSaleDiscount: true,
         sale: expect.objectContaining({ saleDiscount: null }),
         balance: { paid: 0, pending: 13_700 },
+        approvedPayments: [],
       }),
     );
   });
@@ -602,6 +606,7 @@ describe("changeLineQuantity on a sale with a discount on the total", () => {
         removedSaleDiscount: false,
         sale: expect.objectContaining({ saleDiscount: TEN_PERCENT_SALE_DISCOUNT }),
         balance: { paid: 0, pending: 7830 },
+        approvedPayments: [],
       }),
     );
   });

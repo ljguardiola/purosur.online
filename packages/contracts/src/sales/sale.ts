@@ -8,6 +8,7 @@ import {
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
+  PAYMENT_METHODS,
   POINT_CARD_TYPES,
   SALE_UNITS,
   SALE_VOID_REFUSALS,
@@ -97,6 +98,12 @@ const mercadoPagoChargeInProgressFields = {
   wait_seconds: z.int().positive(),
 };
 
+const approvedPaymentSchema = z.object({
+  method: z.enum(PAYMENT_METHODS),
+  card_type: z.enum(POINT_CARD_TYPES).nullable(),
+  amount: z.int().positive(),
+});
+
 export const saleSchema = z.object({
   id: z.string(),
   lines: z.array(saleLineSchema),
@@ -107,6 +114,7 @@ export const saleSchema = z.object({
   total: cents,
   paid: cents,
   pending: cents,
+  payments: z.array(approvedPaymentSchema),
   lines_lock: z.enum(["approved_payment", "mercado_pago_charge_in_progress"]).nullable(),
   cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),
