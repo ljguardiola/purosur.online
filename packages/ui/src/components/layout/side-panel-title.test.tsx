@@ -1,4 +1,4 @@
-import { Ban, Undo2, Wallet } from "lucide-react";
+import { Undo2, Wallet } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
