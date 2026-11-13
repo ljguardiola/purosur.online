@@ -210,13 +210,14 @@ describe("finding the sale to return", () => {
   });
 
   it("answers how the return was started and that a scanned or typed ticket must be verified", async () => {
+    cloudAnswer = BRANCH_SALE;
     const scanned = await findSaleForReturnFor(deps(), {
       ticketSource: "QR",
-      ticket: { kind: "invoice", pointOfSale: 12, number: 41 },
+      ticket: BRANCH_SALE_TICKET,
     });
     const typed = await findSaleForReturnFor(deps(), {
       ticketSource: "TYPED",
-      ticket: { kind: "invoice", pointOfSale: 12, number: 41 },
+      ticket: BRANCH_SALE_TICKET,
     });
 
     expect(scanned).toMatchObject({
