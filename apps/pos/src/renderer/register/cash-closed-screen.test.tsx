@@ -81,9 +81,9 @@ describe("CashClosedScreen", () => {
 
     await expect
       .element(screen.getByRole("button", { name: "Abrir caja" }))
-      .toHaveTextContent(/F12/);
+      .toHaveTextContent("Abrir cajaF12");
     await expect.element(screen.getByRole("complementary").getByRole("button", { name: "Salir" }))
-      .toHaveTextContent(/Enter/);
+      .toHaveTextContent("SalirEnter");
   });
 
   it.each(["{F12}", "{Escape}"])("goes to open the cash with %s", async (key) => {
