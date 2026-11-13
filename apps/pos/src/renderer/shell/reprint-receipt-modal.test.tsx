@@ -516,6 +516,7 @@ describe("ReprintReceiptModal", () => {
     const CREDIT_NOTE_SALE: Sale = {
       ...SALE,
       state: "voided",
+      returnable: false,
       reprint: { kind: "sale_voided" },
       credit_note: {
         kind: "authorized",

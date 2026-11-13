@@ -19,6 +19,7 @@ function voided(
   return {
     ...DETAIL,
     state: "voided",
+    returnable: false,
     voidability: { kind: "not_voidable", refusal: "not_completed" },
     reprint: { kind: "sale_voided" },
     credit_notes: [

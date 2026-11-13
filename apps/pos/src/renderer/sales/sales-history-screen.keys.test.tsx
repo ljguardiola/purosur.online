@@ -29,6 +29,7 @@ const CREDIT_NOTE = {
 const VOIDED: SaleDetail = {
   ...DETAIL,
   state: "voided",
+  returnable: false,
   voidability: { kind: "not_voidable", refusal: "not_completed" },
   credit_notes: [CREDIT_NOTE],
 };

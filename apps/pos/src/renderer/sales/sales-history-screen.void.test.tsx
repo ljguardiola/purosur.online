@@ -111,6 +111,7 @@ describe("SalesHistoryScreen voiding a sale", () => {
           ? {
               ...DETAIL,
               state: "voided",
+              returnable: false,
               voidability: { kind: "not_voidable", refusal: "not_completed" },
             }
           : DETAIL,
