@@ -4,7 +4,7 @@ import { ReservedWidthLabel } from "../shared/reserved-width-label";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
 export type SegmentedControlSize = "large" | "medium";
-export type SegmentedControlVariant = "outlined" | "field";
+type SegmentedControlVariant = "outlined" | "field";
 
 export type SegmentedControlProps<V extends string> = OptionChoiceProps<
   V,
