@@ -189,3 +189,11 @@ test("focuses the input on mount when asked to", async () => {
 
   expect(document.activeElement).toBe(screen.getByLabelText("PIN", { exact: true }).element());
 });
+
+test("shows no 0-9 keycap when it is asked to leave it out", async () => {
+  const screen = await render(<Harness digitsKeycap={false} />);
+
+  expect(screen.container.querySelector("kbd")).toBeNull();
+  await expect.element(screen.getByText("PIN", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});

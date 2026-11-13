@@ -35,6 +35,7 @@ export type FirstSignInScreenProps = {
 };
 
 export function FirstSignInScreen({
+  version,
   lookup,
   signIn,
   requestCode,
@@ -43,11 +44,11 @@ export function FirstSignInScreen({
   redeem,
   NoPinStep,
   CodeStep,
-}: FirstSignInScreenProps) {
+}: FirstSignInScreenProps & { version: string | null }) {
   const [found, setFound] = useState<FoundPerson>();
 
   return (
-    <BrandPanelScreen>
+    <BrandPanelScreen version={version}>
       {found === undefined ? (
         <FirstSignInEmailStep lookup={lookup} onFound={setFound} />
       ) : (

@@ -1,6 +1,6 @@
 import type { FirstPinCodeRequestOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { FirstSignInNoPin } from "./first-sign-in-no-pin";
@@ -40,9 +40,32 @@ describe("FirstSignInNoPin", () => {
       .element(screen.getByRole("heading", { name: "No tenés PIN todavía" }))
       .toBeVisible();
     await expect.element(screen.getByRole("button", { name: ASK })).toBeEnabled();
-    const back = screen.getByRole("link", { name: "Volver" });
-    expect(back.element().getAttribute("href")).toBe("/sign-in");
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Volver" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("goes back to the sign-in with Escape", async () => {
+    const { screen } = await renderNoPin(answering({ kind: "sent" }));
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
+  });
+
+  it("asks for the code with Enter", async () => {
+    const asked: string[] = [];
+    const { screen, sent } = await renderNoPin(async (userId) => {
+      asked.push(userId);
+      return { kind: "sent" };
+    });
+    await expect.element(screen.getByRole("button", { name: ASK })).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.poll(() => sent).toEqual(["sent"]);
+    expect(asked).toEqual(["u1"]);
   });
 
   it("asks for the code of the person and lets the flow go on once it was sent", async () => {
