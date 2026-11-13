@@ -80,7 +80,9 @@ describe("ReturnLinesTable", () => {
 
     await vi.waitFor(() => expect(onMark).toHaveBeenCalledExactlyOnceWith("line-nibs", false));
     await expect.element(screen.getByRole("checkbox", { name: /Té verde/ })).toBeDisabled();
-    await expect.element(screen.getByText("Ya se devolvió completa")).toBeVisible();
+    await expect
+      .poll(() => screen.getByRole("row", { name: /Té verde/ }).element().textContent)
+      .toMatch(/Ya se devolvió completa/);
   });
 
   it("says there are no sales when it has no row", async () => {
