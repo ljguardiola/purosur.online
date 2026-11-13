@@ -10,7 +10,8 @@ import {
 } from "@purosur/ui";
 import { Check, ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { focusFirstInput } from "../platform/focus-first-input";
 import { BrandPanelLegend } from "../shell/brand-panel-screen";
 import { retryAfterText } from "../shell/retry-after-text";
 import { usePinPolicyQuery } from "./credentials-queries";
@@ -90,6 +91,7 @@ export type PinCodeRedemptionFormProps = {
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   onRedeemed: (newPin: string) => void | Promise<void>;
   onCashSessionOpenedByAnother: () => void;
+  focusOnOpen: "code" | "newPin";
   submitLabel: string;
   newCodeAskedIn: NewCodePlace;
   children?: ReactNode;
@@ -101,6 +103,7 @@ export function PinCodeRedemptionForm({
   redeem,
   onRedeemed,
   onCashSessionOpenedByAnother,
+  focusOnOpen,
   submitLabel,
   newCodeAskedIn,
   children,
@@ -108,6 +111,7 @@ export function PinCodeRedemptionForm({
   const minDigits = usePinPolicyQuery(loadPinPolicy).min_digits;
   const [outcome, setOutcome] = useState<PinCodeRedemptionOutcome>();
   const noticeId = useId();
+  const formElement = useRef<HTMLFormElement | null>(null);
   const { form, submit, submitting, reset } = useRequestForm({
     defaultValues: EMPTY_PIN_REDEMPTION_FORM,
     request: { schema: pinRedemptionRequestSchema, from: pinRedemptionRequestFrom },
@@ -119,6 +123,9 @@ export function PinCodeRedemptionForm({
         (): PinCodeRedemptionOutcome => ({ kind: "unavailable" }),
       );
       setOutcome(answered);
+      if (CODE_OUTCOMES.has(answered.kind)) {
+        focusFirstInput(formElement.current);
+      }
       switch (answered.kind) {
         case "redeemed":
           reset({ ...values, newPin: "", repeat: "" });
@@ -147,6 +154,7 @@ export function PinCodeRedemptionForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    formElement.current = event.currentTarget;
     if (submitting) {
       return;
     }
@@ -155,7 +163,12 @@ export function PinCodeRedemptionForm({
   }
 
   return (
-    <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+    <form
+      ref={focusOnOpen === "code" ? focusFirstInput : undefined}
+      className="flex flex-col gap-4"
+      noValidate
+      onSubmit={handleSubmit}
+    >
       <form.AppField name="code">
         {(code) => {
           const message = fieldErrorMessage(code.state.meta.errors);
@@ -182,6 +195,7 @@ export function PinCodeRedemptionForm({
                   value={newPin.state.value}
                   onChange={newPin.handleChange}
                   digitsKeycap={false}
+                  autoFocus={focusOnOpen === "newPin"}
                   errorMessageId={errorMessageId}
                 />
               )}

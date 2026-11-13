@@ -4,6 +4,7 @@ import { Button, InlineNotice, useRequestForm } from "@purosur/ui";
 import { ArrowRight, RefreshCw, ShieldX, TriangleAlert, UserPlus, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { focusFirstInput } from "../platform/focus-first-input";
 import { useEscapeToSignIn } from "../platform/use-escape-to-sign-in";
 import { BrandPanelCard } from "../shell/brand-panel-card";
 import { retryAfterText } from "../shell/retry-after-text";
@@ -101,7 +102,12 @@ export function FirstSignInEmailStep({ lookup, onFound }: FirstSignInEmailStepPr
 
   return (
     <BrandPanelCard icon={<UserPlus />} title="Ingresar por primera vez" escapeKeycap>
-      <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+      <form
+        ref={focusFirstInput}
+        className="flex flex-col gap-4"
+        noValidate
+        onSubmit={handleSubmit}
+      >
         <form.AppField name="email" listeners={{ onChange: () => setRefused(undefined) }}>
           {(email) => (
             <email.TextField
