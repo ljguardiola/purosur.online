@@ -1,6 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { tokenStyle } from "../../test/token-styles";
 import { HOVER_DELAY_MS } from "../overlays/tooltip";
 import { CloseButton } from "./close-button";
 
@@ -42,4 +43,16 @@ test("shows no tooltip repeating the close label it already shows", async () => 
     vi.runAllTimers();
     vi.useRealTimers();
   }
+});
+
+test("writes its label in semibold detail text", async () => {
+  const screen = await render(
+    <CloseButton onPress={() => {}} escapeKeycap label="Cambiar de medio" />,
+  );
+  const label = getComputedStyle(
+    screen.getByRole("button", { name: "Cambiar de medio" }).element(),
+  );
+
+  expect(label.fontSize).toBe(tokenStyle("fontSize", "text-detail"));
+  expect(label.fontWeight).toBe(tokenStyle("fontWeight", "font-weight-semibold"));
 });

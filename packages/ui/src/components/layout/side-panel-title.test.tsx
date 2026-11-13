@@ -4,6 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
+import { tokenStyle } from "../../test/token-styles";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle, type SidePanelTitleProps } from "./side-panel-title";
 
@@ -260,4 +261,23 @@ test("paints the icon badge of the neutral tone in the info colors", async () =>
 
   expect(style.backgroundColor).toBe(tokenRgb("info-subtle"));
   expect(style.color).toBe(tokenRgb("info-strong"));
+});
+
+test("draws its icon badge at the small control size", async () => {
+  const screen = await render(<SidePanelTitle icon={<Wallet />} title="Abrir caja" />);
+  const badge = getComputedStyle(
+    screen.container.querySelector("span[aria-hidden='true']") as Element,
+  );
+  const controlSize = tokenStyle("width", "spacing-control-sm");
+
+  expect(badge.width).toBe(controlSize);
+  expect(badge.height).toBe(controlSize);
+});
+
+test("writes its title in semibold body text", async () => {
+  const screen = await render(<SidePanelTitle icon={<Wallet />} title="Abrir caja" />);
+  const title = getComputedStyle(screen.getByRole("heading").element());
+
+  expect(title.fontSize).toBe(tokenStyle("fontSize", "text-body"));
+  expect(title.fontWeight).toBe(tokenStyle("fontWeight", "font-weight-semibold"));
 });
