@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createWriteStream, mkdirSync, rmSync } from "node:fs";
+import { createWriteStream, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { RegisterUpdaterDependencies, UpdateFiles } from "./register-update";
 
@@ -35,8 +35,18 @@ export function updateFetch(netFetch: NetFetch): RegisterUpdaterDependencies["fe
 export function pendingUpdateFiles(folder: string): UpdateFiles {
   return {
     clearPending: async () => {
-      rmSync(folder, { recursive: true, force: true });
       mkdirSync(folder, { recursive: true });
+      const failures: unknown[] = [];
+      for (const entry of readdirSync(folder)) {
+        try {
+          rmSync(join(folder, entry), { recursive: true, force: true });
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (failures.length > 0) {
+        throw failures[0];
+      }
     },
     pathOf: (name) => join(folder, name),
     open: async (name) => {
