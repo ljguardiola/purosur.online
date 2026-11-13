@@ -9,12 +9,14 @@ import {
   receiptPrintAvailability,
   type SaleReceiptAvailability,
 } from "../model/receipt-print-availability.js";
+import type { SaleState } from "../model/sale.js";
 import {
   type SaleComprobante,
   type SaleStanding,
   saleComprobanteOf,
   saleStandingOf,
 } from "../model/sale-history.js";
+import { saleMayBeReturned } from "../model/sale-returnability.js";
 import { type SaleVoidRefusal, saleVoidRefusal } from "../model/sale-void.js";
 import { receiptDeliveryOf } from "./receipt-delivery-of.js";
 import type { ReceiptLedger } from "./receipt-ports.js";
@@ -62,6 +64,7 @@ export interface SaleHistoryDetail {
   payments: SaleHistoryRecord["payments"];
   standing: SaleStanding;
   voidability: SaleVoidability;
+  returnable: boolean;
   creditNotes: SaleHistoryDetailCreditNote[];
   reprint: SaleReceiptAvailability;
   nextCopy: ReceiptCopy;
@@ -109,6 +112,7 @@ export function readSaleHistoryDetail(
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record),
+      returnable: saleMayBeReturned(saleStateOf(voided)),
       reprint: receiptPrintAvailability(
         "sale_receipt",
         { ...delivery, voided },
@@ -134,6 +138,10 @@ function nextCopyOfCreditNote(
   return delivery.kind === "found" ? delivery.nextCopy : null;
 }
 
+function saleStateOf(voided: boolean): SaleState {
+  return voided ? "VOIDED" : "COMPLETED";
+}
+
 function saleVoidabilityOf({
   voided,
   inOpenSession,
@@ -142,7 +150,7 @@ function saleVoidabilityOf({
   payments,
 }: SaleHistoryRecord): SaleVoidability {
   const refusal = saleVoidRefusal({
-    state: voided ? "VOIDED" : "COMPLETED",
+    state: saleStateOf(voided),
     inOpenSession,
     hasReturn,
     fiscalDocumentStates: invoices.map(({ state }) => state),

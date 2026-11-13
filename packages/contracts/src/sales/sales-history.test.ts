@@ -25,6 +25,7 @@ const detail = {
     credit_note_corrects: null,
   },
   void_authorization_required: false,
+  returnable: true,
   reprint_authorization_required: false,
   credit_notes: [],
   reprint: { kind: "available" },

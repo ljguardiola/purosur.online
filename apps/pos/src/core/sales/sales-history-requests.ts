@@ -151,6 +151,7 @@ export async function saleHistoryDetailFor(
       state: detail.standing,
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
+      returnable: detail.returnable,
       reprint_authorization_required: reprintNeedsAuthorization,
       credit_notes: detail.creditNotes.map((creditNote) => ({
         credit_note_id: creditNote.creditNoteId,
