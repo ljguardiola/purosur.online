@@ -4,6 +4,7 @@ import { authorizerSummaryRows, cashierSummaryRows } from "./returns-person-summ
 import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
 import { returnsReportSpreadsheet } from "./returns-report-spreadsheet";
 import {
+  historyReturnsOnlyReport,
   noReturnsReport,
   returnsReport,
   scannedReturnWithoutLinesReport,
@@ -65,9 +66,11 @@ test("has a sheet for the voids, one for each summary and one for each way a ret
     "Por quién autorizó",
     "Iniciadas con el número tipeado",
     "Iniciadas escaneando el QR",
+    "Iniciadas desde el historial",
   ]);
   expect(sheets[4]?.header).toEqual(HEADER);
   expect(sheets[5]?.header).toEqual(HEADER);
+  expect(sheets[6]?.header).toEqual(HEADER);
 });
 
 test("lists each void with its moment, register, sale, people and total, leaving an absent authorizer empty", () => {
@@ -255,4 +258,11 @@ test("writes each return's refund once, so the column adds up to the refunded to
     cell.empty(),
     cell.money(80_000),
   ]);
+});
+
+test("puts the returns started from the history on their own sheet", () => {
+  const history = returnsReportSpreadsheet(historyReturnsOnlyReport, "Todas").sheets[6];
+
+  expect(history?.rows).toHaveLength(1);
+  expect(history?.rows[0]?.[6]).toEqual(cell.text("Harina 1 kg"));
 });

@@ -17,6 +17,7 @@ import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { ReturnsHistoryScreen } from "./returns-history-screen";
 import type { ReturnsHistoryScreenServices } from "./returns-history-services";
 import {
+  historyReturnsOnlyReport,
   noReturnsReport,
   noScannedReturnsReport,
   noVoidsReport,
@@ -30,6 +31,7 @@ afterEach(() => {
 
 const TYPED_TABLE = "Devoluciones iniciadas con el número tipeado";
 const SCANNED_TABLE = "Devoluciones iniciadas escaneando el QR";
+const HISTORY_TABLE = "Devoluciones iniciadas desde el historial";
 const VOIDS_TABLE = "Anulaciones";
 const BY_CASHIER_TABLE = "Anulaciones y devoluciones por cajero";
 const BY_AUTHORIZER_TABLE = "Anulaciones y devoluciones por quién autorizó";
@@ -144,6 +146,7 @@ test("shows the summaries and the voids before the returns, each under its own h
     "Anulaciones",
     "Iniciadas con el número tipeado",
     "Iniciadas escaneando el QR",
+    "Iniciadas desde el historial",
   ]);
 });
 
@@ -288,6 +291,17 @@ test("shows the scanned returns in their own table", async () => {
   expect(
     screen.getByRole("table", { name: TYPED_TABLE }).getByText("Azúcar 1 kg").query(),
   ).toBeNull();
+});
+
+test("shows the returns started from the history in their own table, not the empty state", async () => {
+  const screen = await renderScreen(servicesAnswering(historyReturnsOnlyReport));
+
+  const row = screen.getByRole("table", { name: HISTORY_TABLE }).getByRole("row", {
+    name: /Harina 1 kg/,
+  });
+  await expect.element(row.getByText("Harina 1 kg × 2 u")).toBeVisible();
+  await expect.element(row.getByText("$ 600,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("No hay devoluciones en este período").query()).toBeNull();
 });
 
 test("asks the cloud with no range when the URL has none, and shows the range it answered", async () => {
@@ -500,6 +514,7 @@ test("downloads a spreadsheet with a sheet for the voids, the summaries and each
     "Por quién autorizó",
     "Iniciadas con el número tipeado",
     "Iniciadas escaneando el QR",
+    "Iniciadas desde el historial",
   ]);
   expect(file.sheet(0).get("B4")?.value).toBe("Caja del fondo");
   expect(file.sheet(0).get("B5")?.value).toBe("2");
