@@ -149,9 +149,7 @@ describe("saleComprobanteOf", () => {
   });
 
   it("is a non-fiscal document when the sale is deferred", () => {
-    expect(
-      saleComprobanteOf({ deferred: true, fiscalDocument: null }),
-    ).toEqual({
+    expect(saleComprobanteOf({ deferred: true, fiscalDocument: null })).toEqual({
       kind: "deferred_non_fiscal",
     });
   });
