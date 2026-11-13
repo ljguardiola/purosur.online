@@ -38,6 +38,11 @@ export type {
 } from "./components/data-display/table/row-actions-menu";
 export { RowActionsMenu } from "./components/data-display/table/row-actions-menu";
 export { Table } from "./components/data-display/table/table";
+export type {
+  MethodRefundRow,
+  MethodRefundTableProps,
+} from "./components/data-display/table/method-refund-table";
+export { MethodRefundTable } from "./components/data-display/table/method-refund-table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
 export {

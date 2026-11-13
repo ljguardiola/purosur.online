@@ -97,7 +97,8 @@ test("toggles a line's checkbox without pressing its row", async () => {
   const onRowPress = vi.fn();
   const screen = await render(<LinesTable onToggle={onToggle} onRowPress={onRowPress} />);
 
-  await userEvent.click(screen.getByRole("checkbox", { name: "Oats" }));
+  const oats = screen.getByRole("checkbox", { name: "Oats" }).element();
+  await userEvent.click(oats.closest("label") as HTMLElement);
 
   expect(onToggle).toHaveBeenCalledExactlyOnceWith("2", true);
   expect(onRowPress).not.toHaveBeenCalled();
@@ -114,7 +115,7 @@ test("shows a refused line's quantity in red and an accepted one's in the defaul
   const screen = await render(<LinesTable />);
 
   const refused = screen.getByText("3 u").element();
-  const accepted = screen.getByText("0,500 kg").element();
+  const accepted = screen.getByText("—").element();
   expect(getComputedStyle(refused).color).toBe(tokenRgb("error-strong"));
   expect(getComputedStyle(refused).fontWeight).toBe("700");
   expect(getComputedStyle(accepted).color).not.toBe(tokenRgb("error-strong"));

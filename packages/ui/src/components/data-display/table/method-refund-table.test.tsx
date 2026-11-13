@@ -13,16 +13,18 @@ const rows: MethodRefundTableProps["rows"] = [
 
 function table(props: Partial<MethodRefundTableProps> = {}) {
   return (
-    <MethodRefundTable
-      aria-label="Refund by method"
-      headers={{ method: "Method", when: "When", amount: "Refund" }}
-      amountPrefix="$"
-      rows={rows}
-      selectedIndex={0}
-      onSelect={() => {}}
-      onAmountChange={() => {}}
-      {...props}
-    />
+    <div style={{ height: 400, width: 800 }}>
+      <MethodRefundTable
+        aria-label="Refund by method"
+        headers={{ method: "Method", when: "When", amount: "Refund" }}
+        amountPrefix="$"
+        rows={rows}
+        selectedIndex={0}
+        onSelect={() => {}}
+        onAmountChange={() => {}}
+        {...props}
+      />
+    </div>
   );
 }
 
@@ -93,7 +95,9 @@ test("highlights the selected row with the table's selected state and no other",
 test("focuses the selected row's input and moves focus when the selection changes", async () => {
   const screen = await render(<ControlledTable onSelect={() => {}} onAmountChange={() => {}} />);
 
-  await expect.poll(() => document.activeElement).toBe(screen.getByRole("textbox", { name: "Cash" }).element());
+  await expect
+    .poll(() => document.activeElement)
+    .toBe(screen.getByRole("textbox", { name: "Cash" }).element());
 
   await userEvent.click(screen.getByText("Pending refund"));
 
@@ -126,9 +130,7 @@ test("reports what is typed in a row's input with the row's id, keeping two deci
 });
 
 test("lists the keys of its legend below the rows", async () => {
-  const screen = await render(
-    table({ legend: [{ keyName: "ArrowUpDown", label: "Medio" }] }),
-  );
+  const screen = await render(table({ legend: [{ keyName: "ArrowUpDown", label: "Medio" }] }));
 
   await expect.element(screen.getByText("Medio")).toBeVisible();
 });
