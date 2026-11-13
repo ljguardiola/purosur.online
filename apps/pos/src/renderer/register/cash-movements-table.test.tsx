@@ -53,6 +53,10 @@ function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
   );
 }
 
+function timesOf(screen: Awaited<ReturnType<typeof renderTable>>) {
+  return rowsOf(screen).map((row) => row.match(/\d\d:\d\d/)?.[0]);
+}
+
 function movementsEveryMinute(count: number) {
   return Array.from({ length: count }, (_, index) =>
     movement({
@@ -116,30 +120,155 @@ describe("CashMovementsTable", () => {
     expect(rowsOf(screen)[0]).toContain("23:30");
   });
 
-  it("lists the movements in the order the core gives them", async () => {
+  it("lists the newest movement first", async () => {
     const screen = await renderTable([
       movement({ id: "a", occurred_at: "2026-09-30T09:00:00.000-03:00" }),
       movement({ id: "c", occurred_at: "2026-09-30T15:00:00.000-03:00" }),
       movement({ id: "b", occurred_at: "2026-09-30T12:00:00.000-03:00" }),
     ]);
 
-    expect(rowsOf(screen).map((row) => row.match(/\d\d:\d\d/)?.[0])).toEqual([
-      "09:00",
-      "15:00",
-      "12:00",
+    expect(timesOf(screen)).toEqual(["15:00", "12:00", "09:00"]);
+  });
+
+  it("lists the oldest movement first once the time column is sorted the other way", async () => {
+    const screen = await renderTable([
+      movement({ id: "a", occurred_at: "2026-09-30T09:00:00.000-03:00" }),
+      movement({ id: "b", occurred_at: "2026-09-30T12:00:00.000-03:00" }),
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: /Hora/ }));
+
+    expect(timesOf(screen)).toEqual(["09:00", "12:00"]);
+  });
+
+  it("counts the movements it lists", async () => {
+    const screen = await renderTable([
+      movement({ id: "a" }),
+      movement({ id: "b", type: "CASH_OUT", reason: "Flete" }),
+    ]);
+
+    await expect.element(screen.getByText("2 movimientos")).toBeVisible();
+  });
+
+  it("counts a single movement in the singular", async () => {
+    const screen = await renderTable([movement()]);
+
+    await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
+  });
+
+  it("counts the movements with the thousands separator", async () => {
+    const screen = await renderTable(
+      Array.from({ length: 1998 }, (_, index) => movement({ id: `m` })),
+    );
+
+    await expect.element(screen.getByText("1.998 movimientos")).toBeVisible();
+  });
+
+  it("filters by movement type, starting with every type", async () => {
+    const screen = await renderTable([
+      movement({ id: "a", type: "CASH_IN", reason: "Cambio" }),
+      movement({ id: "b", type: "CASH_OUT", reason: "Flete" }),
+      movement({ id: "c", type: "CASH_OUT", reason: "Luz" }),
+    ]);
+    expect(rowsOf(screen)).toHaveLength(3);
+    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
+
+    expect(rowsOf(screen)).toHaveLength(2);
+    await expect.element(screen.getByText("2 movimientos")).toBeVisible();
+  });
+
+  it("offers every type an open session can hold in the filter", async () => {
+    const screen = await renderTable([movement()]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+
+    const options = Array.from(document.querySelectorAll("[role=option]")).map(
+      (option) => option.textContent,
+    );
+    expect(options).toEqual([
+      "Todos",
+      "Apertura",
+      "Venta",
+      "Vuelto",
+      "Devolución en efectivo",
+      "Ingreso",
+      "Gasto",
+      "Retiro",
     ]);
   });
 
-  it("offers no way to sort, filter, count or page the movements", async () => {
+  it("says so when no movement is of the chosen type and keeps the filter to change it", async () => {
+    const screen = await renderTable([movement()]);
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
+
+    await expect.element(screen.getByText("No hay movimientos de este tipo")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Tipo: Gasto" })).toBeVisible();
+  });
+
+  it("lists the newest 25 movements and counts all of them", async () => {
     const screen = await renderTable(movementsEveryMinute(30));
 
-    await expect.element(screen.getByRole("button", { name: /Hora/ })).not.toBeInTheDocument();
-    await expect.element(screen.getByRole("button", { name: /Tipo/ })).not.toBeInTheDocument();
-    await expect.element(screen.getByText(/30 movimientos/)).not.toBeInTheDocument();
+    const times = timesOf(screen);
+    expect(times).toHaveLength(25);
+    expect(times[0]).toBe("09:29");
+    expect(times[24]).toBe("09:05");
+    await expect.element(screen.getByText("30 movimientos")).toBeVisible();
+  });
+
+  it("shows the remaining movements on the next page", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
+    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+
+    expect(timesOf(screen)).toEqual(["09:04", "09:03", "09:02", "09:01", "09:00"]);
+    await expect.element(screen.getByText("30 movimientos")).toBeVisible();
+  });
+
+  it("goes back to the first page when a type is chosen", async () => {
+    const screen = await renderTable([
+      ...movementsEveryMinute(30),
+      movement({ id: "x", type: "CASH_OUT", reason: "Flete" }),
+    ]);
+    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Ingreso" }));
+
+    expect(timesOf(screen)[0]).toBe("09:29");
+    expect(rowsOf(screen)).toHaveLength(25);
+  });
+
+  it("shows no pager and no count once no movement is of the chosen type", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
+
     await expect
       .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
       .not.toBeInTheDocument();
-    expect(rowsOf(screen)).toHaveLength(30);
+    await expect.element(screen.getByText("0 movimientos")).not.toBeInTheDocument();
+  });
+
+  it("has no accessibility violations with the pager", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("draws each movement's icon in the circle of the table's cell text", async () => {
+    const screen = await renderTable([movement({ type: "CASH_OUT", direction: "out" })]);
+
+    const circle = screen.container.querySelector("tbody tr td span.rounded-full.bg-surface");
+    expect(circle?.querySelector("svg")).not.toBeNull();
   });
 
   it("shows the key legend it is given under the movements", async () => {
