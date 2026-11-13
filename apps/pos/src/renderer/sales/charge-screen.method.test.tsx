@@ -26,12 +26,12 @@ describe("ChargeScreen · chosen method", () => {
   });
 
   it.each([
-    ["POINT_DEBIT", /Point · Débito/i],
-    ["POINT_CREDIT", /Point · Crédito/i],
+    ["POINT_DEBIT", "Point débito"],
+    ["POINT_CREDIT", "Point crédito"],
   ] as const)("opens the terminal charge for %s", async (method, title) => {
     const { screen } = await renderScreen({ method });
 
-    await expect.element(screen.getByRole("dialog").getByText(title)).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: title })).toBeVisible();
   });
 
   it("shows the combined payment, with the method's tile disabled, when the chosen method is not available", async () => {

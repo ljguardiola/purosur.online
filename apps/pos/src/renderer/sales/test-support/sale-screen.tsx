@@ -9,6 +9,7 @@ import type {
   ChangeLineWeightOutcome,
   FindProductByCodeOutcome,
   OpenSale,
+  PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
   RemoveSaleLineOutcome,
@@ -30,6 +31,13 @@ const PERSON: SaleScreenProps["person"] = {
   abilities: ["open_cash_session"],
 };
 const FIELD_NAME = "Producto";
+export const AVAILABLE: PaymentMethodAvailability = {
+  qr: "available",
+  point: "available",
+  point_minimum: 1500,
+  qr_minimum: 1500,
+};
+
 export const PLACEHOLDER = "Escaneá o escribí el nombre";
 export const NOT_PERMITTED_TITLE = "No tenés el permiso de vender y cobrar";
 export const NOT_PERMITTED_HELP = "Quien administra los roles te lo puede dar en el backoffice.";
@@ -196,6 +204,9 @@ export async function renderScreen(overrides: Overrides = {}) {
   const loadAuthorizers = overrides.loadAuthorizers ?? vi.fn(async () => []);
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const registerStatus = overrides.registerStatus ?? { status: "failed" as const, retry: vi.fn() };
+  const paymentMethodAvailability = vi.fn(
+    overrides.paymentMethodAvailability ?? (async () => AVAILABLE),
+  );
   const readers = new Set<(code: string) => void>();
   const screen = await render(
     <BarcodeReadings
@@ -230,11 +241,13 @@ export async function renderScreen(overrides: Overrides = {}) {
         loadAuthorizers={loadAuthorizers}
         onSessionInvalid={onSessionInvalid}
         registerStatus={registerStatus}
+        paymentMethodAvailability={paymentMethodAvailability}
       />
     </BarcodeReadings>,
   );
   return {
     screen,
+    paymentMethodAvailability,
     field: screen.getByRole("combobox", { name: FIELD_NAME }),
     readBarcode(code: string) {
       for (const listener of readers) listener(code);

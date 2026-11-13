@@ -5,7 +5,11 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { MercadoPagoPaidPanel } from "./mercado-pago-paid-panel";
 
-async function renderPanel(pending: number | undefined, children?: React.ReactNode) {
+async function renderPanel(
+  pending: number | undefined,
+  children?: React.ReactNode,
+  onClose?: () => void,
+) {
   await page.viewport(1280, 1000);
   const onContinue = vi.fn();
   const screen = await render(
@@ -16,6 +20,7 @@ async function renderPanel(pending: number | undefined, children?: React.ReactNo
       amount={2_519_250}
       pending={pending}
       onContinue={onContinue}
+      {...(onClose === undefined ? {} : { onClose })}
     >
       {children}
     </MercadoPagoPaidPanel>,
@@ -78,6 +83,27 @@ describe("MercadoPagoPaidPanel", () => {
         .elements()
         .map((button) => button.textContent),
     ).toEqual(["ContinuarEnter"]);
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it("closes from its Esc button beside the title when given a close action", async () => {
+    const onClose = vi.fn();
+    const { screen, onContinue } = await renderPanel(undefined, undefined, onClose);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it("closes with Esc when given a close action", async () => {
+    const onClose = vi.fn();
+    const { screen, onContinue } = await renderPanel(undefined, undefined, onClose);
+    await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(onClose).toHaveBeenCalledOnce();
     expect(onContinue).not.toHaveBeenCalled();
   });
 
