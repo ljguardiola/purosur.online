@@ -54,6 +54,23 @@ test("puts the icon at the top left, the key at the top right and the label belo
   expect(label.left).toBeLessThan(icon.left + 4);
 });
 
+test("shows each payment label in full when three tiles share the register's wide side panel", async () => {
+  const labels = ["Point débito", "Point crédito", "QR"];
+  const screen = await render(
+    <div className="grid w-87.75 grid-cols-3 gap-3">
+      {labels.map((label) => (
+        <KeyTile key={label} label={label} icon={<CreditCard />} keyName="F9" onPress={() => {}} />
+      ))}
+    </div>,
+  );
+  await document.fonts.ready;
+
+  for (const label of labels) {
+    const text = screen.getByText(label, { exact: true }).element();
+    expect(text.scrollWidth, label).toBeLessThanOrEqual(text.clientWidth);
+  }
+});
+
 test("draws a white tile with a border", async () => {
   const screen = await render(tile());
 
