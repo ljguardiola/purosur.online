@@ -172,6 +172,18 @@ export function linesTable(screen: RenderedScreen) {
   return screen.getByRole("table", { name: "Líneas de la venta" });
 }
 
+export function lineRow(screen: RenderedScreen, product: string) {
+  return linesTable(screen).getByRole("row", { name: new RegExp(product) });
+}
+
+export function alertText(screen: RenderedScreen, text: string) {
+  return screen.getByRole("alert").filter({ hasText: text });
+}
+
+export function statusText(screen: RenderedScreen, text: string) {
+  return screen.getByRole("status").filter({ hasText: text });
+}
+
 export async function lookUp(screen: RenderedScreen, text = "00003-00001192") {
   await userEvent.fill(searchBox(screen), text);
   await userEvent.keyboard("{Enter}");
@@ -179,11 +191,11 @@ export async function lookUp(screen: RenderedScreen, text = "00003-00001192") {
 
 export async function openReturn(screen: RenderedScreen) {
   await lookUp(screen);
-  await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
+  await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
 }
 
 export async function selectLine(screen: RenderedScreen, product: string) {
-  await userEvent.click(linesTable(screen).getByText(product, { exact: true }));
+  await userEvent.click(lineRow(screen, product));
 }
 
 export async function markLine(screen: RenderedScreen, product: string) {

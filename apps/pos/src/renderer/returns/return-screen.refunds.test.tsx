@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { RenderedScreen } from "./test-support/return-screen";
 import {
+  alertText,
   chooseReturnLine,
   legendOf,
   openReturn,
@@ -91,7 +92,7 @@ describe("ReturnScreen refunding by payment method", () => {
 
     const panel = refundsPanel(screen);
     await expect.element(panel.getByText("REINTEGRO", { exact: true })).toBeVisible();
-    await expect.element(panel.getByText("$ 13.935,00").first()).toBeVisible();
+    await expect.poll(() => panel.element().textContent).toMatch(/REINTEGRO\s*\$\s*13\.935,00/);
     await expect.element(panel.getByText("Efectivo · en el acto")).toBeVisible();
     await expect.element(panel.getByText("Esc", { exact: true })).toBeVisible();
     await expect.element(panel.getByRole("button", { name: "Finalizar" })).toBeEnabled();
@@ -181,9 +182,7 @@ describe("ReturnScreen refunding by payment method", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect
-      .element(
-        screen.getByText("Lo que se reintegra por los pagos tiene que sumar $ 13.935,00.").first(),
-      )
+      .element(alertText(screen, "Lo que se reintegra por los pagos tiene que sumar $ 13.935,00."))
       .toBeVisible();
     await expect
       .element(refundsPanel(screen).getByRole("button", { name: "Finalizar" }))

@@ -2,14 +2,17 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
+  alertText,
   chooseReturnLine,
   legendOf,
+  lineRow,
   linesTable,
   markLine,
   openReturn,
   renderScreen,
   searchBox,
   selectLine,
+  statusText,
 } from "./test-support/return-screen";
 
 function summary(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
@@ -54,7 +57,7 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
       .toHaveAttribute("aria-current", "true");
     const panel = summary(screen);
     await expect.element(panel.getByText("A REINTEGRAR")).toBeVisible();
-    await expect.element(panel.getByText("$ 0,00").first()).toBeVisible();
+    await expect.poll(() => panel.element().textContent).toMatch(/A REINTEGRAR\s*\$\s*0,00/);
     await expect.element(panel.getByText("Factura C")).toBeVisible();
     await expect.element(panel.getByText("00003-00001192")).toBeVisible();
     await expect.element(panel.getByText("Venta", { exact: true })).toBeVisible();
@@ -88,11 +91,15 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
     await expect
       .element(rowOf(screen, "Pasta de maní 380 g").getByText("$ 9.700,00"))
       .toBeVisible();
-    await expect.element(summary(screen).getByText("$ 9.700,00").first()).toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*9\.700,00/);
     await expect.element(summary(screen).getByText("1", { exact: true })).toBeVisible();
     await expect.element(summary(screen).getByText("Efectivo · en el acto")).toBeVisible();
     await userEvent.keyboard(" ");
-    await expect.element(summary(screen).getByText("$ 0,00").first()).toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
   });
 
   it("marks a line with its checkbox", async () => {
@@ -108,7 +115,9 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
 
-    await expect.element(rowOf(screen, "Nibs de cacao").getByText("—").first()).toBeVisible();
+    await expect
+      .poll(() => rowOf(screen, "Nibs de cacao").element().textContent)
+      .toMatch(/—\s*—\s*$/);
   });
 
   it("does not let a fully returned line be marked", async () => {
@@ -118,7 +127,9 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
 
     await userEvent.keyboard(" ");
 
-    await expect.element(summary(screen).getByText("$ 0,00").first()).toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
   });
 
   it("lists the arrows Líneas, Espacio Marcar and F6 Editar, then T Verificar, and Enter Completar once it can complete", async () => {
@@ -190,7 +201,7 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
   it("looks the sale up by its id, without the ticket step, and shows no Ticket verificado nor T", async () => {
     const { screen, findSaleForReturn } = await renderScreen({ saleId: "sale-1" });
 
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
 
     expect(findSaleForReturn).toHaveBeenCalledExactlyOnceWith(
       { kind: "sale", sale_id: "sale-1" },
@@ -204,7 +215,7 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
 
   it("completes as soon as a line is marked, offering Enter Completar", async () => {
     const { screen } = await renderScreen({ saleId: "sale-1" });
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
 
     await markLine(screen, "Pasta de maní 380 g");
 
@@ -223,7 +234,7 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
     });
 
     await expect
-      .element(screen.getByText("Esa venta está anulada: no se puede devolver.").first())
+      .element(alertText(screen, "Esa venta está anulada: no se puede devolver."))
       .toBeVisible();
   });
 });
@@ -240,10 +251,12 @@ describe("ReturnScreen refusing a line", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect
-      .element(screen.getByText("Pasta de maní 380 g: se pueden devolver hasta 3 u.").first())
+      .element(statusText(screen, "Pasta de maní 380 g: se pueden devolver hasta 3 u."))
       .toBeVisible();
     await expect.element(rowOf(screen, "Pasta de maní 380 g").getByText("5 u")).toBeVisible();
-    await expect.element(summary(screen).getByText("$ 4.235,00").first()).toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*4\.235,00/);
     await expect.element(summary(screen).getByText("1", { exact: true })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Completar devolución" }))

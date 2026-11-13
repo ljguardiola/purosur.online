@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import {
+  alertText,
   legendOf,
   linesTable,
   lookUp,
@@ -104,7 +105,7 @@ describe("ReturnScreen asking for the ticket", () => {
     await lookUp(screen, "1192");
 
     await expect
-      .element(screen.getByText("Tipeá el número impreso del ticket, como 00003-00001192.").first())
+      .element(alertText(screen, "Tipeá el número impreso del ticket, como 00003-00001192."))
       .toBeVisible();
     expect(findSaleForReturn).not.toHaveBeenCalled();
   });
@@ -149,7 +150,7 @@ describe("ReturnScreen refusing to find a sale", () => {
 
       await lookUp(screen, "0003-00009999");
 
-      await expect.element(screen.getByText(text).first()).toBeVisible();
+      await expect.element(alertText(screen, text)).toBeVisible();
       await expect.element(searchBox(screen)).toHaveValue("0003-00009999");
       await expect.element(searchBox(screen)).toHaveFocus();
       await expect.element(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
@@ -165,11 +166,10 @@ describe("ReturnScreen refusing to find a sale", () => {
 
     await expect
       .element(
-        screen
-          .getByText(
-            "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
-          )
-          .first(),
+        alertText(
+          screen,
+          "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
+        ),
       )
       .toBeVisible();
     expect(findSaleForReturn).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ describe("ReturnScreen refusing to find a sale", () => {
     await lookUp(screen);
 
     await expect
-      .element(screen.getByText("No se pudo buscar la venta. Probá de nuevo.").first())
+      .element(alertText(screen, "No se pudo buscar la venta. Probá de nuevo."))
       .toBeVisible();
   });
 
@@ -195,13 +195,13 @@ describe("ReturnScreen refusing to find a sale", () => {
     });
     await lookUp(screen, "0003-00009999");
     await expect
-      .element(screen.getByText("No encontramos esa venta en esta sucursal.").first())
+      .element(alertText(screen, "No encontramos esa venta en esta sucursal."))
       .toBeVisible();
 
     await userEvent.type(searchBox(screen), "1");
 
     await expect
-      .element(screen.getByText("No encontramos esa venta en esta sucursal.").first())
+      .element(alertText(screen, "No encontramos esa venta en esta sucursal."))
       .not.toBeInTheDocument();
   });
 });

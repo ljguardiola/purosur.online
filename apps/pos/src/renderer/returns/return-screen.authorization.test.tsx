@@ -8,10 +8,11 @@ import {
 import {
   CASH_SALE,
   chooseReturnLine,
-  linesTable,
+  lineRow,
   lookUp,
   openReturn,
   renderScreen,
+  statusText,
 } from "./test-support/return-screen";
 
 const GRACE = { user_id: "u2", pin: "1234" };
@@ -61,7 +62,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     expect(findSaleForReturn.mock.calls[1]).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "typed" }), GRACE]),
     );
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
     await expect.element(authorizationDialog()).not.toBeInTheDocument();
   });
 
@@ -133,7 +134,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
       ticket_source: "TYPED",
       ticket_verification_required: true,
     });
-    await expect.element(linesTable(screen).getByText("Pasta de maní 380 g").last()).toBeVisible();
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
   });
 
   it("shows who authorized on the screen where the return is built, and sends it to complete", async () => {
@@ -143,7 +144,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await lookUp(screen);
     await authorizeInModal({ as: "Grace", pin: "1234" });
 
-    await expect.element(screen.getByText("Autorizó Grace").first()).toBeVisible();
+    await expect.element(statusText(screen, "Autorizó Grace")).toBeVisible();
     await chooseReturnLine(screen, "Pasta de maní 380 g");
     await userEvent.keyboard("t");
     await userEvent.keyboard("{Enter}");

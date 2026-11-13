@@ -43,8 +43,7 @@ describe("ReturnLinesTable", () => {
     const { screen } = await renderTable();
 
     const row = screen.getByRole("row", { name: /Té verde/ });
-    await expect.element(row.getByText("—").first()).toBeVisible();
-    expect(row.getByText("—").elements()).toHaveLength(2);
+    await expect.poll(() => row.element().textContent).toMatch(/—\s*—\s*$/);
   });
 
   it("shows a refused quantity in red and no refund for it", async () => {
@@ -67,7 +66,7 @@ describe("ReturnLinesTable", () => {
   it("selects a line when its row is pressed, without marking it", async () => {
     const { screen, onSelect, onMark } = await renderTable();
 
-    await userEvent.click(screen.getByText("Nibs de cacao", { exact: true }).last());
+    await userEvent.click(screen.getByRole("row", { name: /Nibs de cacao/ }));
 
     expect(onSelect).toHaveBeenCalledExactlyOnceWith("line-nibs");
     expect(onMark).not.toHaveBeenCalled();
