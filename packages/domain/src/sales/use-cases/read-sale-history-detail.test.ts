@@ -147,6 +147,7 @@ describe("readSaleHistoryDetail", () => {
           ],
           creditNoteCorrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
         },
+        returnable: true,
         creditNotes: [],
         reprint: { kind: "available" },
         nextCopy: { kind: "original" },
@@ -247,6 +248,35 @@ describe("readSaleHistoryDetail", () => {
     const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "sale_voided" });
+  });
+
+  describe("whether the sale may be returned", () => {
+    function returnable(overrides: Parameters<typeof historySale>[0]) {
+      const history = new FakeRegisterSalesHistory([historySale(overrides)]);
+      const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      return outcome.kind === "found" ? outcome.detail.returnable : undefined;
+    }
+
+    it("says a completed sale may be returned", () => {
+      expect(returnable({})).toBe(true);
+    });
+
+    it("says a voided sale may not be returned", () => {
+      expect(returnable({ voided: true })).toBe(false);
+    });
+
+    it("says a completed sale whose invoice is still to print may be returned", () => {
+      expect(
+        returnable({
+          fiscal: { deferred: false, deferredInvoicePending: true, fiscalDocument: null },
+        }),
+      ).toBe(true);
+    });
+
+    it("says a sale that cannot be voided any longer may still be returned", () => {
+      expect(returnable({ inOpenSession: false })).toBe(true);
+    });
   });
 
   describe("whether the sale may be voided", () => {

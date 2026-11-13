@@ -412,6 +412,7 @@ describe("the detail of a sale of the history", () => {
           credit_note_corrects: { point_of_sale: 3, number: 1204 },
         },
         void_authorization_required: true,
+        returnable: true,
         reprint_authorization_required: true,
         credit_notes: [],
         reprint: { kind: "available" },
@@ -551,6 +552,7 @@ describe("the detail of a sale of the history", () => {
       state: "voided",
       voidability: { kind: "not_voidable", refusal: "not_completed" },
       reprint: { kind: "sale_voided" },
+      returnable: false,
     });
   });
 
