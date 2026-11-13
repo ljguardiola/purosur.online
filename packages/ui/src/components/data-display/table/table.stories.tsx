@@ -803,6 +803,40 @@ export const RegisterCard: Story = {
   ),
 };
 
+function RegisterCardPagedProductsTable() {
+  const [page, setPage] = useState(1);
+  const table = useTableModel({
+    items: manyProducts,
+    id: (item) => item.id,
+    columns: baseColumns,
+    sort,
+    onSortChange,
+    paging: { page, onPageChange: setPage },
+  });
+  const rowCount = table.getRowCount();
+  return (
+    <Table
+      table={table}
+      aria-label="Productos"
+      fill
+      legend={saleLegend}
+      legendAside={
+        <div className="flex items-center gap-4">
+          <p className="text-text-subtle text-detail">
+            {plural(rowCount, { one: "1 producto", other: `${rowCount} productos` })}
+          </p>
+          <TablePagination table={table} label="Páginas de productos" />
+        </div>
+      }
+    />
+  );
+}
+
+export const RegisterCardWithLegendAside: Story = {
+  decorators: [inTallCard],
+  render: () => <RegisterCardPagedProductsTable />,
+};
+
 export const RegisterCardEmpty: Story = {
   decorators: [inTallCard],
   render: () => (

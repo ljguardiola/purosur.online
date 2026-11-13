@@ -11,14 +11,7 @@ export function directedAmount({
   amount: number;
   direction: "in" | "out" | "none";
 }): string {
-  switch (direction) {
-    case "in":
-      return signedAmount("+", amount);
-    case "out":
-      return signedAmount("−", amount);
-    case "none":
-      return formatCents(amount);
-  }
+  return direction === "out" ? `\u2013 ${formatCents(amount)}` : formatCents(amount);
 }
 
 export function differenceText(difference: number): string {

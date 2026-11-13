@@ -13,6 +13,7 @@ import type {
   CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
+  CashMovementPreview,
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
@@ -86,7 +87,7 @@ import type {
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import type { QueryClient } from "@tanstack/react-query";
 import type { AnyRoute } from "@tanstack/react-router";
 import {
@@ -197,6 +198,10 @@ export interface RouterContext {
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   cashBalance: () => Promise<CashBalance | null | "unavailable">;
   cashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
+  cashMovementPreview: (movement: {
+    kind: CashMovementKind;
+    amount: number;
+  }) => Promise<CashMovementPreview | null | "unavailable">;
   sessionOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
   cashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   cashMovementKinds: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
@@ -1054,18 +1059,18 @@ const cashRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/cash",
   beforeLoad: ({ context }) => {
-    const { id, openedAt, person } = requireOpenSession(context);
-    return { id, openedAt, person };
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
   },
   component: function CashRoute() {
     const {
       id,
-      openedAt,
       person,
       signOut,
       cashBalance,
       cashMovements,
       cashMovementKinds,
+      cashMovementPreview,
       authorizers,
       recordCashMovement,
       readClockGuard,
@@ -1077,12 +1082,11 @@ const cashRoute = createRoute({
       <CashScreen
         sessionId={id}
         person={person}
-        registerName={registerName}
-        openedAt={openedAt}
         lock={signOut}
         loadCashBalance={cashBalance}
         loadCashMovements={cashMovements}
         loadCashMovementKinds={cashMovementKinds}
+        loadCashMovementPreview={cashMovementPreview}
         loadAuthorizers={authorizers}
         recordCashMovement={recordCashMovement}
         clockGuard={
@@ -1439,6 +1443,7 @@ export function createAppRouter(
     | "identifyLockedCloser"
     | "cashBalance"
     | "cashCountPreview"
+    | "cashMovementPreview"
     | "sessionOpenSale"
     | "cashMovements"
     | "cashMovementKinds"

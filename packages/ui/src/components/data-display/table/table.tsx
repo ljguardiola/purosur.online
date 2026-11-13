@@ -48,6 +48,7 @@ export function Table<T extends RowData>({
   empty,
   footer,
   legend,
+  legendAside,
   fill = false,
   emptyKeepsHeaders = false,
   failureKeepsHeaders = false,
@@ -67,6 +68,8 @@ export function Table<T extends RowData>({
   const failureBelowHeaders = fill && failureKeepsHeaders && displayMode === "failure";
   const showEmptyState = displayMode === "empty" && !emptyBelowHeaders;
   const showingPlaceholders = displayMode === "placeholders";
+  const showsLegendAside =
+    legendAside !== undefined && displayMode !== "placeholders" && displayMode !== "failure";
   const messageOnly =
     fill && ((displayMode === "failure" && !failureBelowHeaders) || showEmptyState);
 
@@ -208,8 +211,15 @@ export function Table<T extends RowData>({
           )))
         )}
         {legend === undefined || locked !== undefined ? null : (
-          <div className="shrink-0 border-t border-border bg-surface-subtle px-4 py-3">
+          <div
+            className={
+              showsLegendAside
+                ? "flex shrink-0 items-center justify-between gap-4 border-t border-border bg-surface-subtle px-4 py-3"
+                : "shrink-0 border-t border-border bg-surface-subtle px-4 py-3"
+            }
+          >
             <KeyLegend items={legend} />
+            {showsLegendAside ? legendAside : null}
           </div>
         )}
       </div>

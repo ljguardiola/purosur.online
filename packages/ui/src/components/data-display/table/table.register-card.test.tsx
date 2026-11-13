@@ -91,6 +91,56 @@ test("sets the legend apart with a subtle band and a divider above it", async ()
   expect(getComputedStyle(band).borderTopColor).toBe(tokenRgb("border"));
 });
 
+test("draws what it is given beside the key legend, at the other end of the same strip", async () => {
+  const screen = await render(
+    <div style={{ width: 600 }}>
+      <LinesTable legend={legend} legendAside={<p>3 líneas</p>} />
+    </div>,
+  );
+
+  const list = screen.getByRole("list").element();
+  const band = list.parentElement as HTMLElement;
+  const aside = screen.getByText("3 líneas").element();
+  expect(band.contains(aside)).toBe(true);
+  const bandBox = band.getBoundingClientRect();
+  const listBox = list.getBoundingClientRect();
+  const asideBox = aside.getBoundingClientRect();
+  expect(asideBox.left).toBeGreaterThanOrEqual(listBox.right);
+  expect(asideBox.top).toBeLessThan(listBox.bottom);
+  expect(asideBox.bottom).toBeGreaterThan(listBox.top);
+  expect(bandBox.right - asideBox.right).toBe(listBox.left - bandBox.left);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the legend's strip as tall as without anything beside it", async () => {
+  const alone = await render(<LinesTable legend={legend} />);
+  const aloneHeight = (
+    alone.getByRole("list").element().parentElement as HTMLElement
+  ).getBoundingClientRect().height;
+  await alone.unmount();
+
+  const beside = await render(<LinesTable legend={legend} legendAside={<p>3 líneas</p>} />);
+  const besideHeight = (
+    beside.getByRole("list").element().parentElement as HTMLElement
+  ).getBoundingClientRect().height;
+  expect(besideHeight).toBe(aloneHeight);
+});
+
+test("shows nothing beside the legend while it loads or after loading failed", async () => {
+  const loading = await render(
+    <LinesTable fill loading="initial" legend={legend} legendAside={<p>3 líneas</p>} />,
+  );
+  expect(loading.getByRole("listitem").elements()).toHaveLength(3);
+  await expect.element(loading.getByText("3 líneas")).not.toBeInTheDocument();
+  await loading.unmount();
+
+  const failed = await render(
+    <LinesTable fill failure={failure} legend={legend} legendAside={<p>3 líneas</p>} />,
+  );
+  expect(failed.getByRole("listitem").elements()).toHaveLength(3);
+  await expect.element(failed.getByText("3 líneas")).not.toBeInTheDocument();
+});
+
 test("draws no legend when it is not given", async () => {
   const screen = await render(<LinesTable />);
 

@@ -97,6 +97,7 @@ export type TableProps<T extends RowData> = {
   empty?: EmptyStateProps;
   footer?: ReactNode;
   legend?: readonly KeyLegendItem[];
+  legendAside?: ReactNode;
   fill?: boolean;
   // With `fill`, keeps the column headers above the empty state instead of replacing them with it.
   emptyKeepsHeaders?: boolean;

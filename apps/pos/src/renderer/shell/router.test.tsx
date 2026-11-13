@@ -233,6 +233,7 @@ function contextWith(
     identifyLockedCloser: async () => ({ kind: "unavailable" }),
     cashBalance: async () => "unavailable",
     cashCountPreview: async () => "unavailable",
+    cashMovementPreview: async () => "unavailable",
     sessionOpenSale: async () => "unavailable",
     cashMovements: async () => "unavailable",
     cashMovementKinds: async () => "unavailable",
@@ -1814,8 +1815,8 @@ describe("the register's router", () => {
       const screen = await render(<RouterProvider router={router} />);
 
       await expect
-        .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
-        .toBeVisible();
+        .element(screen.getByRole("heading", { level: 1, name: "Movimientos de efectivo" }))
+        .toBeInTheDocument();
       await expect.element(screen.getByText("El reloj de la caja atrasa")).not.toBeInTheDocument();
     });
   });
@@ -2386,15 +2387,15 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
 
     await expect
-      .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
-      .toBeVisible();
+      .element(screen.getByRole("heading", { level: 1, name: "Movimientos de efectivo" }))
+      .toBeInTheDocument();
     await expect.element(screen.getByText("Grace", { exact: true }).first()).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
     await expect
       .element(
         screen
           .getByRole("table", { name: "Movimientos de la sesión" })
-          .getByText("Apertura de sesión", { exact: true }),
+          .getByText("Apertura", { exact: true }),
       )
       .toBeVisible();
   });
@@ -2420,15 +2421,42 @@ describe("the register's router", () => {
       "/cash",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(
-      screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Ingreso", exact: true }));
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
     await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
     await expect.poll(() => recorded).toEqual([["CASH_IN", "Cambio"]]);
+  });
+
+  it("previews a movement through the router context with the kind and amount typed", async () => {
+    const previewed: [string, number][] = [];
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", OPENER, undefined, { ...OPEN_SESSION, openedBy: OPENER }),
+        cashBalance: async () => BALANCE,
+        cashMovements: async () => [],
+        cashMovementKinds: async () => ({
+          CASH_IN: { permission: "record_cash_in", authorization_required: false },
+          CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
+          WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
+        }),
+        cashMovementPreview: async (movement) => {
+          previewed.push([movement.kind, movement.amount]);
+          return { kind: "remaining", cash: 4_570_000 };
+        },
+      },
+      "/cash",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await userEvent.click(screen.getByRole("button", { name: "Gasto", exact: true }));
+
+    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
+
+    await expect.element(screen.getByText("$ 45.700,00", { exact: true })).toBeVisible();
+    expect(previewed).toEqual([["CASH_OUT", 50_000]]);
   });
 
   it("closes the session through the router context with the session it is showing", async () => {

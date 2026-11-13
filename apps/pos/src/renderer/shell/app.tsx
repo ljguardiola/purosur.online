@@ -18,7 +18,7 @@ import type {
   SignInOutcome,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import { LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
@@ -397,6 +397,8 @@ function Register({ core }: { core: CoreClient }) {
     identifyLockedCloser,
     cashBalance,
     cashCountPreview: (countedCash: number) => core.cashCountPreview(countedCash),
+    cashMovementPreview: (movement: { kind: CashMovementKind; amount: number }) =>
+      core.cashMovementPreview(movement),
     sessionOpenSale: () => core.sessionOpenSale(),
     cashMovements,
     cashMovementKinds: () => core.cashMovementKinds(),

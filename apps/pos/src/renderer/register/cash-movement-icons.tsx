@@ -2,20 +2,20 @@ import type { CashMovementType } from "@purosur/domain";
 import type { Icon } from "@purosur/ui";
 import {
   ArrowDownToLine,
-  ArrowUpFromLine,
+  ArrowUp,
   Coins,
   Lock,
-  Receipt,
   ShoppingBasket,
   Undo2,
+  Vault,
   Wallet,
 } from "lucide-react";
 
 export const CASH_MOVEMENT_ICONS = {
   OPENING: <Wallet />,
   CASH_IN: <ArrowDownToLine />,
-  CASH_OUT: <Receipt />,
-  WITHDRAWAL: <ArrowUpFromLine />,
+  CASH_OUT: <ArrowUp />,
+  WITHDRAWAL: <Vault />,
   SALE: <ShoppingBasket />,
   CHANGE: <Coins />,
   REFUND: <Undo2 />,

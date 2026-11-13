@@ -1,6 +1,6 @@
 import type { ListedCashMovement } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -24,19 +24,41 @@ function movement(overrides: Partial<ListedCashMovement> = {}): ListedCashMoveme
   };
 }
 
-async function renderState(state: CoreData<ListedCashMovement[]>) {
+async function renderState(
+  state: CoreData<ListedCashMovement[]>,
+  props: { locked?: boolean } = {},
+) {
   await page.viewport(1280, 720);
-  return render(<CashMovementsTable state={state} />);
+  return render(
+    <CashMovementsTable
+      state={state}
+      legend={[
+        { keyName: "1", label: "Ingreso" },
+        { keyName: "2", label: "Gasto" },
+        { keyName: "3", label: "Retiro" },
+        { keyName: "F12", label: "Cerrar caja" },
+      ]}
+      {...props}
+    />,
+  );
 }
 
-function renderTable(movements: ListedCashMovement[]) {
-  return renderState({ status: "loaded", value: movements, refreshing: false });
+function renderTable(movements: ListedCashMovement[], props: { locked?: boolean } = {}) {
+  return renderState({ status: "loaded", value: movements, refreshing: false }, props);
 }
 
 function rowsOf(screen: Awaited<ReturnType<typeof renderTable>>) {
   return Array.from(screen.container.querySelectorAll("tbody tr")).map(
     (row) => row.textContent ?? "",
   );
+}
+
+function timesOf(screen: Awaited<ReturnType<typeof renderTable>>) {
+  return rowsOf(screen).map((row) => row.match(/\d\d:\d\d/)?.[0]);
+}
+
+function emptyStateIconColor(title: Element) {
+  return getComputedStyle(title.previousElementSibling as Element).color;
 }
 
 function movementsEveryMinute(count: number) {
@@ -48,42 +70,40 @@ function movementsEveryMinute(count: number) {
   );
 }
 
-function timesOf(screen: Awaited<ReturnType<typeof renderTable>>) {
-  return rowsOf(screen).map((row) => row.slice(0, 5));
-}
-
 describe("CashMovementsTable", () => {
+  it("heads its columns Movimiento, Hora, Quién and Importe, in that order", async () => {
+    const screen = await renderTable([movement()]);
+
+    const headers = Array.from(screen.container.querySelectorAll("thead th")).map(
+      (header) => header.textContent,
+    );
+    expect(headers).toEqual(["Movimiento", "Hora", "Quién", "Importe"]);
+  });
+
   it.each<
     [CashMovementType, ListedCashMovement["direction"], string | null, string, string, string]
   >([
-    ["OPENING", "in", null, "Apertura de sesión", "Fondo inicial", "+ $ 5.000,00"],
-    [
-      "CASH_IN",
-      "in",
-      "Cambio para el cajón",
-      "Ingreso de efectivo",
-      "Cambio para el cajón",
-      "+ $ 5.000,00",
-    ],
-    ["CASH_OUT", "out", "Flete", "Gasto", "Flete", "− $ 5.000,00"],
-    ["WITHDRAWAL", "out", "Fin de turno", "Retiro a caja fuerte", "Fin de turno", "− $ 5.000,00"],
-    ["SALE", "in", null, "Venta", "Cobro en efectivo", "+ $ 5.000,00"],
-    ["CHANGE", "out", null, "Vuelto", "", "− $ 5.000,00"],
-    ["REFUND", "out", null, "Devolución en efectivo", "", "− $ 5.000,00"],
+    ["OPENING", "in", null, "Apertura", "Fondo inicial", "$ 5.000,00"],
+    ["CASH_IN", "in", "Cambio para el cajón", "Ingreso", "Cambio para el cajón", "$ 5.000,00"],
+    ["CASH_OUT", "out", "Flete", "Gasto", "Flete", "\u2013 $ 5.000,00"],
+    ["WITHDRAWAL", "out", "Fin de turno", "Retiro", "Fin de turno", "\u2013 $ 5.000,00"],
+    ["SALE", "in", null, "Venta", "Cobro en efectivo", "$ 5.000,00"],
+    ["CHANGE", "out", null, "Vuelto", "", "\u2013 $ 5.000,00"],
+    ["REFUND", "out", null, "Devolución en efectivo", "", "\u2013 $ 5.000,00"],
     ["CLOSING", "none", null, "Cierre de sesión", "", "$ 5.000,00"],
   ])("presents a %s movement", async (type, direction, reason, title, secondLine, amount) => {
     const screen = await renderTable([movement({ type, direction, reason })]);
 
     const [row] = rowsOf(screen);
-    expect(row).toBe(`12:05${title}${secondLine}Ada${amount}`);
+    expect(row).toBe(`${title}${secondLine}12:05Ada${amount}`);
   });
 
   it.each<[ListedCashMovement["direction"], string]>([
-    ["in", "+ $ 5.000,00"],
-    ["out", "− $ 5.000,00"],
+    ["in", "$ 5.000,00"],
+    ["out", "\u2013 $ 5.000,00"],
     ["none", "$ 5.000,00"],
   ])(
-    "signs the amount by the direction the core gives, not by the type: %s",
+    "marks the amount by the direction the core gives, not by the type: %s",
     async (direction, amount) => {
       const screen = await renderTable([movement({ type: "CASH_IN", direction })]);
 
@@ -101,7 +121,7 @@ describe("CashMovementsTable", () => {
   it("shows the time on the clock the movement is written in", async () => {
     const screen = await renderTable([movement({ occurred_at: "2026-09-30T23:30:00.000-03:00" })]);
 
-    expect(rowsOf(screen)[0]).toMatch(/^23:30/);
+    expect(rowsOf(screen)[0]).toContain("23:30");
   });
 
   it("lists the newest movement first", async () => {
@@ -111,7 +131,7 @@ describe("CashMovementsTable", () => {
       movement({ id: "b", occurred_at: "2026-09-30T12:00:00.000-03:00" }),
     ]);
 
-    expect(rowsOf(screen).map((row) => row.slice(0, 5))).toEqual(["15:00", "12:00", "09:00"]);
+    expect(timesOf(screen)).toEqual(["15:00", "12:00", "09:00"]);
   });
 
   it("lists the oldest movement first once the time column is sorted the other way", async () => {
@@ -122,7 +142,7 @@ describe("CashMovementsTable", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Hora/ }));
 
-    expect(rowsOf(screen).map((row) => row.slice(0, 5))).toEqual(["09:00", "12:00"]);
+    expect(timesOf(screen)).toEqual(["09:00", "12:00"]);
   });
 
   it("counts the movements it lists", async () => {
@@ -138,6 +158,14 @@ describe("CashMovementsTable", () => {
     const screen = await renderTable([movement()]);
 
     await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
+  });
+
+  it("counts the movements with the thousands separator", async () => {
+    const screen = await renderTable(
+      Array.from({ length: 1998 }, (_, index) => movement({ id: `m${index}` })),
+    );
+
+    await expect.element(screen.getByText("1.998 movimientos")).toBeVisible();
   });
 
   it("filters by movement type, starting with every type", async () => {
@@ -166,56 +194,34 @@ describe("CashMovementsTable", () => {
     );
     expect(options).toEqual([
       "Todos",
-      "Apertura de sesión",
+      "Apertura",
       "Venta",
       "Vuelto",
       "Devolución en efectivo",
-      "Ingreso de efectivo",
+      "Ingreso",
       "Gasto",
-      "Retiro a caja fuerte",
+      "Retiro",
     ]);
   });
 
-  it("says so when no movement is of the chosen type", async () => {
+  it("says so when no movement is of the chosen type and keeps the filter to change it", async () => {
     const screen = await renderTable([movement()]);
 
     await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
     await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
 
     await expect.element(screen.getByText("No hay movimientos de este tipo")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Tipo: Gasto" })).toBeVisible();
   });
 
-  it("shows no movement while they load", async () => {
-    const screen = await renderState({ status: "loading" });
+  it("draws the empty state as filtered when the chosen type hides every movement", async () => {
+    const screen = await renderTable([movement()]);
 
-    await expect
-      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
-      .toHaveAttribute("aria-busy", "true");
-    expect(rowsOf(screen).join("")).toBe("");
-    await expect
-      .element(screen.getByText("No hay movimientos de este tipo"))
-      .not.toBeInTheDocument();
-    await expectNoAccessibilityViolations(screen.container);
-  });
+    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
+    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
 
-  it("keeps the movements it shows while they are read again", async () => {
-    const screen = await renderState({ status: "loaded", value: [movement()], refreshing: true });
-
-    await expect
-      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
-      .toHaveAttribute("aria-busy", "true");
-    expect(rowsOf(screen)).toHaveLength(1);
-  });
-
-  it("says the movements could not be read and offers Reintentar", async () => {
-    const onRetry = vi.fn();
-    const screen = await renderState({ status: "failed", retry: onRetry });
-
-    await expect.element(screen.getByText("No se pudieron leer los movimientos")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-
-    expect(onRetry).toHaveBeenCalledOnce();
-    await expectNoAccessibilityViolations(screen.container);
+    const title = screen.getByText("No hay movimientos de este tipo").element();
+    expect(emptyStateIconColor(title)).toBe(tokenRgb("text-subtle"));
   });
 
   it("lists the newest 25 movements and counts all of them", async () => {
@@ -245,7 +251,7 @@ describe("CashMovementsTable", () => {
     await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-    await userEvent.click(screen.getByRole("option", { name: "Ingreso de efectivo" }));
+    await userEvent.click(screen.getByRole("option", { name: "Ingreso" }));
 
     expect(timesOf(screen)[0]).toBe("09:29");
     expect(rowsOf(screen)).toHaveLength(25);
@@ -272,6 +278,99 @@ describe("CashMovementsTable", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("draws each movement's icon in the circle of the table's cell text", async () => {
+    const screen = await renderTable([movement({ type: "CASH_OUT", direction: "out" })]);
+
+    const circle = screen.container.querySelector("tbody tr td span.rounded-full.bg-surface");
+    expect(circle?.querySelector("svg")).not.toBeNull();
+  });
+
+  it("shows the key legend it is given under the movements", async () => {
+    const screen = await renderTable([movement()]);
+
+    const legend = Array.from(screen.container.querySelectorAll("ul li")).map(
+      (item) => item.textContent,
+    );
+    expect(legend).toEqual(["1Ingreso", "2Gasto", "3Retiro", "F12Cerrar caja"]);
+  });
+
+  it("dims the movements and drops the legend while the screen is locked by a panel", async () => {
+    const screen = await renderTable([movement()], { locked: true });
+
+    await expect.element(screen.getByRole("img", { name: "Movimientos bloqueados" })).toBeVisible();
+    expect(screen.container.querySelectorAll("ul li")).toHaveLength(0);
+    expect(rowsOf(screen)).toHaveLength(1);
+  });
+
+  it("shows the type filter, the count and the pager in the key legend's strip, beside the keys", async () => {
+    const screen = await renderTable(movementsEveryMinute(30));
+
+    const legend = screen.container.querySelector("ul") as HTMLElement;
+    const strip = legend.parentElement as HTMLElement;
+    const legendBox = legend.getBoundingClientRect();
+    for (const element of [
+      screen.getByRole("button", { name: "Tipo: Todos" }).element(),
+      screen.getByText("30 movimientos").element(),
+      screen.getByRole("navigation", { name: "Páginas de movimientos" }).element(),
+    ]) {
+      expect(strip.contains(element)).toBe(true);
+      const box = element.getBoundingClientRect();
+      expect(box.left).toBeGreaterThanOrEqual(legendBox.right);
+      expect(box.top).toBeLessThan(legendBox.bottom);
+      expect(box.bottom).toBeGreaterThan(legendBox.top);
+    }
+  });
+
+  it("offers no filter, count or pager while the screen is locked by a panel", async () => {
+    const screen = await renderTable(movementsEveryMinute(30), { locked: true });
+
+    await expect.element(screen.getByRole("img", { name: "Movimientos bloqueados" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: /Tipo/ })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("30 movimientos")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("says there are no movements yet when the session has none", async () => {
+    const screen = await renderTable([]);
+
+    await expect.element(screen.getByText("Todavía no hay movimientos")).toBeVisible();
+    const title = screen.getByText("Todavía no hay movimientos").element();
+    expect(emptyStateIconColor(title)).toBe(tokenRgb("text-accent"));
+  });
+
+  it("shows no movement while they load", async () => {
+    const screen = await renderState({ status: "loading" });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
+      .toHaveAttribute("aria-busy", "true");
+    expect(rowsOf(screen).join("")).toBe("");
+    await expect.element(screen.getByText("Todavía no hay movimientos")).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("keeps the movements it shows while they are read again", async () => {
+    const screen = await renderState({ status: "loaded", value: [movement()], refreshing: true });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Movimientos de la sesión" }))
+      .toHaveAttribute("aria-busy", "true");
+    expect(rowsOf(screen)).toHaveLength(1);
+  });
+
+  it("says the movements could not be read and offers Reintentar", async () => {
+    const onRetry = vi.fn();
+    const screen = await renderState({ status: "failed", retry: onRetry });
+
+    await expect.element(screen.getByText("No se pudieron leer los movimientos")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(onRetry).toHaveBeenCalledOnce();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   it("has no accessibility violations", async () => {
     const screen = await renderTable([
       movement({ type: "OPENING", id: "a" }),
@@ -279,13 +378,5 @@ describe("CashMovementsTable", () => {
     ]);
 
     await expectNoAccessibilityViolations(screen.container);
-  });
-
-  it("counts the movements with the thousands separator", async () => {
-    const screen = await renderTable(
-      Array.from({ length: 1998 }, (_, index) => movement({ id: `m${index}` })),
-    );
-
-    await expect.element(screen.getByText("1.998 movimientos")).toBeVisible();
   });
 });

@@ -1,7 +1,7 @@
 import type { ListedCashMovement } from "@purosur/contracts";
 import { cashMovementTypeSchema } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
-import type { TableLoadingState } from "@purosur/ui";
+import type { KeyLegendItem, TableLoadingState } from "@purosur/ui";
 import {
   dataColumn,
   formatClockTime,
@@ -21,53 +21,40 @@ import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 
 type Presentation = {
   label: string;
-  iconClassName: string;
   detail: (movement: ListedCashMovement) => string | null;
 };
 
-const GREEN = "text-success-strong";
-const EARTH = "text-text-eyebrow";
-const PLAIN = "text-text-subtle";
-
 const PRESENTATION = {
   OPENING: {
-    label: "Apertura de sesión",
-    iconClassName: GREEN,
+    label: "Apertura",
     detail: () => "Fondo inicial",
   },
   CASH_IN: {
-    label: "Ingreso de efectivo",
-    iconClassName: GREEN,
+    label: "Ingreso",
     detail: (movement) => movement.reason,
   },
   CASH_OUT: {
     label: "Gasto",
-    iconClassName: EARTH,
     detail: (movement) => movement.reason,
   },
   WITHDRAWAL: {
-    label: "Retiro a caja fuerte",
-    iconClassName: EARTH,
+    label: "Retiro",
     detail: (movement) => movement.reason,
   },
   SALE: {
     label: "Venta",
-    iconClassName: GREEN,
     detail: () => "Cobro en efectivo",
   },
   CHANGE: {
     label: "Vuelto",
-    iconClassName: EARTH,
     detail: () => null,
   },
   REFUND: {
     label: "Devolución en efectivo",
-    iconClassName: EARTH,
     detail: () => null,
   },
   CLOSING: {
     label: "Cierre de sesión",
-    iconClassName: PLAIN,
     detail: () => null,
   },
 } as const satisfies Record<CashMovementType, Presentation>;
@@ -78,10 +65,7 @@ const TYPE_FILTER_OPTIONS = [
   { value: "ALL", label: "Todos" },
   ...cashMovementTypeSchema.options
     .filter((type) => type !== "CLOSING")
-    .map((type) => ({
-      value: type,
-      label: PRESENTATION[type].label,
-    })),
+    .map((type) => ({ value: type, label: PRESENTATION[type].label })),
 ] as const;
 
 function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
@@ -90,30 +74,25 @@ function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
 
 const columns = [
   dataColumn({
-    id: "time",
-    header: "Hora",
-    sort: { order: timeOrder, firstDirection: "descending" },
-    render: (movement: ListedCashMovement) => formatClockTime(movement.occurred_at),
-  }),
-  dataColumn({
     id: "movement",
     header: "Movimiento",
     render: (movement: ListedCashMovement) => {
       const presentation = PRESENTATION[movement.type];
       return (
-        <span className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className={`inline-flex size-icon-lg shrink-0 *:size-full ${presentation.iconClassName}`}
-          >
-            {CASH_MOVEMENT_ICONS[movement.type]}
-          </span>
-          <TableCellText description={presentation.detail(movement) ?? false}>
-            {presentation.label}
-          </TableCellText>
-        </span>
+        <TableCellText
+          icon={CASH_MOVEMENT_ICONS[movement.type]}
+          description={presentation.detail(movement) ?? false}
+        >
+          {presentation.label}
+        </TableCellText>
       );
     },
+  }),
+  dataColumn({
+    id: "time",
+    header: "Hora",
+    sort: { order: timeOrder, firstDirection: "descending" },
+    render: (movement: ListedCashMovement) => formatClockTime(movement.occurred_at),
   }),
   dataColumn({
     id: "person",
@@ -138,6 +117,8 @@ const columns = [
 
 export type CashMovementsTableProps = {
   state: CoreData<ListedCashMovement[]>;
+  legend: readonly KeyLegendItem[];
+  locked?: boolean;
 };
 
 function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): TableLoadingState {
@@ -147,7 +128,7 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
   return state.refreshing ? "updating" : false;
 }
 
-export function CashMovementsTable({ state }: CashMovementsTableProps) {
+export function CashMovementsTable({ state, legend, locked = false }: CashMovementsTableProps) {
   const movements = state.status === "loaded" ? state.value : [];
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [page, setPage] = useState(1);
@@ -155,7 +136,6 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
     column: "time",
     direction: "descending",
   });
-
   const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
@@ -173,38 +153,40 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <ListFilter
-          name="type"
-          label="Tipo:"
-          options={TYPE_FILTER_OPTIONS}
-          value={typeFilter}
-          onChange={chooseTypeFilter}
-        />
-      </div>
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-        <Table
-          aria-label="Movimientos de la sesión"
-          table={table}
-          {...(state.status === "failed"
-            ? {
-                failure: {
-                  icon: <TriangleAlert />,
-                  title: "No se pudieron leer los movimientos",
-                  description: "Volvé a intentarlo en unos segundos.",
-                  onRetry: state.retry,
-                },
-              }
-            : { loading: loadingOf(state) })}
-          empty={{
-            icon: <Receipt />,
-            title: "No hay movimientos de este tipo",
-            variant: "blank",
-          }}
-          footer={
-            matchCount === 0 ? undefined : (
-              <div className="flex items-center justify-between gap-4">
+    <div className="flex min-h-0 flex-1 flex-col *:first:min-h-0">
+      <Table
+        aria-label="Movimientos de la sesión"
+        table={table}
+        fill
+        legend={legend}
+        {...(locked ? { locked: { label: "Movimientos bloqueados" } } : {})}
+        {...(state.status === "failed"
+          ? {
+              failure: {
+                icon: <TriangleAlert />,
+                title: "No se pudieron leer los movimientos",
+                description: "Volvé a intentarlo en unos segundos.",
+                onRetry: state.retry,
+              },
+            }
+          : { loading: loadingOf(state) })}
+        empty={{
+          icon: <Receipt />,
+          ...(typeFilter === "ALL"
+            ? { title: "Todavía no hay movimientos", variant: "blank" }
+            : { title: "No hay movimientos de este tipo", variant: "filtered" }),
+        }}
+        legendAside={
+          <div className="flex items-center gap-4">
+            <ListFilter
+              name="type"
+              label="Tipo:"
+              options={TYPE_FILTER_OPTIONS}
+              value={typeFilter}
+              onChange={chooseTypeFilter}
+            />
+            {matchCount === 0 ? null : (
+              <>
                 <p className="text-text-subtle text-detail">
                   {plural(matchCount, {
                     one: "1 movimiento",
@@ -212,11 +194,11 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
                   })}
                 </p>
                 <TablePagination table={table} label="Páginas de movimientos" />
-              </div>
-            )
-          }
-        />
-      </div>
+              </>
+            )}
+          </div>
+        }
+      />
     </div>
   );
 }

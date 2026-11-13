@@ -15,6 +15,7 @@ import type {
   CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
+  CashMovementPreview,
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
@@ -124,7 +125,7 @@ import {
   stockCoreToRendererMessageSchema,
   syncCoreToRendererMessageSchema,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey, PointCardType } from "@purosur/domain";
+import type { AuthorizablePermissionKey, CashMovementKind, PointCardType } from "@purosur/domain";
 import { z } from "zod";
 
 const coreToRendererMessageSchema = z.discriminatedUnion("type", [
@@ -400,6 +401,10 @@ export interface CoreClient {
   identifyLockedCloser(closer: Authorization): Promise<IdentifyLockedCloserOutcome>;
   cashBalance(): Promise<CashBalance | null | "unavailable">;
   cashCountPreview(countedCash: number): Promise<CashCountPreview | null | "unavailable">;
+  cashMovementPreview(movement: {
+    kind: CashMovementKind;
+    amount: number;
+  }): Promise<CashMovementPreview | null | "unavailable">;
   sessionOpenSale(): Promise<SessionOpenSale | null | "unavailable">;
   startupPending(): Promise<StartupPending | "not_permitted">;
   onPulled(listener: () => void): () => void;
@@ -1406,6 +1411,22 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
             return "unavailable";
           }
           return answer.type === "cash-count-preview" ? answer.preview : undefined;
+        },
+      );
+    },
+    cashMovementPreview({ kind, amount }) {
+      return ask(
+        {
+          type: "cash-movement-preview-request",
+          request_id: deps.newRequestId(),
+          kind,
+          amount,
+        },
+        (answer): CashMovementPreview | null | "unavailable" | undefined => {
+          if (answer.type === "cash-movement-preview-unavailable") {
+            return "unavailable";
+          }
+          return answer.type === "cash-movement-preview" ? answer.preview : undefined;
         },
       );
     },
