@@ -79,9 +79,9 @@ describe("CashClosedScreen", () => {
   it("offers Abrir caja with F12 and Salir with Enter", async () => {
     const { screen } = await renderClosed();
 
-    await expect.element(screen.getByRole("button", { name: "Abrir caja" })).toHaveTextContent(
-      "F12",
-    );
+    await expect
+      .element(screen.getByRole("button", { name: "Abrir caja" }))
+      .toHaveTextContent("F12");
     await expect.element(screen.getByRole("button", { name: "Salir" })).toHaveTextContent("Enter");
   });
 
