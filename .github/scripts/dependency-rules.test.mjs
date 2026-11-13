@@ -1126,7 +1126,7 @@ test("cloud-server-never-migrates flags the cloud server reaching the migrate en
   assert.equal(violationsFor(controlReport, "cloud-server-never-migrates").length, 0);
 });
 
-test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud migration test migrating on its own, directly, through a re-export or through a helper of its own, and allows one going through migration-under-test", async (t) => {
+test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud migration test migrating on its own, directly, through a re-export, through a helper of its own or through the dialect's migrate, and allows one going through migration-under-test or reaching the schema", async (t) => {
   const root = await makeFixture(t, {
     "apps/cloud/src/platform/db/brands-migration.test.ts": [
       'import { migrate } from "drizzle-orm/pglite/migrator";',
@@ -1151,6 +1151,34 @@ test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud m
       'import { databaseBeforeMigration } from "./test-support/migration-under-test";',
       "export const deps = [databaseBeforeMigration];",
     ].join("\n"),
+    "apps/cloud/src/platform/db/sales-migration.test.ts": [
+      'import { readMigrationFiles } from "drizzle-orm/migrator";',
+      'import { PgDialect } from "drizzle-orm/pg-core";',
+      "export const deps = [readMigrationFiles, PgDialect];",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/stock-migration.test.ts": [
+      'import { dialectMigratedDatabase } from "./test-support/dialect-migrated-database";',
+      "export const deps = [dialectMigratedDatabase];",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/test-support/dialect-migrated-database.ts": [
+      'import { PgDialect } from "drizzle-orm/pg-core/dialect";',
+      "export const dialectMigratedDatabase = () => new PgDialect();",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/fiscal-migration.test.ts": [
+      'import type { PgDialect } from "drizzle-orm/pg-core";',
+      'import { databaseBeforeMigration } from "./test-support/migration-under-test";',
+      'import { fiscalReader } from "../../fiscal/drizzle-fiscal-reader";',
+      "export const deps = [databaseBeforeMigration, fiscalReader];",
+      "export type Dialect = PgDialect;",
+    ].join("\n"),
+    "apps/cloud/src/fiscal/drizzle-fiscal-reader.ts": [
+      'import { schema } from "../platform/db/schema";',
+      "export const fiscalReader = () => schema;",
+    ].join("\n"),
+    "apps/cloud/src/platform/db/schema.ts": [
+      'import { pgTable } from "drizzle-orm/pg-core";',
+      "export const schema = pgTable;",
+    ].join("\n"),
     "apps/cloud/src/test-support/test-database-snapshot.ts":
       "export function migrateFreshDatabase() {}\n",
     "apps/cloud/src/platform/db/test-support/migration-journal-test-helpers.ts":
@@ -1163,6 +1191,10 @@ test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud m
     ].join("\n"),
   });
   await installPnpmPackage(root, "drizzle-orm", "pglite/migrator.js");
+  const drizzleStoreDir = "node_modules/.pnpm/drizzle-orm@1.0.0/node_modules/drizzle-orm";
+  for (const subpath of ["migrator.js", "pg-core/index.js", "pg-core/dialect.js"]) {
+    await writeFixtureFile(root, `${drizzleStoreDir}/${subpath}`, "module.exports = {};\n");
+  }
 
   const report = await cruiseFixture(root, ["apps"], migrationTestsConfig);
   const violationPairs = violationsFor(
@@ -1172,8 +1204,11 @@ test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud m
 
   assert.deepEqual(violationPairs.sort(), [
     "apps/cloud/src/platform/db/brands-migration.test.ts -> apps/cloud/src/test-support/test-database-snapshot.ts",
-    "apps/cloud/src/platform/db/brands-migration.test.ts -> node_modules/.pnpm/drizzle-orm@1.0.0/node_modules/drizzle-orm/pglite/migrator.js",
+    `apps/cloud/src/platform/db/brands-migration.test.ts -> ${drizzleStoreDir}/pglite/migrator.js`,
     "apps/cloud/src/platform/db/prices-migration.test.ts -> apps/cloud/src/test-support/test-database-snapshot.ts",
+    `apps/cloud/src/platform/db/sales-migration.test.ts -> ${drizzleStoreDir}/migrator.js`,
+    `apps/cloud/src/platform/db/sales-migration.test.ts -> ${drizzleStoreDir}/pg-core/index.js`,
+    `apps/cloud/src/platform/db/stock-migration.test.ts -> ${drizzleStoreDir}/pg-core/dialect.js`,
     "apps/cloud/src/platform/db/tags-migration.test.ts -> apps/cloud/src/platform/db/test-support/migration-journal-test-helpers.ts",
   ]);
 
@@ -1181,6 +1216,8 @@ test("cloud-migration-tests-migrate-through-migration-under-test flags a cloud m
     "apps/cloud/src/platform/db/brands-migration.test.ts",
     "apps/cloud/src/platform/db/tags-migration.test.ts",
     "apps/cloud/src/platform/db/prices-migration.test.ts",
+    "apps/cloud/src/platform/db/sales-migration.test.ts",
+    "apps/cloud/src/platform/db/stock-migration.test.ts",
   ]) {
     await writeFixtureFile(
       root,
