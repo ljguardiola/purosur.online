@@ -170,6 +170,7 @@ describe("addScannedProduct", () => {
       removedSaleDiscount: false,
       sale,
       balance: { paid: 0, pending: 2500 },
+      approvedPayments: [],
       linesLock: null,
       cancellable: true,
       cancelRefusal: null,
@@ -1089,6 +1090,7 @@ describe("add-scanned-product on a sale with a discount on the total", () => {
         removedSaleDiscount: true,
         sale: expect.objectContaining({ saleDiscount: null }),
         balance: { paid: 0, pending: 7500 },
+        approvedPayments: [],
       }),
     );
   });

@@ -23,12 +23,16 @@ interface PaymentRow {
   card_type: PointCardType | null;
 }
 
+export const NEXT_APPROVAL_ORDER =
+  "SELECT coalesce(max(approval_order), 0) + 1 FROM payment_transactions";
+
 export function readSalePayments(database: LocalDatabase, saleId: string): SalePayment[] {
   return database
     .prepare<[string], PaymentRow>(
       `SELECT id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
               occurred_at, card_type
-       FROM payment_transactions WHERE sale_id = ? AND state = 'APPROVED' ORDER BY rowid`,
+       FROM payment_transactions WHERE sale_id = ? AND state = 'APPROVED'
+       ORDER BY approval_order, rowid`,
     )
     .all(saleId)
     .map(toPayment);
@@ -219,7 +223,8 @@ export function approvePendingMercadoPagoPayment(
 ): void {
   database
     .prepare(
-      "UPDATE payment_transactions SET state = 'APPROVED' WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING'",
+      `UPDATE payment_transactions SET state = 'APPROVED', approval_order = (${NEXT_APPROVAL_ORDER})
+       WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING'`,
     )
     .run(paymentTransactionId);
 }

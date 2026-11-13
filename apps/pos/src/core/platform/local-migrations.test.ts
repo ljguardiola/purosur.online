@@ -8,6 +8,10 @@ import {
   insertOfflineCreditNote,
   insertOfflineFiscalDocument,
 } from "../fiscal/test-support/real-time-authorization-database";
+import {
+  approvePendingMercadoPagoPayment,
+  readSalePayments,
+} from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "./local-database";
 import { LOCAL_MIGRATIONS } from "./local-migrations";
 import { migrationClock } from "./test-support/migration-clock";
@@ -1021,6 +1025,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -1145,6 +1150,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -1264,6 +1270,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -1382,6 +1389,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1529,6 +1537,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1666,6 +1675,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1807,6 +1817,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before.exec(
@@ -1956,6 +1967,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -2072,6 +2084,7 @@ describe("the register's local migrations", () => {
         "0099_sale_print_declined",
         "0100_replaced_point_payments",
         "0101_last_active_remembered_user",
+        "0102_payment_approval_order",
       ]);
       const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
       before
@@ -9952,6 +9965,64 @@ describe("the replaced Point payments migration", () => {
           )
           .all(),
       ).toEqual([{ name: "payment_transactions_by_sale" }]);
+    });
+  });
+});
+
+describe("the payment approval order migration", () => {
+  const MIGRATION = "0102_payment_approval_order";
+
+  const INSERT_CASH = `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at)
+    VALUES (@id, 'sale-1', 'SALE', 'CASH', 'NONE', 500, 'APPROVED', '2026-10-09T12:05:00.000Z')`;
+  const INSERT_QR = `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+    VALUES (@id, 'sale-1', 'SALE', 'QR', 'MERCADOPAGO_QR', 1000, @state, '2026-10-09T12:05:00.000Z', '2026-10-09T12:08:00.000Z')`;
+
+  function withPaymentsBefore(test: (database: LocalDatabase) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabaseWithoutDiskSync(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);`,
+      );
+      before.prepare(INSERT_QR).run({ id: "qr-approved", state: "APPROVED" });
+      before.prepare(INSERT_QR).run({ id: "qr-pending", state: "PENDING" });
+      before.prepare(INSERT_CASH).run({ id: "cash" });
+      before.close();
+      const after = openLocalDatabaseWithoutDiskSync(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("keeps the payments a register already approved in the order they were recorded", () => {
+    withPaymentsBefore((database) => {
+      expect(readSalePayments(database, "sale-1").map(({ id }) => id)).toEqual([
+        "qr-approved",
+        "cash",
+      ]);
+    });
+  });
+
+  it("lists a payment approved after the migration after those already approved", () => {
+    withPaymentsBefore((database) => {
+      approvePendingMercadoPagoPayment(database, "qr-pending");
+
+      expect(readSalePayments(database, "sale-1").map(({ id }) => id)).toEqual([
+        "qr-approved",
+        "cash",
+        "qr-pending",
+      ]);
     });
   });
 });

@@ -34,6 +34,7 @@ import {
   insertPaymentRefund,
   insertPendingMercadoPagoPayment,
   markMercadoPagoPaymentReplaced,
+  NEXT_APPROVAL_ORDER,
   readPendingMercadoPagoPayment,
   readPendingMercadoPagoPaymentsOf,
   readSalePayments,
@@ -207,10 +208,10 @@ export function insertSalePayment(database: LocalDatabase, payment: SalePayment)
     .prepare(
       `INSERT INTO payment_transactions (
          id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state,
-         occurred_at
+         occurred_at, approval_order
        ) VALUES (
          @id, @sale_id, @kind, @method, @provider, @amount, @tendered, @authorized_by,
-         @confirmed_at, @state, @occurred_at
+         @confirmed_at, @state, @occurred_at, (${NEXT_APPROVAL_ORDER})
        )`,
     )
     .run({

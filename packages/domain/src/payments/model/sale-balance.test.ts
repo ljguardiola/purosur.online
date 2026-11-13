@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { approvedPaymentsCoverTotal, saleBalance } from "./sale-balance.js";
+import { approvedPayments, approvedPaymentsCoverTotal, saleBalance } from "./sale-balance.js";
 
 describe("saleBalance", () => {
   it("leaves the whole total pending when nothing was paid", () => {
@@ -117,6 +117,63 @@ describe("whether a completed sale's approved payments cover its total", () => {
           }),
         ).toBe(approved >= total);
       }),
+    );
+  });
+});
+
+describe("approvedPayments", () => {
+  it("lists the approved payments with their method and amount in the order given", () => {
+    expect(
+      approvedPayments([
+        { method: "TRANSFER", amount: 1000, state: "APPROVED" },
+        { method: "CASH", amount: 500, state: "APPROVED" },
+        { method: "QR", amount: 250, state: "APPROVED" },
+      ]),
+    ).toEqual([
+      { method: "TRANSFER", cardType: null, amount: 1000 },
+      { method: "CASH", cardType: null, amount: 500 },
+      { method: "QR", cardType: null, amount: 250 },
+    ]);
+  });
+
+  it("names the card type of an approved Point payment", () => {
+    expect(
+      approvedPayments([
+        { method: "POINT", cardType: "DEBIT", amount: 700, state: "APPROVED" },
+        { method: "POINT", cardType: null, amount: 300, state: "APPROVED" },
+      ]),
+    ).toEqual([
+      { method: "POINT", cardType: "DEBIT", amount: 700 },
+      { method: "POINT", cardType: null, amount: 300 },
+    ]);
+  });
+
+  it("leaves out a payment that is not approved", () => {
+    expect(
+      approvedPayments([
+        { method: "CASH", amount: 500, state: "APPROVED" },
+        { method: "QR", amount: 900, state: "PENDING" },
+        { method: "TRANSFER", amount: 800, state: "REJECTED" },
+      ]),
+    ).toEqual([{ method: "CASH", cardType: null, amount: 500 }]);
+  });
+
+  it("adds up to what the sale balance counts as paid", () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            method: fc.constantFrom("CASH", "TRANSFER", "QR", "POINT", "STANDALONE_TERMINAL"),
+            amount: fc.integer({ min: 1, max: 100000 }),
+            state: fc.constantFrom("APPROVED", "PENDING", "REJECTED"),
+          }),
+        ),
+        (payments) => {
+          const listed = approvedPayments(payments).reduce((sum, { amount }) => sum + amount, 0);
+
+          expect(listed).toBe(saleBalance(0, payments).paid);
+        },
+      ),
     );
   });
 });

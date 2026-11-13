@@ -2344,6 +2344,7 @@ describe("answerRendererRequest", () => {
       total: 1500,
       paid: 0,
       pending: 1500,
+      payments: [],
       lines_lock: null,
       cancel_refusal: null,
       charge_refusal: null,
