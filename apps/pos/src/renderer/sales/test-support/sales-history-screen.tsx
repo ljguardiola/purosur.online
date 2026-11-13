@@ -162,6 +162,7 @@ export async function renderScreen({
   );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
+  const onReturnSale = vi.fn();
   const screen = await render(
     <RegisterWindow>
       <SalesHistoryScreen
@@ -179,6 +180,7 @@ export async function renderScreen({
         printDeferredSaleInvoice={printDeferredSaleInvoice}
         loadAuthorizers={async () => AUTHORIZERS}
         onSessionInvalid={onSessionInvalid}
+        onReturnSale={onReturnSale}
       />
     </RegisterWindow>,
   );
@@ -195,6 +197,7 @@ export async function renderScreen({
     printDeferredSaleInvoice,
     lock,
     onSessionInvalid,
+    onReturnSale,
   };
 }
 
