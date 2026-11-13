@@ -38,6 +38,7 @@ const CLOSED: CloseLockedCashSessionOutcome = {
     opened_at: "2026-09-30T09:02:00.000-03:00",
     closed_at: "2026-09-30T20:14:00.000-03:00",
   },
+  movements: [],
 };
 const SHORT_NOTICE =
   "Faltan $ 400,00. La diferencia se registra con la sesión y no impide cerrarla.";

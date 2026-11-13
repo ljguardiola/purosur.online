@@ -1893,6 +1893,7 @@ describe("createCoreClient", () => {
         opened_at: "2026-09-30T09:00:00.000-03:00",
         closed_at: "2026-09-30T20:14:00.000-03:00",
       },
+      movements: [],
     };
 
     const outcome = client.closeCashSession("s1", 4800);

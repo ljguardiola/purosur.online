@@ -16,6 +16,7 @@ const BALANCE: CashBalance = {
   withdrawals: { amount: 10_000_000, direction: "out" },
   expected: 14_420_000,
 };
+const FAILED_NOTICE = "No se pudo cerrar la caja. Probá de nuevo.";
 const CLOSED: CloseCashSessionOutcome = {
   kind: "closed",
   session: {
@@ -26,6 +27,7 @@ const CLOSED: CloseCashSessionOutcome = {
     opened_at: "2026-11-04T08:02:00.000-03:00",
     closed_at: "2026-11-04T20:14:00.000-03:00",
   },
+  movements: [],
 };
 
 type Props = {
@@ -34,6 +36,14 @@ type Props = {
   outcome?: CloseCashSessionOutcome | Promise<CloseCashSessionOutcome>;
   closeCashSession?: (countedCash: number) => Promise<CloseCashSessionOutcome>;
 };
+
+function noticeIconOf(alert: Element): SVGElement | null {
+  let frame: Element | null = alert;
+  while (frame !== null && frame.querySelector("svg") === null) {
+    frame = frame.parentElement;
+  }
+  return frame?.querySelector("svg") ?? null;
+}
 
 async function renderPanel(props: Props = {}) {
   await page.viewport(1366, 768);
@@ -173,7 +183,7 @@ describe("CloseCashSessionPanel", () => {
 
       await userEvent.keyboard("{Enter}");
 
-      await expect.element(screen.getByRole("alert")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(FAILED_NOTICE);
       await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeEnabled();
       expect(onClosed).not.toHaveBeenCalled();
     },
@@ -189,7 +199,30 @@ describe("CloseCashSessionPanel", () => {
 
     await userEvent.keyboard("{Enter}");
 
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(FAILED_NOTICE);
+  });
+
+  it("marks the failure notice with the alert triangle", async () => {
+    const { screen } = await renderPanel({ outcome: { kind: "unavailable" } });
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "144.000,00");
+
+    await userEvent.keyboard("{Enter}");
+
     await expect.element(screen.getByRole("alert")).toBeVisible();
+    const icon = noticeIconOf(screen.getByRole("alert").element());
+    expect(icon?.getAttribute("class")).toContain("lucide-triangle-alert");
+  });
+
+  it("clears the notice as soon as the count changes", async () => {
+    const { screen } = await renderPanel({ outcome: { kind: "unavailable" } });
+    const field = screen.getByRole("textbox", { name: "Contado" });
+    await userEvent.fill(field, "144.000,00");
+    await userEvent.keyboard("{Enter}");
+    await expect.element(screen.getByText(FAILED_NOTICE).first()).toBeVisible();
+
+    await userEvent.fill(field, "144.100,00");
+
+    await expect.element(screen.getByText(FAILED_NOTICE).first()).not.toBeInTheDocument();
   });
 
   it("keeps today's notice when the person may no longer close", async () => {
@@ -214,7 +247,16 @@ describe("CloseCashSessionPanel", () => {
       .toBeVisible();
   });
 
-  it("shows a placeholder while the balance loads and a retry when it fails", async () => {
+  it("shows a placeholder while the balance loads", async () => {
+    const { screen } = await renderPanel({ balance: { status: "loading" } });
+
+    const label = screen.getByText("EFECTIVO ESPERADO", { exact: true });
+    await expect.element(label).toBeVisible();
+    expect(label.element().parentElement?.getAttribute("aria-busy")).toBe("true");
+    await expect.element(screen.getByText("Fondo inicial")).not.toBeInTheDocument();
+  });
+
+  it("shows a retry when the balance fails", async () => {
     const retry = vi.fn();
     const { screen } = await renderPanel({ balance: { status: "failed", retry } });
 
@@ -222,4 +264,20 @@ describe("CloseCashSessionPanel", () => {
 
     expect(retry).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ["loads", { status: "loading" }],
+    ["could not be read", { status: "failed", retry: () => {} }],
+  ] as const)(
+    "keeps Cerrar caja disabled and does not close on Enter while the expected cash %s",
+    async (_state, balance) => {
+      const { screen, closeCashSession } = await renderPanel({ balance });
+      await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "144.000,00");
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
+      expect(closeCashSession).not.toHaveBeenCalled();
+    },
+  );
 });

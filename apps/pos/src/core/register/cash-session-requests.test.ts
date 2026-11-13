@@ -446,6 +446,31 @@ function movementsOf(type: string): unknown[] {
     .all(type);
 }
 
+function closedSessionMovements(closer: { user_id: string; first_name: string }) {
+  return [
+    {
+      id: expect.any(String),
+      type: "OPENING",
+      amount: 5000,
+      reason: null,
+      direction: "in",
+      occurred_at: "2026-09-30T09:00:00.000-03:00",
+      actor: { user_id: "u1", first_name: "Ada" },
+      authorized_by: null,
+    },
+    {
+      id: expect.any(String),
+      type: "CLOSING",
+      amount: 4800,
+      reason: null,
+      direction: "none",
+      occurred_at: "2026-09-30T20:14:00.000-03:00",
+      actor: closer,
+      authorized_by: null,
+    },
+  ];
+}
+
 function closedSessionRow(): unknown {
   return database
     .prepare(
@@ -478,6 +503,7 @@ describe("closing a cash session on the register", () => {
         opened_at: "2026-09-30T09:00:00.000-03:00",
         closed_at: "2026-09-30T20:14:00.000-03:00",
       },
+      movements: closedSessionMovements({ user_id: "u1", first_name: "Ada" }),
     });
   });
 
@@ -627,6 +653,7 @@ describe("closing a locked register's cash session with another person's PIN", (
         opened_at: "2026-09-30T09:00:00.000-03:00",
         closed_at: "2026-09-30T20:14:00.000-03:00",
       },
+      movements: closedSessionMovements({ user_id: "u9", first_name: "Grace" }),
     });
     expect(movementsOf("CLOSING")).toEqual([{ amount: 4800, actor_id: "u9", authorized_by: null }]);
     expect(closedSessionRow()).toMatchObject({ state: "CLOSED", closed_by: "u9" });

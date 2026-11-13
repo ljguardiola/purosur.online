@@ -3324,6 +3324,7 @@ describe("App", () => {
               opened_at: "2026-09-30T09:02:00.000-03:00",
               closed_at: "2026-09-30T20:14:00.000-03:00",
             },
+            movements: [],
           }),
         },
         { scanProduct: async () => ({ kind: "no_open_session" }) },
@@ -3361,6 +3362,7 @@ describe("App", () => {
             opened_at: "2026-09-30T09:02:00.000-03:00",
             closed_at: "2026-09-30T20:14:00.000-03:00",
           },
+          movements: [],
         }),
         openOutcome: {
           kind: "opened",
@@ -3395,6 +3397,7 @@ describe("App", () => {
           opened_at: "2026-09-30T09:02:00.000-03:00",
           closed_at: "2026-09-30T20:14:00.000-03:00",
         },
+        movements: [],
       };
       const { screen, closed, asked } = await resumeGracesSession({
         closeCashSession: async () => closeOutcome,
@@ -3412,6 +3415,74 @@ describe("App", () => {
       expect(asked).not.toContain("sign-out");
     });
 
+    it("shows on the closed cash screen the session's movements the core answered with the close", async () => {
+      const { screen } = await resumeGracesSession({
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+            opened_at: "2026-09-30T09:02:00.000-03:00",
+            closed_at: "2026-09-30T20:14:00.000-03:00",
+          },
+          movements: [
+            {
+              id: "m1",
+              type: "CASH_OUT",
+              amount: 50_000,
+              reason: "Flete",
+              direction: "out",
+              occurred_at: "2026-09-30T10:30:00.000-03:00",
+              actor: { user_id: "u2", first_name: "Grace" },
+              authorized_by: null,
+            },
+          ],
+        }),
+        cashMovements: async () => "unavailable",
+      });
+      await startClosing(screen);
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+      await expect.element(screen.getByText("Flete", { exact: true })).toBeVisible();
+    });
+
+    it.each(["Venta", "Caja", "Devolver"])(
+      "lands on the no-session screen, still signed in, when the closed cash screen is left through the rail's %s",
+      async (entry) => {
+        const { screen, asked } = await resumeGracesSession({
+          closeCashSession: async () => ({
+            kind: "closed",
+            session: {
+              id: "s1",
+              expected_cash: 4_620_000,
+              counted_cash: 4_580_000,
+              difference: -40_000,
+              opened_at: "2026-09-30T09:02:00.000-03:00",
+              closed_at: "2026-09-30T20:14:00.000-03:00",
+            },
+            movements: [],
+          }),
+        });
+        await startClosing(screen);
+        await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+        await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+        await userEvent.click(
+          screen.getByRole("navigation", { name: "Menú de la caja" }).getByText(entry, {
+            exact: true,
+          }),
+        );
+
+        await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+        await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
+        expect(asked).not.toContain("sign-out");
+      },
+    );
+
     it("lands on the no-session screen, still signed in, when the closed cash screen is left with F12", async () => {
       const { screen, asked } = await resumeGracesSession({
         closeCashSession: async () => ({
@@ -3424,6 +3495,7 @@ describe("App", () => {
             opened_at: "2026-09-30T09:02:00.000-03:00",
             closed_at: "2026-09-30T20:14:00.000-03:00",
           },
+          movements: [],
         }),
       });
       await startClosing(screen);
@@ -3452,6 +3524,7 @@ describe("App", () => {
             opened_at: "2026-09-30T09:02:00.000-03:00",
             closed_at: "2026-09-30T20:14:00.000-03:00",
           },
+          movements: [],
         }),
       });
       await startClosing(screen);
@@ -3596,6 +3669,7 @@ describe("App", () => {
             opened_at: "2026-09-30T09:02:00.000-03:00",
             closed_at: "2026-09-30T20:14:00.000-03:00",
           },
+          movements: [],
         }),
       });
 

@@ -43,6 +43,7 @@ export const CLOSED: CloseCashSessionOutcome = {
     opened_at: OPENED_AT,
     closed_at: "2026-09-30T20:14:00.000-03:00",
   },
+  movements: [],
 };
 
 export const OPEN_SALE: SessionOpenSale = {

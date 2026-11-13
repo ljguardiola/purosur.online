@@ -59,7 +59,7 @@ describe("CashClosedScreen", () => {
     await expect.element(screen.getByText("04/11 · 20:14", { exact: true })).toBeVisible();
   });
 
-  it("shows a surplus with a plus sign and a match plainly", async () => {
+  it("shows a surplus with a plus sign", async () => {
     const surplus = await renderClosed({
       ...SUMMARY,
       session: { ...SUMMARY.session, difference: 30_000 },

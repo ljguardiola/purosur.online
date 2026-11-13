@@ -76,11 +76,21 @@ describe("CashScreen recording movements from the keyboard", () => {
     await expect
       .element(screen.getByRole("img", { name: "Movimientos bloqueados" }))
       .toBeInTheDocument();
+    (screen.getByRole("textbox", { name: "Contado" }).element() as HTMLElement).blur();
+    await userEvent.keyboard("123{F12}");
+    await expect
+      .element(screen.getByRole("heading", { name: "Cerrar caja", exact: true }))
+      .toBeVisible();
     await userEvent.keyboard("{Escape}");
 
     await expect
       .element(screen.getByRole("heading", { name: "Cerrar caja", exact: true }))
       .not.toBeInTheDocument();
+    for (const title of ["Ingreso", "Gasto", "Retiro"]) {
+      await expect
+        .element(screen.getByRole("heading", { name: title, exact: true }))
+        .not.toBeInTheDocument();
+    }
     await expect.element(screen.getByRole("button", { name: "Gasto", exact: true })).toBeVisible();
   });
 
@@ -162,12 +172,22 @@ describe("CashScreen recording movements from the keyboard", () => {
     await expect.element(screen.getByText("Hay una venta abierta de $ 25.192,50")).toBeVisible();
   });
 
-  it("shows a failure to read the open sale with a retry, and keeps closing disabled while it loads", async () => {
+  it("shows a failure to read the open sale with a retry, with Cerrar caja disabled", async () => {
     const screen = await renderScreen({ loadSessionOpenSale: async () => "unavailable" });
 
     await userEvent.keyboard("{F12}");
 
     await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
+  });
+
+  it("keeps Cerrar caja disabled while the open sale loads", async () => {
+    const screen = await renderScreen({ loadSessionOpenSale: () => new Promise(() => {}) });
+
+    await userEvent.keyboard("{F12}");
+
+    await expect.element(screen.getByRole("textbox", { name: "Contado" })).toHaveFocus();
+    await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
   });
 
   it("shows the expected cash in the panel, the table dimmed and Tab Campo under it, with no letter keycap at the fields", async () => {

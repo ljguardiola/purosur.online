@@ -7,6 +7,24 @@ import {
 
 const SINCE = "2026-10-29T09:30:00.000-03:00";
 const REQUEST_ID = "7d1c1e1e-5b1a-4a53-9c1c-3a7c6f0b2d10";
+const CLOSED_SESSION = {
+  id: "s1",
+  expected_cash: 150000,
+  counted_cash: 149000,
+  difference: -1000,
+  opened_at: "2026-11-04T08:02:00.000-03:00",
+  closed_at: "2026-11-04T20:14:00.000-03:00",
+};
+const CLOSED_SESSION_MOVEMENT = {
+  id: "m1",
+  type: "OPENING",
+  amount: 5_230_000,
+  reason: null,
+  occurred_at: "2026-11-04T08:02:00.000-03:00",
+  direction: "in",
+  actor: { user_id: "u1", first_name: "Ada" },
+  authorized_by: null,
+};
 
 const OPEN_CASH_SESSION = {
   id: "s1",
@@ -428,21 +446,11 @@ describe("previewing a cash movement", () => {
 });
 
 describe("closing a cash session answers", () => {
-  it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
+  it("accepts the session that was closed with its expected cash, counted cash, difference and movements", () => {
     const message = {
       type: "close-cash-session-result",
       request_id: REQUEST_ID,
-      outcome: {
-        kind: "closed",
-        session: {
-          id: "s1",
-          expected_cash: 150000,
-          counted_cash: 149000,
-          difference: -1000,
-          opened_at: "2026-11-04T08:02:00.000-03:00",
-          closed_at: "2026-11-04T20:14:00.000-03:00",
-        },
-      },
+      outcome: { kind: "closed", session: CLOSED_SESSION, movements: [CLOSED_SESSION_MOVEMENT] },
     };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
@@ -471,6 +479,12 @@ describe("closing a cash session answers", () => {
     {
       kind: "closed",
       session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, opened_at: "x" },
+    },
+    { kind: "closed", session: CLOSED_SESSION },
+    {
+      kind: "closed",
+      session: CLOSED_SESSION,
+      movements: [{ ...CLOSED_SESSION_MOVEMENT, amount: "5230000" }],
     },
     { kind: "open_sale" },
     { kind: "open_sale", total: "4500" },
@@ -807,21 +821,11 @@ describe("closing a locked register's cash session", () => {
     expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
   });
 
-  it("accepts the session that was closed with its expected cash, counted cash and difference", () => {
+  it("accepts the session that was closed with its expected cash, counted cash, difference and movements", () => {
     const message = {
       type: "close-locked-cash-session-result",
       request_id: REQUEST_ID,
-      outcome: {
-        kind: "closed",
-        session: {
-          id: "s1",
-          expected_cash: 150000,
-          counted_cash: 149000,
-          difference: -1000,
-          opened_at: "2026-11-04T08:02:00.000-03:00",
-          closed_at: "2026-11-04T20:14:00.000-03:00",
-        },
-      },
+      outcome: { kind: "closed", session: CLOSED_SESSION, movements: [CLOSED_SESSION_MOVEMENT] },
     };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
@@ -852,6 +856,12 @@ describe("closing a locked register's cash session", () => {
     {
       kind: "closed",
       session: { id: "s1", expected_cash: 0, counted_cash: 0, difference: 0, opened_at: "x" },
+    },
+    { kind: "closed", session: CLOSED_SESSION },
+    {
+      kind: "closed",
+      session: CLOSED_SESSION,
+      movements: [{ ...CLOSED_SESSION_MOVEMENT, amount: "5230000" }],
     },
     { kind: "open_sale" },
     { kind: "open_sale", total: "4500" },

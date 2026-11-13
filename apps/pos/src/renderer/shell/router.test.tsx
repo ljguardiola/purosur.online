@@ -2552,6 +2552,50 @@ describe("the register's router", () => {
     expect(signOut).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ["Historial", "/history"],
+    ["Venta diferida", "/deferred-sale"],
+    ["Impresora", "/receipt-printer"],
+    ["Balanza y lector", "/serial-devices"],
+    ["Venta", "/"],
+    ["Devolver", "/"],
+    ["Caja", "/"],
+  ] as const)(
+    "leaves the closed cash session through the rail's %s for %s, dropping the closed summary",
+    async (entry, path) => {
+      const dismissClosedCash = vi.fn();
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", {
+            ...OPENER,
+            abilities: [
+              "open_cash_session",
+              "view_sales_history",
+              "invoice_deferred_sale",
+              "configure_receipt_printer",
+              "configure_serial_devices",
+            ],
+          }),
+          closedCash: CLOSED_CASH,
+          dismissClosedCash,
+        },
+        "/cash-closed",
+      );
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+      await userEvent.click(
+        screen
+          .getByRole("navigation", { name: "Menú de la caja" })
+          .getByText(entry, { exact: true }),
+      );
+
+      await expect.element(screenFor[path](screen)).toBeVisible();
+      expect(dismissClosedCash).toHaveBeenCalled();
+    },
+  );
+
   it("names the register in the open-session screen's header", async () => {
     const router = createRegisterRouter(
       routeTree,
