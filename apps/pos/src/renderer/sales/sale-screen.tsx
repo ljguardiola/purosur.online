@@ -1256,7 +1256,11 @@ export function SaleScreen({
               panel === "price" ? adjusting?.id : panelOpen ? undefined : selectedLine?.id
             }
             legend={
-              panel === "price" || panel === "discount" ? PANEL_LEGEND : panelOpen ? [] : legend
+              panel === "price" || panel === "discount"
+                ? PANEL_LEGEND
+                : panelOpen
+                  ? undefined
+                  : legend
             }
             failed={current.status === "failed"}
             actions={{
