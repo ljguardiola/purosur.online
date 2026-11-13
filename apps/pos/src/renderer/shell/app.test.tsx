@@ -10,6 +10,7 @@ import type {
   OpenCashSessionOutcome,
   OpenSale,
   PinCodeRedemptionOutcome,
+  ProductToConsult,
   RestorationStandingAnswer,
   SalesHistoryOutcome,
   ScanProductOutcome,
@@ -127,6 +128,7 @@ function coreAnswering(
     rebuildSaleAgainstPaidOrder?: CoreClient["rebuildSaleAgainstPaidOrder"];
     chargeSaleWithPaidOrder?: CoreClient["chargeSaleWithPaidOrder"];
     searchProducts?: CoreClient["searchProducts"];
+    consultProduct?: CoreClient["consultProduct"];
     findProductByCode?: CoreClient["findProductByCode"];
     addProduct?: CoreClient["addProduct"];
     addWeighedProduct?: CoreClient["addWeighedProduct"];
@@ -420,6 +422,11 @@ function coreAnswering(
       return sales.searchProducts === undefined
         ? { kind: "results", products: [], more: false }
         : sales.searchProducts(query);
+    },
+    async consultProduct(product) {
+      return sales.consultProduct === undefined
+        ? { kind: "not_found" }
+        : sales.consultProduct(product);
     },
     async findProductByCode(code) {
       return sales.findProductByCode === undefined
@@ -2918,6 +2925,34 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
     expect(searched).toEqual(["yer"]);
     expect(added).toEqual(["p1"]);
+  });
+
+  it("asks the core to consult the product scanned in Consulta, opened with F4 from the sale", async () => {
+    const consulted: ProductToConsult[] = [];
+    const { core } = coreAnswering(
+      true,
+      { kind: "enrolled" },
+      GRACE_SIGNED_IN,
+      { cashSession: async () => GRACE_SESSION },
+      {
+        consultProduct: async (product) => {
+          consulted.push(product);
+          return { kind: "not_found" };
+        },
+      },
+    );
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await resumeLockedRegister(screen);
+    await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
+
+    await userEvent.keyboard("{F4}");
+    await expect.element(screen.getByRole("button", { name: "Consulta" })).toBeVisible();
+    await screen.getByRole("combobox", { name: "Producto" }).fill("7790001000017");
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
+    expect(consulted).toEqual([{ barcode: "7790001000017" }]);
   });
 
   it("asks the core to add a product sold by weight with the weight typed in the modal", async () => {

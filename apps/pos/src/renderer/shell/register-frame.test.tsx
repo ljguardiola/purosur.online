@@ -51,7 +51,11 @@ describe("RegisterFrame", () => {
   it("shows the mode its screen is in beside the header's pills", async () => {
     const screen = await render(
       <RegisterStatusProvider value={STATUS}>
-        <RegisterFrame background="surface" rail={null} mode={<button type="button">Consulta</button>}>
+        <RegisterFrame
+          background="surface"
+          rail={null}
+          mode={<button type="button">Consulta</button>}
+        >
           <main>contenido</main>
         </RegisterFrame>
       </RegisterStatusProvider>,

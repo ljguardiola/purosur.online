@@ -23,9 +23,7 @@ describe("ProductConsultationScreen showing a consulted product", () => {
     await expect.element(card.getByText("$ 6.974,10")).toBeVisible();
     await expect.element(card.getByText("Stock")).toBeVisible();
     await expect.element(card.getByText("12,4 kg")).toBeVisible();
-    await expect
-      .element(card.getByRole("button", { name: "Agregar a la venta" }))
-      .toBeVisible();
+    await expect.element(card.getByRole("button", { name: "Agregar a la venta" })).toBeVisible();
     await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { productToAddFrom } from "./product-to-add";
 
-const LECHE = { product_id: "leche", name: "Leche vegetal", sale_unit: "UNIT", unit_price: 430_000 };
+const LECHE = {
+  product_id: "leche",
+  name: "Leche vegetal",
+  sale_unit: "UNIT",
+  unit_price: 430_000,
+};
 
 describe("productToAddFrom", () => {
   it.each([LECHE, { ...LECHE, sale_unit: "KG" }, { ...LECHE, unit_price: null }])(

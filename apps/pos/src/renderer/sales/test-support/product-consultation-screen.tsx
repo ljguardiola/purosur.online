@@ -55,11 +55,13 @@ export async function renderScreen(overrides: Overrides = {}) {
     vi.fn(async (_product: ProductToConsult): Promise<ConsultProductOutcome> => ALMENDRAS);
   const searchProducts =
     overrides.searchProducts ??
-    vi.fn(async (): Promise<SearchProductsOutcome> => ({
-      kind: "results",
-      products: [],
-      more: false,
-    }));
+    vi.fn(
+      async (): Promise<SearchProductsOutcome> => ({
+        kind: "results",
+        products: [],
+        more: false,
+      }),
+    );
   const readers = new Set<(code: string) => void>();
   const screen = await render(
     <BarcodeReadings
