@@ -29,8 +29,8 @@ export interface SalesHistoryRequestDeps {
 
 export interface SalesHistoryRequest {
   session: "open" | "all";
-  state: "all" | "completed" | "in_progress" | "deferred" | "voided";
   page: number;
+  document: { pointOfSale: number | null; number: number } | null;
 }
 
 export function toWireComprobante(comprobante: SaleComprobante) {
@@ -49,10 +49,9 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
   return voidability.kind === "voidable"
     ? {
         kind: "voidable",
-        refunds: voidability.refunds.map(({ sentByCloud, cardType, ...refund }) => ({
+        refunds: voidability.refunds.map(({ cardType, ...refund }) => ({
           ...refund,
           card_type: cardType,
-          sent_by_cloud: sentByCloud,
         })),
         credit_note_corrects:
           voidability.creditNoteCorrects === null
@@ -67,12 +66,16 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
 
 export async function salesHistoryFor(
   { database, gate, zoneRules }: SalesHistoryRequestDeps,
-  { session, state, page }: SalesHistoryRequest,
+  { session, page, document }: SalesHistoryRequest,
 ): Promise<SalesHistoryOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async () =>
     readSalesHistory(
       { history: new SqliteRegisterSalesHistory(database) },
-      { session, standing: state === "all" ? undefined : state, page },
+      {
+        session,
+        page,
+        ...(document === null ? {} : { document }),
+      },
     ),
   );
   if (guarded.kind !== "performed") {
@@ -85,7 +88,6 @@ export async function salesHistoryFor(
       sale_id: row.saleId,
       occurred_at: inArgentinaTime(row.occurredAt, zoneRules.zoneRules()),
       comprobante: toWireComprobante(row.comprobante),
-      operation_number: row.operationNumber,
       payment_methods: row.paymentMethods,
       total: row.total,
       state: row.standing,
@@ -99,27 +101,29 @@ export async function saleHistoryDetailFor(
   { database, gate, zoneRules }: SalesHistoryRequestDeps,
   saleId: string,
 ): Promise<SaleHistoryDetailOutcome> {
-  const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => ({
-    outcome: readSaleHistoryDetail(
-      {
-        history: new SqliteRegisterSalesHistory(database),
-        ledger: new SqliteReceiptLedger(database),
-      },
-      { saleId },
-    ),
-    voidNeedsAuthorization:
-      registerOperationAccess(
-        { kind: "void_sale" },
+  const guarded = await gate.run({ kind: "view_sales_history" }, async ({ signedInUserId }) => {
+    const person = {
+      id: signedInUserId,
+      access: new SqliteSignInStore(database).activePerson(signedInUserId)?.access,
+    };
+    return {
+      outcome: readSaleHistoryDetail(
         {
-          id: signedInUserId,
-          access: new SqliteSignInStore(database).activePerson(signedInUserId)?.access,
+          history: new SqliteRegisterSalesHistory(database),
+          ledger: new SqliteReceiptLedger(database),
         },
-      ).kind === "needs_authorization",
-  }));
+        { saleId },
+      ),
+      voidNeedsAuthorization:
+        registerOperationAccess({ kind: "void_sale" }, person).kind === "needs_authorization",
+      reprintNeedsAuthorization:
+        registerOperationAccess({ kind: "reprint_receipt" }, person).kind === "needs_authorization",
+    };
+  });
   if (guarded.kind !== "performed") {
     return guarded;
   }
-  const { outcome, voidNeedsAuthorization } = guarded.result;
+  const { outcome, voidNeedsAuthorization, reprintNeedsAuthorization } = guarded.result;
   if (outcome.kind === "not_found") {
     return outcome;
   }
@@ -133,7 +137,13 @@ export async function saleHistoryDetailFor(
       comprobante: toWireComprobante(detail.comprobante),
       operation_number: detail.operationNumber,
       served_by_first_name: detail.servedByFirstName,
-      line_count: detail.lineCount,
+      lines: detail.lines.map(({ productName, saleUnit, quantity, lineTotal }) => ({
+        product_name: productName,
+        sale_unit: saleUnit,
+        quantity,
+        line_total: lineTotal,
+      })),
+      cash_rounding: detail.cashRounding,
       payments: detail.payments.map(({ cardType, ...payment }) => ({
         ...payment,
         card_type: cardType,
@@ -141,6 +151,7 @@ export async function saleHistoryDetailFor(
       state: detail.standing,
       voidability: toWireVoidability(detail.voidability),
       void_authorization_required: voidNeedsAuthorization,
+      reprint_authorization_required: reprintNeedsAuthorization,
       credit_notes: detail.creditNotes.map((creditNote) => ({
         credit_note_id: creditNote.creditNoteId,
         origin: creditNote.origin,

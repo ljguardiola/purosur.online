@@ -4,7 +4,7 @@ import { RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import type { reactivateSupplier } from "./suppliers-api";
 
 export type ReactivateSupplierModalServices = {
@@ -33,7 +33,7 @@ export function ReactivateSupplierModal({
   services,
 }: ReactivateSupplierModalProps) {
   const { reactivateSupplier } = services;
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const open = target !== null;
   const [title, setTitle] = useState("");
   const [notice, setNotice] = useState<ReactivateNotice | null>(null);
@@ -63,7 +63,7 @@ export function ReactivateSupplierModal({
       return;
     }
     if (outcome.kind === "forbidden") {
-      sendToMyAccount();
+      sendToOwnAccount();
       return;
     }
     setSubmitting(false);

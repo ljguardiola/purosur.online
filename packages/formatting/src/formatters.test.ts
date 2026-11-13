@@ -8,11 +8,13 @@ import {
   formatCalendarDayRange,
   formatCents,
   formatCentsFraction,
+  formatCentsReduction,
   formatClockTime,
   formatCountdown,
   formatDate,
   formatDayAndTime,
   formatDayMonthAndTime,
+  formatDayMonthAndTimeInColumn,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,
@@ -170,6 +172,22 @@ describe("formatSignedCents", () => {
   it("writes a positive amount and zero as formatCents does", () => {
     expect(formatSignedCents(5_070_000)).toBe("$ 50.700,00");
     expect(formatSignedCents(0)).toBe("$ 0,00");
+  });
+});
+
+describe("formatCentsReduction", () => {
+  it("writes an amount taken off with an en dash before the currency", () => {
+    expect(formatCentsReduction(20_000)).toBe("– $ 200,00");
+    expect(formatCentsReduction(5)).toBe("– $ 0,05");
+  });
+
+  it("writes a negative reduction as the amount added, with a plus sign", () => {
+    expect(formatCentsReduction(-124_000)).toBe("+ $ 1.240,00");
+    expect(formatCentsReduction(-1)).toBe("+ $ 0,01");
+  });
+
+  it("writes no reduction with no sign", () => {
+    expect(formatCentsReduction(0)).toBe("$ 0,00");
   });
 });
 
@@ -430,6 +448,16 @@ describe("formatDayMonthAndTime", () => {
 
   it("writes them on the clock of the instant's own offset, not the machine's", () => {
     expect(formatDayMonthAndTime("2026-11-04T23:14:00.000Z")).toBe("04/11 · 23:14");
+  });
+});
+
+describe("formatDayMonthAndTimeInColumn", () => {
+  it("writes the day, the month and the time of the clock the instant is written in, apart by a space", () => {
+    expect(formatDayMonthAndTimeInColumn("2026-11-04T15:32:00.000-03:00")).toBe("04/11 15:32");
+  });
+
+  it("writes them on the clock of the instant's own offset, not the machine's", () => {
+    expect(formatDayMonthAndTimeInColumn("2026-11-04T23:14:00.000Z")).toBe("04/11 23:14");
   });
 });
 

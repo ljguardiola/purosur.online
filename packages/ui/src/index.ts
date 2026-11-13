@@ -18,6 +18,8 @@ export type { KeyLegendItem, KeyLegendProps } from "./components/data-display/ke
 export { KeyLegend } from "./components/data-display/key-legend";
 export type { KeycapProps, KeyName } from "./components/data-display/keycap";
 export { Keycap } from "./components/data-display/keycap";
+export type { LineItem, LineItemListProps } from "./components/data-display/line-item-list";
+export { LineItemList } from "./components/data-display/line-item-list";
 export type { PercentBarProps } from "./components/data-display/percent-bar";
 export { PercentBar } from "./components/data-display/percent-bar";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
@@ -276,11 +278,13 @@ export {
   formatCalendarDayRange,
   formatCents,
   formatCentsFraction,
+  formatCentsReduction,
   formatClockTime,
   formatCountdown,
   formatDate,
   formatDayAndTime,
   formatDayMonthAndTime,
+  formatDayMonthAndTimeInColumn,
   formatDuration,
   formatFreeBytes,
   formatFreeRatio,
@@ -327,6 +331,7 @@ export type { LocaleProviderProps } from "./messages/locale-provider";
 export { LocaleProvider } from "./messages/locale-provider";
 export {
   parseAmountCents,
+  parseDocumentNumber,
   parseEsArNumber,
   parseWeightQuantity,
   parseWeightThousandths,

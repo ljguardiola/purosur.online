@@ -347,14 +347,17 @@ test.each([
   ["/inventory-counts", "suppliers"],
   ["/inventory-adjustments", "suppliers"],
   ["/initial-inventory", "suppliers"],
-] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
-  const services = stockServices([capability, "stock_area"]);
-  window.history.pushState(null, "", path);
+] as const)(
+  "sends a user who may not open %s to the own account panel",
+  async (path, capability) => {
+    const services = stockServices([capability, "stock_area"]);
+    window.history.pushState(null, "", path);
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-});
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  },
+);
 
 async function registerMenuItems(screen: Awaited<ReturnType<typeof render>>) {
   await userEvent.click(screen.getByRole("button", { name: "Registrar" }));

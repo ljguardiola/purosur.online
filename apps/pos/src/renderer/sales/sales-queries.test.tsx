@@ -73,6 +73,7 @@ const SALE: OpenSale = {
   rebuilt_paid_order: null,
   mercado_pago_charge_in_progress: null,
   refunds_on_cancel: [],
+  refund_now_on_cancel: 0,
   cancel_authorization_required: false,
   adjust_authorization_required: false,
   sale_discount_authorization_required: false,
@@ -771,6 +772,7 @@ describe("adjustment preview query", () => {
     kind: "preview",
     discount_amount: 47_600,
     line_total: 428_400,
+    line_total_reduction: 47_600,
   };
 
   it.each<[string, string, number, ManualAdjustmentRequest]>([
@@ -1119,14 +1121,14 @@ const HISTORY_FOUND: SalesHistoryOutcome = { kind: "found", rows: [], total: 0, 
 
 function SalesHistoryProbe({
   page = 1,
-  state = "all",
+  document,
   read,
 }: {
   page?: number;
-  state?: "all" | "completed";
+  document?: SalesHistoryQuery["document"];
   read: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
 }) {
-  const history = useSalesHistoryQuery({ session: "open", state, page, read });
+  const history = useSalesHistoryQuery({ session: "open", page, document, read });
   const refresh = useRefreshSalesHistory();
   return (
     <>
@@ -1236,14 +1238,48 @@ describe("payment methods availability query", () => {
 });
 
 describe("sales history query", () => {
-  it("reads the page and filters it is given", async () => {
+  it("reads the page it is given", async () => {
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await renderWithClient(<SalesHistoryProbe page={2} read={read} />);
+
+    await expect.element(screen.getByText("found")).toBeVisible();
+    expect(read).toHaveBeenCalledWith({ session: "open", page: 2 });
+  });
+
+  it("reads the sales with the document number it is given", async () => {
     const read = vi.fn(async () => HISTORY_FOUND);
     const screen = await renderWithClient(
-      <SalesHistoryProbe page={2} state="completed" read={read} />,
+      <SalesHistoryProbe document={{ pointOfSale: null, number: 187 }} read={read} />,
     );
 
     await expect.element(screen.getByText("found")).toBeVisible();
-    expect(read).toHaveBeenCalledWith({ session: "open", state: "completed", page: 2 });
+    expect(read).toHaveBeenCalledWith({
+      session: "open",
+      page: 1,
+      document: { pointOfSale: null, number: 187 },
+    });
+  });
+
+  it("reads again when the document number changes instead of showing the previous search", async () => {
+    const queryClient = createQueryClient();
+    const read = vi.fn(async () => HISTORY_FOUND);
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <SalesHistoryProbe document={{ pointOfSale: null, number: 187 }} read={read} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("found")).toBeVisible();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <SalesHistoryProbe
+          document={{ pointOfSale: 3, number: 187 }}
+          read={() => new Promise(() => {})}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
   });
 
   it("holds a refusal to show the history as an answer, not a failure", async () => {
@@ -1301,6 +1337,15 @@ function SaleHistoryDetailProbe({
   return <p>{detail.status === "loaded" ? detail.value.kind : detail.status}</p>;
 }
 
+function NoSaleChosenProbe({
+  read,
+}: {
+  read: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+}) {
+  const detail = useSaleHistoryDetailQuery({ saleId: undefined, read });
+  return <p>{detail.status}</p>;
+}
+
 describe("sale history detail query", () => {
   it("reads the detail of the sale it is given", async () => {
     const read = vi.fn(async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "not_found" }));
@@ -1316,5 +1361,13 @@ describe("sale history detail query", () => {
     );
 
     await expect.element(screen.getByText("failed")).toBeVisible();
+  });
+
+  it("reads nothing while no sale is chosen", async () => {
+    const read = vi.fn(async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "not_found" }));
+    const screen = await renderWithClient(<NoSaleChosenProbe read={read} />);
+
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(read).not.toHaveBeenCalled();
   });
 });

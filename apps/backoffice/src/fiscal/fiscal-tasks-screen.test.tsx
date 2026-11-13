@@ -172,7 +172,7 @@ test("shows a load error with a retry action that starts again from the loading 
   await expect.element(screen.getByText("Facturación externa")).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the tasks request comes back forbidden", async () => {
+test("opens the own account panel when the tasks request comes back forbidden", async () => {
   window.history.pushState(null, "", "/fiscal-tasks");
   const services = createFiscalTasksServices();
   vi.mocked(services.fetchFiscalTasks).mockResolvedValue({ kind: "forbidden" });

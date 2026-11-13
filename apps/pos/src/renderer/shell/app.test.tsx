@@ -2077,6 +2077,7 @@ describe("App", () => {
             rebuilt_paid_order: null,
             mercado_pago_charge_in_progress: null,
             refunds_on_cancel: [],
+            refund_now_on_cancel: 0,
             cancel_authorization_required: false,
             adjust_authorization_required: false,
             sale_discount_authorization_required: false,
@@ -2133,6 +2134,7 @@ describe("App", () => {
           rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2215,6 +2217,7 @@ describe("App", () => {
           charge_refusal: null,
           rebuilt_paid_order: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2368,6 +2371,7 @@ describe("App", () => {
                 rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
+                refund_now_on_cancel: 0,
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
                 sale_discount_authorization_required: false,
@@ -2453,6 +2457,7 @@ describe("App", () => {
           rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2524,6 +2529,7 @@ describe("App", () => {
           rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2588,6 +2594,7 @@ describe("App", () => {
                 rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
+                refund_now_on_cancel: 0,
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
                 sale_discount_authorization_required: false,
@@ -2655,6 +2662,7 @@ describe("App", () => {
           rebuilt_paid_order: null,
           mercado_pago_charge_in_progress: null,
           refunds_on_cancel: [],
+          refund_now_on_cancel: 0,
           cancel_authorization_required: false,
           adjust_authorization_required: false,
           sale_discount_authorization_required: false,
@@ -2719,6 +2727,7 @@ describe("App", () => {
                 rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
+                refund_now_on_cancel: 0,
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
                 sale_discount_authorization_required: false,
@@ -2800,6 +2809,7 @@ describe("App", () => {
                 rebuilt_paid_order: null,
                 mercado_pago_charge_in_progress: null,
                 refunds_on_cancel: [],
+                refund_now_on_cancel: 0,
                 cancel_authorization_required: false,
                 adjust_authorization_required: false,
                 sale_discount_authorization_required: false,
@@ -3616,7 +3626,7 @@ describe("App", () => {
     describe("cancelling its open sale", () => {
       async function cancelFromLocked(
         cashDrawer: Parameters<typeof identifyFromLocked>[0],
-        action = "Vaciar carrito",
+        action = "Vaciar venta",
       ) {
         const identified = await identifyFromLocked({
           sessionOpenSale: async () => ({
@@ -3764,7 +3774,6 @@ describe("App", () => {
       sale_id: "sale-1",
       occurred_at: "2026-09-30T11:42:00.000-03:00",
       comprobante: { kind: "none" },
-      operation_number: 482,
       payment_methods: ["CASH"],
       total: 5_070_000,
       state: "completed",
@@ -3792,10 +3801,12 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Historial" }));
 
       await expect
-        .element(screen.getByRole("heading", { name: "Historial de ventas" }))
+        .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
         .toBeVisible();
-      await expect.element(screen.getByText("Operación 000482")).toBeVisible();
-      expect(queries).toEqual([{ session: "all", state: "all", page: 1 }]);
+      await expect
+        .element(screen.getByRole("table", { name: "Ventas" }).getByText("$ 50.700,00"))
+        .toBeVisible();
+      expect(queries).toEqual([{ session: "all", page: 1 }]);
     });
 
     it("opens from the menu while a session is open, and goes back to the sale from it", async () => {
@@ -3808,7 +3819,7 @@ describe("App", () => {
 
       await userEvent.click(screen.getByRole("link", { name: "Historial" }));
       await expect
-        .element(screen.getByRole("heading", { name: "Historial de ventas" }))
+        .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
         .toBeVisible();
       await userEvent.click(screen.getByRole("link", { name: "Venta" }));
 
@@ -3863,6 +3874,7 @@ describe("App", () => {
             rebuilt_paid_order: null,
             mercado_pago_charge_in_progress: null,
             refunds_on_cancel: [],
+            refund_now_on_cancel: 0,
             cancel_authorization_required: false,
             adjust_authorization_required: false,
             sale_discount_authorization_required: false,

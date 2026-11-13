@@ -379,6 +379,7 @@ describe("sale answers", () => {
     rebuilt_paid_order: null,
     mercado_pago_charge_in_progress: null,
     refunds_on_cancel: [],
+    refund_now_on_cancel: 0,
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,
@@ -966,8 +967,10 @@ describe("previewing a sale line adjustment", () => {
   });
 
   it.each([
-    { kind: "preview", discount_amount: 840, line_total: 7560 },
-    { kind: "preview", discount_amount: 0, line_total: 0 },
+    { kind: "preview", discount_amount: 840, line_total: 7560, line_total_reduction: 840 },
+    { kind: "preview", discount_amount: 0, line_total: 0, line_total_reduction: 0 },
+    { kind: "preview", discount_amount: 200, line_total: 7500, line_total_reduction: 500 },
+    { kind: "preview", discount_amount: 0, line_total: 9000, line_total_reduction: -1500 },
     { kind: "unknown_line" },
     { kind: "same_as_list_price" },
     { kind: "discount_exceeds_line" },
@@ -990,11 +993,34 @@ describe("previewing a sale line adjustment", () => {
 
   it.each([
     ["an outcome it does not know", { kind: "somewhere_else" }],
-    ["a preview without the line total", { kind: "preview", discount_amount: 840 }],
-    ["a preview without the discount", { kind: "preview", line_total: 7560 }],
-    ["a fractional discount", { kind: "preview", discount_amount: 8.5, line_total: 7560 }],
-    ["a negative line total", { kind: "preview", discount_amount: 0, line_total: -1 }],
-    ["a negative discount", { kind: "preview", discount_amount: -1, line_total: 100 }],
+    [
+      "a preview without the line total",
+      { kind: "preview", discount_amount: 840, line_total_reduction: 840 },
+    ],
+    [
+      "a preview without the discount",
+      { kind: "preview", line_total: 7560, line_total_reduction: 840 },
+    ],
+    [
+      "a preview without the line total reduction",
+      { kind: "preview", discount_amount: 840, line_total: 7560 },
+    ],
+    [
+      "a fractional discount",
+      { kind: "preview", discount_amount: 8.5, line_total: 7560, line_total_reduction: 840 },
+    ],
+    [
+      "a fractional line total reduction",
+      { kind: "preview", discount_amount: 840, line_total: 7560, line_total_reduction: 8.5 },
+    ],
+    [
+      "a negative line total",
+      { kind: "preview", discount_amount: 0, line_total: -1, line_total_reduction: 0 },
+    ],
+    [
+      "a negative discount",
+      { kind: "preview", discount_amount: -1, line_total: 100, line_total_reduction: 0 },
+    ],
     ["an authorization refusal", { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 }],
   ])("rejects an answer with %s", (_case, outcome) => {
     expect(
@@ -1230,6 +1256,7 @@ describe("sale line answers", () => {
     rebuilt_paid_order: null,
     mercado_pago_charge_in_progress: null,
     refunds_on_cancel: [],
+    refund_now_on_cancel: 0,
     cancel_authorization_required: false,
     adjust_authorization_required: false,
     sale_discount_authorization_required: false,
@@ -2145,11 +2172,11 @@ describe("asking for the register's sales history", () => {
     type: "sales-history",
     request_id: REQUEST_ID,
     session: "open",
-    state: "all",
     page: 1,
+    document: null,
   };
 
-  it("accepts a request naming the session, the state and the page", () => {
+  it("accepts a request naming the session and the page", () => {
     expect(salesRendererToCoreMessageSchema.parse(ask)).toEqual(ask);
   });
 
@@ -2157,25 +2184,43 @@ describe("asking for the register's sales history", () => {
     expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, session }).success).toBe(true);
   });
 
-  it.each(["all", "completed", "in_progress", "deferred", "voided"])(
-    "accepts the state %s",
-    (state) => {
-      expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, state }).success).toBe(true);
+  it.each([{ session: "closed" }, { page: 0 }, { page: -1 }, { page: 1.5 }, { page: "1" }])(
+    "rejects a request with %j",
+    (override) => {
+      expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, ...override }).success).toBe(
+        false,
+      );
     },
   );
 
   it.each([
-    { session: "closed" },
-    { state: "cancelled" },
-    { page: 0 },
-    { page: -1 },
-    { page: 1.5 },
-    { page: "1" },
-  ])("rejects a request with %j", (override) => {
-    expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, ...override }).success).toBe(false);
+    { point_of_sale: 3, number: 187 },
+    { point_of_sale: null, number: 187 },
+  ])("accepts the document number %j", (document) => {
+    expect(salesRendererToCoreMessageSchema.parse({ ...ask, document })).toEqual({
+      ...ask,
+      document,
+    });
   });
 
-  it.each(["request_id", "session", "state", "page"])(
+  it.each([
+    { point_of_sale: 0, number: 187 },
+    { point_of_sale: -3, number: 187 },
+    { point_of_sale: 1.5, number: 187 },
+    { point_of_sale: "3", number: 187 },
+    { number: 187 },
+    { point_of_sale: 3, number: 0 },
+    { point_of_sale: 3, number: -1 },
+    { point_of_sale: 3, number: 1.5 },
+    { point_of_sale: 3, number: null },
+    { point_of_sale: 3 },
+    "0003-00000187",
+    187,
+  ])("rejects the document number %j", (document) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, document }).success).toBe(false);
+  });
+
+  it.each(["request_id", "session", "page", "document"])(
     "rejects a request missing its %s",
     (field) => {
       const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));
@@ -2194,7 +2239,6 @@ describe("asking for the register's sales history", () => {
       point_of_sale: 3,
       number: 1204,
     },
-    operation_number: 482,
     payment_methods: ["CASH", "TRANSFER"],
     total: 7500,
     state: "completed",
@@ -2219,7 +2263,6 @@ describe("asking for the register's sales history", () => {
     },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "in_progress" }] },
     { ...found, rows: [{ ...row, comprobante: { kind: "none" }, state: "voided" }] },
-    { ...found, rows: [{ ...row, operation_number: null }] },
     { ...found, rows: [{ ...row, occurred_at: "2026-10-08T09:00:00.000-03:00" }] },
     { kind: "not_signed_in" },
     { kind: "lacks_permission" },
@@ -2244,7 +2287,6 @@ describe("asking for the register's sales history", () => {
       ...found,
       rows: [{ ...row, comprobante: { ...row.comprobante, authorization: undefined } }],
     },
-    { ...found, rows: [{ ...row, operation_number: 0 }] },
     { ...found, rows: [{ ...row, occurred_at: "yesterday" }] },
     { kind: "not_found" },
   ])("rejects the answer %j", (outcome) => {
@@ -2278,7 +2320,10 @@ describe("asking for the detail of one sale of the history", () => {
     comprobante: { kind: "deferred_non_fiscal" },
     operation_number: 482,
     served_by_first_name: "Marta",
-    line_count: 3,
+    lines: [
+      { product_name: "Almendras peladas", sale_unit: "KG", quantity: 325, line_total: 6142 },
+    ],
+    cash_rounding: 92,
     payments: [
       { method: "CASH", card_type: null, amount: 5000 },
       { method: "TRANSFER", card_type: null, amount: 2500 },
@@ -2287,12 +2332,13 @@ describe("asking for the detail of one sale of the history", () => {
     voidability: {
       kind: "voidable",
       refunds: [
-        { method: "CASH", card_type: null, amount: 5000, state: "APPROVED", sent_by_cloud: false },
-        { method: "QR", card_type: null, amount: 2500, state: "PENDING", sent_by_cloud: true },
+        { method: "CASH", card_type: null, amount: 5000, state: "APPROVED" },
+        { method: "QR", card_type: null, amount: 2500, state: "PENDING" },
       ],
       credit_note_corrects: { point_of_sale: 3, number: 1204 },
     },
     void_authorization_required: false,
+    reprint_authorization_required: false,
     credit_notes: [],
     reprint: { kind: "available" },
     next_copy: { kind: "duplicate", order_number: 2 },
@@ -2313,6 +2359,7 @@ describe("asking for the detail of one sale of the history", () => {
     },
     { kind: "found", detail: { ...detail, occurred_at: "2026-10-08T09:00:00.000-03:00" } },
     { kind: "found", detail: { ...detail, void_authorization_required: true } },
+    { kind: "found", detail: { ...detail, reprint_authorization_required: true } },
     {
       kind: "found",
       detail: {
@@ -2387,7 +2434,6 @@ describe("asking for the detail of one sale of the history", () => {
 
   it.each([
     { kind: "found" },
-    { kind: "found", detail: { ...detail, line_count: -1 } },
     {
       kind: "found",
       detail: { ...detail, payments: [{ method: "CARD", card_type: null, amount: 1 }] },
@@ -2467,9 +2513,7 @@ describe("asking for the detail of one sale of the history", () => {
         ...detail,
         voidability: {
           kind: "voidable",
-          refunds: [
-            { method: "CARD", card_type: null, amount: 1, state: "PENDING", sent_by_cloud: false },
-          ],
+          refunds: [{ method: "CARD", card_type: null, amount: 1, state: "PENDING" }],
         },
       },
     },
@@ -2485,7 +2529,6 @@ describe("asking for the detail of one sale of the history", () => {
               card_type: null,
               amount: 1,
               state: "DISCARDED",
-              sent_by_cloud: false,
             },
           ],
         },
@@ -2503,7 +2546,6 @@ describe("asking for the detail of one sale of the history", () => {
               card_type: null,
               amount: -1,
               state: "APPROVED",
-              sent_by_cloud: false,
             },
           ],
         },

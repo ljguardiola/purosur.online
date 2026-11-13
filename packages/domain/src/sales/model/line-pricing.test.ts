@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
-import { chargeLine } from "./line-pricing.js";
+import { chargeLine, lineTotalReduction } from "./line-pricing.js";
 import type { LinePromotion } from "./sale.js";
 
 const TEN_PERCENT: LinePromotion = {
@@ -332,5 +332,26 @@ describe("chargeLine with a manual adjustment", () => {
         },
       ),
     );
+  });
+});
+
+describe("lineTotalReduction", () => {
+  it("is what an adjustment takes off the line's current total, not off its list total", () => {
+    const current = chargeLine(weight(250), 780_000, [TEN_PERCENT]).lineTotal;
+    const adjusted = chargeLine(weight(250), 780_000, [TEN_PERCENT], {
+      kind: "PRICE",
+      unitPrice: 700_000,
+    }).lineTotal;
+
+    expect([current, adjusted]).toEqual([175_500, 175_000]);
+    expect(lineTotalReduction(current, adjusted)).toBe(500);
+  });
+
+  it("is negative when the adjustment raises the line's total", () => {
+    expect(lineTotalReduction(175_000, 195_000)).toBe(-20_000);
+  });
+
+  it("is nothing when the adjustment leaves the line's total as it was", () => {
+    expect(lineTotalReduction(175_000, 175_000)).toBe(0);
   });
 });

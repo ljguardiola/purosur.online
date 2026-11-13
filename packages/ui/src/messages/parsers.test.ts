@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { formatAmountInput, formatWeightInput } from "./formatters";
 import {
   parseAmountCents,
+  parseDocumentNumber,
   parseEsArNumber,
   parseWeightQuantity,
   parseWeightThousandths,
@@ -220,5 +221,47 @@ describe("parseWeightQuantity", () => {
         expect(parseWeightQuantity(typed, "KG")).toBe(parseWeightThousandths(typed));
       }),
     );
+  });
+});
+
+describe("parseDocumentNumber", () => {
+  it("reads a point of sale and a number joined by a hyphen", () => {
+    expect(parseDocumentNumber("0003-00000187")).toEqual({ pointOfSale: 3, number: 187 });
+    expect(parseDocumentNumber("12-5")).toEqual({ pointOfSale: 12, number: 5 });
+  });
+
+  it("reads digits alone as a number in any point of sale", () => {
+    expect(parseDocumentNumber("187")).toEqual({ pointOfSale: null, number: 187 });
+    expect(parseDocumentNumber("00000187")).toEqual({ pointOfSale: null, number: 187 });
+  });
+
+  it("ignores the spaces around what was typed", () => {
+    expect(parseDocumentNumber("  0003-00000187 ")).toEqual({ pointOfSale: 3, number: 187 });
+    expect(parseDocumentNumber(" 187 ")).toEqual({ pointOfSale: null, number: 187 });
+  });
+
+  it.each([
+    "",
+    "   ",
+    "abc",
+    "187a",
+    "0003-abc",
+    "0003-",
+    "-187",
+    "0003-00000187-1",
+    "0003--187",
+    "0003 - 187",
+    "1 87",
+    "1,5",
+    "1.5",
+    "-5",
+    "0",
+    "000",
+    "0-187",
+    "0003-0",
+    "0003-00000000",
+    "99999999999999999999",
+  ])("refuses %j", (text) => {
+    expect(parseDocumentNumber(text)).toBeUndefined();
   });
 });

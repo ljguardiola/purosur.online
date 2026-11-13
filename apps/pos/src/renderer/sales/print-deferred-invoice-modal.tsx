@@ -11,21 +11,12 @@ import {
 import { ArrowLeft, FileText, Printer, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
-import { deferredSaleInvoiceNumber } from "./deferred-sale-text";
+import { deferredInvoiceNotYetDescription, deferredSaleInvoiceNumber } from "./deferred-sale-text";
 import { originalPrintNotice } from "./original-print-text";
 
 type Notice =
   | Extract<PrintDeferredSaleInvoiceOutcome, { kind: "not_yet" }>
   | { kind: "printing"; notice: ReturnType<typeof originalPrintNotice> };
-
-const NOT_YET_DESCRIPTIONS = {
-  cannot_authorize:
-    "La caja no puede pedir facturas a ARCA ahora. No se imprimió nada; pedile al cliente que vuelva más tarde.",
-  older_sale_blocking:
-    "Una venta anterior está frenando la facturación. No se imprimió nada; pedile al cliente que vuelva más tarde.",
-  not_authorized:
-    "ARCA no autorizó la factura de esta venta y no se imprimió nada. La caja la vuelve a pedir sola: buscala de nuevo más tarde. Si vence el plazo sin autorizarse, queda como tarea para el dueño.",
-} as const;
 
 export type PrintDeferredInvoiceModalProps = {
   sale: Pick<FoundDeferredSale, "sale_id" | "occurred_at" | "total" | "invoice">;
@@ -157,7 +148,7 @@ export function PrintDeferredInvoiceModal({
             tone="warning"
             icon={<TriangleAlert />}
             title="Todavía no se puede facturar"
-            description={NOT_YET_DESCRIPTIONS[notice.cause]}
+            description={deferredInvoiceNotYetDescription(notice.cause)}
           />
         ) : null}
         {notice?.kind === "printing" ? (

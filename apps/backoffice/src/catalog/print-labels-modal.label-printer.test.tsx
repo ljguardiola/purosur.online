@@ -296,7 +296,7 @@ test("ends the session when the cloud answers unauthenticated", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the cloud answers forbidden", async () => {
+test("opens the own account panel when the cloud answers forbidden", async () => {
   window.history.pushState(null, "", "/products");
   const services = createServices();
   vi.mocked(services.fetchPrinterLabels).mockResolvedValue({ kind: "forbidden" });

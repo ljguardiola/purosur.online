@@ -26,10 +26,9 @@ function historySale(
     entry: {
       saleId: "sale-1",
       occurredAt: new Date("2026-10-07T15:00:00.000Z"),
-      operationNumber: 482,
       paymentMethods: ["CASH"],
       total: 7500,
-      fiscal: { deferred: false, fiscalDocument: null },
+      fiscal: { deferred: false, deferredInvoicePending: false, fiscalDocument: null },
       voided: false,
     },
     record: {
@@ -37,7 +36,11 @@ function historySale(
       occurredAt: new Date("2026-10-07T15:00:00.000Z"),
       operationNumber: 482,
       servedByFirstName: "Marta",
-      lineCount: 3,
+      lines: [
+        { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
+        { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 1358 },
+      ],
+      cashRounding: 92,
       total: 7500,
       payments: [
         { method: "CASH", amount: 5000, cardType: null },
@@ -45,6 +48,7 @@ function historySale(
       ],
       fiscal: {
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -74,6 +78,33 @@ function historySale(
 }
 
 describe("readSaleHistoryDetail", () => {
+  it("shows a sale whose deferred invoice is still to print as deferred, with its invoice number", () => {
+    const history = new FakeRegisterSalesHistory([
+      historySale({
+        fiscal: {
+          deferred: false,
+          deferredInvoicePending: true,
+          fiscalDocument: {
+            state: "AUTHORIZED",
+            documentType: "factura_c",
+            authorization: "real_time",
+            pointOfSale: 3,
+            number: 1204,
+          },
+        },
+        deferredInvoiceIssued: true,
+      }),
+    ]);
+    const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
+
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome).toMatchObject({
+      kind: "found",
+      detail: { standing: "deferred", comprobante: { kind: "fiscal", number: 1204 } },
+    });
+  });
+
   it("shows the sale's time, total, comprobante, operation number, who served it, lines and payments", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
@@ -93,7 +124,11 @@ describe("readSaleHistoryDetail", () => {
         },
         operationNumber: 482,
         servedByFirstName: "Marta",
-        lineCount: 3,
+        lines: [
+          { productName: "Almendras peladas", saleUnit: "KG", quantity: 325, lineTotal: 6142 },
+          { productName: "Yerba mate orgánica", saleUnit: "UNIT", quantity: 2, lineTotal: 1358 },
+        ],
+        cashRounding: 92,
         payments: [
           { method: "CASH", amount: 5000, cardType: null },
           { method: "TRANSFER", amount: 2500, cardType: null },
@@ -102,13 +137,12 @@ describe("readSaleHistoryDetail", () => {
         voidability: {
           kind: "voidable",
           refunds: [
-            { method: "CASH", cardType: null, amount: 5000, state: "APPROVED", sentByCloud: false },
+            { method: "CASH", cardType: null, amount: 5000, state: "APPROVED" },
             {
               method: "TRANSFER",
               cardType: null,
               amount: 2500,
               state: "PENDING",
-              sentByCloud: false,
             },
           ],
           creditNoteCorrects: { voucherType: 11, pointOfSale: 3, number: 1204 },
@@ -197,7 +231,17 @@ describe("readSaleHistoryDetail", () => {
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
   });
 
-  it("says a voided sale's receipt is not printed", () => {
+  it("says a voided sale's receipt is reprinted once its original was attempted", () => {
+    const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
+    const ledger = new FakeReceiptLedger({
+      sales: [voidedSale({ printAttemptedAt: FIRST_PRINT_AT })],
+    });
+    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+
+    expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
+  });
+
+  it("says a voided sale's receipt is not printed when its original was never attempted", () => {
     const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
     const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
     const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
@@ -207,7 +251,7 @@ describe("readSaleHistoryDetail", () => {
 
   describe("whether the sale may be voided", () => {
     const CASH_ONLY = [{ method: "CASH" as const, amount: 7500, cardType: null }];
-    const NO_INVOICE = { deferred: true, fiscalDocument: null };
+    const NO_INVOICE = { deferred: true, deferredInvoicePending: false, fiscalDocument: null };
     const NOT_INVOICED = { fiscal: NO_INVOICE, invoices: [] };
 
     function voidability(overrides: Parameters<typeof historySale>[0]) {
@@ -230,20 +274,18 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "CASH", cardType: null, amount: 5000, state: "APPROVED", sentByCloud: false },
+          { method: "CASH", cardType: null, amount: 5000, state: "APPROVED" },
           {
             method: "TRANSFER",
             cardType: null,
             amount: 1500,
             state: "PENDING",
-            sentByCloud: false,
           },
           {
             method: "STANDALONE_TERMINAL",
             cardType: null,
             amount: 1000,
             state: "PENDING",
-            sentByCloud: false,
           },
         ],
         creditNoteCorrects: null,
@@ -275,6 +317,7 @@ describe("readSaleHistoryDetail", () => {
     it("says why a sale whose invoice is being requested cannot be voided", () => {
       const fiscal = {
         deferred: false,
+        deferredInvoicePending: false,
         fiscalDocument: {
           state: "REQUESTING" as const,
           documentType: "factura_c" as const,
@@ -316,13 +359,12 @@ describe("readSaleHistoryDetail", () => {
       ).toEqual({
         kind: "voidable",
         refunds: [
-          { method: "QR", cardType: null, amount: 7500, state: "PENDING", sentByCloud: true },
+          { method: "QR", cardType: null, amount: 7500, state: "PENDING" },
           {
             method: "POINT",
             cardType: "CREDIT",
             amount: 1200,
             state: "PENDING",
-            sentByCloud: true,
           },
         ],
         creditNoteCorrects: null,
@@ -346,6 +388,7 @@ describe("readSaleHistoryDetail", () => {
         voidability({
           fiscal: {
             deferred: false,
+            deferredInvoicePending: false,
             fiscalDocument: {
               state: "RELEASED",
               documentType: "factura_c",

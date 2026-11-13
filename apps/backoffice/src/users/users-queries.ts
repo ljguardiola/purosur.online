@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { BranchUser, fetchUsers } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { fetchRoles, RoleSummary } from "../platform/roles-api";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchUser } from "./users-api";
 
@@ -18,12 +18,12 @@ export function useUsersQuery(params: {
   fetchUsers: typeof fetchUsers;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<BranchUser[]>({
     queryKey: usersKeys.list,
     read: params.fetchUsers,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -31,12 +31,12 @@ export function useRolesQuery(params: {
   fetchRoles: typeof fetchRoles;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<RoleSummary[]>({
     queryKey: usersKeys.roles,
     read: params.fetchRoles,
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 
@@ -60,12 +60,12 @@ export function useUserQuery(params: {
   fetchUser: typeof fetchUser;
   onSessionEnded: () => void;
 }) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   return useCloudQuery<UserRead>({
     queryKey: usersKeys.user(params.userId),
     read: readUser(params.fetchUser, params.userId),
     onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
+    onForbidden: sendToOwnAccount,
   });
 }
 

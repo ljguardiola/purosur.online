@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_SALE_DISCOUNT_FORM,
   previewSaleDiscountFrom,
+  SALE_DISCOUNT_REASONS,
   saleDiscountFormRequestSchema,
   saleDiscountRequestFrom,
   saleDiscountValueMessage,
@@ -12,7 +13,8 @@ describe("saleDiscountRequestFrom", () => {
     const request = saleDiscountRequestFrom({
       kind: "AMOUNT",
       value: "2.700,50",
-      reason: "Compra grande",
+      reasonOption: "Otro",
+      otherReason: "Compra grande",
     });
 
     expect(request).toEqual({
@@ -26,7 +28,8 @@ describe("saleDiscountRequestFrom", () => {
     const request = saleDiscountRequestFrom({
       kind: "PERCENT",
       value: "5",
-      reason: "Cliente frecuente",
+      reasonOption: "Otro",
+      otherReason: "Cliente frecuente",
     });
 
     expect(request.discount).toEqual({ kind: "PERCENT", value: 5 });
@@ -42,7 +45,12 @@ describe("saleDiscountRequestFrom", () => {
     ["PERCENT", "0"],
     ["PERCENT", "101"],
   ] as const)("has the shape refuse %s %j", (kind, value) => {
-    const request = saleDiscountRequestFrom({ kind, value, reason: "Motivo" });
+    const request = saleDiscountRequestFrom({
+      kind,
+      value,
+      reasonOption: "Otro",
+      otherReason: "Motivo",
+    });
 
     expect(saleDiscountFormRequestSchema.safeParse(request).success).toBe(false);
   });
@@ -51,14 +59,57 @@ describe("saleDiscountRequestFrom", () => {
     const request = saleDiscountRequestFrom({
       ...EMPTY_SALE_DISCOUNT_FORM,
       value: "5",
-      reason: "   ",
+      reasonOption: "Otro",
+      otherReason: "   ",
     });
 
     expect(saleDiscountFormRequestSchema.safeParse(request).success).toBe(false);
   });
 
-  it("starts as a percentage discount with nothing typed", () => {
-    expect(EMPTY_SALE_DISCOUNT_FORM).toEqual({ kind: "PERCENT", value: "", reason: "" });
+  it("sends the chosen chip's text as the reason", () => {
+    const request = saleDiscountRequestFrom({
+      kind: "PERCENT",
+      value: "10",
+      reasonOption: "Cortesía",
+      otherReason: "ignored text",
+    });
+
+    expect(request.reason).toBe("Cortesía");
+    expect(saleDiscountFormRequestSchema.safeParse(request).success).toBe(true);
+  });
+
+  it("sends what was typed, trimmed, when the reason is Otro", () => {
+    const request = saleDiscountRequestFrom({
+      kind: "PERCENT",
+      value: "10",
+      reasonOption: "Otro",
+      otherReason: "  Compra grande  ",
+    });
+
+    expect(request.reason).toBe("Compra grande");
+  });
+
+  it("has the shape refuse Otro with nothing typed", () => {
+    const request = saleDiscountRequestFrom({
+      ...EMPTY_SALE_DISCOUNT_FORM,
+      value: "10",
+      reasonOption: "Otro",
+    });
+
+    expect(saleDiscountFormRequestSchema.safeParse(request).success).toBe(false);
+  });
+
+  it("offers courtesy and Otro as reasons", () => {
+    expect(SALE_DISCOUNT_REASONS).toEqual(["Cortesía", "Otro"]);
+  });
+
+  it("starts as a percentage discount with courtesy as the reason", () => {
+    expect(EMPTY_SALE_DISCOUNT_FORM).toEqual({
+      kind: "PERCENT",
+      value: "",
+      reasonOption: "Cortesía",
+      otherReason: "",
+    });
   });
 });
 

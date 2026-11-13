@@ -11,7 +11,7 @@ import { Check, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { BranchDayRow } from "./branch-day-row";
@@ -36,7 +36,7 @@ export type BranchSettingsScreenProps = {
 type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
 
 export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
-  const sendToMyAccount = useSendToMyAccount();
+  const sendToOwnAccount = useSendToOwnAccount();
   const { fetchBranchSettings, saveBranchSettings } = services;
   const data = useBranchSettingsQuery({ fetchBranchSettings, onSessionEnded });
   const reloadBranchSettings = useReloadBranchSettings({ fetchBranchSettings });
@@ -66,7 +66,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
         return;
       }
       if (outcome.kind === "forbidden") {
-        sendToMyAccount();
+        sendToOwnAccount();
         return;
       }
       if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {

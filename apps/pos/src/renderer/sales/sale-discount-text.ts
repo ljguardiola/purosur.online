@@ -3,7 +3,7 @@ import { formatPercent } from "@purosur/ui";
 
 type SaleDiscount = NonNullable<OpenSale["sale_discount"]>;
 
-const SALE_DISCOUNT_LABEL = "Descuento sobre el total";
+const SALE_DISCOUNT_LABEL = "Descuento al total";
 
 export function saleDiscountLabel(discount: SaleDiscount): string {
   return discount.kind === "PERCENT"

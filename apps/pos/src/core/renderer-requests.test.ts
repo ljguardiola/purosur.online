@@ -438,7 +438,16 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         return { kind: "busy" };
       },
       salesHistory: async (request: SalesHistoryRequest): Promise<SalesHistoryOutcome> => {
-        saleChanges.push(["sales-history", request.session, request.state, request.page].join(" "));
+        saleChanges.push(
+          [
+            "sales-history",
+            request.session,
+            request.page,
+            request.document === null
+              ? "any"
+              : `${request.document.pointOfSale ?? "any"}-${request.document.number}`,
+          ].join(" "),
+        );
         return { kind: "found", rows: [], total: 0, page_size: 50 };
       },
       readReceiptPrinter: async (): Promise<ReadReceiptPrinterOutcome> => {
@@ -2351,6 +2360,7 @@ describe("answerRendererRequest", () => {
       rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
+      refund_now_on_cancel: 0,
       cancel_authorization_required: false,
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,
@@ -3701,10 +3711,15 @@ describe("answerRendererRequest", () => {
       ],
       [
         "sales-history",
-        { type: "sales-history", session: "open", state: "deferred", page: 2 } as const,
+        {
+          type: "sales-history",
+          session: "open",
+          page: 2,
+          document: { point_of_sale: null, number: 187 },
+        } as const,
         "salesHistory",
         "reading the sales history",
-        "sales-history open deferred 2",
+        "sales-history open 2 any-187",
         "sales-history-result",
       ],
       [

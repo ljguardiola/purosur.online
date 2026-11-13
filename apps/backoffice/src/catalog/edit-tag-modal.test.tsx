@@ -209,7 +209,7 @@ test("ends the session when saving finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when saving comes back forbidden", async () => {
+test("opens the own account panel when saving comes back forbidden", async () => {
   window.history.pushState(null, "", "/tags");
   const editTag = vi.fn<EditTagModalServices["editTag"]>().mockResolvedValue({
     kind: "forbidden",

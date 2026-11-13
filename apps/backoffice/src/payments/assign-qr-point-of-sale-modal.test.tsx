@@ -233,7 +233,7 @@ test("ends the session when the save finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta when the save comes back forbidden", async () => {
+test("opens the own account panel when the save comes back forbidden", async () => {
   window.history.pushState(null, "", "/registers");
   const services = createServices();
   vi.mocked(services.assignQrPointOfSale).mockResolvedValue({ kind: "forbidden" });

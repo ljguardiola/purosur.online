@@ -1375,10 +1375,20 @@ describe("createCoreClient", () => {
     port.answer({
       type: "preview-sale-line-adjustment-result",
       request_id: "request-1",
-      outcome: { kind: "preview", discount_amount: 840, line_total: 7560 },
+      outcome: {
+        kind: "preview",
+        discount_amount: 840,
+        line_total: 7560,
+        line_total_reduction: 840,
+      },
     });
 
-    expect(await previewed).toEqual({ kind: "preview", discount_amount: 840, line_total: 7560 });
+    expect(await previewed).toEqual({
+      kind: "preview",
+      discount_amount: 840,
+      line_total: 7560,
+      line_total_reduction: 840,
+    });
     expect(port.posted).toEqual([
       {
         type: "preview-sale-line-adjustment",
@@ -1609,6 +1619,7 @@ describe("createCoreClient", () => {
       rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
+      refund_now_on_cancel: 0,
       cancel_authorization_required: false,
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,
@@ -1645,6 +1656,7 @@ describe("createCoreClient", () => {
       rebuilt_paid_order: null,
       mercado_pago_charge_in_progress: null,
       refunds_on_cancel: [],
+      refund_now_on_cancel: 0,
       cancel_authorization_required: false,
       adjust_authorization_required: false,
       sale_discount_authorization_required: false,
@@ -2874,7 +2886,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const history = client.salesHistory({ session: "open", state: "deferred", page: 2 });
+    const history = client.salesHistory({ session: "open", page: 2 });
     port.answer({
       type: "sales-history-result",
       request_id: "request-1",
@@ -2887,10 +2899,46 @@ describe("createCoreClient", () => {
         type: "sales-history",
         request_id: "request-1",
         session: "open",
-        state: "deferred",
         page: 2,
+        document: null,
       },
     ]);
+  });
+
+  it("asks the core for the sales whose invoice has the typed document number", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.salesHistory({
+      session: "all",
+      page: 1,
+      document: { pointOfSale: 3, number: 187 },
+    });
+
+    expect(port.posted).toEqual([
+      {
+        type: "sales-history",
+        request_id: "request-1",
+        session: "all",
+        page: 1,
+        document: { point_of_sale: 3, number: 187 },
+      },
+    ]);
+  });
+
+  it("asks for the number in any point of sale with a null point of sale", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.salesHistory({
+      session: "all",
+      page: 1,
+      document: { pointOfSale: null, number: 187 },
+    });
+
+    expect(port.posted).toMatchObject([{ document: { point_of_sale: null, number: 187 } }]);
   });
 
   it("asks the core for one sale's detail and resolves with the outcome", async () => {

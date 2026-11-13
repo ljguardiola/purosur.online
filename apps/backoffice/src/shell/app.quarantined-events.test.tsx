@@ -82,7 +82,7 @@ test("redirects the old /quarantined-events address to /held-register-changes", 
   expect(window.location.pathname).toBe("/held-register-changes");
 });
 
-test("redirects a typed /held-register-changes to Mi cuenta for a user without quarantined_events, without calling its API", async () => {
+test("redirects a typed /held-register-changes to the own account panel for a user without quarantined_events, without calling its API", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding([])),
   });

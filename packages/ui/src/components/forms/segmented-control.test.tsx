@@ -54,6 +54,27 @@ function segmentLabelText(screen: Screen, label: string): HTMLElement {
   return candidates[0] as HTMLElement;
 }
 
+test("dims the whole control to 45% opacity, drops the pointer cursor, blocks focus and ignores presses when disabled", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <>
+      <SegmentedControl {...baseProps({ disabled: true, onChange })} />
+      <button type="button">Next control</button>
+    </>,
+  );
+  const nextControl = screen.getByRole("button", { name: "Next control" }).element();
+
+  expect(getComputedStyle(segmentContainer(screen, "Entry mode")).opacity).toBe("0.45");
+  for (const option of options) {
+    expect(getComputedStyle(segmentOption(screen, option.label)).cursor).toBe("default");
+    expect(segmentInput(screen, option.label).disabled).toBe(true);
+  }
+  await userEvent.tab();
+  expect(document.activeElement).toBe(nextControl);
+  await userEvent.click(segmentLabelText(screen, "New price"), { force: true });
+  expect(onChange).not.toHaveBeenCalled();
+});
+
 test("renders the container with a 1px line border, 8px radius, 4px padding and 4px option gap", async () => {
   const screen = await render(<SegmentedControl {...baseProps()} />);
   const container = screen.getByRole("radiogroup", { name: "Entry mode" }).element() as HTMLElement;
@@ -379,4 +400,58 @@ test("cannot widen V through `value` at a real call site with no explicit type a
     onChange: () => {},
   });
   expectTypeOf(invalidCall).toEqualTypeOf<false>();
+});
+
+test("spans its container with options of equal width when full width", async () => {
+  const screen = await render(
+    <div style={{ width: "600px" }}>
+      <SegmentedControl {...baseProps({ fullWidth: true })} />
+    </div>,
+  );
+  const container = segmentContainer(screen, "Entry mode").getBoundingClientRect();
+  const first = segmentOption(screen, "Discount").getBoundingClientRect();
+  const second = segmentOption(screen, "New price").getBoundingClientRect();
+
+  expect(container.width).toBeCloseTo(600, 0);
+  expect(first.width).toBeCloseTo(second.width, 0);
+  expect(first.width + second.width).toBeGreaterThan(container.width - 20);
+});
+
+test("fits a narrow container with long options when full width", async () => {
+  const screen = await render(
+    <div style={{ width: "352px" }}>
+      <SegmentedControl
+        label="Entry mode"
+        size="large"
+        fullWidth
+        value="newPrice"
+        onChange={() => {}}
+        options={[
+          { value: "newPrice", label: "Precio nuevo" },
+          { value: "percent", label: "Descuento %" },
+          { value: "amount", label: "Descuento $" },
+        ]}
+      />
+    </div>,
+  );
+  const container = segmentContainer(screen, "Entry mode");
+  const box = container.getBoundingClientRect();
+
+  expect(container.scrollWidth).toBeLessThanOrEqual(Math.ceil(box.width));
+  expect(box.width).toBeCloseTo(352, 0);
+  for (const label of ["Precio nuevo", "Descuento %", "Descuento $"]) {
+    const option = segmentOption(screen, label).getBoundingClientRect();
+    expect(option.left).toBeGreaterThanOrEqual(box.left);
+    expect(option.right).toBeLessThanOrEqual(box.right);
+  }
+});
+
+test("keeps its content width when not full width", async () => {
+  const screen = await render(
+    <div style={{ width: "600px" }}>
+      <SegmentedControl {...baseProps()} />
+    </div>,
+  );
+
+  expect(segmentContainer(screen, "Entry mode").getBoundingClientRect().width).toBeLessThan(600);
 });

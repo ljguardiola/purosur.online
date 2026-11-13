@@ -602,6 +602,21 @@ describe("printSaleReceipt", () => {
       expect(rig.ledger.state.outbox).toEqual([]);
     });
 
+    it("answers sale_voided and records and sends nothing for a voided sale whose original was attempted", async () => {
+      const rig = receiptRig([voidedSale({ printAttemptedAt: FIRST_PRINT_AT })]);
+
+      const outcome = await printSaleReceipt(
+        rig.ports,
+        { document: "sale_receipt", saleId: "sale-1" },
+        rig.watch,
+      );
+
+      expect(outcome).toEqual({ kind: "sale_voided" });
+      expect(rig.printer.sent).toEqual([]);
+      expect(rig.ledger.state.sales[0]?.reprints).toEqual([]);
+      expect(rig.ledger.state.outbox).toEqual([]);
+    });
+
     it("answers unavailable and records and sends nothing when the outbox is not ready", async () => {
       const rig = receiptRig();
       rig.ledger.state.outboxReady = false;

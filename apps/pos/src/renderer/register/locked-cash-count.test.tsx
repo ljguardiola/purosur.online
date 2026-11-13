@@ -423,7 +423,7 @@ describe("LockedCashCount", () => {
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     await expect.element(screen.getByText("Vaciá el carrito para cerrar la caja.")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeVisible();
     await expect
       .element(screen.getByText("Grace tiene que retomar la caja para terminarla o cancelarla."))
       .not.toBeInTheDocument();
@@ -439,7 +439,7 @@ describe("LockedCashCount", () => {
     while (notice !== null && getComputedStyle(notice).backgroundColor === "rgba(0, 0, 0, 0)") {
       notice = notice.parentElement;
     }
-    const button = screen.getByRole("button", { name: "Vaciar carrito" }).element();
+    const button = screen.getByRole("button", { name: "Vaciar venta" }).element();
 
     const noticeBox = (notice as HTMLElement).getBoundingClientRect();
     const buttonBox = button.getBoundingClientRect();
@@ -457,7 +457,7 @@ describe("LockedCashCount", () => {
     await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeVisible();
   });
 
   it("shows the open sale the close finds when one was opened after the count was asked for", async () => {
@@ -472,7 +472,7 @@ describe("LockedCashCount", () => {
     await closeWith(screen, "45800,00");
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeVisible();
   });
 
   it("says the open sale could not be read when the close finds one and reading it fails", async () => {
@@ -515,7 +515,7 @@ describe("LockedCashCount", () => {
   it("asks for confirmation before cancelling the open sale", async () => {
     const { screen, cancelSale } = await withOpenSale();
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     const dialog = screen.getByRole("dialog", { name: "¿Vaciar el carrito?" });
     await expect.element(dialog).toBeVisible();
@@ -525,7 +525,7 @@ describe("LockedCashCount", () => {
 
   it("keeps the open sale when going back from the confirmation", async () => {
     const { screen, cancelSale } = await withOpenSale();
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await screen.getByRole("dialog").getByRole("button", { name: "Volver" }).click();
 
@@ -536,9 +536,9 @@ describe("LockedCashCount", () => {
 
   it("clears the notice once the sale is cancelled and lets the closer close the register", async () => {
     const { screen, close, cancelSale } = await withOpenSale();
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
@@ -550,9 +550,9 @@ describe("LockedCashCount", () => {
   it("disables the screen's buttons while the sale is being cancelled", async () => {
     const pending = deferred<CancelLockedSaleOutcome>();
     const { screen } = await withOpenSale({ cancelSale: () => pending.promise });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: "Volver" }).first()).toBeDisabled();
@@ -568,9 +568,9 @@ describe("LockedCashCount", () => {
     ],
   ])("keeps the open sale and says why when %s", async (_case, outcome, notice) => {
     const { screen, refused } = await withOpenSale({ cancelSale: async () => outcome });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText(notice).first()).toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
@@ -582,7 +582,7 @@ describe("LockedCashCount", () => {
     const { screen, cancelSale } = await renderStep({ loadOpenSale });
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText(QR_WAIT_BEFORE_EMPTYING_NOTICE).first()).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
@@ -598,7 +598,7 @@ describe("LockedCashCount", () => {
     const { screen } = await renderStep({ loadOpenSale });
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByRole("dialog", { name: "¿Vaciar el carrito?" })).toBeVisible();
     await expect.element(screen.getByText("Venta en curso · Con pagos")).not.toBeInTheDocument();
@@ -612,7 +612,7 @@ describe("LockedCashCount", () => {
     const { screen, cancelSale } = await renderStep({ loadOpenSale });
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
 
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
@@ -663,9 +663,9 @@ describe("LockedCashCount", () => {
 
   it("clears the notice when the core finds no sale left to cancel", async () => {
     const { screen } = await withOpenSale({ cancelSale: async () => ({ kind: "no_open_sale" }) });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
@@ -677,9 +677,9 @@ describe("LockedCashCount", () => {
     ["the request fails", () => Promise.reject(new Error("the core connection was replaced"))],
   ])("says the cart could not be emptied when %s, keeping the open sale", async (_case, cancel) => {
     const { screen } = await withOpenSale({ cancelSale: cancel });
-    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
@@ -694,12 +694,12 @@ describe("LockedCashCount", () => {
         .mockResolvedValueOnce({ kind: "unavailable" })
         .mockResolvedValueOnce(outcome);
       const { screen } = await withOpenSale({ cancelSale });
-      await screen.getByRole("button", { name: "Vaciar carrito" }).click();
-      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+      await screen.getByRole("button", { name: "Vaciar venta" }).click();
+      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
       await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
 
-      await screen.getByRole("button", { name: "Vaciar carrito" }).click();
-      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+      await screen.getByRole("button", { name: "Vaciar venta" }).click();
+      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
       await expect.poll(() => cancelSale.mock.calls.length).toBe(2);
       await expect.element(screen.getByText(EMPTY_FAILED_NOTICE)).not.toBeInTheDocument();
@@ -716,9 +716,9 @@ describe("LockedCashCount", () => {
     "hands a refused closer back when the core answers $kind to the cancellation",
     async (refusal) => {
       const { screen, refused } = await withOpenSale({ cancelSale: async () => refusal });
-      await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+      await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
 
       await expect.poll(() => refused).toEqual([refusal]);
     },

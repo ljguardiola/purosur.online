@@ -64,6 +64,13 @@ export function formatSignedCents(cents: number): string {
   return cents < 0 ? `− ${formatCents(-cents)}` : formatCents(cents);
 }
 
+export function formatCentsReduction(cents: number): string {
+  if (cents > 0) {
+    return `– ${formatCents(cents)}`;
+  }
+  return cents < 0 ? `+ ${formatCents(-cents)}` : formatCents(0);
+}
+
 const NANO_USD_PER_TEN_THOUSANDTH = 100_000n;
 const TEN_THOUSANDTHS_PER_USD = 10_000n;
 
@@ -218,6 +225,16 @@ export function formatDayAndTime(instant: string, timeZone = writtenTimeZone(ins
 }
 
 export function formatDayMonthAndTime(instant: string): string {
+  const { dayMonth, time } = dayMonthAndTimeOf(instant);
+  return `${dayMonth} · ${time}`;
+}
+
+export function formatDayMonthAndTimeInColumn(instant: string): string {
+  const { dayMonth, time } = dayMonthAndTimeOf(instant);
+  return `${dayMonth} ${time}`;
+}
+
+function dayMonthAndTimeOf(instant: string): { dayMonth: string; time: string } {
   const moment = new Date(instant);
   const timeZone = writtenTimeZone(instant);
   const dayParts = new Intl.DateTimeFormat(LOCALE, {
@@ -233,7 +250,7 @@ export function formatDayMonthAndTime(instant: string): string {
     hourCycle: "h23",
     timeZone,
   });
-  return `${part("day")}/${part("month")} · ${time}`;
+  return { dayMonth: `${part("day")}/${part("month")}`, time };
 }
 
 export function formatCountdown(seconds: number): string {

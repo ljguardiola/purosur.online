@@ -1,14 +1,17 @@
 import {
   FACTURA_C_DOCUMENT_TYPE,
   FISCAL_AUTHORIZATIONS,
+  mayBeCashRounding,
   PAYMENT_METHODS,
   PLANNED_REFUND_STATES,
   POINT_CARD_TYPES,
   SALE_STANDINGS,
+  SALE_UNITS,
   SALE_VOID_REFUSALS,
 } from "@purosur/domain";
 import { z } from "zod";
 import { pointOfSaleNumberSchema } from "../shared/index.js";
+import { shownLineQuantitySchema } from "./sale.js";
 import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 export const receiptCopySchema = z.discriminatedUnion("kind", [
@@ -18,8 +21,6 @@ export const receiptCopySchema = z.discriminatedUnion("kind", [
 export type ReceiptCopyShown = z.infer<typeof receiptCopySchema>;
 
 export const salesHistorySessionSchema = z.enum(["open", "all"]);
-
-export const salesHistoryStateSchema = z.enum(["all", ...SALE_STANDINGS]);
 
 const saleStateSchema = z.enum(SALE_STANDINGS);
 
@@ -41,7 +42,6 @@ const salesHistoryRowSchema = z.object({
   sale_id: z.string(),
   occurred_at: z.iso.datetime({ offset: true }),
   comprobante: comprobanteSchema,
-  operation_number: operationNumberSchema,
   payment_methods: z.array(z.enum(PAYMENT_METHODS)),
   total: z.int(),
   state: saleStateSchema,
@@ -69,7 +69,6 @@ const saleVoidabilitySchema = z.discriminatedUnion("kind", [
         card_type: z.enum(POINT_CARD_TYPES).nullable(),
         amount: z.int().nonnegative(),
         state: z.enum(PLANNED_REFUND_STATES),
-        sent_by_cloud: z.boolean(),
       }),
     ),
     credit_note_corrects: z
@@ -86,7 +85,15 @@ const saleHistoryDetailSchema = z.object({
   comprobante: comprobanteSchema,
   operation_number: operationNumberSchema,
   served_by_first_name: z.string(),
-  line_count: z.int().nonnegative(),
+  lines: z.array(
+    z.object({
+      product_name: z.string(),
+      sale_unit: z.enum(SALE_UNITS),
+      quantity: shownLineQuantitySchema,
+      line_total: z.int(),
+    }),
+  ),
+  cash_rounding: z.int().refine(mayBeCashRounding),
   payments: z.array(
     z.object({
       method: z.enum(PAYMENT_METHODS),
@@ -97,6 +104,7 @@ const saleHistoryDetailSchema = z.object({
   state: saleStateSchema,
   voidability: saleVoidabilitySchema,
   void_authorization_required: z.boolean(),
+  reprint_authorization_required: z.boolean(),
   credit_notes: z.array(
     z.object({
       credit_note_id: z.string().min(1),
