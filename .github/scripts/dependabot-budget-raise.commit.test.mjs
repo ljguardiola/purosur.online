@@ -18,6 +18,7 @@ const dependabotPullRequest = {
 function fakeGitHub({
   pullRequests = [dependabotPullRequest],
   budgets = { [HEAD_SHA]: BUDGET, [DEFAULT_BRANCH]: BUDGET },
+  mergeError = null,
 } = {}) {
   const calls = [];
   const encoded = (budget) =>
@@ -39,6 +40,13 @@ function fakeGitHub({
     },
   };
   const writer = {
+    repos: {
+      merge: async (params) => {
+        calls.push(["repos.merge", params]);
+        if (mergeError !== null) throw mergeError;
+        return { data: { sha: "merge-commit" } };
+      },
+    },
     git: {
       getCommit: async (params) => {
         calls.push(["git.getCommit", params]);
@@ -80,7 +88,14 @@ async function raise({
   return { outcome, calls: github.calls };
 }
 
-const writes = (calls) => calls.filter(([name]) => name.startsWith("git."));
+const writes = (calls) =>
+  calls.filter(([name]) => name.startsWith("git.") || name === "repos.merge");
+const gitWrites = (calls) => calls.filter(([name]) => name.startsWith("git."));
+const httpError = (status) => Object.assign(new Error(`HTTP ${status}`), { status });
+const DIVERGED_BUDGETS = {
+  [HEAD_SHA]: BUDGET,
+  [DEFAULT_BRANCH]: { entry: 100_000, total: 401_500 },
+};
 
 test("raiseBudgetOnPullRequest commits the measured sizes as the budget on the pull request's branch, on top of the measured commit", async () => {
   const { outcome, calls } = await raise();
@@ -131,7 +146,7 @@ for (const [description, defaultBranchBudget] of [
   ["raised", { entry: 100_000, total: 401_500 }],
   ["lowered", { entry: 100_000, total: 399_000 }],
 ]) {
-  test(`raiseBudgetOnPullRequest commits nothing when the default branch ${description} the budget since the branch was cut`, async () => {
+  test(`raiseBudgetOnPullRequest merges the default branch into the pull request's branch, committing no budget, when the default branch ${description} the budget since the branch was cut`, async () => {
     const github = fakeGitHub({
       budgets: { [HEAD_SHA]: BUDGET, [DEFAULT_BRANCH]: defaultBranchBudget },
     });
@@ -141,10 +156,42 @@ for (const [description, defaultBranchBudget] of [
       measured: { entry: 100_000, total: 400_105 },
     });
 
-    assert.deepEqual(outcome, { kind: "budget-diverged", pullRequest: 2202 });
-    assert.deepEqual(writes(calls), []);
+    assert.deepEqual(outcome, { kind: "merged-default-branch", pullRequest: 2202 });
+    const merges = calls.filter(([name]) => name === "repos.merge").map(([, params]) => params);
+    assert.equal(merges.length, 1);
+    assert.equal(merges[0].owner, "owner");
+    assert.equal(merges[0].repo, "repo");
+    assert.equal(merges[0].base, BRANCH);
+    assert.equal(merges[0].head, DEFAULT_BRANCH);
+    assert.match(merges[0].commit_message, /^chore\(deps\): /);
+    assert.deepEqual(gitWrites(calls), []);
   });
 }
+
+test("raiseBudgetOnPullRequest commits nothing when the default branch cannot be merged into the pull request's branch without a conflict", async () => {
+  const github = fakeGitHub({ budgets: DIVERGED_BUDGETS, mergeError: httpError(409) });
+
+  const { outcome, calls } = await raise({ github });
+
+  assert.deepEqual(outcome, { kind: "merge-conflict", pullRequest: 2202 });
+  assert.deepEqual(gitWrites(calls), []);
+});
+
+test("raiseBudgetOnPullRequest fails when merging the default branch fails for any reason but a conflict", async () => {
+  const github = fakeGitHub({ budgets: DIVERGED_BUDGETS, mergeError: httpError(403) });
+
+  await assert.rejects(raise({ github }), { status: 403 });
+  assert.deepEqual(gitWrites(github.calls), []);
+});
+
+test("raiseBudgetOnPullRequest merges nothing when the pull request's branch holds the default branch's budget", async () => {
+  const { calls } = await raise();
+
+  assert.deepEqual(
+    calls.filter(([name]) => name === "repos.merge"),
+    [],
+  );
+});
 
 test("raiseBudgetOnPullRequest looks the pull request up by its branch in this repository", async () => {
   const { calls } = await raise();
