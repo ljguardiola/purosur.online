@@ -136,6 +136,8 @@ export type { ButtonLinkProps } from "./components/forms/button-link";
 export { ButtonLink } from "./components/forms/button-link";
 export type { CheckboxProps } from "./components/forms/checkbox";
 export { Checkbox } from "./components/forms/checkbox";
+export type { CheckboxKeyCardProps } from "./components/forms/checkbox-key-card";
+export { CheckboxKeyCard } from "./components/forms/checkbox-key-card";
 export type { ChipListFieldProps } from "./components/forms/chip-list-field";
 export { ChipListField } from "./components/forms/chip-list-field";
 export type { CollapsibleSegmentedControlProps } from "./components/forms/collapsible-segmented-control";
