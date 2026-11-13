@@ -11,9 +11,13 @@ import type {
   SignInUser,
   VoidSaleOutcome,
 } from "@purosur/contracts";
+import { scannedTicketTextSchema } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, PrintedDocument } from "@purosur/domain";
 import type { EmptyStateProps, NoticeTone } from "@purosur/ui";
 import {
+  formatInvoiceNumber,
+  formatPointOfSaleNumber,
+  formatShortCode,
   Keycap,
   parseDocumentNumber,
   SearchField,
@@ -25,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
+import { useBarcodeReadings } from "../shell/barcode-readings";
 import { RegisterFrame } from "../shell/register-frame";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
@@ -99,6 +104,13 @@ const REPRINT_STARTED_TITLES: Record<PrintedDocument, string> = {
 };
 
 const KEY_ORDER = ["F5", "F6", "Enter"];
+
+const NOT_A_TICKET_QR: Notice = {
+  tone: "warning",
+  title: "Ese QR no es de un ticket",
+  description:
+    "Escaneá el QR de la factura C o del documento de una venta diferida, o escribí el número.",
+};
 
 const NO_SALES_WITH_NUMBER = "No hay ventas con ese número";
 
@@ -177,6 +189,7 @@ export function SalesHistoryScreen({
 }: SalesHistoryScreenProps) {
   const [session, setSession] = useState<SessionFilter>(sessionOpen ? "open" : "all");
   const [search, setSearch] = useState("");
+  const [scanned, setScanned] = useState<string>();
   const [typing, setTyping] = useState(false);
   const [page, setPage] = useState(1);
   const [selectedSaleId, setSelectedSaleId] = useState<string>();
@@ -191,11 +204,14 @@ export function SalesHistoryScreen({
 
   const typed = search.trim() !== "";
   const parsed = typed ? parseDocumentNumber(search) : undefined;
-  const invalidSearch = typed && parsed === undefined;
+  const invalidSearch = typed && scanned === undefined && parsed === undefined;
   const read = useSalesHistoryQuery({
     session,
     page,
-    document: parsed,
+    search:
+      scanned === undefined
+        ? parsed && { kind: "typed", ...parsed }
+        : { kind: "scanned", text: scanned },
     read: salesHistory,
   });
   const history = invalidSearch ? NO_FOUND : read;
@@ -256,6 +272,23 @@ export function SalesHistoryScreen({
 
   function changeSearch(text: string) {
     setSearch(text);
+    setScanned(undefined);
+    setPage(1);
+    select(undefined);
+  }
+
+  function takeScan(text: string) {
+    const ticket = scannedTicketTextSchema.safeParse(text);
+    if (!ticket.success) {
+      setNotice(NOT_A_TICKET_QR);
+      return;
+    }
+    setScanned(text);
+    setSearch(
+      ticket.data.kind === "invoice"
+        ? `${formatPointOfSaleNumber(ticket.data.pointOfSale)}-${formatInvoiceNumber(ticket.data.number)}`
+        : formatShortCode(ticket.data.shortCode),
+    );
     setPage(1);
     select(undefined);
   }
@@ -403,6 +436,7 @@ export function SalesHistoryScreen({
   }
 
   const panelOpen = shownPanel !== undefined;
+
   const entries = actions === undefined ? [] : actions.entries;
   const keyedEntries = [...entries].sort(
     (left, right) => KEY_ORDER.indexOf(left.key ?? "F5") - KEY_ORDER.indexOf(right.key ?? "F5"),
@@ -549,6 +583,7 @@ export function SalesHistoryScreen({
   }
 
   const locked = refusal !== undefined || shownPanel?.kind === "void";
+  useBarcodeReadings(locked ? undefined : takeScan);
 
   return (
     <RegisterFrame
@@ -567,7 +602,7 @@ export function SalesHistoryScreen({
         <div className="flex items-center gap-3">
           <div ref={searchArea} className="min-w-0 flex-1">
             <SearchField
-              placeholder="Escribí el número del comprobante"
+              placeholder="Escaneá el ticket o escribí el número"
               icon={<Search />}
               value={search}
               onChange={changeSearch}
