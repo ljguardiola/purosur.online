@@ -148,13 +148,36 @@ test("closes the panel from its Esc button beside the title", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("paints the icon badge red on light red in the error tone", async () => {
-  const screen = await render(
-    <SidePanelTitle icon={<Ban />} title="Cancelar venta" tone="error" />,
-  );
-  const badge = screen.container.querySelector("svg")?.closest("span[aria-hidden='true']");
+test("shows a lock after the title, inside the heading, that assistive technology reads as asking for authorization", async () => {
+  const screen = await render(<SidePanelTitle icon={<Undo2 />} title="Anular venta" locked />);
+  const heading = screen.getByRole("heading", { level: 2 });
 
-  const style = getComputedStyle(badge as Element);
+  await expect.element(heading).toHaveTextContent("Anular venta Pide autorización");
+  const lock = heading.element().querySelector("svg") as SVGElement;
+  const titleText = heading.element().firstChild as Text;
+  const titleRange = document.createRange();
+  titleRange.selectNodeContents(titleText);
+  const title = titleRange.getBoundingClientRect();
+  expect(lock.getBoundingClientRect().left).toBeGreaterThanOrEqual(title.right);
+  expect(getComputedStyle(lock).color).toBe(tokenRgb("text-subtle"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows no lock and no extra text unless it is locked", async () => {
+  const screen = await render(<SidePanelTitle icon={<Undo2 />} title="Anular venta" />);
+
+  await expect.element(screen.getByRole("heading", { name: "Anular venta" })).toBeVisible();
+  expect(screen.getByRole("heading").element().querySelector("svg")).toBeNull();
+  expect(screen.container.textContent).not.toContain("Pide autorización");
+});
+
+test("paints the icon badge of the error tone in the error colors", async () => {
+  const screen = await render(
+    <SidePanelTitle icon={<Undo2 />} title="Anular venta" tone="error" />,
+  );
+  const badge = screen.container.querySelector("span[aria-hidden='true']") as Element;
+  const style = getComputedStyle(badge);
+
   expect(style.backgroundColor).toBe(tokenRgb("error-subtle"));
   expect(style.color).toBe(tokenRgb("error-strong"));
 });

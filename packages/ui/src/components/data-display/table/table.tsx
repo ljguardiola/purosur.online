@@ -51,7 +51,9 @@ export function Table<T extends RowData>({
   legendAside,
   fill = false,
   emptyKeepsHeaders = false,
+  failureKeepsHeaders = false,
   locked,
+  inactive = false,
 }: TableProps<T>): ReactElement {
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
@@ -61,12 +63,15 @@ export function Table<T extends RowData>({
     rows.length,
     empty !== undefined,
   );
+  const rowsDisabled = locked !== undefined || inactive;
   const emptyBelowHeaders = fill && emptyKeepsHeaders && displayMode === "empty";
+  const failureBelowHeaders = fill && failureKeepsHeaders && displayMode === "failure";
   const showEmptyState = displayMode === "empty" && !emptyBelowHeaders;
   const showingPlaceholders = displayMode === "placeholders";
   const showsLegendAside =
     legendAside !== undefined && displayMode !== "placeholders" && displayMode !== "failure";
-  const messageOnly = fill && (displayMode === "failure" || showEmptyState);
+  const messageOnly =
+    fill && ((displayMode === "failure" && !failureBelowHeaders) || showEmptyState);
 
   const tableElement = (
     <>
@@ -87,10 +92,10 @@ export function Table<T extends RowData>({
         </thead>
         <tbody
           aria-hidden={showingPlaceholders ? true : undefined}
-          className={locked === undefined ? "" : "opacity-disabled"}
+          className={rowsDisabled ? "opacity-disabled" : ""}
         >
           {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
-          {failure !== undefined && (
+          {failure !== undefined && !failureBelowHeaders && (
             <tr>
               <td colSpan={columns.length} className="h-70 p-4 align-top">
                 <LoadFailure {...failure} />
@@ -116,18 +121,18 @@ export function Table<T extends RowData>({
                     className={[
                       rowBoxShadowClassName(state, last && !hasDetail),
                       rowStateClassName(state, variant),
-                      ...(onRowPress === undefined || locked !== undefined
+                      ...(onRowPress === undefined || rowsDisabled
                         ? []
                         : [pressableRowClassName(state)]),
                     ].join(" ")}
-                    aria-disabled={locked === undefined ? undefined : true}
+                    aria-disabled={rowsDisabled ? true : undefined}
                     aria-current={
-                      onRowPress !== undefined && locked === undefined && state === "selected"
+                      onRowPress !== undefined && !rowsDisabled && state === "selected"
                         ? "true"
                         : undefined
                     }
                     onClick={
-                      onRowPress === undefined || locked !== undefined
+                      onRowPress === undefined || rowsDisabled
                         ? undefined
                         : (event) => {
                             if (
@@ -188,6 +193,13 @@ export function Table<T extends RowData>({
             {tableElement}
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
               <EmptyState {...empty} />
+            </div>
+          </>
+        ) : failureBelowHeaders && failure !== undefined ? (
+          <>
+            {tableElement}
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
+              <LoadFailure {...failure} />
             </div>
           </>
         ) : (

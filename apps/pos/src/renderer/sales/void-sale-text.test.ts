@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { voidRefundPresentation, voidRefusalReason } from "./void-sale-text";
+import { voidRefundRow, voidRefusalReason } from "./void-sale-text";
 
 describe("voidRefusalReason", () => {
   it("says a closed session can only be corrected as a return", () => {
@@ -25,89 +25,41 @@ describe("voidRefusalReason", () => {
   });
 });
 
-describe("voidRefundPresentation", () => {
+describe("voidRefundRow", () => {
   it("gives cash back on the spot", () => {
     expect(
-      voidRefundPresentation({
+      voidRefundRow({
         method: "CASH",
         card_type: null,
         amount: 100_000,
         state: "APPROVED",
-        sent_by_cloud: false,
       }),
     ).toEqual({
-      title: "Efectivo · $ 1.000,00",
-      description: "Lo devolvés en efectivo en el momento.",
-      chip: { label: "En el acto", tone: "success" },
+      name: "Efectivo",
+      label: "Efectivo · en el acto",
+      value: "$ 1.000,00",
       pending: false,
     });
   });
 
   it.each([
-    ["TRANSFER", "Transferencia"],
-    ["STANDALONE_TERMINAL", "Terminal independiente"],
-  ] as const)("leaves a %s refund for a person to make outside the register", (method, name) => {
+    ["TRANSFER", null, "Transferencia"],
+    ["STANDALONE_TERMINAL", null, "Terminal independiente"],
+    ["QR", null, "QR"],
+    ["POINT", "DEBIT", "Point débito"],
+  ] as const)("leaves a %s refund pending", (method, cardType, name) => {
     expect(
-      voidRefundPresentation({
+      voidRefundRow({
         method,
-        card_type: null,
+        card_type: cardType,
         amount: 250_000,
         state: "PENDING",
-        sent_by_cloud: false,
       }),
     ).toEqual({
-      title: `${name} · $ 2.500,00`,
-      description: "Queda un reembolso pendiente: una persona lo hace por fuera de la caja.",
-      chip: { label: "Pendiente", tone: "info" },
+      name,
+      label: `${name} · reembolso pendiente`,
+      value: "$ 2.500,00",
       pending: true,
     });
-  });
-
-  it.each([
-    ["QR", "QR de Mercado Pago"],
-    ["POINT", "Point"],
-  ] as const)(
-    "leaves a %s refund for the cloud to send to Mercado Pago once confirmed",
-    (method, name) => {
-      expect(
-        voidRefundPresentation({
-          method,
-          card_type: null,
-          amount: 250_000,
-          state: "PENDING",
-          sent_by_cloud: true,
-        }),
-      ).toEqual({
-        title: `${name} · $ 2.500,00`,
-        description:
-          "Queda un reembolso pendiente que la nube envía a Mercado Pago al confirmarlo.",
-        chip: { label: "Pendiente", tone: "info" },
-        pending: true,
-      });
-    },
-  );
-
-  it("names the card type of the refund of a Point payment", () => {
-    expect(
-      voidRefundPresentation({
-        method: "POINT",
-        card_type: "DEBIT",
-        amount: 250_000,
-        state: "PENDING",
-        sent_by_cloud: true,
-      }).title,
-    ).toBe("Point · Débito · $ 2.500,00");
-  });
-
-  it("follows what the core says about who sends the refund, not the payment method", () => {
-    expect(
-      voidRefundPresentation({
-        method: "QR",
-        card_type: null,
-        amount: 1_000,
-        state: "PENDING",
-        sent_by_cloud: false,
-      }).description,
-    ).toBe("Queda un reembolso pendiente: una persona lo hace por fuera de la caja.");
   });
 });

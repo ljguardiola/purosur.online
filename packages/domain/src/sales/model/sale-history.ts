@@ -4,6 +4,7 @@ import {
   type FiscalDocumentType,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
 } from "../../fiscal/index.js";
+import { nextReceiptCopy, type ReceiptDelivery } from "./receipt-copy.js";
 
 export const SALES_HISTORY_PAGE_SIZE = 50;
 
@@ -23,16 +24,24 @@ export interface DeferredSaleRecord {
   satisfied: boolean;
 }
 
-export const PENDING_DEFERRED_SALE_RECORD = {
-  satisfied: false,
-} as const satisfies DeferredSaleRecord;
-
 export function isDeferralPending(record: DeferredSaleRecord | null): boolean {
-  return record !== null && record.satisfied === PENDING_DEFERRED_SALE_RECORD.satisfied;
+  return record !== null && !record.satisfied;
+}
+
+export function isDeferredInvoicePending(
+  record: DeferredSaleRecord | null,
+  deferredInvoiceDelivery: Pick<ReceiptDelivery, "printAttemptedAt" | "reprintCount"> | null,
+): boolean {
+  return (
+    record?.satisfied === true &&
+    deferredInvoiceDelivery !== null &&
+    nextReceiptCopy(deferredInvoiceDelivery).kind === "original"
+  );
 }
 
 export interface SaleFiscalFacts {
   deferred: boolean;
+  deferredInvoicePending: boolean;
   fiscalDocument: SaleFiscalDocument | null;
 }
 
@@ -47,30 +56,6 @@ export type SaleComprobante =
   | { kind: "deferred_non_fiscal" }
   | { kind: "none" };
 
-interface SaleStandingFacts {
-  voided: boolean;
-  deferred: boolean;
-  documentBeingRequested: boolean;
-}
-
-export type SaleStandingDefinition = Pick<SaleStandingFacts, "voided"> &
-  Partial<Pick<SaleStandingFacts, "deferred" | "documentBeingRequested">>;
-
-export const SALE_STANDING_DEFINITIONS = {
-  voided: { voided: true },
-  deferred: { voided: false, deferred: true },
-  in_progress: { voided: false, deferred: false, documentBeingRequested: true },
-} as const satisfies Record<Exclude<SaleStanding, "completed">, SaleStandingDefinition>;
-
-function isDefinedBy(definition: SaleStandingDefinition, facts: SaleStandingFacts): boolean {
-  return (
-    definition.voided === facts.voided &&
-    (definition.deferred === undefined || definition.deferred === facts.deferred) &&
-    (definition.documentBeingRequested === undefined ||
-      definition.documentBeingRequested === facts.documentBeingRequested)
-  );
-}
-
 export function saleFiscalDocumentAmong(
   attempts: readonly SaleFiscalDocument[],
 ): SaleFiscalDocument | null {
@@ -84,21 +69,36 @@ export function saleFiscalDocumentAmong(
 export function saleStandingOf({
   voided,
   deferred,
+  deferredInvoicePending,
   fiscalDocument,
 }: SaleFiscalFacts & { voided: boolean }): SaleStanding {
-  const facts: SaleStandingFacts = {
-    voided,
-    deferred,
-    documentBeingRequested:
-      fiscalDocument !== null && IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state),
-  };
-  if (isDefinedBy(SALE_STANDING_DEFINITIONS.voided, facts)) {
+  if (voided) {
     return "voided";
   }
-  if (isDefinedBy(SALE_STANDING_DEFINITIONS.deferred, facts)) {
+  if (deferred || deferredInvoicePending) {
     return "deferred";
   }
-  return isDefinedBy(SALE_STANDING_DEFINITIONS.in_progress, facts) ? "in_progress" : "completed";
+  return fiscalDocument !== null &&
+    IN_PROGRESS_FISCAL_DOCUMENT_STATES.includes(fiscalDocument.state)
+    ? "in_progress"
+    : "completed";
+}
+
+export interface SaleDocumentNumber {
+  pointOfSale: number | null;
+  number: number;
+}
+
+export function saleHasDocumentNumber(
+  facts: SaleFiscalFacts,
+  { pointOfSale, number }: SaleDocumentNumber,
+): boolean {
+  const comprobante = saleComprobanteOf(facts);
+  return (
+    comprobante.kind === "fiscal" &&
+    comprobante.number === number &&
+    (pointOfSale === null || comprobante.pointOfSale === pointOfSale)
+  );
 }
 
 export function saleComprobanteOf({ deferred, fiscalDocument }: SaleFiscalFacts): SaleComprobante {

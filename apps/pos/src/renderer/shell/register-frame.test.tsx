@@ -93,7 +93,7 @@ describe("RegisterFrame", () => {
           rail={
             <nav aria-label="Riel">
               <FramePanel>
-                <section aria-label="Confirmación" style={{ width: "100%" }}>
+                <section aria-label="Confirmación" style={{ width: "392px" }}>
                   confirmar
                 </section>
               </FramePanel>
@@ -125,6 +125,37 @@ describe("RegisterFrame", () => {
     expect(document.elementFromPoint(aside.left + 10, aside.top + 10)).toBe(
       screen.getByRole("region", { name: "Confirmación" }).element(),
     );
+  });
+
+  it("gives a panel rendered through the frame's panel slot its own width, at the frame's right edge", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
+    const screen = await render(
+      <div data-testid="marco" style={{ height: "600px", width: "1024px" }}>
+        <RegisterFrame
+          background="surface"
+          rail={
+            <FramePanel>
+              <section aria-label="Confirmación" style={{ width: "400px", flexShrink: 0 }}>
+                confirmar
+              </section>
+            </FramePanel>
+          }
+        >
+          <main>contenido</main>
+        </RegisterFrame>
+      </div>,
+    );
+
+    const frame = screen.getByTestId("marco").element().getBoundingClientRect();
+    const panel = screen
+      .getByRole("region", { name: "Confirmación" })
+      .element()
+      .getBoundingClientRect();
+    expect({ left: panel.left, right: panel.right }).toEqual({
+      left: frame.right - 400,
+      right: frame.right,
+    });
   });
 
   it("shows no panel when nothing is rendered through the slot", async () => {

@@ -54,6 +54,27 @@ function segmentLabelText(screen: Screen, label: string): HTMLElement {
   return candidates[0] as HTMLElement;
 }
 
+test("dims the whole control to 45% opacity, drops the pointer cursor, blocks focus and ignores presses when disabled", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <>
+      <SegmentedControl {...baseProps({ disabled: true, onChange })} />
+      <button type="button">Next control</button>
+    </>,
+  );
+  const nextControl = screen.getByRole("button", { name: "Next control" }).element();
+
+  expect(getComputedStyle(segmentContainer(screen, "Entry mode")).opacity).toBe("0.45");
+  for (const option of options) {
+    expect(getComputedStyle(segmentOption(screen, option.label)).cursor).toBe("default");
+    expect(segmentInput(screen, option.label).disabled).toBe(true);
+  }
+  await userEvent.tab();
+  expect(document.activeElement).toBe(nextControl);
+  await userEvent.click(segmentLabelText(screen, "New price"), { force: true });
+  expect(onChange).not.toHaveBeenCalled();
+});
+
 test("renders the container with a 1px line border, 8px radius, 4px padding and 4px option gap", async () => {
   const screen = await render(<SegmentedControl {...baseProps()} />);
   const container = screen.getByRole("radiogroup", { name: "Entry mode" }).element() as HTMLElement;

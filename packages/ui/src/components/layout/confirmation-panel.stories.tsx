@@ -52,14 +52,20 @@ export const WithNotice: Story = {
 
 export const Busy: Story = { args: { ...refundArgs, busy: true } };
 
-export const Destructive: Story = {
+export const ErrorTone: Story = {
   args: {
-    title: "¿Cancelar la venta?",
+    title: "Anular venta",
     icon: <Ban />,
     tone: "error",
-    fieldLabel: "Venta",
-    value: "$ 9.200,00",
-    actionLabel: "Cancelar venta",
+    locked: true,
+    fieldLabel: "A devolver ahora",
+    value: "$ 25.100,00",
+    details: [
+      { label: "Total", value: "$ 25.192,50" },
+      { label: "Efectivo · en el acto", value: "$ 25.100,00" },
+      { label: "Nota de crédito C", value: "Se emite e imprime" },
+    ],
+    actionLabel: "Anular venta",
     actionIcon: <Ban />,
   },
 };

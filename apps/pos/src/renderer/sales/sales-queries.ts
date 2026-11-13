@@ -67,8 +67,15 @@ export const salesKeys = {
   backupTicket: (saleId: string) => [...salesKey, "backup-ticket", saleId] as const,
   backupPrinterFailure: [...salesKey, "backup-printer-failure"] as const,
   historyRoot: [...salesKey, "history"] as const,
-  history: ({ session, state, page }: SalesHistoryQuery) =>
-    [...salesKey, "history", session, state, page] as const,
+  history: ({ session, page, document }: SalesHistoryQuery) =>
+    [
+      ...salesKey,
+      "history",
+      session,
+      page,
+      document?.pointOfSale ?? null,
+      document?.number ?? null,
+    ] as const,
   saleDetail: (saleId: string) => [...salesKey, "history-detail", saleId] as const,
 };
 
@@ -269,12 +276,16 @@ export function useSaleHistoryDetailQuery({
   saleId,
   read,
 }: {
-  saleId: string;
+  saleId: string | undefined;
   read: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
 }): CoreData<ShownSaleHistoryDetail> {
   return useCoreQuery({
-    queryKey: salesKeys.saleDetail(saleId),
+    queryKey: salesKeys.saleDetail(saleId ?? ""),
+    enabled: saleId !== undefined,
     read: async () => {
+      if (saleId === undefined) {
+        return "unavailable";
+      }
       const outcome = await read(saleId);
       return outcome.kind === "unavailable" ? "unavailable" : outcome;
     },

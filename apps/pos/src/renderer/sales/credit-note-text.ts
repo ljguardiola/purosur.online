@@ -1,11 +1,8 @@
 import type { ReceiptCopyShown, SaleCreditNote } from "@purosur/contracts";
 import type { NoticeTone, SummaryRowProps } from "@purosur/ui";
 import type { SaleDetailCreditNote } from "../shell/sale-receipt-text";
-import {
-  CREDIT_NOTE_NAME,
-  creditNoteComprobantePresentation,
-  receiptCopyPresentation,
-} from "../shell/sale-receipt-text";
+import { CREDIT_NOTE_NAME, creditNoteComprobantePresentation } from "../shell/sale-receipt-text";
+import { documentNumberText } from "./sale-history-text";
 
 const RETURN_CREDIT_NOTE_NAME = `${CREDIT_NOTE_NAME} de devolución`;
 
@@ -16,8 +13,8 @@ export function creditNoteRow(
   switch (creditNote.kind) {
     case "authorized":
     case "issued_offline": {
-      const { name, detail } = creditNoteComprobantePresentation(creditNote, label);
-      return { label: name, value: detail };
+      const { name } = creditNoteComprobantePresentation(creditNote, label);
+      return { label: name, value: documentNumberText(creditNote) };
     }
     case "in_progress":
       return { label, value: "En trámite con ARCA" };
@@ -44,7 +41,7 @@ function creditNoteNumber(creditNote: SaleCreditNote): string | undefined {
   switch (creditNote.kind) {
     case "authorized":
     case "issued_offline":
-      return creditNoteComprobantePresentation(creditNote).detail;
+      return documentNumberText(creditNote);
     case "in_progress":
     case "rejected":
     case "already_credited":
@@ -59,9 +56,7 @@ export function creditNotePrintButton(
 ): string {
   const number = numbered ? creditNoteNumber(standing) : undefined;
   const document = number === undefined ? "nota de crédito" : `nota de crédito ${number}`;
-  return next_copy.kind === "duplicate"
-    ? `${receiptCopyPresentation(next_copy).printButton} de ${document}`
-    : `Imprimir ${document}`;
+  return next_copy.kind === "duplicate" ? `Reimprimir ${document}` : `Imprimir ${document}`;
 }
 
 type Notice = { tone: NoticeTone; title: string; description: string };

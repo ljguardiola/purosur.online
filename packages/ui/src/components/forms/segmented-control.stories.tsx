@@ -53,6 +53,10 @@ export const NoIcon: Story = {
   },
 };
 
+export const Disabled: Story = {
+  args: { size: "large", disabled: true },
+};
+
 export const UnselectedHovered: Story = {
   play: playHoverSetsDataHovered((canvasElement) => segmentRoot(canvasElement, "Precio nuevo")),
 };

@@ -12,9 +12,11 @@ export type SegmentedControlProps<V extends string> = OptionChoiceProps<
   label: string;
   size?: SegmentedControlSize;
   fullWidth?: boolean;
+  disabled?: boolean;
 };
 
-const containerClassName = "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1";
+const containerClassName =
+  "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1 data-disabled:opacity-disabled";
 
 const containerSizeClassName: Record<SegmentedControlSize, string> = {
   large: "h-control-4xl",
@@ -38,6 +40,7 @@ const optionPaddingClassName = {
 
 const optionClassName =
   "group flex cursor-pointer items-center justify-center rounded-md outline-none " +
+  "data-disabled:cursor-default " +
   "data-hovered:bg-surface-subtle " +
   "data-selected:bg-action-subtle " +
   "data-hovered:data-selected:bg-action-subtle " +
@@ -73,12 +76,14 @@ export function SegmentedControl<V extends string>({
   onChange,
   size = "medium",
   fullWidth = false,
+  disabled = false,
 }: SegmentedControlProps<V>) {
   return (
     <AriaRadioGroup
       aria-label={label}
       orientation="horizontal"
       value={value}
+      isDisabled={disabled}
       onChange={(nextValue) => {
         if (isOptionValue(nextValue, options)) {
           onChange(nextValue);

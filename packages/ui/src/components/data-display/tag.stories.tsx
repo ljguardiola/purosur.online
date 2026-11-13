@@ -50,3 +50,11 @@ export const StatusSuccess: Story = {
 export const Warning: Story = {
   args: { tone: "warning", children: "Contingencia con CAEA" },
 };
+
+export const Failure: Story = {
+  args: { tone: "error", children: "Anulada" },
+};
+
+export const StatusFailure: Story = {
+  args: { tone: "error", variant: "status", children: "Anulada" },
+};

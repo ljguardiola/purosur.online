@@ -38,7 +38,11 @@ export const WithEscape: Story = {
 };
 
 export const ErrorTone: Story = {
-  args: { icon: <Ban />, title: "¿Cancelar la venta?", tone: "error", onClose: () => undefined },
+  args: { icon: <Ban />, title: "Anular venta", tone: "error", onClose: () => {} },
+};
+
+export const WithLock: Story = {
+  args: { icon: <Ban />, title: "Anular venta", locked: true, onClose: () => {} },
 };
 
 export const WithCloseLabel: Story = {
