@@ -799,7 +799,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
     it("lists only completed and voided sales of this register", () => {
       addSale({ id: "voided", state: "VOIDED", deferred: true });
-      addSale({ id: "in-progress", state: "IN_PROGRESS", deferred: true });
+      addSale({ id: "in-progress", state: "OPEN", deferred: true });
       addSale({ id: "elsewhere", register: "r2", deferred: true });
 
       expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("voided")))).toEqual(["voided"]);

@@ -77,7 +77,7 @@ describe("SalesHistoryScreen finding a sale by scanning its ticket", () => {
 
   it("looks in every session when Todas is chosen, as typing does", async () => {
     const { screen, salesHistory, readBarcode } = await renderScreen({ salesHistory: answerScans });
-    await userEvent.click(screen.getByRole("radio", { name: "Todas" }));
+    await userEvent.keyboard("{F3}");
 
     readBarcode(FACTURA_C_QR);
 
