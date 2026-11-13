@@ -64,6 +64,12 @@ describe("FirstSignInEmailStep", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("opens with the email field focused", async () => {
+    const screen = await renderStep(answering(ADA));
+
+    await expect.element(screen.getByRole("textbox", { name: "Correo" })).toHaveFocus();
+  });
+
   it("goes back to the sign-in with Escape", async () => {
     const screen = await renderStep(answering(ADA));
     await userEvent.type(screen.getByRole("textbox", { name: "Correo" }), "ada");

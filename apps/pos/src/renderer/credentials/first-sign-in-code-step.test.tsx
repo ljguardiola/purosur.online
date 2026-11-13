@@ -81,6 +81,12 @@ describe("FirstSignInCodeStep", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("opens with the new PIN focused", async () => {
+    const { screen } = await renderStep();
+
+    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveFocus();
+  });
+
   it("goes back to the sign-in with Escape", async () => {
     const { screen } = await renderStep();
 

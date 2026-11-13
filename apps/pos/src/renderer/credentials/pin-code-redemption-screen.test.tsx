@@ -74,6 +74,19 @@ describe("PinCodeRedemptionScreen", () => {
     await expect.element(screen.getByRole("listitem")).toBeVisible();
   });
 
+  it("opens with the code focused", async () => {
+    const screen = await render(
+      <PinCodeRedemptionScreen
+        loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
+        redeem={answering({ kind: "redeemed" })}
+        version={null}
+      />,
+    );
+
+    await expect.element(code(screen)).toHaveFocus();
+  });
+
   it("goes back to the sign-in with Escape", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen
