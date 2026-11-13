@@ -23,7 +23,7 @@ const disabledClassName = "group-data-disabled:opacity-disabled";
 
 // Drawn with an inset box-shadow rather than a real border, so the box never resizes going from
 // unchecked to checked.
-const boxClassName =
+export const checkboxBoxClassName =
   "inline-flex size-control-2xs shrink-0 items-center justify-center rounded-sm outline-none " +
   "bg-surface inset-ring-2 inset-ring-border-strong " +
   "group-data-hovered:bg-surface-subtle " +
@@ -34,7 +34,7 @@ const boxClassName =
   "group-data-focus-visible:focus-ring " +
   disabledClassName;
 
-const checkIconClassName = "size-icon-sm text-text-inverse";
+export const checkboxCheckIconClassName = "size-icon-sm text-text-inverse";
 
 export function Checkbox({
   name,
@@ -60,8 +60,8 @@ export function Checkbox({
         ? { "aria-labelledby": contentId, "aria-describedby": descriptionId }
         : {})}
     >
-      <span aria-hidden="true" className={boxClassName}>
-        {checked ? <Check className={checkIconClassName} /> : null}
+      <span aria-hidden="true" className={checkboxBoxClassName}>
+        {checked ? <Check className={checkboxCheckIconClassName} /> : null}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span id={contentId} className={disabledClassName}>

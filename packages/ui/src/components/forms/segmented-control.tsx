@@ -4,6 +4,7 @@ import { ReservedWidthLabel } from "../shared/reserved-width-label";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 
 export type SegmentedControlSize = "large" | "medium";
+type SegmentedControlVariant = "outlined" | "field";
 
 export type SegmentedControlProps<V extends string> = OptionChoiceProps<
   V,
@@ -11,12 +12,16 @@ export type SegmentedControlProps<V extends string> = OptionChoiceProps<
 > & {
   label: string;
   size?: SegmentedControlSize;
+  variant?: SegmentedControlVariant;
   fullWidth?: boolean;
   disabled?: boolean;
 };
 
 const containerClassName =
   "flex flex-row items-stretch gap-1 rounded-lg border border-border p-1 data-disabled:opacity-disabled";
+
+const fieldContainerClassName =
+  "flex w-full flex-row items-stretch gap-1 rounded-lg bg-surface-soft p-1 data-disabled:opacity-disabled";
 
 const containerSizeClassName: Record<SegmentedControlSize, string> = {
   large: "h-control-4xl",
@@ -46,18 +51,29 @@ const optionClassName =
   "data-hovered:data-selected:bg-action-subtle " +
   "data-focus-visible:focus-ring";
 
+const fieldOptionClassName =
+  "group flex cursor-pointer items-center justify-center rounded-md outline-none " +
+  "data-disabled:cursor-default " +
+  "data-selected:bg-surface " +
+  "data-focus-visible:focus-ring";
+
 function SegmentedOption<V extends string>({
   value,
   label,
   icon,
   size,
+  variant,
   fullWidth,
-}: NarrowedOption<V, never, "icon"> & { size: SegmentedControlSize; fullWidth: boolean }) {
+}: NarrowedOption<V, never, "icon"> & {
+  size: SegmentedControlSize;
+  variant: SegmentedControlVariant;
+  fullWidth: boolean;
+}) {
   return (
     <AriaRadio
       value={value}
       aria-label={label}
-      className={`${optionClassName} ${sizeClassName[size]} ${optionPaddingClassName[fullWidth ? "fullWidth" : "content"]}`}
+      className={`${variant === "field" ? fieldOptionClassName : optionClassName} ${sizeClassName[size]} ${optionPaddingClassName[fullWidth || variant === "field" ? "fullWidth" : "content"]}`}
     >
       {icon ? (
         <span aria-hidden="true" className={iconWrapperClassName[size]}>
@@ -75,10 +91,11 @@ export function SegmentedControl<V extends string>({
   value,
   onChange,
   size = "medium",
+  variant = "outlined",
   fullWidth = false,
   disabled = false,
 }: SegmentedControlProps<V>) {
-  return (
+  const group = (
     <AriaRadioGroup
       aria-label={label}
       orientation="horizontal"
@@ -89,11 +106,32 @@ export function SegmentedControl<V extends string>({
           onChange(nextValue);
         }
       }}
-      className={`${containerClassName} ${fullWidth ? "w-full" : "w-fit"} ${containerSizeClassName[size]}`}
+      className={
+        variant === "field"
+          ? `${fieldContainerClassName} ${containerSizeClassName[size]}`
+          : `${containerClassName} ${fullWidth ? "w-full" : "w-fit"} ${containerSizeClassName[size]}`
+      }
     >
       {options.map((option) => (
-        <SegmentedOption key={option.value} {...option} size={size} fullWidth={fullWidth} />
+        <SegmentedOption
+          key={option.value}
+          {...option}
+          size={size}
+          variant={variant}
+          fullWidth={fullWidth}
+        />
       ))}
     </AriaRadioGroup>
+  );
+  if (variant === "outlined") {
+    return group;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <span aria-hidden="true" className="text-caption font-bold uppercase text-text-eyebrow">
+        {label}
+      </span>
+      {group}
+    </div>
   );
 }
