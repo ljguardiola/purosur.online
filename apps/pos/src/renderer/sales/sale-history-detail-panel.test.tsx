@@ -162,9 +162,57 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(panel.getByText("Point débito")).toBeVisible();
   });
 
-  it("says a deferred sale's document is not fiscal", async () => {
+  describe("a deferred sale", () => {
+    const deferredDetail = { ...DETAIL, state: "deferred" } as const;
+
+    it("shows its time, total, day and time of sale, comprobante and number of articles", async () => {
+      const { panel } = await renderPanel({
+        detail: found({
+          ...deferredDetail,
+          lines: [...DETAIL.lines, ...DETAIL.lines, ...DETAIL.lines],
+        }),
+      });
+
+      await expect.element(panel.getByText("VENTA · 11:42")).toBeVisible();
+      await expect.element(panel.getByText("$ 50.700,00").first()).toBeVisible();
+      await expect.element(panel.getByText("Venta del", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("09/10 · 11:42", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("Comprobante", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("Factura C · 00003-00001248")).toBeVisible();
+      await expect.element(panel.getByText("Artículos", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("3", { exact: true })).toBeVisible();
+    });
+
+    it("shows no payments, rounding, attendant or product list", async () => {
+      const { panel } = await renderPanel({
+        detail: found({
+          ...deferredDetail,
+          cash_rounding: 9_250,
+          short_code: "ABCD1234",
+        }),
+      });
+
+      await expect.element(panel.getByText("Venta del", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("Efectivo")).not.toBeInTheDocument();
+      await expect.element(panel.getByText("Redondeo")).not.toBeInTheDocument();
+      await expect.element(panel.getByText("Atendió")).not.toBeInTheDocument();
+      await expect.element(panel.getByText("PRODUCTOS")).not.toBeInTheDocument();
+      await expect.element(panel.getByText("Almendras peladas")).not.toBeInTheDocument();
+    });
+
+    it("says its document is not fiscal while it has no number", async () => {
+      const { panel } = await renderPanel({
+        detail: found({ ...deferredDetail, comprobante: { kind: "deferred_non_fiscal" } }),
+      });
+
+      await expect.element(panel.getByText("Comprobante", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("Documento no fiscal")).toBeVisible();
+    });
+  });
+
+  it("says a non-fiscal document's detail when the sale is not deferred", async () => {
     const { panel } = await renderPanel({
-      detail: found({ ...DETAIL, comprobante: { kind: "deferred_non_fiscal" }, state: "deferred" }),
+      detail: found({ ...DETAIL, comprobante: { kind: "deferred_non_fiscal" } }),
     });
 
     await expect.element(panel.getByText("Documento no fiscal")).toBeVisible();

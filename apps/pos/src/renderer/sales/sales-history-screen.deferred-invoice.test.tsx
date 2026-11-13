@@ -31,6 +31,18 @@ async function renderDeferred(options: Parameters<typeof renderScreen>[0] = {}) 
 }
 
 describe("SalesHistoryScreen invoice of a deferred sale", () => {
+  it("shows the sale's day, comprobante and articles and not who served it", async () => {
+    const { screen } = await renderDeferred();
+
+    await userEvent.type(searchField(screen), "0003-00000187");
+
+    const panel = detailPanel(screen);
+    await expect.element(panel.getByText("Venta del", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Comprobante", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Artículos", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("Atendió")).not.toBeInTheDocument();
+  });
+
   it("has the Imprimir factura button with the Enter key and no reprint", async () => {
     const { screen } = await renderDeferred();
 
