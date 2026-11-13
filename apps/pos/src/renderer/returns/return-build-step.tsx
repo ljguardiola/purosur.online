@@ -7,11 +7,9 @@ import {
   formatCents,
   formatInvoiceNumber,
   formatPointOfSaleNumber,
-  InlineNotice,
-  MethodRefundTable,
   SearchField,
 } from "@purosur/ui";
-import { CircleX, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
@@ -36,19 +34,18 @@ import {
   uncheckLine,
 } from "./return-form";
 import { ReturnLinePanel } from "./return-line-panel";
-import type { ReturnLineRow } from "./return-lines-table";
 import { ReturnLinesTable } from "./return-lines-table";
 import { ReturnRefundsPanel } from "./return-refunds-panel";
+import { ReturnRefundsTable } from "./return-refunds-table";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import { ReturnSummaryPanel } from "./return-summary-panel";
 import {
   lineRefusalNotice,
   quantityText,
   REFUND_WHEN_IN_ROW,
-  REFUND_WHEN_IN_TABLE,
   refundRefusalText,
 } from "./return-text";
-import { usePreviewReturnQuery } from "./returns-queries";
+import { useReturnDraftPreviewQuery } from "./returns-queries";
 
 const COMPLETE_FAILED = "No se pudo completar la devolución. Probá de nuevo.";
 const SALE_GONE = "Esa venta ya no se puede devolver.";
@@ -111,12 +108,7 @@ export function ReturnBuildStep({
   const sending = useRef(false);
 
   const lines = draftLinesFor(sale, draft);
-  const preview = usePreviewReturnQuery({
-    saleId: sale.sale_id,
-    lines,
-    preview: previewReturn,
-    enabled: lines.length > 0,
-  });
+  const preview = useReturnDraftPreviewQuery({ sale, draft, preview: previewReturn });
   const answered = lines.length > 0 && preview.status === "loaded" ? preview.value : undefined;
   const previewed = answered?.kind === "previewed" ? answered : undefined;
   const previewRefreshing = preview.status === "loaded" && preview.refreshing;
@@ -144,18 +136,6 @@ export function ReturnBuildStep({
     !previewRefreshing &&
     firstRefusal === undefined &&
     !needsVerification;
-
-  const rows: ReturnLineRow[] = sale.lines.map((line) => {
-    const drafted = lines.find(({ sale_line_id: id }) => id === line.id);
-    const previewedLine = ownEntry(previewedLines, line.id);
-    return {
-      line,
-      marked: drafted !== undefined,
-      quantity: drafted?.quantity,
-      refund: previewedLine?.refund_amount,
-      refused: previewedLine?.refusal != null,
-    };
-  });
 
   const paymentRows = refundsOf(refundTexts).flatMap(({ payment_id: paymentId, amount }) => {
     const payment = sale.payments.find((candidate) => candidate.payment_id === paymentId);
@@ -426,13 +406,6 @@ export function ReturnBuildStep({
     sale.invoice === null
       ? ""
       : `${formatPointOfSaleNumber(sale.invoice.point_of_sale)}-${formatInvoiceNumber(sale.invoice.number)}`;
-  const refundRows = eligiblePayments.map(({ payment, text }) => ({
-    id: payment.payment_id,
-    method: paidPaymentName(payment.method, payment.card_type),
-    when: REFUND_WHEN_IN_TABLE[payment.refund_state],
-    amount: text,
-  }));
-
   return (
     <RegisterFrame
       background="subtle"
@@ -488,24 +461,21 @@ export function ReturnBuildStep({
           disabled={mode.kind === "refunds"}
         />
         {mode.kind === "refunds" ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <MethodRefundTable
-              aria-label="Reintegro por medio de pago"
-              headers={{ method: "Medio", when: "Cuándo", amount: "Reintegro" }}
-              amountPrefix="$"
-              rows={refundRows}
-              selectedIndex={Math.min(selectedRefund, refundRows.length - 1)}
-              onSelect={setSelectedRefund}
-              onAmountChange={(id, amount) => setRefundEdits({ ...refundEdits, [id]: amount })}
-              legend={refundLegend}
-            />
-            {notice === undefined ? null : (
-              <InlineNotice tone="error" icon={<CircleX />} title={notice} />
-            )}
-          </div>
+          <ReturnRefundsTable
+            sale={sale}
+            refundableTotal={refundableTotal}
+            refundEdits={refundEdits}
+            selectedIndex={selectedRefund}
+            legend={refundLegend}
+            notice={notice}
+            onSelect={setSelectedRefund}
+            onAmountChange={(id, amount) => setRefundEdits({ ...refundEdits, [id]: amount })}
+          />
         ) : (
           <ReturnLinesTable
-            rows={rows}
+            sale={sale}
+            draft={draft}
+            previewed={previewed}
             selectedLineId={selectedLineId}
             legend={mode.kind === "edit" ? EDIT_LEGEND : legend}
             onSelect={setSelectedLineId}

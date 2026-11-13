@@ -2,6 +2,9 @@ import type { PreviewReturnOutcome, ReturnDraftLineBody } from "@purosur/contrac
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions } from "../platform/use-core-query";
+import type { ReturnDraft } from "./return-form";
+import { draftLinesFor } from "./return-form";
+import type { SaleForReturn } from "./return-sale";
 
 const returnsKey = ["returns"] as const;
 
@@ -45,4 +48,22 @@ export function usePreviewReturnQuery({
     };
   }
   return { status: "loading" };
+}
+
+export function useReturnDraftPreviewQuery({
+  sale,
+  draft,
+  preview,
+}: {
+  sale: SaleForReturn;
+  draft: ReturnDraft;
+  preview: (saleId: string, lines: readonly ReturnDraftLineBody[]) => Promise<PreviewReturnOutcome>;
+}): CoreData<ShownReturnPreview> {
+  const lines = draftLinesFor(sale, draft);
+  return usePreviewReturnQuery({
+    saleId: sale.sale_id,
+    lines,
+    preview,
+    enabled: lines.length > 0,
+  });
 }

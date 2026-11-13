@@ -2,15 +2,41 @@ import { tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { changeLine, checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
 import type { ReturnLinesTableProps } from "./return-lines-table";
 import { ReturnLinesTable } from "./return-lines-table";
-import { NIBS, PASTA, TEA } from "./test-support/sale-for-return";
+import { NIBS, PASTA, SALE, TEA } from "./test-support/sale-for-return";
 
-const ROWS: ReturnLinesTableProps["rows"] = [
-  { line: PASTA, marked: true, quantity: 3, refund: 970_000, refused: false },
-  { line: NIBS, marked: true, quantity: 400, refund: null, refused: true },
-  { line: TEA, marked: false, quantity: undefined, refund: undefined, refused: false },
-];
+const SALE_OF_THREE = { ...SALE, lines: [PASTA, NIBS, TEA] };
+
+const DRAFT = changeLine(checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), NIBS), NIBS.id, {
+  quantity: "0,400",
+});
+
+const PREVIEWED: ReturnLinesTableProps["previewed"] = {
+  kind: "previewed",
+  lines: [
+    {
+      sale_line_id: PASTA.id,
+      quantity: 3,
+      reason: "change_of_mind",
+      disposition: "restock",
+      resolution: "refund",
+      refusal: null,
+      refund_amount: 970_000,
+    },
+    {
+      sale_line_id: NIBS.id,
+      quantity: 400,
+      reason: "change_of_mind",
+      disposition: "restock",
+      resolution: "refund",
+      refusal: { kind: "quantity_exceeds_returnable", returnable: 350 },
+      refund_amount: null,
+    },
+  ],
+  refundable_total: 970_000,
+};
 
 async function renderTable(overrides: Partial<ReturnLinesTableProps> = {}) {
   await page.viewport(1366, 768);
@@ -20,7 +46,9 @@ async function renderTable(overrides: Partial<ReturnLinesTableProps> = {}) {
   const screen = await render(
     <div className="h-screen">
       <ReturnLinesTable
-        rows={ROWS}
+        sale={SALE_OF_THREE}
+        draft={DRAFT}
+        previewed={PREVIEWED}
         selectedLineId={PASTA.id}
         legend={[{ keyName: "Space", label: "Marcar" }]}
         onSelect={onSelect}
@@ -88,7 +116,12 @@ describe("ReturnLinesTable", () => {
   });
 
   it("says there are no sales when it has no row", async () => {
-    const { screen } = await renderTable({ rows: [], selectedLineId: undefined });
+    const { screen } = await renderTable({
+      sale: undefined,
+      draft: EMPTY_RETURN_DRAFT,
+      previewed: undefined,
+      selectedLineId: undefined,
+    });
 
     await expect.element(screen.getByText("Sin ventas")).toBeVisible();
   });

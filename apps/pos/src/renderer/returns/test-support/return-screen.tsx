@@ -27,7 +27,7 @@ const CASHIER: ReturnScreenProps["person"] = {
   abilities: ["view_sales_history"],
 };
 
-export function previewOf(lines: readonly ReturnDraftLineBody[]): PreviewReturnOutcome {
+function previewOf(lines: readonly ReturnDraftLineBody[]): PreviewReturnOutcome {
   const previewed = lines.map((line) => {
     const sold = SALE.lines.find(({ id }) => id === line.sale_line_id);
     const refusal =

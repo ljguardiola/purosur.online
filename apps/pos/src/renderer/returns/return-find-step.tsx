@@ -16,6 +16,7 @@ import { AuthorizationModal } from "../shell/authorization-modal";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
+import { EMPTY_RETURN_DRAFT } from "./return-form";
 import { ReturnLinesTable } from "./return-lines-table";
 import { ReturnPanelFigure } from "./return-panel-figure";
 import type { SaleForReturn } from "./return-sale";
@@ -208,7 +209,9 @@ export function ReturnFindStep({
           />
         </div>
         <ReturnLinesTable
-          rows={[]}
+          sale={undefined}
+          draft={EMPTY_RETURN_DRAFT}
+          previewed={undefined}
           selectedLineId={undefined}
           legend={legend}
           footer={

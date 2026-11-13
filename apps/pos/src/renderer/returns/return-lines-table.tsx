@@ -1,3 +1,4 @@
+import type { PreviewReturnOutcome } from "@purosur/contracts";
 import type { EmptyStateProps } from "@purosur/ui";
 import {
   Checkbox,
@@ -10,10 +11,14 @@ import {
 import { Receipt } from "lucide-react";
 import type { ReactNode } from "react";
 import type { LegendItem } from "../platform/key-layer";
-import type { SaleLineForReturn } from "./return-sale";
+import type { ReturnDraft } from "./return-form";
+import { draftLinesFor } from "./return-form";
+import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import { quantityText } from "./return-text";
 
-export type ReturnLineRow = {
+type PreviewedReturn = Extract<PreviewReturnOutcome, { kind: "previewed" }>;
+
+type ReturnLineRow = {
   line: SaleLineForReturn;
   marked: boolean;
   quantity: number | undefined;
@@ -22,7 +27,9 @@ export type ReturnLineRow = {
 };
 
 export type ReturnLinesTableProps = {
-  rows: readonly ReturnLineRow[];
+  sale: SaleForReturn | undefined;
+  draft: ReturnDraft;
+  previewed: PreviewedReturn | undefined;
   selectedLineId: string | undefined;
   legend: readonly LegendItem[];
   footer?: ReactNode;
@@ -40,7 +47,9 @@ const NO_SALE: EmptyStateProps = { variant: "blank", icon: <Receipt />, title: "
 const NOT_SHOWN = "—";
 
 export function ReturnLinesTable({
-  rows,
+  sale,
+  draft,
+  previewed,
   selectedLineId,
   legend,
   footer,
@@ -109,6 +118,18 @@ export function ReturnLinesTable({
       },
     }),
   ] as const;
+  const drafted = sale === undefined ? [] : draftLinesFor(sale, draft);
+  const rows: ReturnLineRow[] = (sale?.lines ?? []).map((line) => {
+    const quantity = drafted.find(({ sale_line_id: id }) => id === line.id)?.quantity;
+    const previewedLine = previewed?.lines.find(({ sale_line_id: id }) => id === line.id);
+    return {
+      line,
+      marked: quantity !== undefined,
+      quantity,
+      refund: previewedLine?.refund_amount,
+      refused: previewedLine?.refusal != null,
+    };
+  });
   const table = useTableModel({ items: rows, id: ({ line }) => line.id, columns });
 
   return (
