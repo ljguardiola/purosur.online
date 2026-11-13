@@ -1,4 +1,4 @@
-import type { OpenSale } from "@purosur/contracts";
+import type { OpenSale, PaymentMethodAvailability } from "@purosur/contracts";
 import type { LoadStatus, SummaryRowProps } from "@purosur/ui";
 import {
   Button,
@@ -42,6 +42,7 @@ export type PaymentPanelProps = {
   paidOrderToApply:
     | Pick<NonNullable<OpenSale["rebuilt_paid_order"]>, "method" | "amount">
     | undefined;
+  availability: Pick<PaymentMethodAvailability, "qr" | "point" | "point_minimum"> | undefined;
   canCharge: boolean;
   canCancel: boolean;
   canDiscount: boolean;
@@ -81,6 +82,7 @@ export function PaymentPanel({
   hasApprovedPayment,
   chargeRefusal,
   paidOrderToApply,
+  availability,
   canCharge,
   canCancel,
   canDiscount,
@@ -90,6 +92,8 @@ export function PaymentPanel({
   onCancel,
 }: PaymentPanelProps) {
   const isZeroTotal = lineCount > 0 && total === 0;
+  const pointBelowMinimum = availability?.point === "below_minimum";
+  const qrBelowMinimum = availability?.qr === "below_minimum";
   const saleRows: SummaryRowProps[] = [
     ...(promotionSavings > 0 || saleDiscount !== null
       ? [{ label: "Subtotal", value: formatCents(grossSubtotal) }]
@@ -164,6 +168,13 @@ export function PaymentPanel({
         />
       ) : null}
       {paidOrderToApply === undefined ? null : <PaidOrderNotice paidOrder={paidOrderToApply} />}
+      {pointBelowMinimum && availability !== undefined ? (
+        <InlineNotice
+          tone="warning"
+          icon={<CreditCard />}
+          title={`Point: no se ofrece para cobrar menos de ${formatCents(availability.point_minimum)}`}
+        />
+      ) : null}
       <div className="mt-auto flex flex-col gap-3">
         {paidOrderToApply === undefined ? (
           <>
@@ -189,21 +200,21 @@ export function PaymentPanel({
                 label="Point débito"
                 icon={<CreditCard />}
                 keyName="F9"
-                disabled={!canCharge}
+                disabled={!canCharge || pointBelowMinimum}
                 onPress={() => onCharge("POINT_DEBIT")}
               />
               <KeyTile
                 label="Point crédito"
                 icon={<CreditCard />}
                 keyName="F10"
-                disabled={!canCharge}
+                disabled={!canCharge || pointBelowMinimum}
                 onPress={() => onCharge("POINT_CREDIT")}
               />
               <KeyTile
                 label="QR"
                 icon={<QrCode />}
                 keyName="F11"
-                disabled={!canCharge}
+                disabled={!canCharge || qrBelowMinimum}
                 onPress={() => onCharge("QR")}
               />
             </div>

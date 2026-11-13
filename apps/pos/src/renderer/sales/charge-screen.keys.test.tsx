@@ -142,7 +142,9 @@ describe("ChargeScreen · combined payment by keys", () => {
 
     await userEvent.keyboard("{F9}");
 
-    await expect.element(screen.getByText(/Point · Débito/i)).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro con Point débito" }))
+      .toBeVisible();
   });
 
   it("opens the terminal by credit with F10", async () => {
@@ -150,7 +152,9 @@ describe("ChargeScreen · combined payment by keys", () => {
 
     await userEvent.keyboard("{F10}");
 
-    await expect.element(screen.getByText(/Point · Crédito/i)).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Cobro con Point crédito" }))
+      .toBeVisible();
   });
 
   it("opens the QR with F11", async () => {

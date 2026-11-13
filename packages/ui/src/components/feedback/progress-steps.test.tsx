@@ -1,5 +1,4 @@
 import { expect, expectTypeOf, test } from "vitest";
-import { cdp } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
@@ -61,7 +60,7 @@ test("shows a detail under the label when the step has one", async () => {
   expect(style.color).toBe(tokenRgb("text-subtle"));
 });
 
-test("writes labels at 16px: bold when current, normal when done, subtle when upcoming", async () => {
+test("writes every label at 16px, regular weight and in the text color", async () => {
   const screen = await render(<ProgressSteps steps={steps} />);
   const done = getComputedStyle(screen.getByText("Orden creada").element());
   const current = getComputedStyle(screen.getByText("Esperando que el cliente pague").element());
@@ -71,9 +70,10 @@ test("writes labels at 16px: bold when current, normal when done, subtle when up
   expect(done.fontWeight).toBe("400");
   expect(done.color).toBe(tokenRgb("text"));
   expect(current.fontSize).toBe("16px");
-  expect(current.fontWeight).toBe("700");
+  expect(current.fontWeight).toBe("400");
+  expect(current.color).toBe(tokenRgb("text"));
   expect(upcoming.fontWeight).toBe("400");
-  expect(upcoming.color).toBe(tokenRgb("text-subtle"));
+  expect(upcoming.color).toBe(tokenRgb("text"));
 });
 
 test("draws a 24px round marker for each step, 12px from the texts", async () => {
@@ -89,24 +89,27 @@ test("draws a 24px round marker for each step, 12px from the texts", async () =>
   }
 });
 
-test("fills a done marker green with a white check", async () => {
+test("fills a done marker dark green with a white check", async () => {
   const screen = await render(<ProgressSteps steps={steps} />);
   const el = marker(screen.container, 0);
   const icon = el.querySelector("svg") as SVGElement;
 
-  expect(getComputedStyle(el).backgroundColor).toBe(tokenRgb("success"));
+  expect(getComputedStyle(el).backgroundColor).toBe(tokenRgb("success-strong"));
   expect(getComputedStyle(icon).color).toBe(tokenRgb("text-inverse"));
   expect(icon.getAttribute("aria-hidden")).toBe("true");
 });
 
-test("fills the current marker blue with a white loader", async () => {
+test("draws the current marker as a ring around a filled dot, with no spinner", async () => {
   const screen = await render(<ProgressSteps steps={steps} />);
   const el = marker(screen.container, 1);
-  const icon = el.querySelector("svg") as SVGElement;
+  const style = getComputedStyle(el);
+  const dot = el.querySelector("[data-dot]") as HTMLElement;
 
-  expect(getComputedStyle(el).backgroundColor).toBe(tokenRgb("info"));
-  expect(getComputedStyle(icon).color).toBe(tokenRgb("text-inverse"));
-  expect(getComputedStyle(icon).animationName).not.toBe("none");
+  expect(style.borderTopWidth).toBe("2px");
+  expect(style.borderTopColor).toBe(tokenRgb("info-strong"));
+  expect(el.querySelector("svg")).toBeNull();
+  expect(getComputedStyle(dot).backgroundColor).toBe(tokenRgb("info-strong"));
+  expect(dot.getBoundingClientRect().width).toBe(10);
 });
 
 const failedSteps: ProgressStepsProps["steps"] = [
@@ -142,22 +145,6 @@ test("has no accessibility violations with a failed step", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("stops the loader from moving when the system asks for reduced motion", async () => {
-  const session = cdp();
-  await session.send("Emulation.setEmulatedMedia", {
-    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
-  });
-
-  try {
-    const screen = await render(<ProgressSteps steps={steps} />);
-    const icon = marker(screen.container, 1).querySelector("svg") as SVGElement;
-
-    await expect.poll(() => getComputedStyle(icon).animationName).toBe("none");
-  } finally {
-    await session.send("Emulation.setEmulatedMedia", { features: [] });
-  }
-});
-
 test("draws an upcoming marker as a white circle with a 2px border and no icon", async () => {
   const screen = await render(<ProgressSteps steps={steps} />);
   const el = marker(screen.container, 2);
@@ -169,19 +156,23 @@ test("draws an upcoming marker as a white circle with a 2px border and no icon",
   expect(el.querySelector("svg")).toBeNull();
 });
 
-test("joins steps with a 2px connector in the border color, except after the last", async () => {
-  const screen = await render(<ProgressSteps steps={steps} />);
+test("draws no connector and keeps rows 34px apart", async () => {
+  const screen = await render(
+    <ProgressSteps
+      steps={[
+        { id: "a", label: "Uno", state: "done" },
+        { id: "b", label: "Dos", state: "current" },
+        { id: "c", label: "Tres", state: "upcoming" },
+      ]}
+    />,
+  );
+  const [first = 0, second = 0, third = 0] = [0, 1, 2].map(
+    (index) => item(screen.container, index).getBoundingClientRect().top,
+  );
 
-  for (const index of [0, 1]) {
-    const connector = item(screen.container, index).querySelector(
-      "[data-connector]",
-    ) as HTMLElement;
-    const rect = connector.getBoundingClientRect();
-    expect(rect.width).toBe(2);
-    expect(rect.height).toBeGreaterThan(0);
-    expect(getComputedStyle(connector).backgroundColor).toBe(tokenRgb("border"));
-  }
-  expect(item(screen.container, 2).querySelector("[data-connector]")).toBeNull();
+  expect(screen.container.querySelector("[data-connector]")).toBeNull();
+  expect(second - first).toBe(34);
+  expect(third - second).toBe(34);
 });
 
 test("shows every step done", async () => {
