@@ -35,6 +35,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -192,6 +193,7 @@ export interface RendererRequestDeps {
         confirmedWeightThousandths: number | null,
       ) => Promise<WeighProductOutcome>)
     | undefined;
+  readScale: (() => Promise<LiveScaleReadingOutcome>) | undefined;
   weighLine:
     | ((
         lineId: string,
@@ -1542,6 +1544,23 @@ export async function answerRendererRequest(
             (() => weighProduct(message.product_id, message.confirmed_weight_thousandths)),
         ),
       };
+    }
+    case "read-scale": {
+      const { readScale } = deps;
+      try {
+        return {
+          type: "read-scale-result",
+          request_id: message.request_id,
+          outcome: (await readScale?.()) ?? { kind: "no_reading" },
+        };
+      } catch (error) {
+        deps.reportFailure("reading the scale", error);
+        return {
+          type: "read-scale-result",
+          request_id: message.request_id,
+          outcome: { kind: "no_reading" },
+        };
+      }
     }
     case "weigh-line": {
       const { weighLine } = deps;

@@ -202,6 +202,7 @@ import {
   nonCashChargeFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
+  readScaleFor,
   rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
   scanProductFor,
@@ -1623,6 +1624,14 @@ const rendererRequestDeps: RendererRequestDeps = {
             productId,
             confirmedWeightThousandths,
           ),
+  readScale: () =>
+    readScaleFor({
+      scale: systelScale,
+      scaleStanding: () =>
+        serialDeviceWatch
+          ? readStanding(serialDeviceWatch.reading(), "scale")
+          : { kind: "unknown" },
+    }),
   weighLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
