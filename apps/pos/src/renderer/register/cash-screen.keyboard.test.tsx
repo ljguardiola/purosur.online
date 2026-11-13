@@ -49,6 +49,17 @@ describe("CashScreen recording movements from the keyboard", () => {
     expect(screen.router.state.location.pathname).not.toBe("/cash-count");
   });
 
+  it("shows no Tab legend under the table while the close panel is open", async () => {
+    const screen = await renderScreen();
+    await userEvent.keyboard("{F12}");
+    await expect.element(screen.getByRole("textbox", { name: "Contado" })).toHaveFocus();
+
+    const legend = Array.from(screen.container.querySelectorAll("main ul li")).map(
+      (item) => item.textContent,
+    );
+    expect(legend).not.toContain("TabCampo");
+  });
+
   it("opens the close panel when Cerrar caja is pressed", async () => {
     const screen = await renderScreen();
 
