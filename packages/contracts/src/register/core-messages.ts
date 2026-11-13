@@ -219,6 +219,8 @@ const cashSessionClosingOutcomeSchema = z.discriminatedUnion("kind", [
       expected_cash: z.number(),
       counted_cash: z.number(),
       difference: z.number(),
+      opened_at: z.string(),
+      closed_at: z.string(),
     }),
   }),
   z.object({ kind: z.literal("invalid_counted_cash") }),
