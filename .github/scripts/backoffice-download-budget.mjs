@@ -116,7 +116,7 @@ export function measureDownload(distDir) {
   return { entry, total, missing };
 }
 
-function holdsExactlyTheMeasures(budget) {
+export function holdsExactlyTheMeasures(budget) {
   if (typeof budget !== "object" || budget === null || Array.isArray(budget)) return false;
   return (
     Object.keys(budget).length === MEASURES.length &&
