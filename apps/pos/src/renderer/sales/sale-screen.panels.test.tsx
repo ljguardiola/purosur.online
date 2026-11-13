@@ -100,6 +100,21 @@ describe("SaleScreen opening the panels with F6, F7 and F8", () => {
     await expect.element(panelNamed(screen, CANCEL_SALE)).toBeVisible();
   });
 
+  it("shows no lock reason by itself after the cancellation panel of a paid sale closes", async () => {
+    const { screen, field } = await renderScreen({ currentSale: async () => PAID_SALE });
+    await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
+    await userEvent.keyboard("{F8}");
+    await expect.element(panelNamed(screen, CANCEL_SALE)).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(panelNamed(screen, CANCEL_SALE)).not.toBeInTheDocument();
+    await expect.element(field).not.toHaveFocus();
+    await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+    await userEvent.keyboard("{F8}");
+    await expect.element(panelNamed(screen, CANCEL_SALE)).toBeVisible();
+  });
+
   it("offers no F8 and opens nothing on it when the sale has no lines", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => ({
