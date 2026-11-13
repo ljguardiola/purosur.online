@@ -401,3 +401,85 @@ test("cannot widen V through `value` at a real call site with no explicit type a
   });
   expectTypeOf(invalidCall).toEqualTypeOf<false>();
 });
+
+function fieldProps(overrides: Partial<SegmentedControlProps<EntryMode>> = {}) {
+  return baseProps({ variant: "field", ...overrides });
+}
+
+test("shows the label of a field variant above the group, as an uppercase eyebrow", async () => {
+  const screen = await render(<SegmentedControl {...fieldProps()} />);
+
+  const caption = screen.getByText("Entry mode").element() as HTMLElement;
+  const container = segmentContainer(screen, "Entry mode");
+  expect(caption.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    container.getBoundingClientRect().top,
+  );
+  const style = getComputedStyle(caption);
+  expect(style.textTransform).toBe("uppercase");
+  expect(style.color).toBe(tokenRgb("text-eyebrow"));
+  expect(style.fontWeight).toBe("700");
+});
+
+test("keeps the group named by its label when the field variant shows it", async () => {
+  const screen = await render(<SegmentedControl {...fieldProps()} />);
+
+  await expect.element(screen.getByRole("radiogroup", { name: "Entry mode" })).toBeVisible();
+  expect(screen.getByRole("radio").elements()).toHaveLength(2);
+});
+
+test("does not show the label of the default variant", async () => {
+  const screen = await render(<SegmentedControl {...baseProps()} />);
+
+  expect(screen.getByText("Entry mode").elements()).toHaveLength(0);
+});
+
+test("fills the width of its container with equal options on a bone track with no border", async () => {
+  const screen = await render(
+    <div style={{ width: 400 }}>
+      <SegmentedControl {...fieldProps()} />
+    </div>,
+  );
+  const container = segmentContainer(screen, "Entry mode");
+  const style = getComputedStyle(container);
+
+  expect(container.getBoundingClientRect().width).toBeCloseTo(400, 0);
+  expect(style.backgroundColor).toBe(tokenRgb("surface-soft"));
+  expect(style.borderTopWidth).toBe("0px");
+  const first = segmentOption(screen, "Discount").getBoundingClientRect().width;
+  const second = segmentOption(screen, "New price").getBoundingClientRect().width;
+  expect(first).toBeCloseTo(second, 0);
+});
+
+test("marks the chosen option of the field variant as a white pill with a bold label", async () => {
+  const screen = await render(<SegmentedControl {...fieldProps()} />);
+
+  expect(getComputedStyle(segmentOption(screen, "Discount")).backgroundColor).toBe(
+    tokenRgb("surface"),
+  );
+  expect(getComputedStyle(segmentOption(screen, "New price")).backgroundColor).toBe(
+    "rgba(0, 0, 0, 0)",
+  );
+  expect(getComputedStyle(segmentLabelText(screen, "Discount")).fontWeight).toBe("700");
+  expect(getComputedStyle(segmentLabelText(screen, "New price")).fontWeight).toBe("400");
+});
+
+test("moves the choice of the field variant with the arrow keys and is one tab stop", async () => {
+  const onChange = vi.fn();
+  const screen = await render(
+    <>
+      <button type="button">Before</button>
+      <SegmentedControl {...fieldProps({ onChange })} />
+      <button type="button">After</button>
+    </>,
+  );
+
+  await userEvent.tab();
+  await userEvent.tab();
+  expect(document.activeElement).toBe(segmentInput(screen, "Discount"));
+  await userEvent.keyboard("{ArrowRight}");
+  expect(onChange).toHaveBeenLastCalledWith("newPrice");
+  await userEvent.tab();
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "After" }).element());
+
+  await expectNoAccessibilityViolations(screen.container);
+});

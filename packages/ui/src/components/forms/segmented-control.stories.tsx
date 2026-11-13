@@ -53,6 +53,35 @@ export const NoIcon: Story = {
   },
 };
 
+const returnReasonOptions: [Option<EntryMode>, Option<EntryMode>] = [
+  { value: "discount", label: "Arrepentimiento" },
+  { value: "newPrice", label: "Defecto" },
+];
+
+export const Field: Story = {
+  args: { variant: "field", label: "Motivo", options: returnReasonOptions },
+  decorators: [
+    (Story) => (
+      <div className="w-88">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+export const FieldSecondChosen: Story = {
+  ...Field,
+  args: { ...Field.args, value: "newPrice" },
+};
+
+export const FieldFocusVisible: Story = {
+  ...Field,
+  play: playTabReachesFocusVisible(
+    (canvasElement) => segmentInput(canvasElement, "Arrepentimiento"),
+    (canvasElement) => segmentRoot(canvasElement, "Arrepentimiento"),
+  ),
+};
+
 export const Disabled: Story = {
   args: { size: "large", disabled: true },
 };
