@@ -26,7 +26,7 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
 
     await openReturn(screen);
 
-    await expect.element(searchBox(screen)).toHaveValue("00003-00001192");
+    await expect.element(searchBox(screen)).toHaveValue("0003-00001192");
     for (const product of [
       "Pasta de maní 380 g",
       "Nibs de cacao",
@@ -56,7 +56,7 @@ describe("ReturnScreen showing the sale found by its ticket", () => {
     await expect.element(panel.getByText("A REINTEGRAR")).toBeVisible();
     await expect.element(panel.getByText("$ 0,00").first()).toBeVisible();
     await expect.element(panel.getByText("Factura C")).toBeVisible();
-    await expect.element(panel.getByText("00003-00001192")).toBeVisible();
+    await expect.element(panel.getByText("0003-00001192")).toBeVisible();
     await expect.element(panel.getByText("Venta", { exact: true })).toBeVisible();
     await expect.element(panel.getByText("12/09 11:42")).toBeVisible();
     await expect.element(panel.getByText("Líneas a devolver")).toBeVisible();

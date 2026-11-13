@@ -104,7 +104,7 @@ describe("ReturnScreen asking for the ticket", () => {
     await lookUp(screen, "1192");
 
     await expect
-      .element(screen.getByText("Tipeá el número impreso del ticket, como 00003-00001192."))
+      .element(screen.getByText("Tipeá el número impreso del ticket, como 0003-00001192."))
       .toBeVisible();
     expect(findSaleForReturn).not.toHaveBeenCalled();
   });
