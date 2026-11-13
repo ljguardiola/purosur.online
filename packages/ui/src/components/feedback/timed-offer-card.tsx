@@ -1,3 +1,4 @@
+import { Keycap } from "../data-display/keycap";
 import { Button } from "../forms/button";
 import type { Icon } from "../shared/icon";
 import { iconSlotClassName } from "../shared/icon";
@@ -25,13 +26,13 @@ export function TimedOfferCard({ icon, title, skip, countdown, accept }: TimedOf
           <span className={iconSlotClassName.lg}>{icon}</span>
         </span>
         <p className="flex-1 text-subheading font-bold text-text">{title}</p>
-        <Button
-          variant="text"
-          keycap="Escape"
-          disabled={accept.disabled ?? false}
-          onPress={skip.onPress}
-        >
-          {skip.label}
+        <Button variant="text" disabled={accept.disabled ?? false} onPress={skip.onPress}>
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true" className="flex shrink-0">
+              <Keycap keyName="Escape" />
+            </span>
+            {skip.label}
+          </span>
         </Button>
       </div>
       <CountdownBar {...countdown} />

@@ -19,7 +19,7 @@ import {
   TimedOfferCard,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, Plus, Printer, TriangleAlert, Undo2 } from "lucide-react";
+import { Check, Plus, Printer, Receipt, TriangleAlert, Undo2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import { pointCardName } from "../platform/payment-method-names";
@@ -459,7 +459,7 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
       {keepNotice === undefined ? null : (
         <InlineNotice
           tone="warning"
-          icon={<TriangleAlert />}
+          icon={<Receipt />}
           title={keepNotice.title}
           description={keepNotice.description}
         />
