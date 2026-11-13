@@ -1,4 +1,5 @@
 import type { SalesHistoryOutcome } from "@purosur/contracts";
+import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { SalesHistoryQuery } from "../platform/core-client";
@@ -33,6 +34,17 @@ const DEFERRED_DETAIL: SaleDetail = {
   next_copy: { kind: "original" },
   short_code: "7KQ4M2P9",
 };
+
+async function readSettled(readBarcode: (code: string) => void, code: string) {
+  const environment = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean | undefined };
+  const previous = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    await act(async () => readBarcode(code));
+  } finally {
+    environment.IS_REACT_ACT_ENVIRONMENT = previous;
+  }
+}
 
 function answerScans(query: SalesHistoryQuery): Promise<SalesHistoryOutcome> {
   if (query.search?.kind !== "scanned") {
@@ -121,7 +133,7 @@ describe("SalesHistoryScreen finding a sale by scanning its ticket", () => {
     );
   });
 
-  it("lists a deferred sale scanned from its ticket and shows its query code in the field", async () => {
+  it("lists a deferred sale scanned from its ticket in every session and shows its query code in the field", async () => {
     const { screen, salesHistory, readBarcode } = await renderScreen({
       salesHistory: answerScans,
       saleHistoryDetail: async () => ({ kind: "found", detail: DEFERRED_DETAIL }),
@@ -131,13 +143,14 @@ describe("SalesHistoryScreen finding a sale by scanning its ticket", () => {
 
     await vi.waitFor(() =>
       expect(salesHistory).toHaveBeenLastCalledWith({
-        session: "open",
+        session: "all",
         page: 1,
         search: { kind: "scanned", text: DEFERRED_QR },
       }),
     );
-    await expect.element(table(screen).getByText("10:20")).toBeVisible();
-    await expect.element(table(screen).getByText("11:42")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("radio", { name: "Todas" })).toBeChecked();
+    await expect.element(table(screen).getByText("09/10 10:20")).toBeVisible();
+    await expect.element(table(screen).getByText("09/10 11:42")).not.toBeInTheDocument();
     await expect.element(searchField(screen)).toHaveValue("7KQ4-M2P9");
   });
 
@@ -154,6 +167,23 @@ describe("SalesHistoryScreen finding a sale by scanning its ticket", () => {
 
     expect(printDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith("sale-2");
   });
+
+  it.each(["lacks_permission", "not_signed_in"] as const)(
+    "ignores a ticket scanned while the history answers %s, without saying a product was not added",
+    async (refusal) => {
+      const { screen, salesHistory, readBarcode } = await renderScreen({
+        salesHistory: async () => ({ kind: refusal }),
+      });
+      await expect.element(searchField(screen)).toBeDisabled();
+
+      await readSettled(readBarcode, FACTURA_C_QR);
+
+      expect(screen.getByText("No se agregó el producto escaneado").query()).toBeNull();
+      expect(screen.getByText("Ese QR no es de un ticket").query()).toBeNull();
+      await expect.element(searchField(screen)).toHaveValue("");
+      expect(salesHistory).toHaveBeenCalledOnce();
+    },
+  );
 
   it.each([
     ["a credit note's QR", CREDIT_NOTE_QR],
