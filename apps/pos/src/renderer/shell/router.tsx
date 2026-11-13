@@ -1209,6 +1209,7 @@ const pinCodeRedemptionRoute = createRoute({
         loadPinPolicy={pinPolicy}
         checkRedemption={checkPinCodeRedemption}
         redeem={redeemPinCode}
+        version={useRegisterVersion()}
       />
     );
   },
@@ -1238,6 +1239,7 @@ const firstSignInRoute = createRoute({
         redeem={redeemPinCode}
         NoPinStep={FirstSignInNoPin}
         CodeStep={FirstSignInCodeStep}
+        version={useRegisterVersion()}
       />
     );
   },

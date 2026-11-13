@@ -11,6 +11,7 @@ export type PinDotsFieldProps = {
   errorRingWhileFocused?: boolean | undefined;
   disabled?: boolean | undefined;
   autoFocus?: boolean | undefined;
+  digitsKeycap?: boolean | undefined;
   ref?: Ref<HTMLInputElement> | undefined;
 };
 
@@ -39,6 +40,7 @@ export function PinDotsField({
   errorRingWhileFocused = false,
   disabled = false,
   autoFocus = false,
+  digitsKeycap = true,
   ref,
 }: PinDotsFieldProps) {
   const labelId = useId();
@@ -61,7 +63,7 @@ export function PinDotsField({
         <span id={labelId} className={fieldLabelClassName.register}>
           {label}
         </span>
-        <Keycap keyName="Digits" />
+        {digitsKeycap ? <Keycap keyName="Digits" /> : null}
       </div>
       <div
         className={`${boxClassName(invalid, errorRingWhileFocused)} ${disabled ? "opacity-disabled" : ""}`}

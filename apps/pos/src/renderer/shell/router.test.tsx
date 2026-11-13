@@ -2537,13 +2537,15 @@ describe("the register's router", () => {
 
   it.each([
     ["/sign-in", "enrolled", COMPLETED],
+    ["/first-sign-in", "enrolled", COMPLETED],
+    ["/pin-code-redemption", "enrolled", COMPLETED],
     ["/enroll", "not_enrolled", COMPLETED],
     ["/re-enroll", REVOKED, COMPLETED],
     ["/revoked", REVOKED, COMPLETED],
     ["/restore-required", "enrolled", { kind: "in_progress", step: "enroll", origin: "copy" }],
     ["/restoring", "enrolled", { kind: "in_progress", step: "restore", origin: "copy" }],
   ] as const)(
-    "reads the running version on %s before any PIN or code",
+    "reads the running version on %s before anyone signs in",
     async (route, enrollment, restoration) => {
       const router = createRegisterRouter(
         routeTree,
@@ -2682,7 +2684,7 @@ describe("the register's router", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
     await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
   });
@@ -2695,7 +2697,7 @@ describe("the register's router", () => {
       screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
     );
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
   });
@@ -2962,7 +2964,7 @@ describe("the register's router", () => {
 
     await userEvent.click(screen.getByRole("link", { name: "Primer ingreso" }));
     await expect.element(screenFor["/first-sign-in"](screen)).toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
     await expect.element(screenFor["/sign-in"](screen)).toBeVisible();
   });
