@@ -41,7 +41,6 @@ export function PinCodeRedemptionScreen({
             redeem={redeem}
             onRedeemed={() => setSaved("can_enter")}
             onCashSessionOpenedByAnother={() => setSaved("opened_by_another")}
-            focusOnOpen="code"
             submitLabel="Guardar el PIN nuevo"
             newCodeAskedIn="backoffice"
           />

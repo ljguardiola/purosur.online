@@ -83,7 +83,6 @@ export type PinCodeRedemptionFormProps = {
   redeem: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   onRedeemed: (newPin: string) => void | Promise<void>;
   onCashSessionOpenedByAnother: () => void;
-  focusOnOpen: "code" | "newPin";
   submitLabel: string;
   newCodeAskedIn: NewCodePlace;
   children?: ReactNode;
@@ -95,7 +94,6 @@ export function PinCodeRedemptionForm({
   redeem,
   onRedeemed,
   onCashSessionOpenedByAnother,
-  focusOnOpen,
   submitLabel,
   newCodeAskedIn,
   children,
@@ -155,12 +153,7 @@ export function PinCodeRedemptionForm({
   }
 
   return (
-    <form
-      ref={focusOnOpen === "code" ? focusFirstInput : undefined}
-      className="flex flex-col gap-4"
-      noValidate
-      onSubmit={handleSubmit}
-    >
+    <form ref={focusFirstInput} className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
       <form.AppField name="code">
         {(code) => {
           const message = fieldErrorMessage(code.state.meta.errors);
@@ -183,7 +176,6 @@ export function PinCodeRedemptionForm({
           <newPin.PinDotsField
             label={`PIN nuevo, de al menos ${minDigits} dígitos`}
             digitsKeycap={false}
-            autoFocus={focusOnOpen === "newPin"}
           />
         )}
       </form.AppField>

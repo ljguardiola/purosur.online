@@ -62,7 +62,6 @@ function renderForm(
       loadPinPolicy={async () => ({ min_digits: 6 })}
       onRedeemed={() => {}}
       onCashSessionOpenedByAnother={() => {}}
-      focusOnOpen="code"
       submitLabel={SAVE}
       newCodeAskedIn="backoffice"
       {...props}
@@ -112,23 +111,14 @@ describe("PinCodeRedemptionForm", () => {
     await expect.element(screen.getByText("0-9", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("opens with the field the screen names focused", async () => {
-    const onCode = await renderForm(answering({ kind: "redeemed" }).redeem, {
-      focusOnOpen: "code",
-    });
-    await expect.element(code(onCode)).toHaveFocus();
-    await onCode.unmount();
+  it("opens with the code focused", async () => {
+    const screen = await renderForm(answering({ kind: "redeemed" }).redeem);
 
-    const onPin = await renderForm(answering({ kind: "redeemed" }).redeem, {
-      focusOnOpen: "newPin",
-    });
-    await expect.element(onPin.getByLabelText(PIN_LABEL)).toHaveFocus();
+    await expect.element(code(screen)).toHaveFocus();
   });
 
   it("puts the focus back on the code when the code doesn't work", async () => {
-    const screen = await renderForm(answering({ kind: "code_expired" }).redeem, {
-      focusOnOpen: "newPin",
-    });
+    const screen = await renderForm(answering({ kind: "code_expired" }).redeem);
 
     await fillAndSave(screen);
 
