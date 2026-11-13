@@ -649,6 +649,39 @@ describe("SaleCompletedPanel", () => {
     });
   });
 
+  describe("the notice to keep the backup ticket", () => {
+    it.each([
+      [
+        "a contingency factura C",
+        {
+          comprobante: {
+            kind: "fiscal",
+            document_type: "factura_c",
+            authorization: "offline_code",
+            point_of_sale: 8,
+            number: 412,
+          },
+        },
+        "Guardá el ticket de respaldo en la caja del local",
+      ],
+      [
+        "a deferred sale",
+        { comprobante: { kind: "deferred_non_fiscal" } },
+        "Pedile al cliente que vuelva por su factura",
+      ],
+    ] as const)("is marked with a receipt for %s", async (_sale, receipt, title) => {
+      const { screen } = await renderPanel(CASH, {
+        readReceiptStatus: async () => found("printing", receipt),
+        readBackupTicket: async () => ticketOf("to_print"),
+      });
+      const notice = screen.getByText(title, { exact: true });
+      await expect.element(notice).toBeVisible();
+
+      const frame = (notice.element() as HTMLElement).parentElement?.parentElement;
+      expect(frame?.querySelector("svg.lucide-receipt")).not.toBeNull();
+    });
+  });
+
   describe("for a sale with a contingency backup ticket", () => {
     const FISCAL_OFFLINE: Comprobante = {
       kind: "fiscal",

@@ -47,6 +47,14 @@ test("offers to skip with the Esc key shown, and runs the skip when pressed", as
   expect(onSkip).toHaveBeenCalledOnce();
 });
 
+test("shows the Esc key before the skip label", async () => {
+  const screen = await renderCard().render();
+
+  const skip = screen.getByRole("button", { name: "Omitir" });
+  await expect.element(skip).toBeVisible();
+  expect((skip.element() as HTMLElement).textContent).toBe("EscOmitir");
+});
+
 test("offers the primary action with the Enter key shown, and runs it when pressed", async () => {
   const { onAccept, render: renderIt } = renderCard();
   const screen = await renderIt();
