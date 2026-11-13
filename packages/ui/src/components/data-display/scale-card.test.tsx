@@ -52,3 +52,14 @@ test("draws its Balanza title in the warning color", async () => {
   expect(getComputedStyle(screen.getByText("Balanza").element()).color).toBe(tokenRgb("warning"));
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("says Sin lectura on the warning surface when the scale gives no reading", async () => {
+  const screen = await render(<ScaleCard noReading />);
+
+  await expect.element(screen.getByText("Sin lectura")).toBeVisible();
+  expect(screen.container.textContent).toBe("BalanzaSin lectura");
+  expect(getComputedStyle(screen.container.firstElementChild as HTMLElement).backgroundColor).toBe(
+    tokenRgb("warning-subtle"),
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
