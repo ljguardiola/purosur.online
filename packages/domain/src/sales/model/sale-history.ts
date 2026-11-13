@@ -33,6 +33,7 @@ export function isDeferralPending(record: DeferredSaleRecord | null): boolean {
 
 export interface SaleFiscalFacts {
   deferred: boolean;
+  deferredInvoicePending: boolean;
   fiscalDocument: SaleFiscalDocument | null;
 }
 
@@ -60,12 +61,13 @@ export function saleFiscalDocumentAmong(
 export function saleStandingOf({
   voided,
   deferred,
+  deferredInvoicePending,
   fiscalDocument,
 }: SaleFiscalFacts & { voided: boolean }): SaleStanding {
   if (voided) {
     return "voided";
   }
-  if (deferred) {
+  if (deferred || deferredInvoicePending) {
     return "deferred";
   }
   return fiscalDocument !== null &&

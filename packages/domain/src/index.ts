@@ -987,6 +987,7 @@ export {
   mayBeOverriddenUnitPrice,
   mayBeSaleLineQuantity,
   mayStartReceiptPrint,
+  nextReceiptCopy,
   observePrinterNotConfigured,
   observePrinterStatus,
   observePrintFailed,

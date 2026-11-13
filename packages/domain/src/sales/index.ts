@@ -25,6 +25,7 @@ export { PRINTED_DOCUMENTS } from "./model/printed-document.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
 export { receiptContent } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";
+export { nextReceiptCopy } from "./model/receipt-copy.js";
 export type { SalePrintState, SaleReprint } from "./model/receipt-events.js";
 export type {
   PrinterStatus,

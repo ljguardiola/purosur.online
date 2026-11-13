@@ -927,7 +927,7 @@ describe("the detail of a sale of the history", () => {
 
       expect(answer.kind === "found" && answer.detail).toMatchObject({
         comprobante: { kind: "fiscal", point_of_sale: 3, number: 1205 },
-        state: "completed",
+        state: "deferred",
         deferred_invoice_next_copy: { kind: "original" },
       });
     });

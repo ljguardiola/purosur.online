@@ -3,6 +3,7 @@ import {
   type FiscalAuthorization,
   type FiscalDocumentState,
   isDeferralPending,
+  nextReceiptCopy,
   type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
@@ -22,6 +23,7 @@ import { readCreditNotesOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { saleTotalOf } from "./sqlite-sale-total";
 
 interface SaleRow {
@@ -217,6 +219,13 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return saleTotalOf(this.database, saleId);
   }
 
+  private deferredInvoiceOriginalIsToPrint(saleId: string): boolean {
+    const delivery = new SqliteReceiptLedger(this.database).transaction((tx) =>
+      tx.receiptDelivery({ document: "deferred_invoice", saleId }),
+    );
+    return delivery !== undefined && nextReceiptCopy(delivery).kind === "original";
+  }
+
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
     const attempts = this.database
       .prepare<[{ sale_id: string }], FiscalDocumentRow>(
@@ -241,10 +250,12 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
         `SELECT ${DEFERRED_SALE_SATISFIED} AS satisfied FROM deferred_sales WHERE sale_id = ? AND cancelled_at IS NULL`,
       )
       .get(saleId);
+    const record =
+      deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 };
     return {
-      deferred: isDeferralPending(
-        deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 },
-      ),
+      deferred: isDeferralPending(record),
+      deferredInvoicePending:
+        record?.satisfied === true && this.deferredInvoiceOriginalIsToPrint(saleId),
       fiscalDocument: saleFiscalDocumentAmong(attempts),
     };
   }

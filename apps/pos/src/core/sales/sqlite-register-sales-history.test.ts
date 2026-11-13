@@ -557,9 +557,14 @@ describe("SqliteRegisterSalesHistory", () => {
     });
 
     it("stays voided whatever its deferred invoice's print", () => {
-      database.prepare("UPDATE sales SET state = 'VOIDED' WHERE id = 'adopted'").run();
+      addSale({
+        id: "gone",
+        state: "VOIDED",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1300 },
+        deferred: "satisfied",
+      });
 
-      expect(standingOf("adopted")).toBe("voided");
+      expect(standingOf("gone")).toBe("voided");
     });
   });
 
@@ -1045,7 +1050,7 @@ describe("SqliteRegisterSalesHistory", () => {
 
       const invoiced = {
         deferred: false,
-        deferredInvoicePending: false,
+        deferredInvoicePending: true,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
