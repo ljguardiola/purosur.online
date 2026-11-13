@@ -106,7 +106,7 @@ export function FirstSignInCodeStep({
         redeem={redeem}
         onRedeemed={signInWith}
         onCashSessionOpenedByAnother={() => setOpenedByAnother(true)}
-        focusOnOpen="newPin"
+        focusOnOpen="code"
         submitLabel="Guardar y entrar"
         newCodeAskedIn="register"
       >
