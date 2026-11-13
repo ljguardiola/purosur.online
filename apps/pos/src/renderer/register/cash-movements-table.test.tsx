@@ -116,7 +116,7 @@ describe("CashMovementsTable", () => {
     expect(rowsOf(screen)[0]).toContain("23:30");
   });
 
-  it("lists the oldest movement first", async () => {
+  it("lists the movements in the order the core gives them", async () => {
     const screen = await renderTable([
       movement({ id: "a", occurred_at: "2026-09-30T09:00:00.000-03:00" }),
       movement({ id: "c", occurred_at: "2026-09-30T15:00:00.000-03:00" }),
@@ -125,8 +125,8 @@ describe("CashMovementsTable", () => {
 
     expect(rowsOf(screen).map((row) => row.match(/\d\d:\d\d/)?.[0])).toEqual([
       "09:00",
-      "12:00",
       "15:00",
+      "12:00",
     ]);
   });
 

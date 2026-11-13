@@ -337,6 +337,7 @@ describe("RecordCashMovementPanel", () => {
     });
 
     it.each([
+      ["the core says the amount is not valid", async () => ({ kind: "invalid_amount" as const })],
       ["no session is open", async () => null],
       ["the core cannot answer", async () => "unavailable" as const],
       ["the read fails", () => Promise.reject(new Error("the connection was replaced"))],

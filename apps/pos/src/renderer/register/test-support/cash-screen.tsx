@@ -1,10 +1,8 @@
 import type {
   CashBalance,
-  CashMovementPreview,
   ListedCashMovement,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
-  SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import type { ReactNode } from "react";
@@ -59,10 +57,10 @@ const PERMISSION_OF_KIND: Record<CashMovementKind, AuthorizablePermissionKey> = 
   WITHDRAWAL: "withdraw_cash",
 };
 
-function kindsLacking(lacking: CashMovementKind[]): RecordableCashMovementKinds {
+function kindsNeedingNoAuthorization(): RecordableCashMovementKinds {
   const needed = (kind: CashMovementKind) => ({
     permission: PERMISSION_OF_KIND[kind],
-    authorization_required: lacking.includes(kind),
+    authorization_required: false,
   });
   return {
     CASH_IN: needed("CASH_IN"),
@@ -76,12 +74,6 @@ export async function renderScreen(
     person?: SignedInPerson;
     loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
     loadCashMovements?: () => Promise<ListedCashMovement[] | null | "unavailable">;
-    loadCashMovementPreview?: (movement: {
-      kind: CashMovementKind;
-      amount: number;
-    }) => Promise<CashMovementPreview | null | "unavailable">;
-    lacking?: CashMovementKind[];
-    authorizers?: SignInUser[];
     recordCashMovement?: () => Promise<RecordCashMovementOutcome>;
     clockGuard?: ReactNode;
   } = {},
@@ -96,9 +88,9 @@ export async function renderScreen(
         lock={() => {}}
         loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
         loadCashMovements={props.loadCashMovements ?? (async () => [OPENING, FLETE])}
-        loadCashMovementKinds={async () => kindsLacking(props.lacking ?? [])}
-        loadCashMovementPreview={props.loadCashMovementPreview ?? (async () => null)}
-        loadAuthorizers={async () => props.authorizers ?? []}
+        loadCashMovementKinds={async () => kindsNeedingNoAuthorization()}
+        loadCashMovementPreview={async () => null}
+        loadAuthorizers={async () => []}
         recordCashMovement={
           props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))
         }

@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
 import { cashAfterMovement } from "./cash-after-movement.js";
 import type { CashMovementKind } from "./cash-movement-kind.js";
 import type { CashMovementType } from "./cash-session.js";
@@ -46,6 +47,14 @@ describe("cashAfterMovement", () => {
     });
   });
 
+  it.each([
+    ...(["CASH_IN", ...OUT_KINDS] as const).flatMap((kind) =>
+      [0, -1, 0.5, MAX_CASH_AMOUNT_CENTS + 1].map((amount) => ({ kind, amount })),
+    ),
+  ])("answers that $amount cents is not a valid amount for a $kind", (movement) => {
+    expect(cashAfterMovement(movements, movement)).toEqual({ kind: "invalid_amount" });
+  });
+
   it("never answers a negative cash left", () => {
     fc.assert(
       fc.property(
@@ -53,7 +62,7 @@ describe("cashAfterMovement", () => {
         fc.integer({ min: 1, max: 1_000_000 }),
         (kind, amount) => {
           const answer = cashAfterMovement(movements, { kind, amount });
-          return answer.kind === "exceeds_expected_cash" || answer.cash >= 0;
+          return answer.kind !== "remaining" || answer.cash >= 0;
         },
       ),
     );

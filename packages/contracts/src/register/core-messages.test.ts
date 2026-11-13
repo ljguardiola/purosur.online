@@ -326,6 +326,16 @@ describe("previewing a cash count", () => {
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts that the amount is not a valid movement amount", () => {
+    const message = {
+      type: "cash-movement-preview",
+      request_id: REQUEST_ID,
+      preview: { kind: "invalid_amount" },
+    };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
   it("accepts that no cash session is open to preview", () => {
     const message = { type: "cash-count-preview", request_id: REQUEST_ID, preview: null };
 
