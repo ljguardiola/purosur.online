@@ -324,6 +324,19 @@ describe("RecordCashMovementPanel", () => {
       expect(readPreview).toHaveBeenLastCalledWith({ kind: "CASH_OUT", amount: 1_850_000 });
     });
 
+    it("is drawn as a neutral grey card, not the green one", async () => {
+      const { screen } = await renderPanel({
+        readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
+      });
+
+      await userEvent.keyboard("100");
+
+      await expect.element(screen.getByText("QUEDA", { exact: true })).toBeVisible();
+      const card = screen.getByText("QUEDA", { exact: true }).element().closest("[class*=rounded]");
+      expect(card?.className).toContain("bg-surface-subtle");
+      expect(card?.className).not.toContain("bg-success-subtle");
+    });
+
     it("is hidden again when Importe is emptied", async () => {
       const { screen } = await renderPanel({
         readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
@@ -363,6 +376,19 @@ describe("RecordCashMovementPanel", () => {
 
       await expect.element(screen.getByRole("alert")).toHaveTextContent(EXCEEDS_MESSAGE);
       await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
+    });
+
+    it("marks the refusal with a red cross", async () => {
+      const { screen } = await renderPanel({
+        kind: "CASH_OUT",
+        readPreview: async () => ({ kind: "exceeds_expected_cash", expected: 14_420_000 }),
+      });
+
+      await userEvent.keyboard("150000");
+
+      const notice = screen.getByRole("alert").element();
+      expect(notice.querySelector("svg.lucide-circle-x")).not.toBeNull();
+      expect(notice.querySelector("svg.lucide-triangle-alert")).toBeNull();
     });
 
     it("tells how much cash is expected when the core refuses recording the amount as more than that", async () => {
@@ -445,6 +471,18 @@ describe("RecordCashMovementPanel", () => {
       .poll(() => screen.getByRole("alert").query()?.textContent)
       .toBe("No se pudo registrar el movimiento. Probá de nuevo.");
     expect(onRecorded).not.toHaveBeenCalled();
+  });
+
+  it("marks a failure to record with a red cross", async () => {
+    const { screen } = await renderPanel({ outcome: { kind: "not_signed_in" } });
+    await fill(screen, "100", "Cambio");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+    const notice = screen.getByRole("alert").element();
+    expect(notice.querySelector("svg.lucide-circle-x")).not.toBeNull();
+    expect(notice.querySelector("svg.lucide-triangle-alert")).toBeNull();
   });
 
   it("says when the core could not be reached, and allows trying again", async () => {
