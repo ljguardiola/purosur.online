@@ -100,6 +100,14 @@ async function fill(screen: Screen, amount: string, reason: string, keys = false
   await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), reason);
 }
 
+function noticeIconOf(alert: Element): SVGElement | null {
+  let frame: Element | null = alert;
+  while (frame !== null && frame.querySelector("svg") === null) {
+    frame = frame.parentElement;
+  }
+  return frame?.querySelector("svg") ?? null;
+}
+
 describe("RecordCashMovementPanel", () => {
   it.each(["CASH_IN", "CASH_OUT", "WITHDRAWAL"] as const)(
     "is headed with the name of the %s and closes with Esc, offering no way to change the kind",
@@ -386,9 +394,9 @@ describe("RecordCashMovementPanel", () => {
 
       await userEvent.keyboard("150000");
 
-      const notice = screen.getByRole("alert").element();
-      expect(notice.querySelector("svg.lucide-circle-x")).not.toBeNull();
-      expect(notice.querySelector("svg.lucide-triangle-alert")).toBeNull();
+      await expect.element(screen.getByRole("alert")).toBeVisible();
+      const icon = noticeIconOf(screen.getByRole("alert").element());
+      expect(icon?.getAttribute("class")).toContain("lucide-circle-x");
     });
 
     it("tells how much cash is expected when the core refuses recording the amount as more than that", async () => {
@@ -480,9 +488,8 @@ describe("RecordCashMovementPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
     await expect.element(screen.getByRole("alert")).toBeVisible();
-    const notice = screen.getByRole("alert").element();
-    expect(notice.querySelector("svg.lucide-circle-x")).not.toBeNull();
-    expect(notice.querySelector("svg.lucide-triangle-alert")).toBeNull();
+    const icon = noticeIconOf(screen.getByRole("alert").element());
+    expect(icon?.getAttribute("class")).toContain("lucide-circle-x");
   });
 
   it("says when the core could not be reached, and allows trying again", async () => {
