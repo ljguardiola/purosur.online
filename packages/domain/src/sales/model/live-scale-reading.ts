@@ -1,4 +1,4 @@
-import type { WeighingReading } from "../../shared/scale.js";
+import type { WeighingReading } from "../../shared/index.js";
 
 export type LiveScaleReading =
   | { kind: "reading"; weightThousandths: number; settled: boolean }
