@@ -15,13 +15,12 @@ import { useAuthorization } from "../shell/use-authorization";
 import type { CompletedReturn } from "./hand-over-refund-modal";
 import { HandOverRefundModal } from "./hand-over-refund-modal";
 import { ReturnBuildStep } from "./return-build-step";
+import type { FoundSale } from "./return-find-step";
 import { ReturnFindStep } from "./return-find-step";
-import type { SaleForReturn } from "./return-sale";
-import { TicketConfirmationModal } from "./ticket-confirmation-modal";
 
 export type ReturnScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
+  saleId?: string | undefined;
   lock: () => void;
   findSaleForReturn: (
     reading: SaleForReturnReading,
@@ -38,18 +37,12 @@ export type ReturnScreenProps = {
 
 type Standing =
   | { step: "find" }
-  | { step: "confirm"; sale: SaleForReturn; source: CompleteReturnInput["ticketSource"] }
-  | { step: "build"; sale: SaleForReturn; source: CompleteReturnInput["ticketSource"] }
-  | {
-      step: "completed";
-      sale: SaleForReturn;
-      source: CompleteReturnInput["ticketSource"];
-      completed: CompletedReturn;
-    };
+  | ({ step: "build" } & FoundSale)
+  | ({ step: "completed"; completed: CompletedReturn } & FoundSale);
 
 function ReturnFlow({
   person,
-  registerName,
+  saleId,
   lock,
   findSaleForReturn,
   previewReturn,
@@ -75,18 +68,13 @@ function ReturnFlow({
           rail={rail}
           sale={standing.sale}
           source={standing.source}
+          verificationRequired={standing.verificationRequired}
           authorization={authorization}
+          finished={standing.step === "completed"}
           previewReturn={previewReturn}
           completeReturn={completeReturn}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
-          onCompleted={(completed) =>
-            setStanding({
-              step: "completed",
-              sale: standing.sale,
-              source: standing.source,
-              completed,
-            })
-          }
+          onCompleted={(completed) => setStanding({ ...standing, step: "completed", completed })}
           onLeave={restart}
           onSessionInvalid={onSessionInvalid}
         />
@@ -94,22 +82,13 @@ function ReturnFlow({
         <ReturnFindStep
           rail={rail}
           authorization={authorization}
+          saleId={saleId}
           findSaleForReturn={findSaleForReturn}
-          onFound={(sale, source) => setStanding({ step: "confirm", sale, source })}
+          onFound={(found) => setStanding({ step: "build", ...found })}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
           onSessionInvalid={onSessionInvalid}
         />
       )}
-      {standing.step === "confirm" ? (
-        <TicketConfirmationModal
-          sale={standing.sale}
-          registerName={registerName}
-          onConfirm={() =>
-            setStanding({ step: "build", sale: standing.sale, source: standing.source })
-          }
-          onReject={() => setStanding({ step: "find" })}
-        />
-      ) : null}
       {standing.step === "completed" ? (
         <HandOverRefundModal
           cashToHandOver={standing.completed.cashToHandOver}
@@ -124,5 +103,12 @@ function ReturnFlow({
 
 export function ReturnScreen(props: ReturnScreenProps) {
   const [attempt, setAttempt] = useState(0);
-  return <ReturnFlow key={attempt} {...props} restart={() => setAttempt(attempt + 1)} />;
+  return (
+    <ReturnFlow
+      key={attempt}
+      {...props}
+      saleId={attempt === 0 ? props.saleId : undefined}
+      restart={() => setAttempt(attempt + 1)}
+    />
+  );
 }

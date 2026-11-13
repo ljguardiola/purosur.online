@@ -1039,11 +1039,11 @@ const returnRoute = createRoute({
       authorizers,
       refreshCashSession,
     } = returnRoute.useRouteContext();
-    const registerName = useRegisterName();
+    const { saleId } = returnRoute.useSearch();
     return (
       <ReturnScreen
         person={person}
-        registerName={registerName}
+        {...(saleId === undefined ? {} : { saleId })}
         lock={signOut}
         findSaleForReturn={findSaleForReturn}
         previewReturn={previewReturn}

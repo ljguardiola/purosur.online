@@ -1,42 +1,43 @@
 import type { FindSaleForReturnOutcome } from "@purosur/contracts";
 import {
   Button,
-  Card,
-  EmptyState,
-  Eyebrow,
+  formatCents,
   InlineNotice,
-  ScreenHeader,
+  SearchField,
   SidePanel,
-  useRequestForm,
+  SummaryRowGroup,
 } from "@purosur/ui";
-import { ScanBarcode, Search, TriangleAlert } from "lucide-react";
-import type { FormEvent, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { CircleX, Search } from "lucide-react";
+import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CompleteReturnInput, SaleForReturnReading } from "../platform/core-client";
+import { useKeys } from "../platform/key-layer";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
+import { ReturnLinesTable } from "./return-lines-table";
+import { ReturnPanelFigure } from "./return-panel-figure";
 import type { SaleForReturn } from "./return-sale";
 import type { FindRefusalKind } from "./return-text";
 import { findRefusalText } from "./return-text";
-import {
-  EMPTY_RETURN_TICKET_FORM,
-  INVALID_INVOICE_NUMBER_MESSAGE,
-  INVALID_POINT_OF_SALE_MESSAGE,
-  returnTicketRequestFrom,
-  returnTicketRequestSchema,
-  scannedReturnReading,
-} from "./return-ticket-form";
+import { scannedReturnReading, typedReturnReading } from "./return-ticket-form";
+
+export type FoundSale = {
+  sale: SaleForReturn;
+  source: CompleteReturnInput["ticketSource"];
+  verificationRequired: boolean;
+};
 
 export type ReturnFindStepProps = {
   rail: ReactNode;
   authorization: AuthorizationState;
+  saleId: string | undefined;
   findSaleForReturn: (
     reading: SaleForReturnReading,
     authorization: AuthorizationState["value"],
   ) => Promise<FindSaleForReturnOutcome>;
-  onFound: (sale: SaleForReturn, source: CompleteReturnInput["ticketSource"]) => void;
+  onFound: (found: FoundSale) => void;
   onAuthorizationRequired: () => void;
   onSessionInvalid: () => void;
 };
@@ -44,15 +45,19 @@ export type ReturnFindStepProps = {
 export function ReturnFindStep({
   rail,
   authorization,
+  saleId,
   findSaleForReturn,
   onFound,
   onAuthorizationRequired,
   onSessionInvalid,
 }: ReturnFindStepProps) {
+  const [search, setSearch] = useState("");
   const [refusal, setRefusal] = useState<FindRefusalKind>();
   const [looking, setLooking] = useState(false);
   const finding = useRef(false);
   const lastReading = useRef<SaleForReturnReading | undefined>(undefined);
+  const searchArea = useRef<HTMLDivElement | null>(null);
+  const openedBySale = useRef(false);
 
   async function look(reading: SaleForReturnReading) {
     if (finding.current) {
@@ -76,7 +81,11 @@ export function ReturnFindStep({
     }
     switch (outcome.kind) {
       case "found":
-        onFound(outcome.sale, outcome.ticket_source);
+        onFound({
+          sale: outcome.sale,
+          source: outcome.ticket_source,
+          verificationRequired: outcome.ticket_verification_required,
+        });
         break;
       case "not_found":
       case "voided":
@@ -108,26 +117,36 @@ export function ReturnFindStep({
     }
   }
 
+  useEffect(() => {
+    searchArea.current?.querySelector("input")?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (saleId !== undefined && !openedBySale.current) {
+      openedBySale.current = true;
+      void look({ kind: "sale", sale_id: saleId });
+    }
+  });
+
   function retryLastReading() {
     if (lastReading.current !== undefined) {
       void look(lastReading.current);
     }
   }
 
-  const { form, submit, submitting } = useRequestForm({
-    defaultValues: EMPTY_RETURN_TICKET_FORM,
-    request: { schema: returnTicketRequestSchema, from: returnTicketRequestFrom },
-    fields: {
-      reading: null,
-      "reading.point_of_sale": "pointOfSale",
-      "reading.number": "number",
-    },
-    messages: {
-      pointOfSale: INVALID_POINT_OF_SALE_MESSAGE,
-      number: INVALID_INVOICE_NUMBER_MESSAGE,
-    },
-    onSubmit: ({ reading }) => look(reading),
-  });
+  const typed = search.trim() !== "";
+
+  function submitSearch() {
+    if (!typed) {
+      return;
+    }
+    const reading = typedReturnReading(search);
+    if (reading === undefined) {
+      setRefusal("not_a_ticket_number");
+    } else {
+      void look(reading);
+    }
+  }
 
   function takeScan(text: string) {
     const reading = scannedReturnReading(text);
@@ -139,88 +158,67 @@ export function ReturnFindStep({
   }
   useBarcodeReadings(takeScan);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!submitting) {
-      void submit();
-    }
-  }
-
-  const notice = refusal === undefined ? undefined : findRefusalText(refusal);
+  const legend = useKeys([{ key: "Enter", label: "Buscar", run: submitSearch }]);
 
   return (
     <RegisterFrame
       background="subtle"
       rail={rail}
       aside={
-        <SidePanel label="Datos del ticket">
-          <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
-          <p className="text-title text-text-accent">Tipeá los datos impresos en el ticket</p>
-          <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
-            <form.AppField name="pointOfSale" listeners={{ onChange: () => setRefusal(undefined) }}>
-              {(field) => (
-                <field.TextField
-                  kind="plain-text"
-                  label="Punto de venta"
-                  inputMode="numeric"
-                  disabled={submitting}
-                />
-              )}
-            </form.AppField>
-            <form.AppField name="number" listeners={{ onChange: () => setRefusal(undefined) }}>
-              {(field) => (
-                <field.TextField
-                  kind="plain-text"
-                  label="Número de comprobante"
-                  inputMode="numeric"
-                  disabled={submitting}
-                />
-              )}
-            </form.AppField>
+        <SidePanel
+          label="Devolución"
+          width="wide"
+          header={<ReturnPanelFigure label="DEVOLUCIÓN" value={formatCents(0)} />}
+          footer={
             <Button
-              type="submit"
-              variant="secondary"
               size="large"
               fullWidth
               icon={<Search />}
-              dataStatus={submitting ? "loading" : "loaded"}
+              iconPosition="start"
+              keycap="Enter"
+              disabled={!typed}
+              dataStatus={looking ? "loading" : "loaded"}
+              onPress={submitSearch}
             >
-              Buscar venta
+              Buscar
             </Button>
-          </form>
-          {notice === undefined ? null : (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title={notice.title}
-              {...(notice.description === undefined ? {} : { description: notice.description })}
-            />
-          )}
+          }
+        >
+          <SummaryRowGroup variant="divided" rows={[{ label: "Líneas a devolver", value: "0" }]} />
           <AuthorizationModal
             authorization={authorization}
             subtitle="Devolución"
             action="hacer devoluciones"
-            submitting={submitting || looking}
+            submitting={looking}
             onConfirm={retryLastReading}
           />
         </SidePanel>
       }
     >
-      <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader
-          eyebrow="DEVOLUCIÓN · SOLO CON TICKET"
-          title="Escaneá el ticket del cliente"
-        />
-        <div className="flex flex-1 flex-col justify-center">
-          <Card>
-            <EmptyState
-              variant="blank"
-              icon={<ScanBarcode />}
-              title="Acercá el QR del ticket al lector"
-              description="Sirve el QR de la factura C o el del documento de una venta diferida."
-            />
-          </Card>
+      <main className="flex min-w-0 flex-1 flex-col gap-4 px-8 pt-4 pb-6">
+        <div ref={searchArea}>
+          <SearchField
+            placeholder="Escaneá el ticket o escribí el número"
+            icon={<Search />}
+            value={search}
+            onChange={(text) => {
+              setSearch(text);
+              setRefusal(undefined);
+            }}
+          />
         </div>
+        <ReturnLinesTable
+          rows={[]}
+          selectedLineId={undefined}
+          legend={legend}
+          footer={
+            refusal === undefined ? undefined : (
+              <InlineNotice tone="error" icon={<CircleX />} title={findRefusalText(refusal)} />
+            )
+          }
+          onSelect={() => {}}
+          onMark={() => {}}
+        />
       </main>
     </RegisterFrame>
   );

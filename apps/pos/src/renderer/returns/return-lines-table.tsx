@@ -1,194 +1,127 @@
-import type { ReturnLineRefusalBody } from "@purosur/contracts";
-import type { Option } from "@purosur/ui";
+import type { EmptyStateProps } from "@purosur/ui";
 import {
   Checkbox,
   dataColumn,
   formatCents,
-  formatWeightInput,
-  Select,
   Table,
   TableCellText,
-  TextField,
   useTableModel,
 } from "@purosur/ui";
-import { ownEntry } from "./own-entry";
-import type { ReturnDraft, ReturnDraftLine } from "./return-form";
-import { goesBackWhole, RETURNED_WEIGHT_DECIMALS } from "./return-form";
-import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
-import type { ReturnReasonValue } from "./return-text";
-import {
-  DISPOSITION_OPTIONS,
-  quantityText,
-  REASON_OPTIONS,
-  RESOLUTION_LABELS,
-} from "./return-text";
+import { Receipt } from "lucide-react";
+import type { ReactNode } from "react";
+import type { LegendItem } from "../platform/key-layer";
+import type { SaleLineForReturn } from "./return-sale";
+import { quantityText } from "./return-text";
 
-export type ReturnLinesTableProps = {
-  sale: SaleForReturn;
-  draft: ReturnDraft;
-  refusals: Readonly<Record<string, ReturnLineRefusalBody | null>>;
-  onCheck: (line: SaleLineForReturn, checked: boolean) => void;
-  onChange: (lineId: string, change: Partial<ReturnDraftLine>) => void;
+export type ReturnLineRow = {
+  line: SaleLineForReturn;
+  marked: boolean;
+  quantity: number | undefined;
+  refund: number | null | undefined;
+  refused: boolean;
 };
 
-const PROMOTION_REASON = "Con este motivo, la promoción se devuelve completa";
+export type ReturnLinesTableProps = {
+  rows: readonly ReturnLineRow[];
+  selectedLineId: string | undefined;
+  legend: readonly LegendItem[];
+  footer?: ReactNode;
+  onSelect: (lineId: string) => void;
+  onMark: (lineId: string, marked: boolean) => void;
+};
 
-function descriptionOf(line: SaleLineForReturn): string {
-  const sold = `${quantityText(line.sale_unit, line.sold_quantity)} · ${formatCents(line.charged_amount)}`;
-  return line.returned_quantity === 0
-    ? sold
-    : `${sold} · se pueden devolver ${quantityText(line.sale_unit, line.returnable_quantity)}`;
-}
+const MARK_WIDTH = 56;
+const SOLD_WIDTH = 130;
+const RETURNING_WIDTH = 130;
+const REFUND_WIDTH = 160;
 
-function wholeQuantityText(line: SaleLineForReturn): string {
-  return line.sale_unit === "KG"
-    ? formatWeightInput(line.returnable_quantity)
-    : String(line.returnable_quantity);
-}
+const NO_SALE: EmptyStateProps = { variant: "blank", icon: <Receipt />, title: "Sin ventas" };
 
-function reasonOptions(
-  windows: SaleForReturn["windows"],
-): [Option<ReturnReasonValue>, Option<ReturnReasonValue>] {
-  const [changeOfMind, defective] = REASON_OPTIONS;
-  return [
-    windows.change_of_mind.open ? changeOfMind : { ...changeOfMind, status: "Vencido" },
-    windows.defective.open ? defective : { ...defective, status: "Vencido" },
-  ];
-}
+const NOT_SHOWN = "—";
 
 export function ReturnLinesTable({
-  sale,
-  draft,
-  refusals,
-  onCheck,
-  onChange,
+  rows,
+  selectedLineId,
+  legend,
+  footer,
+  onSelect,
+  onMark,
 }: ReturnLinesTableProps) {
-  const options = reasonOptions(sale.windows);
   const columns = [
+    dataColumn({
+      id: "mark",
+      header: "Marcar",
+      width: MARK_WIDTH,
+      render: ({ line, marked }: ReturnLineRow) => (
+        <Checkbox
+          name={`return-${line.id}`}
+          checked={marked}
+          disabled={line.returnable_quantity === 0}
+          onCheckedChange={(checked) => onMark(line.id, checked)}
+        >
+          <span className="sr-only">{line.product_name}</span>
+        </Checkbox>
+      ),
+    }),
     dataColumn({
       id: "product",
       header: "Producto",
-      render: (line: SaleLineForReturn) =>
-        line.returnable_quantity === 0 ? (
-          <TableCellText description="Ya se devolvió completa">{line.product_name}</TableCellText>
-        ) : (
-          <Checkbox
-            name={`return-${line.id}`}
-            checked={ownEntry(draft, line.id) !== undefined}
-            description={descriptionOf(line)}
-            onCheckedChange={(checked) => onCheck(line, checked)}
-          >
-            {line.product_name}
-          </Checkbox>
-        ),
+      render: ({ line }: ReturnLineRow) => (
+        <TableCellText
+          strong
+          {...(line.returnable_quantity === 0 ? { description: "Ya se devolvió completa" } : {})}
+        >
+          {line.product_name}
+        </TableCellText>
+      ),
     }),
     dataColumn({
-      id: "quantity",
-      header: "Devuelve",
-      render: (line: SaleLineForReturn) => {
-        const drafted = ownEntry(draft, line.id);
-        if (drafted === undefined) {
-          return null;
-        }
-        const label = `Cantidad de ${line.product_name}`;
-        return goesBackWhole(line, drafted.reason) ? (
-          <TextField
-            kind="plain-text"
-            label={label}
-            labelVisuallyHidden
-            value={wholeQuantityText(line)}
-            onChange={() => {}}
-            readOnly
-            readOnlyReason={PROMOTION_REASON}
-          />
-        ) : (
-          <TextField
-            kind="plain-text"
-            label={label}
-            labelVisuallyHidden
-            {...(line.sale_unit === "KG"
-              ? { decimals: RETURNED_WEIGHT_DECIMALS }
-              : { inputMode: "numeric" as const })}
-            value={drafted.quantity}
-            onChange={(quantity) => onChange(line.id, { quantity })}
-          />
+      id: "sold",
+      header: "Vendido",
+      width: SOLD_WIDTH,
+      render: ({ line }: ReturnLineRow) => (
+        <TableCellText>{quantityText(line.sale_unit, line.sold_quantity)}</TableCellText>
+      ),
+    }),
+    dataColumn({
+      id: "returning",
+      header: "A devolver",
+      width: RETURNING_WIDTH,
+      render: ({ line, marked, quantity, refused }: ReturnLineRow) => {
+        const shown =
+          marked && quantity !== undefined ? quantityText(line.sale_unit, quantity) : NOT_SHOWN;
+        return (
+          <TableCellText strong {...(refused ? { tone: "error" as const } : {})}>
+            {shown}
+          </TableCellText>
         );
       },
     }),
     dataColumn({
-      id: "reason",
-      header: "Motivo",
-      render: (line: SaleLineForReturn) => {
-        const drafted = ownEntry(draft, line.id);
-        return drafted === undefined ? null : (
-          <Select
-            name={`reason-${line.id}`}
-            label={`Motivo de ${line.product_name}`}
-            labelVisuallyHidden
-            placeholder="Elegí"
-            options={options}
-            value={drafted.reason}
-            onChange={(reason) => onChange(line.id, { reason })}
-          />
-        );
-      },
-    }),
-    dataColumn({
-      id: "resolution",
-      header: "Se resuelve con",
-      render: (line: SaleLineForReturn) => {
-        const drafted = ownEntry(draft, line.id);
-        if (drafted === undefined || drafted.reason === null) {
-          return null;
-        }
-        const [first, ...rest] = sale.offered_resolutions[drafted.reason].map((value) => ({
-          value,
-          label: RESOLUTION_LABELS[value],
-        }));
-        if (first === undefined) {
-          return null;
-        }
-        return rest.length === 0 ? (
-          <TableCellText>{first.label}</TableCellText>
-        ) : (
-          <Select
-            name={`resolution-${line.id}`}
-            label={`Resolución de ${line.product_name}`}
-            labelVisuallyHidden
-            placeholder="Elegí"
-            options={[first, ...rest]}
-            value={drafted.resolution}
-            onChange={(resolution) => onChange(line.id, { resolution })}
-          />
-        );
-      },
-    }),
-    dataColumn({
-      id: "disposition",
-      header: "Destino",
-      render: (line: SaleLineForReturn) => {
-        const drafted = ownEntry(draft, line.id);
-        return drafted === undefined ? null : (
-          <Select
-            name={`disposition-${line.id}`}
-            label={`Destino de ${line.product_name}`}
-            labelVisuallyHidden
-            placeholder="Elegí"
-            options={DISPOSITION_OPTIONS}
-            value={drafted.disposition}
-            onChange={(disposition) => onChange(line.id, { disposition })}
-          />
-        );
+      id: "refund",
+      header: "Reintegro",
+      align: "end",
+      width: REFUND_WIDTH,
+      render: ({ marked, refund }: ReturnLineRow) => {
+        const shown =
+          marked && refund !== null && refund !== undefined ? formatCents(refund) : NOT_SHOWN;
+        return <TableCellText strong>{shown}</TableCellText>;
       },
     }),
   ] as const;
-  const table = useTableModel({ items: sale.lines, id: (line) => line.id, columns });
+  const table = useTableModel({ items: rows, id: ({ line }) => line.id, columns });
 
   return (
     <Table
-      table={table}
       aria-label="Líneas de la venta"
-      rowState={(line) => (ownEntry(refusals, line.id) ? "warning" : undefined)}
+      table={table}
+      fill
+      emptyKeepsHeaders
+      legend={legend}
+      empty={NO_SALE}
+      {...(footer === undefined ? {} : { footer })}
+      rowState={({ line }) => (line.id === selectedLineId ? "selected" : undefined)}
+      onRowPress={({ line }) => onSelect(line.id)}
     />
   );
 }

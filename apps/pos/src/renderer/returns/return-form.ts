@@ -36,8 +36,6 @@ export const EMPTY_RETURN_DRAFT: ReturnDraft = {};
 
 export const EMPTY_RETURN_FORM: ReturnFormValues = { lines: EMPTY_RETURN_DRAFT, refunds: {} };
 
-export const RETURN_FIELDS = { lines: null, refunds: "refunds" } as const;
-
 export const INVALID_REFUND_MESSAGE = "Ingresá un importe válido, por ejemplo 1.500,00.";
 
 function quantityTextOf({
@@ -47,16 +45,17 @@ function quantityTextOf({
   return saleUnit === "KG" ? formatWeightInput(returnable) : String(returnable);
 }
 
-export function checkLine(draft: ReturnDraft, line: SaleLineForReturn): ReturnDraft {
+export function draftLineOf(line: SaleLineForReturn): ReturnDraftLine {
   return {
-    ...draft,
-    [line.id]: {
-      quantity: quantityTextOf(line),
-      reason: null,
-      disposition: null,
-      resolution: null,
-    },
+    quantity: quantityTextOf(line),
+    reason: "change_of_mind",
+    disposition: "restock",
+    resolution: "refund",
   };
+}
+
+export function checkLine(draft: ReturnDraft, line: SaleLineForReturn): ReturnDraft {
+  return { ...draft, [line.id]: draftLineOf(line) };
 }
 
 export function uncheckLine(draft: ReturnDraft, lineId: string): ReturnDraft {
@@ -130,10 +129,6 @@ export function refundTextsFor(
         payment === firstEligible && refundableTotal > 0 ? formatAmountInput(refundableTotal) : "",
     };
   });
-}
-
-export function isRefundTextInvalid(text: string): boolean {
-  return text.trim() !== "" && parseAmountCents(text) === undefined;
 }
 
 export function refundsOf(texts: readonly PaymentRefundText[]) {
