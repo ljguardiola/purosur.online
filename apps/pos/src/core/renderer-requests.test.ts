@@ -10,6 +10,7 @@ import type {
   CashBalance,
   CashChargeAnswer,
   CashCountPreview,
+  CashMovementPreview,
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
@@ -62,7 +63,7 @@ import type {
   WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey } from "@purosur/domain";
+import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import type { CashMovementRequest } from "./register/cash-movement-requests";
@@ -135,6 +136,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const saleLookups: string[] = [];
   const chargeReads: { saleId: string; tendered: number; saleDiscount?: number | undefined }[] = [];
   const previewReads: number[] = [];
+  const movementPreviewReads: { kind: CashMovementKind; amount: number }[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
   const failures: { context: string; error: unknown }[] = [];
@@ -162,6 +164,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
     saleLookups,
     chargeReads,
     previewReads,
+    movementPreviewReads,
     saleChanges,
     signOuts,
     failures,
@@ -562,6 +565,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       cashBalance: (): CashBalance | null => null,
       cashCountPreview: (countedCash: number): CashCountPreview | null => {
         previewReads.push(countedCash);
+        return null;
+      },
+      cashMovementPreview: (movement: {
+        kind: CashMovementKind;
+        amount: number;
+      }): CashMovementPreview | null => {
+        movementPreviewReads.push(movement);
         return null;
       },
       lockedClosers: () => [{ id: "u2", first_name: "Grace" }],
@@ -3054,6 +3064,73 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "cash-count-preview-unavailable", request_id: "r32" });
     expect(failing.failures).toEqual([{ context: "reading the count preview", error }]);
+  });
+
+  it("answers the movement preview of the open session for the movement sent", async () => {
+    const preview: CashMovementPreview = { kind: "remaining", cash: 125_700 };
+
+    expect(
+      await answerRendererRequest(deps(true, { cashMovementPreview: () => preview }).deps, {
+        type: "cash-movement-preview-request",
+        request_id: "r40",
+        kind: "CASH_OUT",
+        amount: 18_500,
+      }),
+    ).toEqual({ type: "cash-movement-preview", request_id: "r40", preview });
+  });
+
+  it("hands the kind and amount of the movement to the core to preview", async () => {
+    const reading = deps(true);
+
+    await answerRendererRequest(reading.deps, {
+      type: "cash-movement-preview-request",
+      request_id: "r40",
+      kind: "WITHDRAWAL",
+      amount: 18_500,
+    });
+
+    expect(reading.movementPreviewReads).toEqual([{ kind: "WITHDRAWAL", amount: 18_500 }]);
+  });
+
+  it("answers no movement preview while no session is open", async () => {
+    expect(
+      await answerRendererRequest(deps(true).deps, {
+        type: "cash-movement-preview-request",
+        request_id: "r41",
+        kind: "CASH_IN",
+        amount: 100,
+      }),
+    ).toEqual({ type: "cash-movement-preview", request_id: "r41", preview: null });
+  });
+
+  it("answers that the movement preview cannot be read when the register has no database", async () => {
+    expect(
+      await answerRendererRequest(deps(true, { cashMovementPreview: undefined }).deps, {
+        type: "cash-movement-preview-request",
+        request_id: "r42",
+        kind: "CASH_IN",
+        amount: 100,
+      }),
+    ).toEqual({ type: "cash-movement-preview-unavailable", request_id: "r42" });
+  });
+
+  it("answers that the movement preview cannot be read when reading it fails, and reports why", async () => {
+    const error = new Error("database is locked");
+    const failing = deps(true, {
+      cashMovementPreview: () => {
+        throw error;
+      },
+    });
+
+    expect(
+      await answerRendererRequest(failing.deps, {
+        type: "cash-movement-preview-request",
+        request_id: "r43",
+        kind: "CASH_IN",
+        amount: 100,
+      }),
+    ).toEqual({ type: "cash-movement-preview-unavailable", request_id: "r43" });
+    expect(failing.failures).toEqual([{ context: "reading the movement preview", error }]);
   });
 
   it("answers the open sale of the session", async () => {

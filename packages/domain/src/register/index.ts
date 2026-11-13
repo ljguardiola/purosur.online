@@ -19,6 +19,7 @@ export {
   isBitlockerKeyIdentifier,
   isBitlockerRecoveryKey,
 } from "./model/bitlocker-recovery-key.js";
+export { cashAfterMovement } from "./model/cash-after-movement.js";
 export { cashCountDifference } from "./model/cash-count.js";
 export type { CashMovementDirection } from "./model/cash-movement-direction.js";
 export {

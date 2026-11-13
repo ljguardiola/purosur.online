@@ -1,10 +1,10 @@
 import type {
+  CashMovementPreview,
   RecordableCashMovementKinds,
   RecordCashMovementOutcome,
   SignInUser,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, CashMovementKind } from "@purosur/domain";
-import { Eyebrow } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -14,9 +14,8 @@ import {
   authorizationDialog,
   authorizeInModal,
 } from "../shell/test-support/authorization-modal-steps";
-import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
-import { RecordCashMovementModal } from "./record-cash-movement-modal";
+import { RecordCashMovementPanel } from "./record-cash-movement-panel";
 
 const ADA: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
@@ -43,17 +42,22 @@ function kindsLacking(lacking: CashMovementKind[]): RecordableCashMovementKinds 
 }
 
 type Props = {
-  open?: boolean;
+  kind?: CashMovementKind;
   lacking?: CashMovementKind[];
   loadKinds?: () => Promise<RecordableCashMovementKinds | null | "unavailable">;
-  registerName?: string | null;
   expectedCash?: number;
   outcome?: RecordCashMovementOutcome | Promise<RecordCashMovementOutcome>;
   recordCashMovement?: (input: CashMovementInput) => Promise<RecordCashMovementOutcome>;
+  readPreview?: (movement: {
+    kind: CashMovementKind;
+    amount: number;
+  }) => Promise<CashMovementPreview | null | "unavailable">;
 };
 
-async function renderModal(props: Props = {}) {
-  await page.viewport(1280, 1000);
+const KIND_NAMES = { CASH_IN: "Ingreso", CASH_OUT: "Gasto", WITHDRAWAL: "Retiro" } as const;
+
+async function renderPanel(props: Props = {}) {
+  await page.viewport(1366, 768);
   onTestFinished(() => page.viewport(414, 896));
   const recordCashMovement = vi.fn(
     props.recordCashMovement ?? (async () => await (props.outcome ?? RECORDED)),
@@ -64,30 +68,27 @@ async function renderModal(props: Props = {}) {
     requested.push(permission);
     return AUTHORIZERS;
   };
+  const readPreview = vi.fn(props.readPreview ?? (async () => null));
   const onClose = vi.fn();
   const onRecorded = vi.fn();
   const screen = await render(
-    <RecordCashMovementModal
-      open={props.open ?? true}
+    <RecordCashMovementPanel
+      kind={props.kind ?? "CASH_IN"}
+      sessionId="s1"
       person={ADA}
-      registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
-      openedAt="2026-09-30T12:05:00.000-03:00"
       {...(props.expectedCash === undefined ? {} : { expectedCash: props.expectedCash })}
       loadKinds={loadKinds}
       loadAuthorizers={loadAuthorizers}
       recordCashMovement={recordCashMovement}
+      readPreview={readPreview}
       onClose={onClose}
       onRecorded={onRecorded}
     />,
   );
-  return { screen, recordCashMovement, requested, loadKinds, onClose, onRecorded };
+  return { screen, recordCashMovement, requested, loadKinds, readPreview, onClose, onRecorded };
 }
 
-type Screen = Awaited<ReturnType<typeof renderModal>>["screen"];
-
-async function choose(screen: Screen, kind: "Ingreso" | "Gasto" | "Retiro") {
-  await userEvent.click(screen.getByText(kind, { exact: true }));
-}
+type Screen = Awaited<ReturnType<typeof renderPanel>>["screen"];
 
 async function fill(screen: Screen, amount: string, reason: string, keys = false) {
   if (keys) {
@@ -99,135 +100,122 @@ async function fill(screen: Screen, amount: string, reason: string, keys = false
   await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), reason);
 }
 
-describe("RecordCashMovementModal", () => {
-  it("is not shown while closed", async () => {
-    const { screen } = await renderModal({ open: false });
+function noticeIconOf(alert: Element): SVGElement | null {
+  let frame: Element | null = alert;
+  while (frame !== null && frame.querySelector("svg") === null) {
+    frame = frame.parentElement;
+  }
+  return frame?.querySelector("svg") ?? null;
+}
 
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+describe("RecordCashMovementPanel", () => {
+  it.each(["CASH_IN", "CASH_OUT", "WITHDRAWAL"] as const)(
+    "is headed with the name of the %s and closes with Esc, offering no way to change the kind",
+    async (kind) => {
+      const { screen, onClose } = await renderPanel({ kind });
+
+      await expect
+        .element(screen.getByRole("heading", { name: KIND_NAMES[kind], exact: true }))
+        .toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
+      await expect.element(screen.getByRole("radio")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Tipo de movimiento")).not.toBeInTheDocument();
+      await userEvent.keyboard("{Escape}");
+      expect(onClose).toHaveBeenCalledOnce();
+      await expectNoAccessibilityViolations(screen.container);
+    },
+  );
+
+  it("closes without recording on the close button, and has no Cancelar button", async () => {
+    const { screen, onClose, recordCashMovement } = await renderPanel();
+
+    await expect.element(screen.getByRole("button", { name: "Cancelar" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(recordCashMovement).not.toHaveBeenCalled();
   });
 
-  it("names the register and the Argentine time the session opened at", async () => {
-    const { screen } = await renderModal();
+  it("shows the expected cash as the first figure under the eyebrow EFECTIVO ESPERADO", async () => {
+    const { screen } = await renderPanel({ expectedCash: 14_420_000 });
 
-    const dialog = screen.getByRole("dialog", { name: "Registrar un movimiento" });
-
-    await expect.element(dialog).toBeVisible();
-    await expect
-      .element(dialog.getByText("Caja 1 · Sesión de las 12:05", { exact: true }))
-      .toBeVisible();
-    await expectNoAccessibilityViolations(document.body);
+    await expect.element(screen.getByText("EFECTIVO ESPERADO", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 144.200,00", { exact: true })).toBeVisible();
   });
 
-  it("leaves the register out of the eyebrow while its name is unknown", async () => {
-    const { screen } = await renderModal({ registerName: null });
+  it("shows no figure while the expected cash is unknown", async () => {
+    const { screen } = await renderPanel();
 
-    await expect.element(screen.getByText("Sesión de las 12:05", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("EFECTIVO ESPERADO")).not.toBeInTheDocument();
   });
 
-  it("offers the three kinds of movement, starting on Ingreso", async () => {
-    const { screen } = await renderModal();
+  it("starts with the focus on Importe, a decimal field, followed by Motivo", async () => {
+    const { screen } = await renderPanel();
 
-    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeChecked();
-    await expect.element(screen.getByText("Entra plata")).toBeVisible();
-    await expect.element(screen.getByText("Se paga algo")).toBeVisible();
-    await expect.element(screen.getByText("Sale a caja fuerte")).toBeVisible();
+    const amount = screen.getByRole("textbox", { name: "Importe" });
+    await expect.element(amount).toHaveFocus();
+    await expect.element(amount).toHaveAttribute("inputmode", "decimal");
+    await expect.element(screen.getByRole("textbox", { name: "Motivo" })).toBeVisible();
+  });
+
+  it("moves between Importe and Motivo with Tab and Shift+Tab", async () => {
+    const { screen } = await renderPanel();
+
+    await userEvent.keyboard("{Tab}");
+    await expect.element(screen.getByRole("textbox", { name: "Motivo" })).toHaveFocus();
+    await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+    await expect.element(screen.getByRole("textbox", { name: "Importe" })).toHaveFocus();
+  });
+
+  it("shows only the Esc and Enter keys, with no letter keycap at Importe or Motivo", async () => {
+    const { screen } = await renderPanel({ expectedCash: 14_420_000 });
     await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("textbox", { name: "Importe" }))
-      .toHaveAttribute("inputmode", "decimal");
-  });
 
-  it("heads the kinds of movement with the design system's eyebrow, left to the group to announce", async () => {
-    const { screen } = await renderModal();
-    const kindsEyebrowLocator = screen
-      .getByRole("dialog")
-      .getByText("Tipo de movimiento", { exact: true });
-    await expect.element(kindsEyebrowLocator).toBeInTheDocument();
-    const kindsEyebrow = kindsEyebrowLocator.element();
-    const reference = await render(<Eyebrow text="Tipo de movimiento" />);
-    const eyebrow = reference.container.querySelector("p") as HTMLElement;
-
-    expectDrawnLike(
-      kindsEyebrow,
-      eyebrow,
-      ["fontSize", "fontWeight", "textTransform", "letterSpacing", "color"],
-      "kinds eyebrow",
-    );
-    expect(kindsEyebrow.closest("[aria-hidden='true']")).not.toBeNull();
+    const keys = [...screen.container.querySelectorAll("kbd")].map((key) => key.textContent);
+    expect(keys).toEqual(["Esc", "Enter"]);
   });
 
   it.each([
-    ["Gasto", "Registrar gasto"],
-    ["Retiro", "Registrar retiro"],
-  ] as const)("names the action after the chosen %s", async (kind, action) => {
-    const { screen } = await renderModal();
-
-    await choose(screen, kind);
+    ["CASH_IN", "Registrar ingreso"],
+    ["CASH_OUT", "Registrar gasto"],
+    ["WITHDRAWAL", "Registrar retiro"],
+  ] as const)("names the action of a %s", async (kind, action) => {
+    const { screen } = await renderPanel({ kind });
 
     await expect.element(screen.getByRole("button", { name: action })).toBeVisible();
   });
 
-  it.each([
-    ["Gasto", "Hay $ 12.500,00 en la caja antes de este gasto."],
-    ["Retiro", "Hay $ 12.500,00 en la caja antes de este retiro."],
-  ] as const)("says how much is in the drawer before a %s", async (kind, hint) => {
-    const { screen } = await renderModal({ expectedCash: 1_250_000 });
-
-    await choose(screen, kind);
-
-    await expect.element(screen.getByText(hint)).toBeVisible();
-  });
-
-  it("says nothing about the drawer's cash for an Ingreso", async () => {
-    const { screen } = await renderModal({ expectedCash: 1_250_000 });
-
-    await expect.element(screen.getByText(/en la caja antes de/)).not.toBeInTheDocument();
-  });
-
-  it("says nothing about the drawer's cash while it is unknown", async () => {
-    const { screen } = await renderModal();
-    await choose(screen, "Gasto");
-
-    await expect.element(screen.getByText(/en la caja antes de/)).not.toBeInTheDocument();
-  });
-
-  it("records the typed amount and the reason as typed, then reports it", async () => {
-    const { screen, recordCashMovement, onRecorded } = await renderModal();
-    await choose(screen, "Gasto");
+  it("records the typed amount and the reason as typed with Enter, then reports it", async () => {
+    const { screen, recordCashMovement, onRecorded } = await renderPanel({ kind: "CASH_OUT" });
     await fill(screen, "5000,50", "  Flete  ");
 
-    await userEvent.click(screen.getByRole("button", { name: "Registrar gasto" }));
+    await userEvent.keyboard("{Enter}");
 
+    await expect.poll(() => onRecorded.mock.calls.length).toBe(1);
     expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
       kind: "CASH_OUT",
       amount: 500_050,
       reason: "  Flete  ",
       authorization: undefined,
     });
-    expect(onRecorded).toHaveBeenCalledOnce();
   });
 
-  it("records the movement with Ctrl+Enter pressed from the field being typed in", async () => {
-    const { screen, recordCashMovement, onRecorded } = await renderModal();
-    await choose(screen, "Gasto");
-    await fill(screen, "5000,50", "Flete");
+  it("records from Enter pressed in Importe and from the submit button", async () => {
+    const { screen, recordCashMovement } = await renderPanel({ kind: "CASH_OUT" });
+    await fill(screen, "100", "Flete");
+    await userEvent.click(screen.getByRole("textbox", { name: "Importe" }));
 
-    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+    await userEvent.keyboard("{Enter}");
+    await userEvent.click(screen.getByRole("button", { name: "Registrar gasto" }));
 
-    await expect.poll(() => onRecorded.mock.calls.length).toBe(1);
-    expect(recordCashMovement).toHaveBeenCalledExactlyOnceWith({
-      kind: "CASH_OUT",
-      amount: 500_050,
-      reason: "Flete",
-      authorization: undefined,
-    });
+    await expect.poll(() => recordCashMovement.mock.calls.length).toBe(2);
   });
 
   it.each([
     ["", "Ingresá el importe.", false],
     ["5,", "Ingresá un importe válido, por ejemplo 5.000,00.", true],
   ])("refuses the amount %j before recording anything", async (typed, message, keys) => {
-    const { screen, recordCashMovement } = await renderModal();
+    const { screen, recordCashMovement } = await renderPanel();
     await fill(screen, typed, "Cambio", keys);
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
@@ -237,7 +225,7 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("sends an amount of zero to the core and shows its refusal on the field", async () => {
-    const { screen, recordCashMovement } = await renderModal({
+    const { screen, recordCashMovement } = await renderPanel({
       outcome: { kind: "invalid_amount" },
     });
     await fill(screen, "0", "Cambio");
@@ -251,7 +239,7 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("leaves judging a blank reason to the core", async () => {
-    const { screen, recordCashMovement } = await renderModal({
+    const { screen, recordCashMovement } = await renderPanel({
       outcome: { kind: "invalid_reason", max_length: 200 },
     });
     await fill(screen, "100", "   ");
@@ -273,7 +261,7 @@ describe("RecordCashMovementModal", () => {
     [{ kind: "invalid_amount" }, "Ingresá un importe válido, por ejemplo 5.000,00."],
     [{ kind: "invalid_reason", max_length: 150 }, "Escribí el motivo (hasta 150 caracteres)."],
   ] as const)("shows the core's refusal %j beside its field", async (outcome, message) => {
-    const { screen, onRecorded } = await renderModal({ outcome });
+    const { screen, onRecorded } = await renderPanel({ outcome });
     await fill(screen, "100", "Cambio");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
@@ -282,61 +270,8 @@ describe("RecordCashMovementModal", () => {
     expect(onRecorded).not.toHaveBeenCalled();
   });
 
-  it("tells how much cash is expected beside the amount when the core refuses it as more than that", async () => {
-    const { screen, onRecorded } = await renderModal({
-      outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
-    });
-    await choose(screen, "Retiro");
-    await fill(screen, "50000", "Caja fuerte");
-
-    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
-
-    await expect
-      .element(screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00."))
-      .toBeVisible();
-    expect(onRecorded).not.toHaveBeenCalled();
-  });
-
-  it("tells the drawer's cash counted by the core's refusal once the amount is corrected", async () => {
-    const { screen } = await renderModal({
-      expectedCash: 1_250_000,
-      outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
-    });
-    await choose(screen, "Retiro");
-    await fill(screen, "50000", "Caja fuerte");
-
-    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    await expect
-      .element(screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00."))
-      .toBeVisible();
-
-    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "40000");
-
-    await expect
-      .element(screen.getByText("Hay $ 42.000,00 en la caja antes de este retiro."))
-      .toBeVisible();
-    await expect
-      .element(screen.getByText("Hay $ 12.500,00 en la caja antes de este retiro."))
-      .not.toBeInTheDocument();
-  });
-
-  it("drops the expected cash refusal on switching to an Ingreso, which has no such limit", async () => {
-    const { screen } = await renderModal({
-      outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
-    });
-    await choose(screen, "Retiro");
-    await fill(screen, "50000", "Caja fuerte");
-    await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
-    const refusal = screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00.");
-    await expect.element(refusal).toBeVisible();
-
-    await choose(screen, "Ingreso");
-
-    await expect.element(refusal).not.toBeInTheDocument();
-  });
-
   it("clears a field's message as it is typed into again", async () => {
-    const { screen } = await renderModal();
+    const { screen } = await renderPanel();
     await fill(screen, "", "Cambio");
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
     await expect.element(screen.getByText("Ingresá el importe.")).toBeVisible();
@@ -347,7 +282,7 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("keeps the amount's message while its edited value is still invalid and clears it once it is valid", async () => {
-    const { screen } = await renderModal();
+    const { screen } = await renderPanel();
     await fill(screen, "5,", "Cambio", true);
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
     const amount = screen.getByRole("textbox", { name: "Importe" });
@@ -362,8 +297,143 @@ describe("RecordCashMovementModal", () => {
     await expect.element(invalidAmount).not.toBeInTheDocument();
   });
 
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { screen } = await renderPanel();
+    const field = screen.getByRole("textbox", { name: "Importe" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
+  });
+
+  describe("the cash left", () => {
+    it("is hidden while Importe is empty or invalid, and nothing is asked of the core", async () => {
+      const { screen, readPreview } = await renderPanel({
+        kind: "CASH_OUT",
+        readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
+      });
+
+      await expect.element(screen.getByRole("textbox", { name: "Importe" })).toHaveFocus();
+      await userEvent.keyboard(",");
+      await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
+      expect(readPreview).not.toHaveBeenCalled();
+    });
+
+    it("shows what the core says is left once Importe is a valid amount, asking it for the kind and amount", async () => {
+      const { screen, readPreview } = await renderPanel({
+        kind: "CASH_OUT",
+        readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
+      });
+
+      await userEvent.keyboard("18500");
+
+      await expect.element(screen.getByText("QUEDA", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("$ 125.700,00", { exact: true })).toBeVisible();
+      expect(readPreview).toHaveBeenLastCalledWith({ kind: "CASH_OUT", amount: 1_850_000 });
+    });
+
+    it("is drawn as a neutral grey card, not the green one", async () => {
+      const { screen } = await renderPanel({
+        readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
+      });
+
+      await userEvent.keyboard("100");
+
+      await expect.element(screen.getByText("QUEDA", { exact: true })).toBeVisible();
+      const card = screen.getByText("QUEDA", { exact: true }).element().closest("[class*=rounded]");
+      expect(card?.className).toContain("bg-surface-subtle");
+      expect(card?.className).not.toContain("bg-success-subtle");
+    });
+
+    it("is hidden again when Importe is emptied", async () => {
+      const { screen } = await renderPanel({
+        readPreview: async () => ({ kind: "remaining", cash: 12_570_000 }),
+      });
+      await userEvent.keyboard("100");
+      await expect.element(screen.getByText("QUEDA", { exact: true })).toBeVisible();
+
+      await userEvent.clear(screen.getByRole("textbox", { name: "Importe" }));
+
+      await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ["the core says the amount is not valid", async () => ({ kind: "invalid_amount" as const })],
+      ["no session is open", async () => null],
+      ["the core cannot answer", async () => "unavailable" as const],
+      ["the read fails", () => Promise.reject(new Error("the connection was replaced"))],
+    ])("is not shown when %s", async (_case, readPreview) => {
+      const { screen } = await renderPanel({ readPreview });
+
+      await userEvent.keyboard("100");
+
+      await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("when there is not that much cash", () => {
+    const EXCEEDS_MESSAGE = "No hay tanto efectivo en la caja: se esperan $ 144.200,00.";
+
+    it("shows the refusal in red in the place of the cash left when the core says the amount exceeds it", async () => {
+      const { screen } = await renderPanel({
+        kind: "CASH_OUT",
+        readPreview: async () => ({ kind: "exceeds_expected_cash", expected: 14_420_000 }),
+      });
+
+      await userEvent.keyboard("150000");
+
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(EXCEEDS_MESSAGE);
+      await expect.element(screen.getByText("QUEDA", { exact: true })).not.toBeInTheDocument();
+    });
+
+    it("marks the refusal with a red cross", async () => {
+      const { screen } = await renderPanel({
+        kind: "CASH_OUT",
+        readPreview: async () => ({ kind: "exceeds_expected_cash", expected: 14_420_000 }),
+      });
+
+      await userEvent.keyboard("150000");
+
+      await expect.element(screen.getByRole("alert")).toBeVisible();
+      const icon = noticeIconOf(screen.getByRole("alert").element());
+      expect(icon?.getAttribute("class")).toContain("lucide-circle-x");
+    });
+
+    it("tells how much cash is expected when the core refuses recording the amount as more than that", async () => {
+      const { screen, onRecorded } = await renderPanel({
+        kind: "WITHDRAWAL",
+        outcome: { kind: "exceeds_expected_cash", expected: 14_420_000 },
+      });
+      await fill(screen, "150000", "Caja fuerte");
+
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(EXCEEDS_MESSAGE);
+      expect(onRecorded).not.toHaveBeenCalled();
+    });
+
+    it("drops the refusal once the amount is corrected, leaving the cash left to the core", async () => {
+      const { screen } = await renderPanel({
+        kind: "WITHDRAWAL",
+        outcome: { kind: "exceeds_expected_cash", expected: 14_420_000 },
+        readPreview: async ({ amount }) =>
+          amount > 14_420_000
+            ? { kind: "remaining", cash: 0 }
+            : { kind: "remaining", cash: 14_420_000 - amount },
+      });
+      await fill(screen, "150000", "Caja fuerte");
+      await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
+      await expect.element(screen.getByRole("alert")).toHaveTextContent(EXCEEDS_MESSAGE);
+
+      await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "40000");
+
+      await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+      await expect.element(screen.getByText("$ 104.200,00", { exact: true })).toBeVisible();
+    });
+  });
+
   it("says when there is no open session to record into", async () => {
-    const { screen, onRecorded } = await renderModal({ outcome: { kind: "no_open_session" } });
+    const { screen, onRecorded } = await renderPanel({ outcome: { kind: "no_open_session" } });
     await fill(screen, "100", "Cambio");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
@@ -373,7 +443,7 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("says the movement was not recorded when the core reports it unavailable", async () => {
-    const { screen, onRecorded } = await renderModal({ outcome: { kind: "unavailable" } });
+    const { screen, onRecorded } = await renderPanel({ outcome: { kind: "unavailable" } });
     await fill(screen, "100", "Cambio");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
@@ -385,8 +455,10 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("says the signed-in person no longer holds the kind's permission", async () => {
-    const { screen, onRecorded } = await renderModal({ outcome: { kind: "lacks_permission" } });
-    await choose(screen, "Gasto");
+    const { screen, onRecorded } = await renderPanel({
+      kind: "CASH_OUT",
+      outcome: { kind: "lacks_permission" },
+    });
     await fill(screen, "100", "Flete");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar gasto" }));
@@ -398,7 +470,7 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("says the movement was not recorded when the core no longer finds anyone signed in", async () => {
-    const { screen, onRecorded } = await renderModal({ outcome: { kind: "not_signed_in" } });
+    const { screen, onRecorded } = await renderPanel({ outcome: { kind: "not_signed_in" } });
     await fill(screen, "100", "Cambio");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
@@ -409,8 +481,19 @@ describe("RecordCashMovementModal", () => {
     expect(onRecorded).not.toHaveBeenCalled();
   });
 
+  it("marks a failure to record with a red cross", async () => {
+    const { screen } = await renderPanel({ outcome: { kind: "not_signed_in" } });
+    await fill(screen, "100", "Cambio");
+
+    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
+
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+    const icon = noticeIconOf(screen.getByRole("alert").element());
+    expect(icon?.getAttribute("class")).toContain("lucide-circle-x");
+  });
+
   it("says when the core could not be reached, and allows trying again", async () => {
-    const { screen, recordCashMovement, onRecorded } = await renderModal({
+    const { screen, recordCashMovement, onRecorded } = await renderPanel({
       recordCashMovement: async () => {
         throw new Error("core down");
       },
@@ -429,56 +512,27 @@ describe("RecordCashMovementModal", () => {
     expect(recordCashMovement).toHaveBeenCalledTimes(2);
   });
 
-  it("holds every control while the movement is being recorded", async () => {
+  it("holds every control, and Esc, while the movement is being recorded", async () => {
     let finish: (outcome: RecordCashMovementOutcome) => void = () => undefined;
     const pending = new Promise<RecordCashMovementOutcome>((resolve) => {
       finish = resolve;
     });
-    const { screen, recordCashMovement } = await renderModal({ outcome: pending });
+    const { screen, recordCashMovement, onClose } = await renderPanel({ outcome: pending });
     await fill(screen, "100", "Cambio");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
     await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeDisabled();
     await expect.element(screen.getByRole("textbox", { name: "Importe" })).toBeDisabled();
-    await choose(screen, "Gasto");
-    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeChecked();
+    await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
     expect(recordCashMovement).toHaveBeenCalledOnce();
     finish(RECORDED);
   });
 
-  it("cannot be closed while the movement is being recorded", async () => {
-    let finish: (outcome: RecordCashMovementOutcome) => void = () => undefined;
-    const pending = new Promise<RecordCashMovementOutcome>((resolve) => {
-      finish = resolve;
-    });
-    const { screen, onClose } = await renderModal({ outcome: pending });
-    await fill(screen, "100", "Cambio");
-
-    await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
-
-    await expect.element(screen.getByRole("button", { name: "Registrar ingreso" })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Cerrar" })).not.toBeInTheDocument();
-    await userEvent.keyboard("{Escape}");
-    expect(onClose).not.toHaveBeenCalled();
-    finish(RECORDED);
-  });
-
-  it("closes without recording on Cancelar and on the close button", async () => {
-    const { screen, onClose, recordCashMovement } = await renderModal();
-
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
-
-    expect(onClose).toHaveBeenCalledTimes(2);
-    expect(recordCashMovement).not.toHaveBeenCalled();
-  });
-
   it("asks no authorizer when the core says none is needed", async () => {
-    const { screen, requested } = await renderModal({ lacking: [] });
-
-    await choose(screen, "Retiro");
+    const { screen, requested } = await renderPanel({ kind: "WITHDRAWAL", lacking: [] });
 
     await expect.element(screen.getByRole("button", { name: "Registrar retiro" })).toBeVisible();
     await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
@@ -486,11 +540,10 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("asks for an authorizer in the modal, not in the panel, when the core says one is needed", async () => {
-    const { screen, requested } = await renderModal({
+    const { screen, requested } = await renderPanel({
+      kind: "WITHDRAWAL",
       lacking: ["WITHDRAWAL"],
     });
-
-    await choose(screen, "Retiro");
 
     await expect.element(screen.getByText("AUTORIZA ALGUIEN CON PERMISO")).not.toBeInTheDocument();
     await expect.element(authorizationDialog()).not.toBeInTheDocument();
@@ -501,29 +554,27 @@ describe("RecordCashMovementModal", () => {
   });
 
   it("asks the core which movements can be recorded, once, when it opens", async () => {
-    const { screen, loadKinds } = await renderModal();
+    const { screen, loadKinds } = await renderPanel();
 
-    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: "Importe" })).toBeVisible();
     expect(loadKinds).toHaveBeenCalledOnce();
   });
 
-  it("offers no movement to record until the core answers, and lets the cashier cancel", async () => {
+  it("offers no field until the core answers, and lets the cashier close it with Esc", async () => {
     let answer: (kinds: RecordableCashMovementKinds) => void = () => {};
-    const { screen, onClose } = await renderModal({
+    const { screen, onClose } = await renderPanel({
       loadKinds: () =>
         new Promise((resolve) => {
           answer = resolve;
         }),
     });
 
-    await expect
-      .element(screen.getByRole("dialog", { name: "Registrar un movimiento" }))
-      .toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    await expect.element(screen.getByRole("heading", { name: "Ingreso" })).toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: "Importe" })).not.toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledOnce();
     answer(kindsLacking([]));
-    await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: "Importe" })).toBeVisible();
   });
 
   it.each([
@@ -533,7 +584,7 @@ describe("RecordCashMovementModal", () => {
     "says what can be recorded could not be loaded when the core %s, and asks again on retry",
     async (_case, failing) => {
       const answers = [failing, async () => kindsLacking([])];
-      const { screen, loadKinds } = await renderModal({
+      const { screen, loadKinds } = await renderPanel({
         loadKinds: () => {
           const next = answers.shift();
           if (next === undefined) {
@@ -546,24 +597,25 @@ describe("RecordCashMovementModal", () => {
       await expect
         .element(screen.getByText("No se pudieron cargar los movimientos que podés registrar"))
         .toBeVisible();
-      await expect.element(screen.getByRole("radio", { name: "Ingreso" })).not.toBeInTheDocument();
+      await expect
+        .element(screen.getByRole("textbox", { name: "Importe" }))
+        .not.toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-      await expect.element(screen.getByRole("radio", { name: "Ingreso" })).toBeVisible();
+      await expect.element(screen.getByRole("textbox", { name: "Importe" })).toBeVisible();
       expect(loadKinds).toHaveBeenCalledTimes(2);
     },
   );
 
   describe("when the signed-in person lacks the kind's permission", () => {
     it.each([
-      ["CASH_OUT", "Gasto", "Registrar gasto", "Registrar gasto"],
-      ["WITHDRAWAL", "Retiro", "Registrar retiro", "Retirar efectivo a la caja fuerte"],
-      ["CASH_IN", "Ingreso", "Registrar ingreso", "Registrar ingreso"],
+      ["CASH_OUT", "Registrar gasto", "Registrar gasto"],
+      ["WITHDRAWAL", "Registrar retiro", "Retirar efectivo a la caja fuerte"],
+      ["CASH_IN", "Registrar ingreso", "Registrar ingreso"],
     ] as const)(
       "asks in the modal with the subtitle of a %s movement",
-      async (kind, option, button, subtitle) => {
-        const { screen, recordCashMovement } = await renderModal({ lacking: [kind] });
-        await choose(screen, option);
+      async (kind, button, subtitle) => {
+        const { screen, recordCashMovement } = await renderPanel({ kind, lacking: [kind] });
         await fill(screen, "100", "Fin de turno");
 
         await userEvent.click(screen.getByRole("button", { name: button }));
@@ -576,8 +628,10 @@ describe("RecordCashMovementModal", () => {
     );
 
     it("shows the form's own refusal and asks for no authorization while the form is not valid", async () => {
-      const { screen, recordCashMovement } = await renderModal({ lacking: ["WITHDRAWAL"] });
-      await choose(screen, "Retiro");
+      const { screen, recordCashMovement } = await renderPanel({
+        kind: "WITHDRAWAL",
+        lacking: ["WITHDRAWAL"],
+      });
       await fill(screen, "", "Fin de turno");
 
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
@@ -588,20 +642,22 @@ describe("RecordCashMovementModal", () => {
     });
 
     it("asks for someone with that permission only for the kind that needs it", async () => {
-      const { screen, requested } = await renderModal({
+      const { screen, requested } = await renderPanel({
+        kind: "CASH_OUT",
         lacking: ["WITHDRAWAL"],
       });
-      await choose(screen, "Gasto");
       await expect.element(screen.getByRole("button", { name: "Registrar gasto" })).toBeEnabled();
       expect(requested).toEqual([]);
 
-      await choose(screen, "Retiro");
+      await screen.unmount();
+      const withdrawal = await renderPanel({ kind: "WITHDRAWAL", lacking: ["WITHDRAWAL"] });
 
-      expect(requested).toEqual(["withdraw_cash"]);
+      await expect.poll(() => withdrawal.requested).toEqual(["withdraw_cash"]);
     });
 
     it("asks for the authorizers of the permission the core names for the kind", async () => {
-      const { screen, requested } = await renderModal({
+      const { requested } = await renderPanel({
+        kind: "WITHDRAWAL",
         loadKinds: async () => ({
           ...kindsLacking([]),
           WITHDRAWAL: {
@@ -611,16 +667,14 @@ describe("RecordCashMovementModal", () => {
         }),
       });
 
-      await choose(screen, "Retiro");
-
-      expect(requested).toEqual(["close_anothers_register_session"]);
+      await expect.poll(() => requested).toEqual(["close_anothers_register_session"]);
     });
 
     it("sends who authorizes and their PIN on Enter, then closes", async () => {
-      const { screen, recordCashMovement, onRecorded } = await renderModal({
+      const { screen, recordCashMovement, onRecorded } = await renderPanel({
+        kind: "WITHDRAWAL",
         lacking: ["WITHDRAWAL"],
       });
-      await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
@@ -636,8 +690,10 @@ describe("RecordCashMovementModal", () => {
     });
 
     it("takes the digits typed right after the authorization modal opens, without clicking its PIN field", async () => {
-      const { screen, recordCashMovement } = await renderModal({ lacking: ["WITHDRAWAL"] });
-      await choose(screen, "Retiro");
+      const { screen, recordCashMovement } = await renderPanel({
+        kind: "WITHDRAWAL",
+        lacking: ["WITHDRAWAL"],
+      });
       await fill(screen, "100", "Fin de turno");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
       await expect.element(authorizationDialog()).toBeVisible();
@@ -648,11 +704,11 @@ describe("RecordCashMovementModal", () => {
       expect(recordCashMovement).not.toHaveBeenCalled();
     });
 
-    it("does not record the movement when the authorization modal is closed with Esc", async () => {
-      const { screen, recordCashMovement, onClose } = await renderModal({
+    it("does not record the movement when the authorization modal is closed with Esc, nor closes the panel", async () => {
+      const { screen, recordCashMovement, onClose } = await renderPanel({
+        kind: "WITHDRAWAL",
         lacking: ["WITHDRAWAL"],
       });
-      await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
       await expect.element(authorizationDialog()).toBeVisible();
@@ -665,11 +721,11 @@ describe("RecordCashMovementModal", () => {
     });
 
     it("shows the PIN refusal inside the authorization modal and stays open", async () => {
-      const { screen, onRecorded } = await renderModal({
+      const { screen, onRecorded } = await renderPanel({
+        kind: "WITHDRAWAL",
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 6 },
       });
-      await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
@@ -680,11 +736,11 @@ describe("RecordCashMovementModal", () => {
     });
 
     it("says the movement was not recorded when the core is unavailable, not that the PIN failed", async () => {
-      const { screen, onRecorded } = await renderModal({
+      const { screen, onRecorded } = await renderPanel({
+        kind: "WITHDRAWAL",
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "unavailable" },
       });
-      await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
@@ -698,11 +754,11 @@ describe("RecordCashMovementModal", () => {
     });
 
     it("says inside the modal that the authorizer cannot authorize the movement", async () => {
-      const { screen, onRecorded } = await renderModal({
+      const { screen, onRecorded } = await renderPanel({
+        kind: "WITHDRAWAL",
         lacking: ["WITHDRAWAL"],
         outcome: { kind: "lacks_permission" },
       });
-      await choose(screen, "Retiro");
       await fill(screen, "100", "Fin de turno");
       await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
@@ -714,14 +770,5 @@ describe("RecordCashMovementModal", () => {
       await expect.element(screen.getByText(/Ya no tenés permiso/)).not.toBeInTheDocument();
       expect(onRecorded).not.toHaveBeenCalled();
     });
-  });
-
-  it("groups thousands and takes a typed dot as the decimal comma", async () => {
-    const { screen } = await renderModal();
-    const field = screen.getByRole("textbox", { name: "Importe" });
-    await userEvent.clear(field);
-    await userEvent.type(field, "1234.5");
-
-    await expect.element(field).toHaveValue("1.234,5");
   });
 });

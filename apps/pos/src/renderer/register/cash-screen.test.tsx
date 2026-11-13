@@ -1,100 +1,17 @@
-import type {
-  CashBalance,
-  ListedCashMovement,
-  RecordCashMovementOutcome,
-} from "@purosur/contracts";
+import type { CashBalance, ListedCashMovement } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import type { ReactNode } from "react";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
-import type { SignedInPerson } from "../shell/signed-in-person";
+import { describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import {
-  RegisterWindow,
   STORE_NOTEBOOK_WINDOW,
   scrollTheAreaHoldingItToItsEnd,
   showInStoreNotebookWindow,
   windowOverflow,
 } from "../shell/test-support/register-window";
-import { render } from "../shell/test-support/render-with-router";
-import { CashScreen } from "./cash-screen";
-
-const PERSON: SignedInPerson = {
-  user_id: "u1",
-  first_name: "Ada",
-  abilities: ["open_cash_session"],
-};
-const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
-const BALANCE: CashBalance = {
-  opening_float: { amount: 2_000_000, direction: "in" },
-  cash_sales: { amount: 3_500_000, direction: "in" },
-  change_given: { amount: 930_000, direction: "out" },
-  refunds: { amount: 0, direction: "out" },
-  cash_in: { amount: 100_000, direction: "in" },
-  expenses: { amount: 50_000, direction: "out" },
-  withdrawals: { amount: 0, direction: "out" },
-  expected: 4_620_000,
-};
-
-const OPENING: ListedCashMovement = {
-  id: "m1",
-  type: "OPENING",
-  amount: 2_000_000,
-  reason: null,
-  direction: "in",
-  occurred_at: OPENED_AT,
-  actor: { user_id: "u1", first_name: "Ada" },
-  authorized_by: null,
-};
-const FLETE: ListedCashMovement = {
-  id: "m2",
-  type: "CASH_OUT",
-  amount: 50_000,
-  reason: "Flete",
-  direction: "out",
-  occurred_at: "2026-09-30T10:30:00.000-03:00",
-  actor: { user_id: "u1", first_name: "Ada" },
-  authorized_by: null,
-};
-
-async function renderScreen(
-  props: {
-    person?: SignedInPerson;
-    registerName?: string | null;
-    loadCashBalance?: () => Promise<CashBalance | null | "unavailable">;
-    loadCashMovements?: () => Promise<ListedCashMovement[] | null | "unavailable">;
-    recordCashMovement?: () => Promise<RecordCashMovementOutcome>;
-    clockGuard?: ReactNode;
-  } = {},
-) {
-  await page.viewport(1280, 720);
-  onTestFinished(() => page.viewport(414, 896));
-  return render(
-    <RegisterWindow>
-      <CashScreen
-        sessionId="s1"
-        person={props.person ?? PERSON}
-        registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
-        openedAt={OPENED_AT}
-        lock={() => {}}
-        loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
-        loadCashMovements={props.loadCashMovements ?? (async () => [OPENING, FLETE])}
-        loadCashMovementKinds={async () => ({
-          CASH_IN: { permission: "record_cash_in", authorization_required: false },
-          CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
-          WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
-        })}
-        loadAuthorizers={async () => []}
-        recordCashMovement={
-          props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))
-        }
-        clockGuard={props.clockGuard}
-      />
-    </RegisterWindow>,
-  );
-}
+import { BALANCE, FLETE, OPENING, PERSON, renderScreen } from "./test-support/cash-screen";
 
 describe("CashScreen", () => {
-  it("scrolls a page of movements longer than the window inside the list's own area, with the heading, the clock guard, the filter, the menu and the expected cash in place", async () => {
+  it("scrolls a page of movements longer than the window inside the list's own area, with the clock guard, the menu and the expected cash in place", async () => {
     const movements = Array.from({ length: 25 }, (_, index) => ({
       ...FLETE,
       id: `m${index + 2}`,
@@ -111,11 +28,7 @@ describe("CashScreen", () => {
     scrollTheAreaHoldingItToItsEnd(lastMovement.element());
 
     await expect.element(lastMovement).toBeInViewport();
-    await expect
-      .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
-      .toBeInViewport();
     await expect.element(screen.getByText("Aviso del reloj")).toBeInViewport();
-    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeInViewport();
     expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });
     const menu = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
     expect(menu.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
@@ -123,12 +36,12 @@ describe("CashScreen", () => {
     expect(panel.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
   });
 
-  it("is headed Movimientos de efectivo, leaving the register's name to the frame's header", async () => {
+  it("is headed Movimientos de efectivo for screen readers only, leaving the register's name to the frame's header", async () => {
     const screen = await renderScreen();
 
     await expect
-      .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
-      .toBeVisible();
+      .element(screen.getByRole("heading", { level: 1, name: "Movimientos de efectivo" }))
+      .toBeInTheDocument();
     await expect.element(screen.getByText(/Caja 1/)).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -169,10 +82,11 @@ describe("CashScreen", () => {
   it("shows the cash the register expects now, broken down", async () => {
     const screen = await renderScreen();
 
-    await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+    await expect.element(screen.getByText("EFECTIVO ESPERADO", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Ventas en efectivo")).toBeVisible();
-    await expect.element(screen.getByText("+ $ 35.000,00")).toBeVisible();
+    await expect.element(screen.getByText("$ 35.000,00", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("\u2013 $ 9.300,00", { exact: true })).toBeVisible();
   });
 
   it("goes to the cash count when Cerrar caja is pressed", async () => {
@@ -206,9 +120,8 @@ describe("CashScreen", () => {
     const screen = await renderScreen();
 
     const table = screen.getByRole("table", { name: "Movimientos de la sesión" });
-    await expect.element(table.getByText("Apertura de sesión", { exact: true })).toBeVisible();
+    await expect.element(table.getByText("Apertura", { exact: true })).toBeVisible();
     await expect.element(table.getByText("Flete", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
   });
 
   it("shows no movement while they load", async () => {
@@ -216,7 +129,7 @@ describe("CashScreen", () => {
 
     const table = screen.getByRole("table", { name: "Movimientos de la sesión" });
     await expect.element(table).toHaveAttribute("aria-busy", "true");
-    await expect.element(table.getByText("Apertura de sesión")).not.toBeInTheDocument();
+    await expect.element(table.getByText("Apertura")).not.toBeInTheDocument();
   });
 
   it("says the movements could not be read and reads them again when Reintentar is pressed", async () => {
@@ -233,7 +146,7 @@ describe("CashScreen", () => {
       .element(
         screen
           .getByRole("table", { name: "Movimientos de la sesión" })
-          .getByText("Apertura de sesión", { exact: true }),
+          .getByText("Apertura", { exact: true }),
       )
       .toBeVisible();
   });
@@ -247,7 +160,7 @@ describe("CashScreen", () => {
     await expect.element(movementsFail.getByText("$ 46.200,00", { exact: true })).toBeVisible();
   });
 
-  it("offers Registrar movimiento above Cerrar caja, available in every state", async () => {
+  it("offers Cerrar caja with F12 and the three movements with their keys, in every state", async () => {
     const screen = await renderScreen({
       loadCashBalance: async () => "unavailable",
       loadCashMovements: async () => "unavailable",
@@ -257,41 +170,30 @@ describe("CashScreen", () => {
       (button) => button.textContent,
     );
     expect(buttons.filter((text) => text !== "Reintentar")).toEqual([
-      "Registrar movimiento",
-      "Cerrar caja",
+      "Cerrar cajaF12",
+      "1Ingreso",
+      "2Gasto",
+      "3Retiro",
     ]);
-    await expect
-      .element(screen.getByRole("button", { name: "Registrar movimiento", exact: true }))
-      .toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Ingreso" })).toBeEnabled();
   });
 
-  it("opens the movement modal when Registrar movimiento is pressed", async () => {
+  it("shows the keys of the table's footer: 1 Ingreso, 2 Gasto, 3 Retiro and F12 Cerrar caja", async () => {
     const screen = await renderScreen();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
+    const legend = Array.from(screen.container.querySelectorAll("main ul li")).map(
+      (item) => item.textContent,
     );
-
-    await expect
-      .element(screen.getByRole("dialog", { name: "Registrar un movimiento" }))
-      .toBeVisible();
+    expect(legend).toEqual(["1Ingreso", "2Gasto", "3Retiro", "F12Cerrar caja"]);
   });
 
-  it("tells the modal how much cash the balance says is in the register", async () => {
+  it("offers the type filter and the movement count, and no Registrar movimiento button", async () => {
     const screen = await renderScreen();
-    await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
-    );
 
-    await userEvent.click(
-      screen
-        .getByRole("radiogroup", { name: "Tipo de movimiento" })
-        .getByText("Gasto", { exact: true }),
-    );
-
+    await expect.element(screen.getByText("2 movimientos")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeVisible();
     await expect
-      .element(screen.getByText("Hay $ 46.200,00 en la caja antes de este gasto."))
-      .toBeVisible();
+      .element(screen.getByRole("button", { name: "Registrar movimiento" }))
+      .not.toBeInTheDocument();
   });
 });

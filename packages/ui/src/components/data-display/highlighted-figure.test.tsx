@@ -19,6 +19,20 @@ test("draws a pale green card with no border, 16px padding and 8px radius", asyn
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("draws a neutral grey card with a plain text value when its tone is neutral", async () => {
+  const screen = await render(<HighlightedFigure label="Queda" value="$ 1,00" tone="neutral" />);
+
+  expect(getComputedStyle(figureOf(screen)).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  expect(getComputedStyle(screen.getByText("$ 1,00").element()).color).toBe(tokenRgb("text"));
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps the pale green card when its tone is success", async () => {
+  const screen = await render(<HighlightedFigure label="Margen" value="45,6 %" tone="success" />);
+
+  expect(getComputedStyle(figureOf(screen)).backgroundColor).toBe(tokenRgb("success-subtle"));
+});
+
 test("shows the label at the start and the value at the end of one row", async () => {
   const screen = await render(
     <div style={{ width: "480px" }}>

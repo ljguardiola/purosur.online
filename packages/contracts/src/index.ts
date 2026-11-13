@@ -715,6 +715,7 @@ export {
 export type {
   CashBalance,
   CashCountPreview,
+  CashMovementPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
