@@ -278,17 +278,23 @@ export function SalesHistoryScreen({
   }
 
   function takeScan(text: string) {
+    if (refusal !== undefined) {
+      return;
+    }
     const ticket = scannedTicketTextSchema.safeParse(text);
     if (!ticket.success) {
       setNotice(NOT_A_TICKET_QR);
       return;
     }
     setScanned(text);
-    setSearch(
-      ticket.data.kind === "invoice"
-        ? `${formatPointOfSaleNumber(ticket.data.pointOfSale)}-${formatInvoiceNumber(ticket.data.number)}`
-        : formatShortCode(ticket.data.shortCode),
-    );
+    if (ticket.data.kind === "invoice") {
+      setSearch(
+        `${formatPointOfSaleNumber(ticket.data.pointOfSale)}-${formatInvoiceNumber(ticket.data.number)}`,
+      );
+    } else {
+      setSearch(formatShortCode(ticket.data.shortCode));
+      setSession("all");
+    }
     setPage(1);
     select(undefined);
   }
@@ -583,7 +589,7 @@ export function SalesHistoryScreen({
   }
 
   const locked = refusal !== undefined || shownPanel?.kind === "void";
-  useBarcodeReadings(locked ? undefined : takeScan);
+  useBarcodeReadings(shownPanel?.kind === "void" ? undefined : takeScan);
 
   return (
     <RegisterFrame
