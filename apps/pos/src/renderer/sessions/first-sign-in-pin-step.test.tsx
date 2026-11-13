@@ -42,9 +42,18 @@ describe("FirstSignInPinStep", () => {
     await expect.element(screen.getByRole("heading", { name: "Ingresá tu PIN" })).toBeVisible();
     await expect.element(screen.getByLabelText("PIN")).toBeEnabled();
     await expect.element(screen.getByRole("button", { name: "Entrar" })).toBeDisabled();
-    const back = screen.getByRole("link", { name: "Volver" });
-    expect(back.element().getAttribute("href")).toBe("/sign-in");
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("0-9", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Volver" })).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("goes back to the sign-in with Escape", async () => {
+    const screen = await renderStep(answering({ kind: "unavailable" }).signIn);
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 
   it("sends the person and the PIN as typed", async () => {

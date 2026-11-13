@@ -1,6 +1,6 @@
 import type { PinCodeRedemptionOutcome } from "@purosur/contracts";
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it } from "vitest";
+import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
+import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PinCodeRedemptionScreen } from "./pin-code-redemption-screen";
@@ -31,12 +31,13 @@ async function fillAndSave(screen: Screen) {
 }
 
 describe("PinCodeRedemptionScreen", () => {
-  it("asks for the code from the backoffice and the new PIN, with a link back to the start", async () => {
+  it("asks only for the code and the new PIN, with its keys and no description or link", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
         checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "redeemed" })}
+        version="1.4.212"
       />,
     );
 
@@ -47,14 +48,45 @@ describe("PinCodeRedemptionScreen", () => {
           "Escribí el código que te dieron desde el backoffice. Hace falta internet.",
         ),
       )
-      .toBeVisible();
+      .not.toBeInTheDocument();
     await expect.element(code(screen)).toBeVisible();
     await expect.element(screen.getByRole("button", { name: SAVE })).toBeEnabled();
-    expect(screen.getByRole("link", { name: "Volver" }).element().getAttribute("href")).toBe(
-      "/sign-in",
-    );
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+    await expect.element(screen.getByRole("link", { name: "Volver" })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("0-9", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the Tab key as Campo in the brand panel while the fields are shown", async () => {
+    const screen = await render(
+      <PinCodeRedemptionScreen
+        loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
+        redeem={answering({ kind: "redeemed" })}
+        version="1.4.212"
+      />,
+    );
+
+    await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Campo", { exact: true })).toBeVisible();
+  });
+
+  it("goes back to the sign-in with Escape", async () => {
+    const screen = await render(
+      <PinCodeRedemptionScreen
+        loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
+        redeem={answering({ kind: "redeemed" })}
+        version={null}
+      />,
+    );
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 
   it("sends the code and the new PIN typed", async () => {
@@ -67,6 +99,7 @@ describe("PinCodeRedemptionScreen", () => {
           calls.push([typedCode, pin]);
           return { kind: "redeemed" };
         }}
+        version={null}
       />,
     );
 
@@ -81,6 +114,7 @@ describe("PinCodeRedemptionScreen", () => {
         loadPinPolicy={async () => ({ min_digits: 6 })}
         checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "code_expired" })}
+        version={null}
       />,
     );
 
@@ -89,48 +123,36 @@ describe("PinCodeRedemptionScreen", () => {
     await expect.element(screen.getByText("Pedí un código nuevo en el backoffice.")).toBeVisible();
   });
 
-  it("says the new PIN was saved but only the opener can enter while a session is open", async () => {
+  it("says the new PIN was saved and only the opener can enter while a session is open, keeping the way back", async () => {
     const screen = await render(
       <PinCodeRedemptionScreen
         loadPinPolicy={async () => ({ min_digits: 6 })}
         checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "cash_session_opened_by_another" })}
+        version="1.4.212"
       />,
     );
     await fillAndSave(screen);
 
-    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
-    await expect
-      .element(
-        screen.getByText(
-          "El PIN nuevo quedó guardado, pero solo puede entrar quien abrió la caja.",
-        ),
-      )
-      .toBeVisible();
-  });
+    await expect.element(screen.getByRole("heading", { name: "Cambiar el PIN" })).toBeVisible();
+    await expect.element(screen.getByText("PIN nuevo guardado")).toBeVisible();
+    const detail = screen.getByText("La caja está abierta: solo puede entrar quien la abrió.");
+    await expect.element(detail).toBeVisible();
+    expect(
+      getComputedStyle(detail.element().parentElement?.parentElement as HTMLElement)
+        .backgroundColor,
+    ).toBe(tokenRgb("success-subtle"));
+    await expect.element(screen.getByText("La caja está abierta", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Tab", { exact: true })).not.toBeInTheDocument();
+    await expect.element(code(screen)).not.toBeInTheDocument();
+    await expectNoAccessibilityViolations(screen.container);
 
-  it("empties the form once the code is spent for someone else, so it cannot be sent again", async () => {
-    const calls: string[] = [];
-    const redeem = async (typedCode: string): Promise<PinCodeRedemptionOutcome> => {
-      calls.push(typedCode);
-      return { kind: "cash_session_opened_by_another" };
-    };
-    const screen = await render(
-      <PinCodeRedemptionScreen
-        loadPinPolicy={async () => ({ min_digits: 6 })}
-        checkRedemption={checkingLikeTheCore}
-        redeem={redeem}
-      />,
-    );
-    await fillAndSave(screen);
-    await expect.element(screen.getByText("La caja está abierta")).toBeVisible();
+    await userEvent.keyboard("{Enter}");
 
-    await userEvent.click(screen.getByRole("button", { name: SAVE }));
-
-    await expect.element(code(screen)).toHaveValue("");
-    await expect.element(screen.getByLabelText(PIN_LABEL)).toHaveValue("");
-    await expect.element(screen.getByLabelText(REPEAT_LABEL)).toHaveValue("");
-    expect(calls).toHaveLength(1);
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 
   it("replaces the form with the success message and a way back to the start once redeemed", async () => {
@@ -139,6 +161,7 @@ describe("PinCodeRedemptionScreen", () => {
         loadPinPolicy={async () => ({ min_digits: 6 })}
         checkRedemption={checkingLikeTheCore}
         redeem={answering({ kind: "redeemed" })}
+        version={null}
       />,
     );
 
@@ -147,10 +170,30 @@ describe("PinCodeRedemptionScreen", () => {
     await expect.element(screen.getByText("PIN nuevo guardado")).toBeVisible();
     await expect.element(screen.getByText("Ya podés entrar con tu PIN nuevo.")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Volver al inicio" })).toBeVisible();
+    await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Esc", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Tab", { exact: true })).not.toBeInTheDocument();
     await expect.element(screen.getByLabelText(PIN_LABEL)).not.toBeInTheDocument();
     await expect.element(screen.getByLabelText(REPEAT_LABEL)).not.toBeInTheDocument();
     await expect.element(code(screen)).not.toBeInTheDocument();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("keeps the title and goes back to the sign-in with Enter once the new PIN is saved", async () => {
+    const screen = await render(
+      <PinCodeRedemptionScreen
+        loadPinPolicy={async () => ({ min_digits: 6 })}
+        checkRedemption={checkingLikeTheCore}
+        redeem={answering({ kind: "redeemed" })}
+        version={null}
+      />,
+    );
+    await fillAndSave(screen);
+    await expect.element(screen.getByRole("heading", { name: "Cambiar el PIN" })).toBeVisible();
+
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
 });
