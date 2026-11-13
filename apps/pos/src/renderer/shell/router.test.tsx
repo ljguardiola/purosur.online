@@ -22,6 +22,7 @@ import { render as renderInPage } from "vitest-browser-react";
 import { KeyLayerProvider } from "../platform/key-layer";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
+import type { ClosedCashSummary } from "../register/closed-cash-summary";
 import { registerStatusQueryOptions } from "../register/register-queries";
 import { serialDevicesOffer } from "../register/serial-devices-offer";
 import type {
@@ -31,7 +32,6 @@ import type {
   Restoration,
   RouterContext,
 } from "./router";
-import type { ClosedCashSummary } from "../register/closed-cash-summary";
 import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 import { startupPendingGate } from "./startup-pending-gate";
