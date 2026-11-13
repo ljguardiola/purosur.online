@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
-import { usePreviewReturnQuery } from "./returns-queries";
+import { checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
+import { usePreviewReturnQuery, useReturnDraftPreviewQuery } from "./returns-queries";
+import { SALE } from "./test-support/sale-for-return";
 
 const PASTA: ReturnDraftLineBody = {
   sale_line_id: "line-pasta",
@@ -109,5 +111,36 @@ describe("return preview query", () => {
     );
 
     await expect.element(screen.getByText(`refreshing ${JSON.stringify(PREVIEWED)}`)).toBeVisible();
+  });
+});
+
+function DraftPreviewProbe({ preview, marked }: { preview: Preview; marked: boolean }) {
+  const [pasta] = SALE.lines;
+  const draft =
+    marked && pasta !== undefined ? checkLine(EMPTY_RETURN_DRAFT, pasta) : EMPTY_RETURN_DRAFT;
+  const answer = useReturnDraftPreviewQuery({ sale: SALE, draft, preview });
+  return <p>{answer.status}</p>;
+}
+
+describe("return draft preview query", () => {
+  it("asks the core about the lines the draft marks, and nothing while none is marked", async () => {
+    const preview = vi.fn<Preview>(async () => PREVIEWED);
+    const queryClient = createQueryClient();
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <DraftPreviewProbe preview={preview} marked={false} />
+      </QueryClientProvider>,
+    );
+    await expect.element(screen.getByText("loading")).toBeVisible();
+    expect(preview).not.toHaveBeenCalled();
+
+    await screen.rerender(
+      <QueryClientProvider client={queryClient}>
+        <DraftPreviewProbe preview={preview} marked />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("loaded")).toBeVisible();
+    expect(preview).toHaveBeenCalledExactlyOnceWith("sale-1", [PASTA]);
   });
 });
