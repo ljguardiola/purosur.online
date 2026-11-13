@@ -799,10 +799,6 @@ export function SaleScreen({
     }
   }, [confirmingCancel, confirmingPaidCancel, cancelledRefunds, weighing, adjusting, discounting]);
 
-  const found = results?.query === code.trim() && !dismissed ? results : undefined;
-  const choosing = found !== undefined && found.products.length > 0;
-  const chosen = choosing ? found.products[activeIndex] : undefined;
-
   const priceByCode = useProductByCodeQuery({
     code:
       weighing?.kind === "add" && weighing.priced === "by_code" ? weighing.submitted : undefined,
@@ -827,6 +823,9 @@ export function SaleScreen({
             ? "cancel"
             : undefined;
   const panelOpen = panel !== undefined;
+  const found = results?.query === code.trim() && !dismissed && !panelOpen ? results : undefined;
+  const choosing = found !== undefined && found.products.length > 0;
+  const chosen = choosing ? found.products[activeIndex] : undefined;
   useBarcodeReadings(editable && !panelOpen ? (reading) => void takeReading(reading) : undefined);
   const saleLines = sale?.lines ?? [];
   const selectedLine = saleLines.find(({ id }) => id === selectedLineId) ?? saleLines.at(-1);
@@ -867,7 +866,7 @@ export function SaleScreen({
   const canChargePaidOrder = paidOrderToApply !== null && sale?.charge_refusal === null;
   const searchEmpty = code === "";
   const canChargeNow = canCharge && weighing === undefined;
-  const canCancel = sale !== null && !editing && weighing === undefined;
+  const canCancel = sale !== null && saleLines.length > 0 && !editing && weighing === undefined;
   const canDiscount = sale !== null && sale.sale_discount_refusal === null && editable && !editing;
 
   function moveSelection(pressed: string) {
@@ -969,7 +968,12 @@ export function SaleScreen({
         enabled: selectedLine !== undefined && editable && !editing && weighing === undefined,
       },
       { key: "F7", label: "Descuento", run: () => askToDiscount(true), enabled: canDiscount },
-      { key: "F8", label: "Vaciar", run: () => void askToCancelSale(), enabled: canCancel },
+      {
+        key: "F8",
+        label: sale?.lines_lock === "approved_payment" ? "Cancelar venta" : "Vaciar",
+        run: () => void askToCancelSale(),
+        enabled: canCancel,
+      },
       {
         key: "Delete",
         label: "Quitar",
@@ -1015,6 +1019,12 @@ export function SaleScreen({
   const shownProblem =
     answer === "not_permitted" && problem?.kind === "not_permitted" ? undefined : problem;
   const lockedReason = linesLock === null ? undefined : LOCKED_REASONS[linesLock];
+  const scanFieldLocked = lockedReason !== undefined;
+  useEffect(() => {
+    if (scanFieldLocked && document.activeElement === document.body) {
+      field.current?.focus();
+    }
+  }, [scanFieldLocked]);
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
 
   async function askToCancelSale() {
@@ -1128,10 +1138,18 @@ export function SaleScreen({
           />
         )}
         <div className="flex items-start gap-4">
-          <form ref={field} noValidate className="relative min-w-0 flex-1" onSubmit={submit}>
+          <form
+            ref={field}
+            noValidate
+            tabIndex={-1}
+            className="relative min-w-0 flex-1 outline-none"
+            onSubmit={submit}
+          >
             <SearchField
               label="Producto"
-              {...(lockedReason === undefined ? {} : { disabledReason: lockedReason })}
+              {...(lockedReason === undefined
+                ? { disabled: panelOpen }
+                : { disabledReason: lockedReason })}
               placeholder="Escaneá o escribí el nombre"
               icon={LETTER.test(code) ? <Search /> : <ScanBarcode />}
               invalid={shownProblem?.kind === "unknown_code"}

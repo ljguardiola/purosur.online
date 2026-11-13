@@ -13,6 +13,7 @@ import {
   FigureStat,
   fieldErrorMessage,
   formatCents,
+  formatCentsReduction,
   formatNumber,
   formatWeight,
   InlineNotice,
@@ -298,9 +299,7 @@ export function LinePricePanel({
                   value:
                     previewShown === undefined
                       ? NOT_PREVIEWED
-                      : previewShown.line_total_reduction < 0
-                        ? `+ ${formatCents(-previewShown.line_total_reduction)}`
-                        : `– ${formatCents(previewShown.line_total_reduction)}`,
+                      : formatCentsReduction(previewShown.line_total_reduction),
                 },
               ]),
         ]}

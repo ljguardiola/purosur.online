@@ -11,8 +11,8 @@ import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } fr
 
 type OptionCard<V extends string> = NarrowedOption<V, "description" | "icon", "disabled">;
 
-// A row gives each card an icon and help text; a grid holds more, shorter choices, three to a row,
-// each named by its title alone.
+// A row gives each card an icon and help text; a grid holds more, shorter choices, two or three to
+// a row, each named by its title alone.
 type OptionCardLayoutProps<V extends string> =
   | ({ layout?: "row" } & OptionalOptionChoiceProps<V, OptionCard<V>>)
   | ({ layout: "grid"; columns?: 2 | 3 } & OptionalOptionChoiceProps<V, NarrowedOption<V>>);

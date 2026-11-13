@@ -6,7 +6,7 @@ describe("lastDocumentOf", () => {
     expect(lastDocumentOf([])).toBeUndefined();
   });
 
-  it("names the block with the latest reading and its point of sale", () => {
+  it("shows the latest reading among the blocks", () => {
     const last = lastDocumentOf([
       {
         point_of_sale: 2,
@@ -22,7 +22,7 @@ describe("lastDocumentOf", () => {
       },
     ]);
 
-    expect(last).toEqual({ pointOfSale: 3, text: "16/09/2026 · 11:31" });
+    expect(last).toEqual({ text: "16/09/2026 · 11:31" });
   });
 
   it("shows the latest reading on the clock it is written in, whatever the day in UTC", () => {
@@ -48,7 +48,7 @@ describe("lastDocumentOf", () => {
       },
     ]);
 
-    expect(last).toEqual({ pointOfSale: 3, text: "16/09/2026" });
+    expect(last).toEqual({ text: "16/09/2026" });
   });
 
   it("prefers a block with a reading over one that only has the tax authority's day", () => {
@@ -67,26 +67,6 @@ describe("lastDocumentOf", () => {
       },
     ]);
 
-    expect(last).toEqual({ pointOfSale: 3, text: "16/09/2026 · 11:31" });
-  });
-
-  it("keeps the first block when two share the latest reading", () => {
-    const reading = "2026-09-16T11:31:00.000-03:00";
-    const last = lastDocumentOf([
-      {
-        point_of_sale: 4,
-        document_type: "factura_c",
-        latest_reading: reading,
-        tax_authority_last_authorized_issued_on: null,
-      },
-      {
-        point_of_sale: 3,
-        document_type: "factura_c",
-        latest_reading: reading,
-        tax_authority_last_authorized_issued_on: null,
-      },
-    ]);
-
-    expect(last?.pointOfSale).toBe(4);
+    expect(last).toEqual({ text: "16/09/2026 · 11:31" });
   });
 });
