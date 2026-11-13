@@ -176,7 +176,8 @@ describe("FirstSignInCodeStep", () => {
     await saveWithCode(screen);
 
     await expect.element(screen.getByText("Ada", { exact: true })).toBeVisible();
-    await expect.element(screen.getByRole("heading", { name: "PIN nuevo guardado" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Elegí tu PIN" })).toBeVisible();
+    await expect.element(screen.getByText("PIN nuevo guardado")).toBeVisible();
     await expect
       .element(screen.getByText("La caja está abierta: solo puede entrar quien la abrió."))
       .toBeVisible();

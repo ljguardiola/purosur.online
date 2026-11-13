@@ -72,6 +72,7 @@ describe("PinCodeRedemptionScreen", () => {
 
     await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("listitem")).toBeVisible();
+    expect(screen.getByRole("listitem").element().textContent).toBe("TabCampo");
   });
 
   it("opens with the code focused", async () => {

@@ -172,6 +172,7 @@ it("shows the Tab key as Campo above the version while the code and the PINs are
 
   await expect.element(screen.getByText("Tab", { exact: true })).toBeVisible();
   await expect.element(screen.getByRole("listitem")).toBeVisible();
+  expect(screen.getByRole("listitem").element().textContent).toBe("TabCampo");
   await expect.element(screen.getByText("Versión 1.4.212")).toBeVisible();
 });
 

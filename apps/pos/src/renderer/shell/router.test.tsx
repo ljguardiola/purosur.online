@@ -2539,13 +2539,15 @@ describe("the register's router", () => {
 
   it.each([
     ["/sign-in", "enrolled", COMPLETED],
+    ["/first-sign-in", "enrolled", COMPLETED],
+    ["/pin-code-redemption", "enrolled", COMPLETED],
     ["/enroll", "not_enrolled", COMPLETED],
     ["/re-enroll", REVOKED, COMPLETED],
     ["/revoked", REVOKED, COMPLETED],
     ["/restore-required", "enrolled", { kind: "in_progress", step: "enroll", origin: "copy" }],
     ["/restoring", "enrolled", { kind: "in_progress", step: "restore", origin: "copy" }],
   ] as const)(
-    "reads the running version on %s before any PIN or code",
+    "reads the running version on %s before anyone signs in",
     async (route, enrollment, restoration) => {
       const router = createRegisterRouter(
         routeTree,

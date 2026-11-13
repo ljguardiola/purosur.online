@@ -145,4 +145,17 @@ describe("FirstSignInPinStep", () => {
 
     await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
   });
+
+  it("shows the Esc key on the lockout and goes back to the sign-in with Escape", async () => {
+    const screen = await renderStep(answering({ kind: "locked", consecutive_failures: 8 }).signIn);
+
+    await enter(screen, "1234");
+    await expect.element(screen.getByRole("heading", { name: "Ada está bloqueado" })).toBeVisible();
+
+    await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/sign-in"));
+  });
 });
