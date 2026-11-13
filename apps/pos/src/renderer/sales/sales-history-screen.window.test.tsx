@@ -1,12 +1,18 @@
 import { describe, expect, it, onTestFinished } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import {
   STORE_NOTEBOOK_WINDOW,
   scrollTheAreaHoldingItToItsEnd,
   showInStoreNotebookWindow,
   windowOverflow,
 } from "../shell/test-support/register-window";
-import { FISCAL_ROW, pageOf, renderScreen, table } from "./test-support/sales-history-screen";
+import {
+  detailPanel,
+  FISCAL_ROW,
+  pageOf,
+  renderScreen,
+  table,
+} from "./test-support/sales-history-screen";
 
 function linesOfText(element: Element): number {
   const range = document.createRange();
@@ -60,5 +66,40 @@ describe("SalesHistoryScreen in the register's window", () => {
 
     expect(linesOfText(comprobante.element())).toBe(1);
     expect(linesOfText(methods.element())).toBe(1);
+  });
+
+  it("shows each sale's date and time on one line when every session is shown", async () => {
+    const { screen } = await renderScreen();
+    await page.viewport(1366, 768);
+    onTestFinished(() => page.viewport(414, 896));
+
+    await userEvent.click(screen.getByText("Todas", { exact: true }).last());
+
+    const time = table(screen).getByText("09/10 11:42", { exact: true });
+    await expect.element(time).toBeVisible();
+    expect(linesOfText(time.element())).toBe(1);
+  });
+
+  it.each([
+    { key: "{Delete}", panel: "Anular venta" },
+    { key: "{F5}", panel: "Reimprimir" },
+  ])("covers the sale's detail exactly with the $panel panel", async ({ key, panel }) => {
+    const { screen } = await renderScreen();
+    await page.viewport(1366, 768);
+    onTestFinished(() => page.viewport(414, 896));
+    await expect.element(detailPanel(screen).getByText("VENTA · 11:42")).toBeVisible();
+    const detail = detailPanel(screen).element().getBoundingClientRect();
+
+    await userEvent.keyboard(key);
+
+    const covering = screen.getByRole("complementary", { name: panel });
+    await expect.element(covering).toBeVisible();
+    const { left, right, top, bottom } = covering.element().getBoundingClientRect();
+    expect({ left, right, top, bottom }).toEqual({
+      left: detail.left,
+      right: detail.right,
+      top: detail.top,
+      bottom: detail.bottom,
+    });
   });
 });

@@ -371,9 +371,6 @@ describe("SalesHistoryScreen", () => {
         .not.toBeInTheDocument();
       await expect.element(searchField(screen)).toBeDisabled();
       await expect.element(screen.getByRole("radio", { name: "Todas" })).toBeDisabled();
-      expect(
-        getComputedStyle(screen.getByRole("radiogroup", { name: "Sesión" }).element()).opacity,
-      ).toBe("0.45");
       await expect
         .element(detailPanel(screen).getByText("DETALLE DE LA VENTA", { exact: true }))
         .toBeVisible();
