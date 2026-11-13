@@ -1,14 +1,8 @@
-import { writeFileSync } from "node:fs";
-import {
-  findBudgetViolations,
-  holdsExactlyTheMeasures,
-  measureDownload,
-} from "./backoffice-download-budget.mjs";
+import { findBudgetViolations, holdsExactlyTheMeasures } from "./download-budget-rules.mjs";
 import { isDependabotAuthor } from "./validate-pr.mjs";
 
 const RAISE_CAP_BYTES = 2048;
 const BUDGET_PATH = "apps/backoffice/download-budget.json";
-const DEFAULT_DIST_DIR = "apps/backoffice/dist";
 const MEASUREMENT_FIELDS = ["entry", "total", "missing"];
 
 export function decideBudgetRaise(measured, budget) {
@@ -22,11 +16,6 @@ export function decideBudgetRaise(measured, budget) {
   if (overCap.length > 0) return { kind: "over-cap", reasons: overCap };
 
   return { kind: "raise", budget: { entry: measured.entry, total: measured.total } };
-}
-
-export function writeMeasurement({ distDir = DEFAULT_DIST_DIR, outPath }) {
-  const { entry, total, missing } = measureDownload(distDir);
-  writeFileSync(outPath, JSON.stringify({ entry, total, missing }));
 }
 
 export function readMeasurement(text) {
@@ -119,8 +108,4 @@ export async function raiseBudgetOnPullRequest({
   });
 
   return { kind: "raised", pullRequest: pullRequest.number, budget: decision.budget };
-}
-
-if (import.meta.main) {
-  writeMeasurement({ outPath: process.argv[2] });
 }

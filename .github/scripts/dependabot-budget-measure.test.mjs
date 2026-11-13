@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { measureDownload } from "./backoffice-download-budget.mjs";
-import { readMeasurement, writeMeasurement } from "./dependabot-budget-raise.mjs";
+import { writeMeasurement } from "./dependabot-budget-measure.mjs";
+import { readMeasurement } from "./dependabot-budget-raise.mjs";
 
 test("writeMeasurement writes the build's measured sizes in the shape readMeasurement reads", async () => {
   const root = await mkdtemp(join(tmpdir(), "budget measurement "));
