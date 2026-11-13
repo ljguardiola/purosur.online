@@ -122,6 +122,7 @@ export function registerReturnsReportRoutes<TQueryResult extends PgQueryResultHK
           range: report.range,
           typed: groupOnTheWire(report.typed),
           scanned: groupOnTheWire(report.scanned),
+          history: groupOnTheWire(report.history),
           voids: { rows: report.voids.rows.map(voidOnTheWire), totals: report.voids.totals },
           totals: summaryOnTheWire(report.totals),
           by_cashier: report.byCashier.map(({ cashier, ...totals }) => ({

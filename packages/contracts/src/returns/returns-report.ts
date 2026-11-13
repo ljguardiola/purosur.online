@@ -78,6 +78,7 @@ export const returnsReportSchema = z.object({
   range: answeredRangeSchema,
   typed: group,
   scanned: group,
+  history: group,
   voids: z.object({
     rows: z.array(voidRow),
     totals: z.object({ voids: count, voided: cents }),

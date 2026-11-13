@@ -38,12 +38,12 @@ export type ReturnScreenProps = {
 
 type Standing =
   | { step: "find" }
-  | { step: "confirm"; sale: SaleForReturn; source: "QR" | "TYPED" }
-  | { step: "build"; sale: SaleForReturn; source: "QR" | "TYPED" }
+  | { step: "confirm"; sale: SaleForReturn; source: CompleteReturnInput["ticketSource"] }
+  | { step: "build"; sale: SaleForReturn; source: CompleteReturnInput["ticketSource"] }
   | {
       step: "completed";
       sale: SaleForReturn;
-      source: "QR" | "TYPED";
+      source: CompleteReturnInput["ticketSource"];
       completed: CompletedReturn;
     };
 

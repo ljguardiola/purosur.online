@@ -229,6 +229,7 @@ export function ReturnsHistoryScreen({
   const voidsHeadingId = useId();
   const typedHeadingId = useId();
   const scannedHeadingId = useId();
+  const historyHeadingId = useId();
   const filtered = filters.register !== "ALL";
   const data = useReturnsReportQuery({
     query: reportQueryOf(filters),
@@ -261,11 +262,17 @@ export function ReturnsHistoryScreen({
     id: (row) => row.return_id,
     columns: returnColumns,
   });
+  const historyTable = useTableModel({
+    items: shown?.history.rows ?? NO_ROWS,
+    id: (row) => row.return_id,
+    columns: returnColumns,
+  });
 
   const noReturns =
     data.status === "loaded" &&
     typedTable.getRowModel().rows.length === 0 &&
-    scannedTable.getRowModel().rows.length === 0;
+    scannedTable.getRowModel().rows.length === 0 &&
+    historyTable.getRowModel().rows.length === 0;
   const nothingToReport = noReturns && voidsTable.getRowModel().rows.length === 0;
 
   return (
@@ -424,6 +431,21 @@ export function ReturnsHistoryScreen({
                     <Table
                       aria-label="Devoluciones iniciadas escaneando el QR"
                       table={scannedTable}
+                      {...cloudTableState(data, REPORT_NAME)}
+                      empty={{
+                        icon: <Undo2 />,
+                        title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
+                        variant: filtered ? "filtered" : "blank",
+                      }}
+                    />
+                  </section>
+                  <section aria-labelledby={historyHeadingId} className="flex flex-col gap-3">
+                    <h2 id={historyHeadingId} className="text-subheading text-text">
+                      Iniciadas desde el historial
+                    </h2>
+                    <Table
+                      aria-label="Devoluciones iniciadas desde el historial"
+                      table={historyTable}
                       {...cloudTableState(data, REPORT_NAME)}
                       empty={{
                         icon: <Undo2 />,

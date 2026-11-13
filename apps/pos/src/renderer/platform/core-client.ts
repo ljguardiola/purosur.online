@@ -189,7 +189,8 @@ type FindSaleForReturnRequest = {
 
 export type CompleteReturnInput = {
   saleId: string;
-  ticketSource: "QR" | "TYPED";
+  ticketSource: Extract<ReturnsRequestInput, { type: "complete-return" }>["ticket_source"];
+  ticketVerified: boolean;
   lines: readonly ReturnDraftLineBody[];
   refunds: readonly { payment_id: string; amount: number }[];
   authorization: Authorization | undefined;
@@ -941,13 +942,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "preview-return-result" ? answer.outcome : undefined),
       );
     },
-    completeReturn({ saleId, ticketSource, lines, refunds, authorization }) {
+    completeReturn({ saleId, ticketSource, ticketVerified, lines, refunds, authorization }) {
       return ask(
         {
           type: "complete-return",
           request_id: deps.newRequestId(),
           sale_id: saleId,
           ticket_source: ticketSource,
+          ticket_verified: ticketVerified,
           lines: [...lines],
           refunds: [...refunds],
           ...(authorization === undefined ? {} : { authorization }),
