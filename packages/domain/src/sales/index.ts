@@ -86,6 +86,7 @@ export {
   saleTotal,
   saleUnitOfWeightSource,
 } from "./model/sale-line.js";
+export { saleMayBeReturned } from "./model/sale-returnability.js";
 export type { SalePrintStanding } from "./model/sale-print-standing.js";
 export {
   customerReceiptSettled,
