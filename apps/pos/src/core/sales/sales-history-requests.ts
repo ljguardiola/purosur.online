@@ -10,6 +10,7 @@ import {
 import {
   readSaleHistoryDetail,
   readSalesHistory,
+  type SalesHistorySearch,
   type SaleVoidability,
 } from "@purosur/domain/sales/use-cases";
 import { toWireCreditNote } from "../fiscal/wire-credit-note";
@@ -30,7 +31,7 @@ export interface SalesHistoryRequestDeps {
 export interface SalesHistoryRequest {
   session: "open" | "all";
   page: number;
-  document: { pointOfSale: number | null; number: number } | null;
+  search: SalesHistorySearch | null;
 }
 
 export function toWireComprobante(comprobante: SaleComprobante) {
@@ -66,7 +67,7 @@ function toWireVoidability(voidability: SaleVoidability): SaleHistoryDetail["voi
 
 export async function salesHistoryFor(
   { database, gate, zoneRules }: SalesHistoryRequestDeps,
-  { session, page, document }: SalesHistoryRequest,
+  { session, page, search }: SalesHistoryRequest,
 ): Promise<SalesHistoryOutcome> {
   const guarded = await gate.run({ kind: "view_sales_history" }, async () =>
     readSalesHistory(
@@ -74,7 +75,7 @@ export async function salesHistoryFor(
       {
         session,
         page,
-        ...(document === null ? {} : { document }),
+        ...(search === null ? {} : { search }),
       },
     ),
   );
