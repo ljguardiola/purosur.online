@@ -17,7 +17,7 @@ import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { CashMovementsTable } from "./cash-movements-table";
 import { ExpectedCashPanel } from "./expected-cash-panel";
-import { RecordCashMovementModal } from "./record-cash-movement-modal";
+import { RecordCashMovementPanel } from "./record-cash-movement-panel";
 import { useCashBalanceQuery, useCashMovementsQuery } from "./register-queries";
 
 export type CashScreenProps = {
@@ -84,7 +84,7 @@ export function CashScreen({
         {clockGuard}
         <CashMovementsTable state={movements} />
       </main>
-      <RecordCashMovementModal
+      <RecordCashMovementPanel
         open={recording}
         person={person}
         registerName={registerName}

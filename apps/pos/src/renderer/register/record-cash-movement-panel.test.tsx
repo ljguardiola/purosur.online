@@ -16,7 +16,7 @@ import {
 } from "../shell/test-support/authorization-modal-steps";
 import { expectDrawnLike } from "../shell/test-support/drawn-like";
 import { render } from "../shell/test-support/render-with-router";
-import { RecordCashMovementModal } from "./record-cash-movement-modal";
+import { RecordCashMovementPanel } from "./record-cash-movement-panel";
 
 const ADA: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [
@@ -67,7 +67,7 @@ async function renderModal(props: Props = {}) {
   const onClose = vi.fn();
   const onRecorded = vi.fn();
   const screen = await render(
-    <RecordCashMovementModal
+    <RecordCashMovementPanel
       open={props.open ?? true}
       person={ADA}
       registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
@@ -99,7 +99,7 @@ async function fill(screen: Screen, amount: string, reason: string, keys = false
   await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), reason);
 }
 
-describe("RecordCashMovementModal", () => {
+describe("RecordCashMovementPanel", () => {
   it("is not shown while closed", async () => {
     const { screen } = await renderModal({ open: false });
 

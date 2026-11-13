@@ -93,7 +93,7 @@ function eyebrowText(registerName: string | null, openedAt: string): string {
   return registerName === null ? session : `${registerName} · ${session}`;
 }
 
-export type RecordCashMovementModalProps = {
+export type RecordCashMovementPanelProps = {
   open: boolean;
   person: SignedInPerson;
   registerName: string | null;
@@ -115,7 +115,7 @@ function MovementModal({
   recordCashMovement,
   onClose,
   onRecorded,
-}: Omit<RecordCashMovementModalProps, "open" | "loadKinds" | "person"> & {
+}: Omit<RecordCashMovementPanelProps, "open" | "loadKinds" | "person"> & {
   kinds: RecordableCashMovementKinds;
 }) {
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
@@ -296,7 +296,7 @@ function MovementModal({
 function MovementModalWhenKindsAreKnown({
   loadKinds,
   ...props
-}: Omit<RecordCashMovementModalProps, "open">) {
+}: Omit<RecordCashMovementPanelProps, "open">) {
   const kinds = useCashMovementKindsQuery(props.person.user_id, loadKinds);
   if (kinds.status === "loaded") {
     return <MovementModal {...props} kinds={kinds.value} />;
@@ -334,6 +334,6 @@ function MovementModalWhenKindsAreKnown({
   );
 }
 
-export function RecordCashMovementModal({ open, ...props }: RecordCashMovementModalProps) {
+export function RecordCashMovementPanel({ open, ...props }: RecordCashMovementPanelProps) {
   return open ? <MovementModalWhenKindsAreKnown {...props} /> : null;
 }
