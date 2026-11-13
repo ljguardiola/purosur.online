@@ -967,6 +967,7 @@ const historyRoute = createRoute({
       authorizers,
       refreshCashSession,
     } = historyRoute.useRouteContext();
+    const navigate = historyRoute.useNavigate();
     return (
       <SalesHistoryScreen
         person={person}
@@ -983,6 +984,7 @@ const historyRoute = createRoute({
         reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
         loadAuthorizers={authorizers}
         onSessionInvalid={() => void refreshCashSession()}
+        onReturnSale={(saleId) => void navigate({ to: "/return", search: { saleId } })}
       />
     );
   },
@@ -1021,6 +1023,8 @@ const deferredSaleRoute = createRoute({
 const returnRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/return",
+  validateSearch: (search: { saleId?: unknown }) =>
+    typeof search.saleId === "string" && search.saleId !== "" ? { saleId: search.saleId } : {},
   beforeLoad: ({ context }) => {
     const { person } = requireOpenSession(context);
     return { person };

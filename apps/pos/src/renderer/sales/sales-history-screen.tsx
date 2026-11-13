@@ -79,6 +79,7 @@ export type SalesHistoryScreenProps = {
   ) => Promise<ReprintSaleReceiptOutcome>;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   onSessionInvalid: () => void;
+  onReturnSale: (saleId: string) => void;
 };
 
 type SessionFilter = "open" | "all";
@@ -174,6 +175,7 @@ export function SalesHistoryScreen({
   reprintDeferredSaleInvoice,
   loadAuthorizers,
   onSessionInvalid,
+  onReturnSale,
 }: SalesHistoryScreenProps) {
   const [session, setSession] = useState<SessionFilter>(sessionOpen ? "open" : "all");
   const [search, setSearch] = useState("");
@@ -440,9 +442,15 @@ export function SalesHistoryScreen({
       ),
       {
         key: "Delete" as const,
-        label: "Anular",
-        run: () => setPanel({ kind: "void" }),
-        enabled: actions?.canVoid === true && !typing,
+        label: actions?.canVoid === true ? "Anular" : "Devolver",
+        run: () => {
+          if (actions?.canVoid === true) {
+            setPanel({ kind: "void" });
+          } else if (sale !== undefined) {
+            onReturnSale(sale.sale_id);
+          }
+        },
+        enabled: (actions?.canVoid === true || actions?.canReturn === true) && !typing,
       },
       {
         key: "R" as const,
