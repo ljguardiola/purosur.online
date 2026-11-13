@@ -24,6 +24,17 @@ export const WithDetail: Story = {
   args: { detail: "$ 8.200,00 − $ 4.460,00 sobre el precio" },
 };
 
+export const Neutral: Story = {
+  args: { label: "Queda", value: "$ 125.700,00", tone: "neutral" },
+  decorators: [
+    (Story) => (
+      <div className="bg-surface p-4">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 export const Loading: Story = {
   args: { loading: true, value: undefined },
 };

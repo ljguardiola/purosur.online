@@ -13,6 +13,7 @@ import type {
   CashChargeAmountsAnswer,
   CashChargeAnswer,
   CashCountPreview,
+  CashMovementPreview,
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
@@ -73,7 +74,12 @@ import type {
   WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
-import type { AuthorizablePermissionKey, RegisterService, ReturnDraftLine } from "@purosur/domain";
+import type {
+  AuthorizablePermissionKey,
+  CashMovementKind,
+  RegisterService,
+  ReturnDraftLine,
+} from "@purosur/domain";
 import type { SignInUsers } from "@purosur/domain/sessions/use-cases";
 import {
   answerContingencyBackupTicketRequest,
@@ -288,6 +294,9 @@ export interface RendererRequestDeps {
     | undefined;
   cashBalance: (() => CashBalance | null) | undefined;
   cashCountPreview: ((countedCash: number) => CashCountPreview | null) | undefined;
+  cashMovementPreview:
+    | ((movement: { kind: CashMovementKind; amount: number }) => CashMovementPreview | null)
+    | undefined;
   sessionOpenSale: (() => SessionOpenSale | null) | undefined;
   startupPending: (() => Promise<StartupPendingAnswer>) | undefined;
   authorizers: ((permission: AuthorizablePermissionKey) => SignInUser[]) | undefined;
@@ -452,6 +461,18 @@ function readCashBalance(deps: RendererRequestDeps): CashBalance | null | undefi
     return deps.cashBalance?.();
   } catch (error) {
     deps.reportFailure("reading the cash balance", error);
+    return undefined;
+  }
+}
+
+function readCashMovementPreview(
+  deps: RendererRequestDeps,
+  movement: { kind: CashMovementKind; amount: number },
+): CashMovementPreview | null | undefined {
+  try {
+    return deps.cashMovementPreview?.(movement);
+  } catch (error) {
+    deps.reportFailure("reading the movement preview", error);
     return undefined;
   }
 }
@@ -1625,6 +1646,15 @@ export async function answerRendererRequest(
       return preview === undefined
         ? { type: "cash-count-preview-unavailable", request_id: message.request_id }
         : { type: "cash-count-preview", request_id: message.request_id, preview };
+    }
+    case "cash-movement-preview-request": {
+      const preview = readCashMovementPreview(deps, {
+        kind: message.kind,
+        amount: message.amount,
+      });
+      return preview === undefined
+        ? { type: "cash-movement-preview-unavailable", request_id: message.request_id }
+        : { type: "cash-movement-preview", request_id: message.request_id, preview };
     }
     case "session-open-sale-request": {
       const sale = readSessionOpenSale(deps);

@@ -1,4 +1,5 @@
 import type { Clock, OperationAuthority } from "../../shared/index.js";
+import { cashAfterMovement } from "../model/cash-after-movement.js";
 import {
   CASH_MOVEMENT_REASON_MAX_LENGTH,
   type CashMovementKind,
@@ -6,7 +7,6 @@ import {
   isValidCashMovementAmount,
 } from "../model/cash-movement-kind.js";
 import type { CashMovement } from "../model/cash-session.js";
-import { expectedCash } from "../model/expected-cash.js";
 import type { CashLedger, IdGenerator } from "./cash-ledger.js";
 
 export interface RecordCashMovementInput {
@@ -57,11 +57,9 @@ export async function recordCashMovement<Grant extends RecordCashMovementGrant, 
     if (!session) {
       return { kind: "no_open_session" };
     }
-    if (input.kind !== "CASH_IN") {
-      const expected = expectedCash(tx.sessionMovements(session.id));
-      if (input.amount > expected) {
-        return { kind: "exceeds_expected_cash", expected };
-      }
+    const cashAfter = cashAfterMovement(tx.sessionMovements(session.id), input);
+    if (cashAfter.kind === "exceeds_expected_cash") {
+      return cashAfter;
     }
 
     const occurredAt = clock.now();

@@ -107,6 +107,7 @@ function coreAnswering(
     redeemOutcome?: PinCodeRedemptionOutcome;
     cashMovements?: CoreClient["cashMovements"];
     cashMovementKinds?: CoreClient["cashMovementKinds"];
+    cashMovementPreview?: CoreClient["cashMovementPreview"];
     recordCashMovement?: CoreClient["recordCashMovement"];
   } = {},
   sales: {
@@ -255,6 +256,11 @@ function coreAnswering(
       return cashDrawer.cashMovementKinds === undefined
         ? "unavailable"
         : cashDrawer.cashMovementKinds();
+    },
+    async cashMovementPreview(movement) {
+      return cashDrawer.cashMovementPreview === undefined
+        ? null
+        : cashDrawer.cashMovementPreview(movement);
     },
     async cashMovements() {
       return cashDrawer.cashMovements === undefined ? [] : cashDrawer.cashMovements();
@@ -3259,9 +3265,9 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
 
       await expect
-        .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
-        .toBeVisible();
-      await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+        .element(screen.getByRole("heading", { level: 1, name: "Movimientos de efectivo" }))
+        .toBeInTheDocument();
+      await expect.element(screen.getByText("EFECTIVO ESPERADO", { exact: true })).toBeVisible();
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
       await expect
         .element(screen.getByRole("combobox", { name: "Producto" }))
@@ -3363,7 +3369,7 @@ describe("App", () => {
 
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
 
-      await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+      await expect.element(screen.getByText("EFECTIVO ESPERADO", { exact: true })).toBeVisible();
       await expect
         .element(screen.getByText("$ 46.200,00", { exact: true }))
         .not.toBeInTheDocument();
@@ -3868,6 +3874,7 @@ describe("App", () => {
         cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
         cashMovementKinds?: CoreClient["cashMovementKinds"];
+        cashMovementPreview?: CoreClient["cashMovementPreview"];
         recordCashMovement?: CoreClient["recordCashMovement"];
         authorizers?: CoreClient["authorizers"];
       } = {},
@@ -3902,16 +3909,14 @@ describe("App", () => {
         .element(
           screen
             .getByRole("table", { name: "Movimientos de la sesión" })
-            .getByText("Apertura de sesión", { exact: true }),
+            .getByText("Apertura", { exact: true }),
         )
         .toBeVisible();
       return { screen, ...fake };
     }
 
     async function recordCashIn(screen: Awaited<ReturnType<typeof render>>) {
-      await userEvent.click(
-        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Ingreso", exact: true }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
       await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
       await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
@@ -3920,7 +3925,26 @@ describe("App", () => {
     it("lists the movements the core has for the session", async () => {
       const { screen } = await openCashScreen();
 
-      await expect.element(screen.getByText("1 movimiento", { exact: true })).toBeVisible();
+      await expect
+        .element(
+          screen
+            .getByRole("table", { name: "Movimientos de la sesión" })
+            .getByText("Fondo inicial", { exact: true }),
+        )
+        .toBeVisible();
+    });
+
+    it("previews a movement through the core with the kind and amount typed", async () => {
+      const cashMovementPreview = vi
+        .fn<CoreClient["cashMovementPreview"]>()
+        .mockResolvedValue({ kind: "remaining", cash: 4_570_000 });
+      const { screen } = await openCashScreen({ cashMovementPreview });
+      await userEvent.keyboard("2");
+
+      await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
+
+      await expect.element(screen.getByText("$ 45.700,00", { exact: true })).toBeVisible();
+      expect(cashMovementPreview).toHaveBeenCalledWith({ kind: "CASH_OUT", amount: 50_000 });
     });
 
     it("records a movement through the core and reads the balance and the movements again", async () => {
@@ -3947,7 +3971,13 @@ describe("App", () => {
 
       await recordCashIn(screen);
 
-      await expect.element(screen.getByText("2 movimientos", { exact: true })).toBeVisible();
+      await expect
+        .element(
+          screen
+            .getByRole("table", { name: "Movimientos de la sesión" })
+            .getByText("Cambio", { exact: true }),
+        )
+        .toBeVisible();
       await expect.element(screen.getByText("$ 51.200,00", { exact: true })).toBeVisible();
       expect(recorded).toEqual([{ kind: "CASH_IN", amount: 50_000, reason: "Cambio" }]);
     });
@@ -3956,12 +3986,7 @@ describe("App", () => {
       const { screen } = await openCashScreen({
         authorizers: async () => [{ id: "u3", first_name: "Sofía" }],
       });
-      await userEvent.click(
-        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
-      );
-      await userEvent.click(
-        screen.getByRole("radiogroup", { name: "Tipo de movimiento" }).getByText("Gasto"),
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Gasto", exact: true }));
 
       await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "500");
       await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), "Cambio");
@@ -3980,12 +4005,7 @@ describe("App", () => {
         .fn<CoreClient["authorizers"]>()
         .mockResolvedValue([{ id: "u3", first_name: "Sofía" }]);
       const { screen, finishPull } = await openCashScreen({ authorizers });
-      await userEvent.click(
-        screen.getByRole("button", { name: "Registrar movimiento", exact: true }),
-      );
-      await userEvent.click(
-        screen.getByRole("radiogroup", { name: "Tipo de movimiento" }).getByText("Gasto"),
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Gasto", exact: true }));
       await expect.poll(() => authorizers.mock.calls.length).toBe(1);
 
       finishPull("Caja 1");

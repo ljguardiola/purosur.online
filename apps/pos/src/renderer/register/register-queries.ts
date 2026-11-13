@@ -1,6 +1,7 @@
 import type {
   CashBalance,
   CashCountPreview,
+  CashMovementPreview,
   EnrollmentStandingAnswer,
   ListedCashMovement,
   OpenCashSession,
@@ -14,6 +15,7 @@ import type {
   SignInUser,
   StartupPending,
 } from "@purosur/contracts";
+import type { CashMovementKind } from "@purosur/domain";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
@@ -27,6 +29,8 @@ const registerKey = ["register"] as const;
 export const cashKey = [...registerKey, "cash"] as const;
 
 export const lockedClosersKey = [...registerKey, "locked-closers"] as const;
+
+export type CashMovementToPreview = { kind: CashMovementKind; amount: number };
 
 export const registerKeys = {
   enrollment: [...registerKey, "enrollment"] as const,
@@ -44,6 +48,8 @@ export const registerKeys = {
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
     [...cashKey, sessionId, "count-preview", countedCash] as const,
+  cashMovementPreview: (sessionId: string, movement: CashMovementToPreview | undefined) =>
+    [...cashKey, sessionId, "movement-preview", movement?.kind, movement?.amount] as const,
   cashMovements: (sessionId: string) => [...cashKey, sessionId, "movements"] as const,
   openSale: (sessionId: string) => [...cashKey, sessionId, "open-sale"] as const,
   cashMovementKinds: (userId: string) => [...registerKey, "cash-movement-kinds", userId] as const,
@@ -183,6 +189,23 @@ export function useCashCountPreviewQuery(
       previousQuery?.queryKey.at(cashKey.length) === sessionId ? previous : undefined,
   });
   return countedCash === undefined ? undefined : query.data?.difference;
+}
+
+export function useCashMovementPreviewQuery(
+  sessionId: string,
+  movement: CashMovementToPreview | undefined,
+  read: (movement: CashMovementToPreview) => Promise<CashMovementPreview | null | "unavailable">,
+): CashMovementPreview | undefined {
+  const query = useQuery({
+    ...coreQueryOptions({
+      queryKey: registerKeys.cashMovementPreview(sessionId, movement),
+      read: async () => (movement === undefined ? "unavailable" : read(movement)),
+    }),
+    enabled: movement !== undefined,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey.at(cashKey.length) === sessionId ? previous : undefined,
+  });
+  return movement === undefined ? undefined : (query.data ?? undefined);
 }
 
 export function useCashMovementsQuery(

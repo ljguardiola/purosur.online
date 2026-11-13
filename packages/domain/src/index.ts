@@ -815,6 +815,7 @@ export {
   CRITICAL_BATTERY_ACTIONS,
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
+  cashAfterMovement,
   cashBreakdown,
   cashCountDifference,
   cashMovementDirection,
