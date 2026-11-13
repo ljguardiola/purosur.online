@@ -20,7 +20,7 @@ export const PERSON: SignedInPerson = {
   first_name: "Ada",
   abilities: ["open_cash_session"],
 };
-export const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
+const OPENED_AT = "2026-09-30T09:02:00.000-03:00";
 export const BALANCE: CashBalance = {
   opening_float: { amount: 2_000_000, direction: "in" },
   cash_sales: { amount: 3_500_000, direction: "in" },
@@ -59,7 +59,7 @@ const PERMISSION_OF_KIND: Record<CashMovementKind, AuthorizablePermissionKey> = 
   WITHDRAWAL: "withdraw_cash",
 };
 
-export function kindsLacking(lacking: CashMovementKind[]): RecordableCashMovementKinds {
+function kindsLacking(lacking: CashMovementKind[]): RecordableCashMovementKinds {
   const needed = (kind: CashMovementKind) => ({
     permission: PERMISSION_OF_KIND[kind],
     authorization_required: lacking.includes(kind),
