@@ -48,7 +48,7 @@ const NOT_PERMITTED: Notice = {
 const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", icon: "failure" };
 const EXPECTED_CASH = "EFECTIVO ESPERADO";
 
-export type CountedCashDraft = { typed: string; onType: (typed: string) => void };
+type CountedCashDraft = { typed: string; onType: (typed: string) => void };
 
 export type CloseCashSessionPanelProps = {
   sessionId: string;

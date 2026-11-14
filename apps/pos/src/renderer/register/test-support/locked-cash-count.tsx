@@ -38,7 +38,7 @@ export const OPENING: ListedCashMovement = {
   actor: { user_id: "u2", first_name: "Grace" },
   authorized_by: null,
 };
-export const CLOSED: CloseLockedCashSessionOutcome = {
+const CLOSED: CloseLockedCashSessionOutcome = {
   kind: "closed",
   session: {
     id: "s1",

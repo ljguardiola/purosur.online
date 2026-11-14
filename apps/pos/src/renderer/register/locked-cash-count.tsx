@@ -36,8 +36,6 @@ const EMPTY_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal
     "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar la venta.",
 };
 
-export type { RefusedClose };
-
 export type LockedCashCountProps = {
   sessionId: string;
   opener: SignedInPerson;
