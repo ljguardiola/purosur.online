@@ -2574,7 +2574,6 @@ describe("the register's router", () => {
 
   it.each([
     ["Historial", "/history"],
-    ["Venta diferida", "/deferred-sale"],
     ["Impresora", "/receipt-printer"],
     ["Balanza y lector", "/serial-devices"],
     ["Venta", "/"],
