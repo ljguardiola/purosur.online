@@ -104,6 +104,43 @@ describe("CloseCashSessionPanel", () => {
     expect(style.borderBottomWidth).toBe("0px");
   });
 
+  it("heads the count field with CONTADO as an eyebrow, like EFECTIVO ESPERADO", async () => {
+    const { screen } = await renderPanel();
+
+    const expectedEyebrow = screen.getByText("EFECTIVO ESPERADO", { exact: true }).element();
+    const shown = Array.from(screen.container.querySelectorAll("p, label")).filter(
+      (element) =>
+        element.textContent === "Contado" && getComputedStyle(element).position !== "absolute",
+    );
+    expect(shown).toHaveLength(1);
+    const eyebrow = getComputedStyle(shown[0] as Element);
+    const expected = getComputedStyle(expectedEyebrow);
+    expect(eyebrow.textTransform).toBe("uppercase");
+    expect(eyebrow.color).toBe(expected.color);
+    expect(eyebrow.fontSize).toBe(expected.fontSize);
+    await expect.element(screen.getByRole("textbox", { name: "Contado" })).toBeVisible();
+  });
+
+  it("draws the expected cash in the text's own color and the breakdown's amounts in regular weight", async () => {
+    const { screen } = await renderPanel();
+
+    const hero = screen.getByText("$ 144.200,00", { exact: true }).element();
+    const title = screen.getByRole("heading", { name: "Cerrar caja", exact: true }).element();
+    expect(getComputedStyle(hero).color).toBe(getComputedStyle(title).color);
+    const amount = screen.getByText("$ 52.300,00", { exact: true }).element();
+    expect(getComputedStyle(amount).fontWeight).toBe("400");
+  });
+
+  it("gives the focus back to Contado after a failed close", async () => {
+    const { screen } = await renderPanel({ outcome: { kind: "unavailable" } });
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "144.000,00");
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect.element(screen.getByRole("alert")).toHaveTextContent(FAILED_NOTICE);
+    await expect.element(screen.getByRole("textbox", { name: "Contado" })).toHaveFocus();
+  });
+
   it("shows FALTA with the missing amount in a neutral box, without the old notice or strip", async () => {
     const { screen } = await renderPanel();
 

@@ -46,6 +46,16 @@ describe("CashClosedScreen", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("draws the counted cash in the text's own color and the rows' amounts in regular weight", async () => {
+    const { screen } = await renderClosed();
+
+    const hero = screen.getByText("$ 144.000,00", { exact: true }).element();
+    const title = screen.getByRole("heading", { name: "Caja cerrada", exact: true }).element();
+    expect(getComputedStyle(hero).color).toBe(getComputedStyle(title).color);
+    const amount = screen.getByText("$ 144.200,00", { exact: true }).element();
+    expect(getComputedStyle(amount).fontWeight).toBe("400");
+  });
+
   it("lists the expected cash, the difference and when it opened and closed", async () => {
     const { screen } = await renderClosed();
 
