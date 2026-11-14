@@ -45,7 +45,8 @@ interface Options {
   checkResponse?: () => Promise<UpdateResponse>;
   downloadChunks?: Uint8Array[];
   downloadResponse?: () => UpdateResponse;
-  spawnFails?: boolean;
+  spawnFailures?: number;
+  shellLaunchFails?: boolean;
   clearPendingFailures?: number;
   removeFails?: boolean;
 }
@@ -53,6 +54,8 @@ interface Options {
 function setup(options: Options = {}) {
   const requests: { url: string; headers: Record<string, string> | undefined }[] = [];
   const spawned: { path: string; args: readonly string[] }[] = [];
+  const launchedThroughShell: { path: string; args: readonly string[] }[] = [];
+  let spawnAttempts = 0;
   const reported: unknown[] = [];
   const statusChanges: CoreStatus[] = [];
   const events: string[] = [];
@@ -142,11 +145,21 @@ function setup(options: Options = {}) {
       holdReleases += 1;
     },
     spawnInstaller: async (path, args) => {
-      if (options.spawnFails) {
-        throw new Error("spawn EACCES");
+      spawnAttempts += 1;
+      events.push("spawn");
+      if (spawnAttempts <= (options.spawnFailures ?? 0)) {
+        throw new Error(`spawn UNKNOWN, attempt ${spawnAttempts}`);
       }
       spawned.push({ path, args });
-      events.push("spawn");
+    },
+    spawnInstallerThroughShell: async (path, args) => {
+      events.push("shell-spawn");
+      if (options.shellLaunchFails) {
+        throw new Error(
+          "Start-Process: the file contains a virus or potentially unwanted software",
+        );
+      }
+      launchedThroughShell.push({ path, args });
     },
     quit: () => {
       quits += 1;
@@ -161,6 +174,7 @@ function setup(options: Options = {}) {
     updater,
     requests,
     spawned,
+    launchedThroughShell,
     reported,
     statusChanges,
     events,
@@ -173,11 +187,33 @@ function setup(options: Options = {}) {
     setToken: (next: string | undefined) => {
       token = next;
     },
-    counts: () => ({ asked, quits, holdReleases, cleared, clearAttempts }),
+    counts: () => ({ asked, quits, holdReleases, cleared, clearAttempts, spawnAttempts }),
   };
 }
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+async function resolveWaitsUntil(
+  pass: Promise<void>,
+  waits: { ms: number; resolve: () => void }[],
+): Promise<number[]> {
+  let settled = false;
+  void pass.then(() => {
+    settled = true;
+  });
+  const resolved: number[] = [];
+  await flush();
+  while (!settled) {
+    const wait = waits.shift();
+    if (wait === undefined) {
+      throw new Error("The pass is waiting on nothing the test can resolve");
+    }
+    resolved.push(wait.ms);
+    wait.resolve();
+    await flush();
+  }
+  return resolved;
+}
 
 describe("createRegisterUpdater", () => {
   describe("when it runs", () => {
@@ -571,35 +607,114 @@ describe("createRegisterUpdater", () => {
   });
 
   describe("when the installer can not be launched", () => {
-    it("reports it, releases the hold, restores the status, removes the file and keeps running", async () => {
-      const { updater, reported, counts, statusChanges, events, removed, spawned } = setup({
-        spawnFails: true,
+    it("keeps the file, gives the register back, and tries again 60 seconds later after a safe moment", async () => {
+      const { updater, waits, reported, removed, spawned, statusChanges, counts, events } = setup({
+        spawnFailures: 1,
       });
 
-      await updater.runPass();
+      const pass = updater.runPass();
+      await flush();
 
-      expect(reported).toHaveLength(1);
       expect(counts().holdReleases).toBe(1);
       expect(statusChanges).toEqual(["updating", "up"]);
+      expect(removed).toEqual([]);
+      expect(reported).toEqual([]);
+      expect(waits.map((wait) => wait.ms)).toEqual([60_000]);
+
+      waits.shift()?.resolve();
+      await pass;
+
+      expect(counts().asked).toBe(2);
+      expect(spawned).toEqual([
+        {
+          path: "/data/pending-update/update-1.4.2.exe",
+          args: ["--updated", "/S", "--force-run"],
+        },
+      ]);
+      expect(events).toEqual([
+        "status:updating",
+        "spawn",
+        "status:up",
+        "status:updating",
+        "spawn",
+        "quit",
+      ]);
+      expect(reported).toEqual([]);
+    });
+
+    it("launches the tenth attempt through PowerShell's Start-Process with the same file and arguments", async () => {
+      const { updater, waits, launchedThroughShell, reported, counts } = setup({
+        spawnFailures: Number.POSITIVE_INFINITY,
+      });
+
+      const resolved = await resolveWaitsUntil(updater.runPass(), waits);
+
+      expect(resolved).toEqual(Array.from({ length: 9 }, () => 60_000));
+      expect(counts().spawnAttempts).toBe(9);
+      expect(launchedThroughShell).toEqual([
+        {
+          path: "/data/pending-update/update-1.4.2.exe",
+          args: ["--updated", "/S", "--force-run"],
+        },
+      ]);
+      expect(counts().quits).toBe(1);
+      expect(reported).toEqual([]);
+    });
+
+    it("reports only the tenth attempt's failure, removes the file and keeps running", async () => {
+      const { updater, waits, reported, removed, statusChanges, counts, events } = setup({
+        spawnFailures: Number.POSITIVE_INFINITY,
+        shellLaunchFails: true,
+      });
+
+      await resolveWaitsUntil(updater.runPass(), waits);
+
+      expect(reported).toEqual([
+        new Error("Start-Process: the file contains a virus or potentially unwanted software"),
+      ]);
+      expect(counts().holdReleases).toBe(10);
+      expect(statusChanges.slice(-2)).toEqual(["updating", "up"]);
       expect(removed).toEqual(["update-1.4.2.exe"]);
-      expect(spawned).toEqual([]);
       expect(events).not.toContain("quit");
     });
 
-    it("puts back the refused status when the core had refused a newer database", async () => {
-      const { updater, statusChanges } = setup({ coreStatus: "refused", spawnFails: true });
+    it("reports only the launch's failure when the file can not be removed", async () => {
+      const { updater, waits, reported } = setup({
+        spawnFailures: Number.POSITIVE_INFINITY,
+        shellLaunchFails: true,
+        removeFails: true,
+      });
 
-      await updater.runPass();
+      await resolveWaitsUntil(updater.runPass(), waits);
+
+      expect(reported).toEqual([
+        new Error("Start-Process: the file contains a virus or potentially unwanted software"),
+      ]);
+    });
+
+    it("puts back the refused status when the core had refused a newer database", async () => {
+      const { updater, statusChanges } = setup({ coreStatus: "refused", spawnFailures: 1 });
+
+      void updater.runPass();
+      await flush();
 
       expect(statusChanges).toEqual(["updating", "refused"]);
     });
 
-    it("checks again at the next check", async () => {
-      const { updater, waits } = setup({ spawnFails: true });
+    it("checks again at the next hourly check after the tenth failure", async () => {
+      const { updater, waits } = setup({
+        spawnFailures: Number.POSITIVE_INFINITY,
+        shellLaunchFails: true,
+      });
 
       updater.start();
       await flush();
       waits.shift()?.resolve();
+      for (let attempt = 1; attempt < 10; attempt += 1) {
+        await flush();
+        expect(waits.map((wait) => wait.ms)).toEqual([60_000]);
+        waits.shift()?.resolve();
+      }
       await flush();
 
       expect(waits.map((wait) => wait.ms)).toEqual([3_600_000]);
