@@ -15,3 +15,5 @@ export const Idle: Story = {};
 export const Settled: Story = { args: { reading: { value: "0,172 kg", settled: true } } };
 
 export const Moving: Story = { args: { reading: { value: "0,238 kg", settled: false } } };
+
+export const NoReading: Story = { args: { noReading: true } };

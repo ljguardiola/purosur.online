@@ -47,6 +47,7 @@ import type {
   InstallationCoreToRendererMessage,
   InstallationRendererToCoreMessage,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenCashSession,
@@ -270,6 +271,7 @@ export interface CoreClient {
     productId: string,
     confirmedWeightThousandths: number | null,
   ): Promise<WeighProductOutcome>;
+  readScale(): Promise<LiveScaleReadingOutcome>;
   weighLine(
     lineId: string,
     expectedWeightThousandths: number,
@@ -1101,6 +1103,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           confirmed_weight_thousandths: confirmedWeightThousandths,
         },
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
+      );
+    },
+    readScale() {
+      return ask({ type: "read-scale", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "read-scale-result" ? answer.outcome : undefined,
       );
     },
     weighLine(lineId, expectedWeightThousandths, confirmedWeightThousandths) {

@@ -960,6 +960,22 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to read the scale and resolves with what it shows", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reading = client.readScale();
+    port.answer({
+      type: "read-scale-result",
+      request_id: "request-1",
+      outcome: { kind: "reading", weight_thousandths: 410, settled: true },
+    });
+
+    expect(await reading).toEqual({ kind: "reading", weight_thousandths: 410, settled: true });
+    expect(port.posted).toEqual([{ type: "read-scale", request_id: "request-1" }]);
+  });
+
   it("asks the core to add a product sold by weight with its typed weight and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
