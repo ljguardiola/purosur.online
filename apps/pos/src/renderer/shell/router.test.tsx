@@ -182,7 +182,7 @@ const screenFor: Record<
   (screen: RenderedScreen) => ReturnType<RenderedScreen["getByText"]>
 > = {
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
-  "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
+  "/sign-in": (screen) => screen.getByRole("link", { name: "Primer ingreso" }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-closed": (screen) => screen.getByRole("heading", { name: "Caja cerrada" }),
@@ -2841,6 +2841,7 @@ describe("the register's router", () => {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
         lockedClosers: async () => [{ id: "u3", first_name: "Sofía" }],
         cashBalance: async () => BALANCE,
+        sessionOpenSale: async () => null,
         identifyLockedCloser: async (closer) => {
           identified.push(closer);
           return { kind: "identified", person: { user_id: "u3", first_name: "Sofía" } };

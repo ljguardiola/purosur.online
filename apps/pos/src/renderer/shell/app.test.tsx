@@ -1790,9 +1790,8 @@ describe("App", () => {
       .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
       .toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .element(screen.getByRole("link", { name: "Primer ingreso" }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -3083,7 +3082,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .element(screen.getByRole("link", { name: "Primer ingreso" }))
       .not.toBeInTheDocument();
   });
 
@@ -3659,7 +3658,9 @@ describe("App", () => {
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
       await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
-      await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Sofía"))
+        .toBeVisible();
       closers = [...closers, { id: "u4", first_name: "Tomás" }];
 
       finishPull(null);

@@ -1,9 +1,9 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render as renderBare } from "vitest-browser-react";
 import type { RegisterStatusData } from "../shell/register-status-context";
 import { RegisterStatusProvider } from "../shell/register-status-context";
+import { render } from "../shell/test-support/render-with-router";
 import type { RefusedClose } from "./close-cash-session-panel";
 import { LockedCashCount } from "./locked-cash-count";
 import type { Close } from "./test-support/locked-cash-count";
@@ -33,7 +33,7 @@ const STATUS: RegisterStatusData = {
 
 describe("LockedCashCount", () => {
   it("heads the register's header with who closes and whose session it is, with no rail", async () => {
-    const screen = await renderBare(
+    const screen = await render(
       <RegisterStatusProvider value={STATUS}>
         <LockedCashCount
           sessionId="s1"

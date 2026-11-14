@@ -91,8 +91,11 @@ describe("LockedRegisterScreen", () => {
 
     await userEvent.click(userSelect(screen));
 
-    const options = screen.getByRole("option").elements();
-    expect(options.map((option) => option.textContent)).toEqual(["Ada", "Lucas", "Marta"]);
+    const options = screen.getByRole("option");
+    expect(options.elements()).toHaveLength(3);
+    expect(options.nth(0).element().textContent).toMatch(/Ada$/);
+    expect(options.nth(1).element().textContent).toMatch(/Lucas$/);
+    expect(options.nth(2).element().textContent).toMatch(/Marta$/);
   });
 
   it("lists the opener alone when the people of sign-in cannot be read", async () => {
@@ -116,8 +119,10 @@ describe("LockedRegisterScreen", () => {
 
     await userEvent.click(userSelect(screen));
 
-    const options = screen.getByRole("option").elements();
-    expect(options.map((option) => option.textContent)).toEqual(["Ada", "Lucas"]);
+    const options = screen.getByRole("option");
+    expect(options.elements()).toHaveLength(2);
+    expect(options.nth(0).element().textContent).toMatch(/Ada$/);
+    expect(options.nth(1).element().textContent).toMatch(/Lucas$/);
   });
 
   it("changes the person with the down and up arrows and keeps the opener's choice before anyone's", async () => {

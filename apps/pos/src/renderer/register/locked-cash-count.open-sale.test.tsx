@@ -140,7 +140,7 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByText(QR_WAIT_BEFORE_EMPTYING)).toBeVisible();
+    await expect.element(screen.getByText(QR_WAIT_BEFORE_EMPTYING).first()).toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     expect(refused).toEqual([]);
   });
@@ -155,7 +155,7 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await userEvent.keyboard("{Enter}");
 
-    await expect.element(screen.getByText(EMPTY_FAILED_NOTICE)).toBeVisible();
+    await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
 
@@ -174,7 +174,7 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
       await userEvent.keyboard("{Enter}");
 
       await expect.poll(() => refused).toEqual([refusal]);
-      await expect.element(screen.getByText(EMPTY_FAILED_NOTICE)).not.toBeInTheDocument();
+      await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).not.toBeInTheDocument();
     },
   );
 
@@ -218,7 +218,7 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await userEvent.keyboard("v");
 
-    await expect.element(screen.getByText(EMPTY_FAILED_NOTICE)).toBeVisible();
+    await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
     await expect
       .element(screen.getByRole("complementary", { name: "¿Vaciar el carrito?" }))
       .not.toBeInTheDocument();
@@ -348,6 +348,6 @@ describe("LockedCashCount cancelling a sale with payments", () => {
 
     await userEvent.keyboard("v");
 
-    await expect.element(screen.getByText(CANCEL_FAILED_NOTICE)).toBeVisible();
+    await expect.element(screen.getByText(CANCEL_FAILED_NOTICE).first()).toBeVisible();
   });
 });

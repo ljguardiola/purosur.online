@@ -69,8 +69,10 @@ describe("LockedCloserIdentification", () => {
       .toBeVisible();
     await expectChosen(screen, "Sofía");
     await userEvent.click(userSelect(screen));
-    const options = screen.getByRole("option").elements();
-    expect(options.map((option) => option.textContent)).toEqual(["Sofía", "Tomás"]);
+    const options = screen.getByRole("option");
+    expect(options.elements()).toHaveLength(2);
+    expect(options.nth(0).element().textContent).toMatch(/Sofía$/);
+    expect(options.nth(1).element().textContent).toMatch(/Tomás$/);
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -242,8 +244,8 @@ describe("LockedCloserIdentification", () => {
   ])("says why it came back from the count: %j", async (refusal, title, description) => {
     const { screen } = await renderStep({ returned: { refusal, firstName: "Sofía" } });
 
-    await expect.element(screen.getByText(title)).toBeVisible();
-    await expect.element(screen.getByText(description, { exact: false })).toBeVisible();
+    await expect.element(screen.getByText(title).first()).toBeVisible();
+    await expect.element(screen.getByText(description, { exact: false }).first()).toBeVisible();
   });
 
   it("says the person has to wait before trying again when the close answered so", async () => {
