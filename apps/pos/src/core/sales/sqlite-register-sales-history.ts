@@ -1,10 +1,9 @@
 import {
+  type DeferredSaleReference,
   FACTURA_C_DOCUMENT_TYPE,
   type FiscalAuthorization,
   type FiscalDocumentState,
   isDeferralPending,
-  isDeferredInvoicePending,
-  type ReceiptDelivery,
   type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
@@ -24,7 +23,6 @@ import { readCreditNotesOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { saleTotalOf } from "./sqlite-sale-total";
 
 interface SaleRow {
@@ -88,6 +86,14 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return this.withDocument(OF_THIS_REGISTER, document);
   }
 
+  salesOfOpenSessionOfDeferredSale(reference: DeferredSaleReference): SalesHistoryEntry[] {
+    return this.ofDeferredSale(`${OF_THIS_REGISTER} AND ${IN_THE_OPEN_SESSION}`, reference);
+  }
+
+  salesOfRegisterOfDeferredSale(reference: DeferredSaleReference): SalesHistoryEntry[] {
+    return this.ofDeferredSale(OF_THIS_REGISTER, reference);
+  }
+
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {
     const sale = this.database
       .prepare<[string], DetailRow>(
@@ -131,6 +137,24 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       deferredShortCode: sale.deferred_short_code,
       hasReturn: this.hasReturn(sale.id),
     };
+  }
+
+  private ofDeferredSale(
+    scope: string,
+    { id, shortCode }: DeferredSaleReference,
+  ): SalesHistoryEntry[] {
+    const rows = this.database
+      .prepare<{ id: string; short_code: string }, SaleRow>(
+        `SELECT sales.id AS id, sales.occurred_at AS occurred_at, ${VOIDED} AS voided
+         FROM sales WHERE ${scope} AND EXISTS (
+           SELECT 1 FROM deferred_sales
+           WHERE deferred_sales.sale_id = sales.id AND deferred_sales.id = @id
+             AND deferred_sales.short_code = @short_code
+         )
+         ORDER BY sales.occurred_at DESC, sales.rowid DESC`,
+      )
+      .all({ id, short_code: shortCode });
+    return rows.map((row) => this.entryOf(row));
   }
 
   private withDocument(
@@ -220,14 +244,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return saleTotalOf(this.database, saleId);
   }
 
-  private deferredInvoiceDelivery(saleId: string): ReceiptDelivery | null {
-    return (
-      new SqliteReceiptLedger(this.database).transaction((tx) =>
-        tx.receiptDelivery({ document: "deferred_invoice", saleId }),
-      ) ?? null
-    );
-  }
-
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
     const attempts = this.database
       .prepare<[{ sale_id: string }], FiscalDocumentRow>(
@@ -256,10 +272,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 };
     return {
       deferred: isDeferralPending(record),
-      deferredInvoicePending: isDeferredInvoicePending(
-        record,
-        this.deferredInvoiceDelivery(saleId),
-      ),
       fiscalDocument: saleFiscalDocumentAmong(attempts),
     };
   }
