@@ -186,11 +186,11 @@ export function LockedCashCount({
             onRetry={openSaleData.retry}
           />
         ) : null}
-        {openSale === null ? null : (
+        {openSale === null || confirmingCancel ? null : (
           <LockedOpenSaleBanner
             total={openSale.total}
             hasApprovedPayment={openSale.has_approved_payment}
-            disabled={emptying || confirmingCancel}
+            disabled={emptying}
             onCancel={() => void askToCancelOpenSale()}
           />
         )}

@@ -6,7 +6,6 @@ import type {
 } from "@purosur/contracts";
 import {
   EmptyState,
-  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   sortedItems,
@@ -191,14 +190,6 @@ function IdentificationPanel({
 
   return (
     <BrandPanelCard icon={<Lock />} title="¿Quién cierra la caja?" escapeKeycap>
-      {notice === undefined ? null : (
-        <InlineNotice
-          tone="error"
-          icon={notice.icon}
-          title={notice.title}
-          description={notice.description}
-        />
-      )}
       {closers.status === "loading" ? <LoadingPlaceholder variant="list" items={3} /> : null}
       {closers.status === "failed" ? (
         <LoadFailure
@@ -230,6 +221,7 @@ function IdentificationPanel({
             attempt={attempt}
             pinInput={attempt.pinInput}
             submitLabel="Continuar"
+            notice={notice}
           />
         </form>
       )}

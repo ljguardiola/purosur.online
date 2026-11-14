@@ -363,6 +363,9 @@ describe("LockedCashCount cancelling a sale with payments", () => {
     await userEvent.keyboard("{Enter}");
 
     await expect.poll(() => cancelSale).toHaveBeenCalledWith(PART_PAID_SALE.id);
+    const panel = screen.getByRole("complementary", { name: "¿Cancelar la venta?" });
+    await expect.element(panel.getByText("$ 25.192,50", { exact: true })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
 
