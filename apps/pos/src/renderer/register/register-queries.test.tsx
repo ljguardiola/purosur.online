@@ -792,6 +792,7 @@ describe("open sale query", () => {
     const read = vi.fn<OpenSaleRead>(async () => ({
       id: "sale-1",
       total: 3_434_000,
+      line_count: 1,
       paid: 0,
       has_approved_payment: false,
       cancellable: true,
@@ -823,6 +824,7 @@ describe("open sale query", () => {
       .mockResolvedValueOnce({
         id: "sale-1",
         total: 3_434_000,
+        line_count: 1,
         paid: 0,
         has_approved_payment: false,
         cancellable: false,

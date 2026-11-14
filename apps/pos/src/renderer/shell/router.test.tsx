@@ -2882,6 +2882,7 @@ describe("the register's router", () => {
         sessionOpenSale: async () => ({
           id: "sale-1",
           total: 3_434_000,
+          line_count: 1,
           paid: 0,
           has_approved_payment: false,
           cancellable: true,

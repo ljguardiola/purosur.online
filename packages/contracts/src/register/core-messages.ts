@@ -247,6 +247,7 @@ export type CashMovementPreview = z.infer<typeof cashMovementPreviewSchema>;
 const sessionOpenSaleSchema = z.object({
   id: z.string(),
   total: z.number(),
+  line_count: z.int().nonnegative(),
   paid: z.int().nonnegative(),
   has_approved_payment: z.boolean(),
   cancellable: z.boolean(),

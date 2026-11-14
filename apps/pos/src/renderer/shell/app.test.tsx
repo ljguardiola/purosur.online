@@ -3561,6 +3561,7 @@ describe("App", () => {
           sale = {
             id: "sale-1",
             total: 3_434_000,
+            line_count: 1,
             paid: 0,
             has_approved_payment: false,
             cancellable: true,
@@ -3705,6 +3706,7 @@ describe("App", () => {
           sessionOpenSale: async () => ({
             id: "sale-1",
             total: 3_434_000,
+            line_count: 1,
             paid: 0,
             has_approved_payment: false,
             cancellable: true,
@@ -3746,6 +3748,7 @@ describe("App", () => {
             sessionOpenSale: async () => ({
               id: "sale-1",
               total: 3_434_000,
+              line_count: 1,
               paid: 100_000,
               has_approved_payment: true,
               cancellable: false,

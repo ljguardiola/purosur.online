@@ -3164,6 +3164,7 @@ describe("answerRendererRequest", () => {
     const sale: SessionOpenSale = {
       id: "sale-1",
       total: 3_434_000,
+      line_count: 1,
       paid: 1000,
       has_approved_payment: true,
       cancellable: false,

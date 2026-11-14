@@ -68,6 +68,7 @@ const answerPreview: LoadCashCountPreview = async (countedCash) => {
 const CANCELLABLE_SALE: SessionOpenSale = {
   id: "sale-1",
   total: 3_434_000,
+  line_count: 1,
   paid: 0,
   has_approved_payment: false,
   cancellable: true,
@@ -97,6 +98,7 @@ const SALE_WITH_POINT_PAYMENT: SessionOpenSale = {
 const PART_PAID_SALE: SessionOpenSale = {
   id: "sale-2",
   total: 3_434_000,
+  line_count: 1,
   paid: 1_000_000,
   has_approved_payment: true,
   cancellable: false,
