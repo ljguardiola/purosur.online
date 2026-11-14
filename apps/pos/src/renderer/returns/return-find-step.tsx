@@ -1,15 +1,17 @@
 import type { FindSaleForReturnOutcome } from "@purosur/contracts";
 import {
   Button,
+  fieldErrorMessage,
   formatCents,
   InlineNotice,
   SearchField,
   SidePanel,
   SummaryRowGroup,
+  useRequestForm,
 } from "@purosur/ui";
-import { CircleX, Search } from "lucide-react";
+import { CircleX, Search, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { CompleteReturnInput, SaleForReturnReading } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import { AuthorizationModal } from "../shell/authorization-modal";
@@ -22,7 +24,15 @@ import { ReturnPanelFigure } from "./return-panel-figure";
 import type { SaleForReturn } from "./return-sale";
 import type { FindRefusalKind } from "./return-text";
 import { findRefusalText } from "./return-text";
-import { scannedReturnReading, typedReturnReading } from "./return-ticket-form";
+import {
+  EMPTY_RETURN_TICKET_FORM,
+  RETURN_TICKET_FIELDS,
+  returnTicketRequestFrom,
+  returnTicketRequestSchema,
+  scannedReturnReading,
+} from "./return-ticket-form";
+import type { ShownSaleForReturn } from "./returns-queries";
+import { useSaleChosenForReturnQuery } from "./returns-queries";
 
 export type FoundSale = {
   sale: SaleForReturn;
@@ -34,6 +44,7 @@ export type ReturnFindStepProps = {
   rail: ReactNode;
   authorization: AuthorizationState;
   saleId: string | undefined;
+  initialSearch: string;
   findSaleForReturn: (
     reading: SaleForReturnReading,
     authorization: AuthorizationState["value"],
@@ -47,18 +58,27 @@ export function ReturnFindStep({
   rail,
   authorization,
   saleId,
+  initialSearch,
   findSaleForReturn,
   onFound,
   onAuthorizationRequired,
   onSessionInvalid,
 }: ReturnFindStepProps) {
-  const [search, setSearch] = useState("");
   const [refusal, setRefusal] = useState<FindRefusalKind>();
   const [looking, setLooking] = useState(false);
   const finding = useRef(false);
   const lastReading = useRef<SaleForReturnReading | undefined>(undefined);
   const searchArea = useRef<HTMLDivElement | null>(null);
-  const openedBySale = useRef(false);
+  const chosen = useSaleChosenForReturnQuery({ saleId, find: findSaleForReturn });
+  const chosenAnswer = chosen.status === "loaded" ? chosen.value : undefined;
+
+  const { form, submit, values } = useRequestForm({
+    defaultValues: { ...EMPTY_RETURN_TICKET_FORM, search: initialSearch },
+    request: { schema: returnTicketRequestSchema, from: returnTicketRequestFrom },
+    fields: RETURN_TICKET_FIELDS,
+    messages: { search: findRefusalText("not_a_ticket_number") },
+    onSubmit: ({ reading }) => look(reading),
+  });
 
   async function look(reading: SaleForReturnReading) {
     if (finding.current) {
@@ -80,6 +100,10 @@ export function ReturnFindStep({
       setRefusal("unavailable");
       return;
     }
+    settle(outcome, sent);
+  }
+
+  function settle(outcome: FindSaleForReturnOutcome, sent: AuthorizationState["value"]) {
     switch (outcome.kind) {
       case "found":
         onFound({
@@ -119,15 +143,21 @@ export function ReturnFindStep({
   }
 
   useEffect(() => {
-    searchArea.current?.querySelector("input")?.focus();
+    const input = searchArea.current?.querySelector("input");
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
   }, []);
 
-  useEffect(() => {
-    if (saleId !== undefined && !openedBySale.current) {
-      openedBySale.current = true;
-      void look({ kind: "sale", sale_id: saleId });
-    }
+  const settleChosen = useEffectEvent((answer: ShownSaleForReturn, chosenId: string) => {
+    lastReading.current = { kind: "sale", sale_id: chosenId };
+    settle(answer, undefined);
   });
+
+  useEffect(() => {
+    if (chosenAnswer !== undefined && saleId !== undefined) {
+      settleChosen(chosenAnswer, saleId);
+    }
+  }, [chosenAnswer, saleId]);
 
   function retryLastReading() {
     if (lastReading.current !== undefined) {
@@ -135,17 +165,13 @@ export function ReturnFindStep({
     }
   }
 
-  const typed = search.trim() !== "";
+  const typed = values.search.trim() !== "";
+  const choosing =
+    saleId !== undefined && (chosen.status === "loading" || chosenAnswer?.kind === "found");
 
   function submitSearch() {
-    if (!typed) {
-      return;
-    }
-    const reading = typedReturnReading(search);
-    if (reading === undefined) {
-      setRefusal("not_a_ticket_number");
-    } else {
-      void look(reading);
+    if (typed) {
+      void submit();
     }
   }
 
@@ -169,7 +195,9 @@ export function ReturnFindStep({
         <SidePanel
           label="Devolución"
           width="wide"
-          header={<ReturnPanelFigure label="DEVOLUCIÓN" value={formatCents(0)} />}
+          header={
+            <ReturnPanelFigure label="DEVOLUCIÓN" value={choosing ? undefined : formatCents(0)} />
+          }
           footer={
             <Button
               size="large"
@@ -197,31 +225,50 @@ export function ReturnFindStep({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 px-8 pt-4 pb-6">
-        <div ref={searchArea}>
-          <SearchField
-            placeholder="Escaneá el ticket o escribí el número"
-            icon={<Search />}
-            value={search}
-            onChange={(text) => {
-              setSearch(text);
-              setRefusal(undefined);
-            }}
-          />
-        </div>
-        <ReturnLinesTable
-          sale={undefined}
-          draft={EMPTY_RETURN_DRAFT}
-          previewed={undefined}
-          selectedLineId={undefined}
-          legend={legend}
-          footer={
-            refusal === undefined ? undefined : (
-              <InlineNotice tone="error" icon={<CircleX />} title={findRefusalText(refusal)} />
-            )
-          }
-          onSelect={() => {}}
-          onMark={() => {}}
-        />
+        <form.AppField name="search" listeners={{ onChange: () => setRefusal(undefined) }}>
+          {(field) => {
+            const fieldMessage = fieldErrorMessage(field.state.meta.errors);
+            const shown = refusal === undefined ? fieldMessage : findRefusalText(refusal);
+            return (
+              <>
+                <div ref={searchArea}>
+                  <SearchField
+                    placeholder="Escaneá el ticket o escribí el número"
+                    icon={<Search />}
+                    value={field.state.value}
+                    invalid={fieldMessage !== undefined}
+                    onChange={field.handleChange}
+                  />
+                </div>
+                <ReturnLinesTable
+                  sale={undefined}
+                  draft={EMPTY_RETURN_DRAFT}
+                  previewed={undefined}
+                  selectedLineId={undefined}
+                  legend={legend}
+                  loading={choosing}
+                  failure={
+                    saleId !== undefined && chosen.status === "failed"
+                      ? {
+                          icon: <TriangleAlert />,
+                          title: "No se pudo buscar la venta",
+                          description: "Probá de nuevo.",
+                          onRetry: chosen.retry,
+                        }
+                      : undefined
+                  }
+                  footer={
+                    shown === undefined ? undefined : (
+                      <InlineNotice tone="error" icon={<CircleX />} title={shown} />
+                    )
+                  }
+                  onSelect={() => {}}
+                  onMark={() => {}}
+                />
+              </>
+            );
+          }}
+        </form.AppField>
       </main>
     </RegisterFrame>
   );

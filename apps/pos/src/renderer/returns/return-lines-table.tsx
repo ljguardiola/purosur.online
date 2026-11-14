@@ -1,5 +1,5 @@
 import type { PreviewReturnOutcome } from "@purosur/contracts";
-import type { EmptyStateProps } from "@purosur/ui";
+import type { EmptyStateProps, LoadFailureProps } from "@purosur/ui";
 import {
   Checkbox,
   dataColumn,
@@ -32,6 +32,8 @@ export type ReturnLinesTableProps = {
   previewed: PreviewedReturn | undefined;
   selectedLineId: string | undefined;
   legend: readonly LegendItem[];
+  loading?: boolean;
+  failure?: LoadFailureProps | undefined;
   footer?: ReactNode;
   onSelect: (lineId: string) => void;
   onMark: (lineId: string, marked: boolean) => void;
@@ -52,6 +54,8 @@ export function ReturnLinesTable({
   previewed,
   selectedLineId,
   legend,
+  loading = false,
+  failure,
   footer,
   onSelect,
   onMark,
@@ -138,8 +142,12 @@ export function ReturnLinesTable({
       table={table}
       fill
       emptyKeepsHeaders
+      failureKeepsHeaders
       legend={legend}
       empty={NO_SALE}
+      {...(failure === undefined
+        ? { loading: loading ? ("initial" as const) : false }
+        : { failure })}
       {...(footer === undefined ? {} : { footer })}
       rowState={({ line }) => (line.id === selectedLineId ? "selected" : undefined)}
       onRowPress={({ line }) => onSelect(line.id)}

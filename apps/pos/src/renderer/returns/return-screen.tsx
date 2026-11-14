@@ -49,8 +49,9 @@ function ReturnFlow({
   completeReturn,
   loadAuthorizers,
   onSessionInvalid,
+  initialSearch,
   restart,
-}: ReturnScreenProps & { restart: () => void }) {
+}: ReturnScreenProps & { initialSearch: string; restart: (search?: string) => void }) {
   const [standing, setStanding] = useState<Standing>({ step: "find" });
   const [authorizationRequired, setAuthorizationRequired] = useState(false);
   const authorization = useAuthorization({
@@ -75,7 +76,8 @@ function ReturnFlow({
           completeReturn={completeReturn}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
           onCompleted={(completed) => setStanding({ ...standing, step: "completed", completed })}
-          onLeave={restart}
+          onLeave={() => restart()}
+          onSearch={restart}
           onSessionInvalid={onSessionInvalid}
         />
       ) : (
@@ -83,6 +85,7 @@ function ReturnFlow({
           rail={rail}
           authorization={authorization}
           saleId={saleId}
+          initialSearch={initialSearch}
           findSaleForReturn={findSaleForReturn}
           onFound={(found) => setStanding({ step: "build", ...found })}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
@@ -94,7 +97,7 @@ function ReturnFlow({
           cashToHandOver={standing.completed.cashToHandOver}
           pendingRefunds={standing.completed.pendingRefunds}
           lines={standing.completed.lines}
-          onDone={restart}
+          onDone={() => restart()}
         />
       ) : null}
     </>
@@ -102,13 +105,14 @@ function ReturnFlow({
 }
 
 export function ReturnScreen(props: ReturnScreenProps) {
-  const [attempt, setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState({ count: 0, search: "" });
   return (
     <ReturnFlow
-      key={attempt}
+      key={attempt.count}
       {...props}
-      saleId={attempt === 0 ? props.saleId : undefined}
-      restart={() => setAttempt(attempt + 1)}
+      saleId={attempt.count === 0 ? props.saleId : undefined}
+      initialSearch={attempt.search}
+      restart={(search = "") => setAttempt({ count: attempt.count + 1, search })}
     />
   );
 }

@@ -8,10 +8,11 @@ import {
   formatInvoiceNumber,
   formatPointOfSaleNumber,
   SearchField,
+  useRequestForm,
 } from "@purosur/ui";
 import { Search } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CompleteReturnInput } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import { paidPaymentName } from "../platform/payment-method-names";
@@ -20,13 +21,14 @@ import { RegisterFrame } from "../shell/register-frame";
 import type { AuthorizationState } from "../shell/use-authorization";
 import type { CompletedReturn } from "./hand-over-refund-modal";
 import { ownEntry } from "./own-entry";
-import type { ReturnDraft, ReturnDraftLine } from "./return-form";
+import type { ReturnDraft, ReturnDraftLine, ReturnFormValues } from "./return-form";
 import {
   checkLine,
   draftLineOf,
   draftLinesFor,
-  EMPTY_RETURN_DRAFT,
+  EMPTY_RETURN_FORM,
   INVALID_REFUND_MESSAGE,
+  RETURN_FIELDS,
   refundsOf,
   refundTextsFor,
   returnRequestFrom,
@@ -74,8 +76,11 @@ export type ReturnBuildStepProps = {
   onAuthorizationRequired: () => void;
   onCompleted: (completed: CompletedReturn) => void;
   onLeave: () => void;
+  onSearch: (text: string) => void;
   onSessionInvalid: () => void;
 };
+
+type ReturnRequest = ReturnType<typeof returnRequestFrom>;
 
 type Mode = { kind: "list" } | { kind: "edit"; lineId: string } | { kind: "refunds" };
 
@@ -95,17 +100,23 @@ export function ReturnBuildStep({
   onAuthorizationRequired,
   onCompleted,
   onLeave,
+  onSearch,
   onSessionInvalid,
 }: ReturnBuildStepProps) {
   const [mode, setMode] = useState<Mode>({ kind: "list" });
-  const [draft, setDraft] = useState<ReturnDraft>(EMPTY_RETURN_DRAFT);
-  const [refundEdits, setRefundEdits] = useState<Readonly<Record<string, string>>>({});
   const [selectedLineId, setSelectedLineId] = useState(sale.lines[0]?.id);
   const [selectedRefund, setSelectedRefund] = useState(0);
   const [verified, setVerified] = useState(false);
   const [notice, setNotice] = useState<string>();
-  const [submitting, setSubmitting] = useState(false);
-  const sending = useRef(false);
+  const { form, submit, submitting, values } = useRequestForm({
+    defaultValues: EMPTY_RETURN_FORM,
+    request: { schema: returnRequestSchema, from: requestFrom },
+    fields: RETURN_FIELDS,
+    messages: { refunds: INVALID_REFUND_MESSAGE },
+    onSubmit: (request) => complete(request),
+  });
+  const draft = values.lines;
+  const refundEdits = values.refunds;
 
   const lines = draftLinesFor(sale, draft);
   const preview = useReturnDraftPreviewQuery({ sale, draft, preview: previewReturn });
@@ -149,26 +160,20 @@ export function ReturnBuildStep({
         ];
   });
 
+  function requestFrom(formValues: ReturnFormValues): ReturnRequest {
+    return returnRequestFrom(sale, refundableTotal, formValues);
+  }
+
   function change(next: ReturnDraft) {
-    setDraft(next);
-    setRefundEdits({});
+    form.setFieldValue("lines", next);
+    form.setFieldValue("refunds", {});
     setNotice(undefined);
   }
 
-  async function complete() {
-    if (sending.current || previewed === undefined) {
+  async function complete(request: ReturnRequest) {
+    if (previewed === undefined) {
       return;
     }
-    const request = returnRequestFrom(sale, refundableTotal, {
-      lines: draft,
-      refunds: refundEdits,
-    });
-    if (!returnRequestSchema.safeParse(request).success) {
-      setNotice(INVALID_REFUND_MESSAGE);
-      return;
-    }
-    sending.current = true;
-    setSubmitting(true);
     setNotice(undefined);
     const outcome = await completeReturn({
       saleId: sale.sale_id,
@@ -178,8 +183,6 @@ export function ReturnBuildStep({
       refunds: request.refunds,
       authorization: authorization.value,
     }).catch((): "failed" => "failed");
-    sending.current = false;
-    setSubmitting(false);
     authorization.dismiss();
     if (outcome === "failed") {
       setNotice(COMPLETE_FAILED);
@@ -274,7 +277,7 @@ export function ReturnBuildStep({
       authorization.ask();
       return;
     }
-    void complete();
+    void submit();
   }
 
   function continueToComplete() {
@@ -322,10 +325,6 @@ export function ReturnBuildStep({
   function apply(lineId: string, edit: ReturnDraftLine) {
     change({ ...draft, [lineId]: edit });
     setMode({ kind: "list" });
-  }
-
-  function changeRefundAmount(paymentId: string, amount: string) {
-    setRefundEdits((current) => ({ ...current, [paymentId]: amount }));
   }
 
   function moveRefund(pressed: string) {
@@ -386,12 +385,7 @@ export function ReturnBuildStep({
         : answered?.kind === "lacks_permission"
           ? NOT_PERMITTED
           : notice;
-  const total =
-    lines.length === 0
-      ? 0
-      : preview.status === "loaded" && previewed !== undefined
-        ? refundableTotal
-        : undefined;
+  const total = lines.length > 0 && preview.status === "loading" ? undefined : refundableTotal;
   const linesCount =
     previewed === undefined
       ? lines.length
@@ -461,20 +455,22 @@ export function ReturnBuildStep({
           placeholder="Escaneá el ticket o escribí el número"
           icon={<Search />}
           value={searchText}
-          onChange={() => {}}
+          onChange={onSearch}
           disabled={mode.kind === "refunds"}
         />
         {mode.kind === "refunds" ? (
-          <ReturnRefundsTable
-            sale={sale}
-            refundableTotal={refundableTotal}
-            refundEdits={refundEdits}
-            selectedIndex={selectedRefund}
-            legend={refundLegend}
-            notice={notice}
-            onSelect={setSelectedRefund}
-            onAmountChange={changeRefundAmount}
-          />
+          <form.AppField name="refunds">
+            {() => (
+              <ReturnRefundsTable
+                sale={sale}
+                refundableTotal={refundableTotal}
+                selectedIndex={selectedRefund}
+                legend={refundLegend}
+                notice={notice}
+                onSelect={setSelectedRefund}
+              />
+            )}
+          </form.AppField>
         ) : (
           <ReturnLinesTable
             sale={sale}

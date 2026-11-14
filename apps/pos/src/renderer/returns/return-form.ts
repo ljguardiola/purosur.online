@@ -36,6 +36,8 @@ export const EMPTY_RETURN_DRAFT: ReturnDraft = {};
 
 export const EMPTY_RETURN_FORM: ReturnFormValues = { lines: EMPTY_RETURN_DRAFT, refunds: {} };
 
+export const RETURN_FIELDS = { lines: null, refunds: "refunds" } as const;
+
 export const INVALID_REFUND_MESSAGE = "Ingresá un importe válido, por ejemplo 1.500,00.";
 
 function quantityTextOf({
@@ -62,22 +64,6 @@ export function uncheckLine(draft: ReturnDraft, lineId: string): ReturnDraft {
   return Object.fromEntries(Object.entries(draft).filter(([id]) => id !== lineId));
 }
 
-export function changeLine(
-  draft: ReturnDraft,
-  lineId: string,
-  change: Partial<ReturnDraftLine>,
-): ReturnDraft {
-  const line = ownEntry(draft, lineId);
-  if (line === undefined) {
-    return draft;
-  }
-  const reasonChanged = change.reason !== undefined && change.reason !== line.reason;
-  return {
-    ...draft,
-    [lineId]: { ...line, ...(reasonChanged ? { resolution: null } : {}), ...change },
-  };
-}
-
 export function goesBackWhole(line: SaleLineForReturn, reason: ReturnReasonValue | null): boolean {
   return reason !== null && line.whole_only_reasons.includes(reason);
 }
@@ -93,20 +79,23 @@ function quantityOf(line: SaleLineForReturn, drafted: ReturnDraftLine): number {
   return /^\d+$/.test(typed.trim()) ? Number(typed) : 0;
 }
 
+export function draftLineBodyOf(
+  line: SaleLineForReturn,
+  drafted: ReturnDraftLine,
+): ReturnDraftLineBody {
+  return {
+    sale_line_id: line.id,
+    quantity: quantityOf(line, drafted),
+    reason: drafted.reason,
+    disposition: drafted.disposition,
+    resolution: drafted.resolution,
+  };
+}
+
 export function draftLinesFor(sale: SaleForReturn, draft: ReturnDraft): ReturnDraftLineBody[] {
   return sale.lines.flatMap((line) => {
     const drafted = ownEntry(draft, line.id);
-    return drafted === undefined
-      ? []
-      : [
-          {
-            sale_line_id: line.id,
-            quantity: quantityOf(line, drafted),
-            reason: drafted.reason,
-            disposition: drafted.disposition,
-            resolution: drafted.resolution,
-          },
-        ];
+    return drafted === undefined ? [] : [draftLineBodyOf(line, drafted)];
   });
 }
 
@@ -129,6 +118,15 @@ export function refundTextsFor(
         payment === firstEligible && refundableTotal > 0 ? formatAmountInput(refundableTotal) : "",
     };
   });
+}
+
+const refundAmountSchema = returnRequestSchema.shape.refunds.element.shape.amount;
+
+export function isRefundTextInvalid(text: string): boolean {
+  return (
+    text.trim() !== "" &&
+    !refundAmountSchema.safeParse(parseAmountCents(text) ?? Number.NaN).success
+  );
 }
 
 export function refundsOf(texts: readonly PaymentRefundText[]) {

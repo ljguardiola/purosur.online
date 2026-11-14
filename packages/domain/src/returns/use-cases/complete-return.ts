@@ -8,6 +8,7 @@ import {
   type SaleCreditNoteRoute,
 } from "../../fiscal/index.js";
 import { plannedRefundState } from "../../payments/index.js";
+import { saleMayBeReturned } from "../../sales/index.js";
 import {
   type Clock,
   type JsonValue,
@@ -105,7 +106,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
       return { kind: "not_found" };
     }
     const { sale } = facts;
-    if (sale.state !== "COMPLETED") {
+    if (!saleMayBeReturned(sale.state)) {
       return { kind: "sale_not_returnable" };
     }
     const session = tx.openSession();

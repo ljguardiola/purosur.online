@@ -71,4 +71,5 @@ export interface RegisterSalesHistory {
   salesOfRegisterOfDeferredSale(reference: DeferredSaleReference): SalesHistoryEntry[];
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined;
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts;
+  registerHasOpenSession(): boolean;
 }

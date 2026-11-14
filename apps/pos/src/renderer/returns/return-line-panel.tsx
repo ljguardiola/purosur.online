@@ -1,26 +1,29 @@
+import type { ReturnDraftLineBody } from "@purosur/contracts";
 import {
   Button,
   formatCents,
   formatWeightInput,
-  SegmentedControl,
   SidePanel,
   SummaryRowGroup,
   TextField,
+  useRequestForm,
 } from "@purosur/ui";
 import { Check } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { ReturnDraftLine } from "./return-form";
 import { goesBackWhole, RETURNED_WEIGHT_DECIMALS } from "./return-form";
+import type { ReturnLineFormValues } from "./return-line-form";
+import {
+  RETURN_LINE_FIELDS,
+  resolutionForReason,
+  returnLineFormValuesOf,
+  returnLineRequestFrom,
+  returnLineRequestSchema,
+} from "./return-line-form";
 import { ReturnPanelFigure } from "./return-panel-figure";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
-import type { ReturnReasonValue } from "./return-text";
-import {
-  DISPOSITION_OPTIONS,
-  quantityText,
-  REASON_OPTIONS,
-  RESOLUTION_LABELS,
-} from "./return-text";
+import { DISPOSITION_OPTIONS, quantityText, RESOLUTION_LABELS, reasonOptions } from "./return-text";
 
 export type ReturnLinePanelProps = {
   sale: SaleForReturn;
@@ -47,8 +50,22 @@ export function ReturnLinePanel({
   onApply,
   onCancel,
 }: ReturnLinePanelProps) {
-  const [edit, setEdit] = useState(draft);
   const quantityArea = useRef<HTMLDivElement | null>(null);
+  const { form, submit, values } = useRequestForm<
+    ReturnLineFormValues,
+    ReturnDraftLineBody,
+    ReturnDraftLineBody,
+    never
+  >({
+    defaultValues: returnLineFormValuesOf(sale, draft),
+    request: {
+      schema: returnLineRequestSchema,
+      from: (edited) => returnLineRequestFrom(line, edited),
+    },
+    fields: RETURN_LINE_FIELDS,
+    messages: {},
+    onSubmit: async (_request, { values: edited }) => onApply(edited),
+  });
 
   useEffect(() => {
     quantityArea.current?.querySelector("input")?.focus();
@@ -56,29 +73,14 @@ export function ReturnLinePanel({
 
   useKeys([
     { key: "Escape", run: onCancel },
-    { key: "Enter", run: () => onApply(edit) },
+    { key: "Enter", run: () => void submit() },
   ]);
 
-  const reason = edit.reason ?? "change_of_mind";
-  const offered = sale.offered_resolutions[reason];
-  const [firstResolution, ...otherResolutions] = offered.map((value) => ({
-    value,
-    label: RESOLUTION_LABELS[value],
-  }));
+  const [firstResolution, ...otherResolutions] = sale.offered_resolutions[values.reason].map(
+    (value) => ({ value, label: RESOLUTION_LABELS[value] }),
+  );
 
-  function chooseReason(next: ReturnReasonValue) {
-    const nextOffered = sale.offered_resolutions[next];
-    setEdit({
-      ...edit,
-      reason: next,
-      resolution:
-        edit.resolution !== null && nextOffered.includes(edit.resolution)
-          ? edit.resolution
-          : (nextOffered[0] ?? null),
-    });
-  }
-
-  const whole = goesBackWhole(line, reason);
+  const whole = goesBackWhole(line, values.reason);
   const quantityLabel = "Cantidad";
 
   return (
@@ -98,7 +100,7 @@ export function ReturnLinePanel({
           icon={<Check />}
           iconPosition="start"
           keycap="Enter"
-          onPress={() => onApply(edit)}
+          onPress={() => void submit()}
         >
           Aplicar
         </Button>
@@ -118,52 +120,69 @@ export function ReturnLinePanel({
             readOnly
             readOnlyReason={PROMOTION_REASON}
           />
-        ) : line.sale_unit === "KG" ? (
-          <TextField
-            kind="weight"
-            suffix="kg"
-            label={quantityLabel}
-            decimals={RETURNED_WEIGHT_DECIMALS}
-            value={edit.quantity}
-            onChange={(quantity) => setEdit({ ...edit, quantity })}
-          />
         ) : (
-          <TextField
-            kind="quantity"
-            suffix="u"
-            label={quantityLabel}
-            inputMode="numeric"
-            value={edit.quantity}
-            onChange={(quantity) => setEdit({ ...edit, quantity })}
-          />
+          <form.AppField name="quantity">
+            {(field) =>
+              line.sale_unit === "KG" ? (
+                <field.TextField
+                  kind="weight"
+                  suffix="kg"
+                  label={quantityLabel}
+                  decimals={RETURNED_WEIGHT_DECIMALS}
+                />
+              ) : (
+                <field.TextField
+                  kind="quantity"
+                  suffix="u"
+                  label={quantityLabel}
+                  inputMode="numeric"
+                />
+              )
+            }
+          </form.AppField>
         )}
       </div>
-      <SegmentedControl
-        variant="field"
-        size="large"
-        label="Motivo"
-        options={REASON_OPTIONS}
-        value={reason}
-        onChange={chooseReason}
-      />
+      <form.AppField
+        name="reason"
+        listeners={{
+          onChange: ({ value }) =>
+            form.setFieldValue(
+              "resolution",
+              resolutionForReason(sale, value, form.getFieldValue("resolution")),
+            ),
+        }}
+      >
+        {(field) => (
+          <field.SegmentedControl
+            variant="field"
+            size="large"
+            label="Motivo"
+            options={reasonOptions(sale.windows)}
+          />
+        )}
+      </form.AppField>
       {firstResolution === undefined ? null : (
-        <SegmentedControl
-          variant="field"
-          size="large"
-          label="Resolución"
-          options={[firstResolution, ...otherResolutions]}
-          value={edit.resolution ?? firstResolution.value}
-          onChange={(resolution) => setEdit({ ...edit, resolution })}
-        />
+        <form.AppField name="resolution">
+          {(field) => (
+            <field.SegmentedControl
+              variant="field"
+              size="large"
+              label="Resolución"
+              options={[firstResolution, ...otherResolutions]}
+            />
+          )}
+        </form.AppField>
       )}
-      <SegmentedControl
-        variant="field"
-        size="large"
-        label="Destino"
-        options={DISPOSITION_OPTIONS}
-        value={edit.disposition ?? "restock"}
-        onChange={(disposition) => setEdit({ ...edit, disposition })}
-      />
+      <form.AppField name="disposition">
+        {(field) => (
+          <field.SegmentedControl
+            variant="field"
+            size="large"
+            label="Destino"
+            options={DISPOSITION_OPTIONS}
+          />
+        )}
+      </form.AppField>
     </SidePanel>
   );
 }

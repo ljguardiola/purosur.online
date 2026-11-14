@@ -112,7 +112,7 @@ export function readSaleHistoryDetail(
       comprobante: saleComprobanteOf(fiscal),
       standing: saleStandingOf({ ...fiscal, voided }),
       voidability: saleVoidabilityOf(record),
-      returnable: saleMayBeReturned(saleStateOf(voided)),
+      returnable: history.registerHasOpenSession() && saleMayBeReturned(saleStateOf(voided)),
       reprint: receiptPrintAvailability(
         "sale_receipt",
         { ...delivery, voided },

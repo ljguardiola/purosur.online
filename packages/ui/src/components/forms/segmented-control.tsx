@@ -1,4 +1,5 @@
 import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-components";
+import { Tag } from "../data-display/tag";
 import { iconSlotClassName } from "../shared/icon";
 import { ReservedWidthLabel } from "../shared/reserved-width-label";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
@@ -8,7 +9,7 @@ type SegmentedControlVariant = "outlined" | "field";
 
 export type SegmentedControlProps<V extends string> = OptionChoiceProps<
   V,
-  NarrowedOption<V, never, "icon">
+  NarrowedOption<V, never, "icon" | "status">
 > & {
   label: string;
   size?: SegmentedControlSize;
@@ -61,10 +62,11 @@ function SegmentedOption<V extends string>({
   value,
   label,
   icon,
+  status,
   size,
   variant,
   fullWidth,
-}: NarrowedOption<V, never, "icon"> & {
+}: NarrowedOption<V, never, "icon" | "status"> & {
   size: SegmentedControlSize;
   variant: SegmentedControlVariant;
   fullWidth: boolean;
@@ -72,7 +74,7 @@ function SegmentedOption<V extends string>({
   return (
     <AriaRadio
       value={value}
-      aria-label={label}
+      aria-label={status === undefined ? label : `${label}, ${status}`}
       className={`${variant === "field" ? fieldOptionClassName : optionClassName} ${sizeClassName[size]} ${optionPaddingClassName[fullWidth || variant === "field" ? "fullWidth" : "content"]}`}
     >
       {icon ? (
@@ -80,7 +82,16 @@ function SegmentedOption<V extends string>({
           {icon}
         </span>
       ) : null}
-      <ReservedWidthLabel label={label} />
+      {status === undefined ? (
+        <ReservedWidthLabel label={label} />
+      ) : (
+        <span className="flex flex-col items-center">
+          <ReservedWidthLabel label={label} />
+          <Tag tone="neutral" variant="status">
+            {status}
+          </Tag>
+        </span>
+      )}
     </AriaRadio>
   );
 }

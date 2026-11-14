@@ -12,6 +12,7 @@ export type MethodRefundRow = {
   method: string;
   when: string;
   amount: string;
+  invalid?: boolean;
 };
 
 export type MethodRefundTableProps = {
@@ -34,11 +35,20 @@ type AmountInputProps = {
   prefix: string;
   value: string;
   selected: boolean;
+  invalid: boolean;
   onFocus: () => void;
   onChange: (value: string) => void;
 };
 
-function AmountInput({ labelledBy, prefix, value, selected, onFocus, onChange }: AmountInputProps) {
+function AmountInput({
+  labelledBy,
+  prefix,
+  value,
+  selected,
+  invalid,
+  onFocus,
+  onChange,
+}: AmountInputProps) {
   const [attachInput, onDecimalChange] = useDecimalTyping(DECIMALS, onChange);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -55,9 +65,10 @@ function AmountInput({ labelledBy, prefix, value, selected, onFocus, onChange }:
       onChange={onDecimalChange}
       onFocus={onFocus}
       inputMode="decimal"
+      isInvalid={invalid}
     >
       <div
-        className={`${fieldBoxClassName} h-control-3xl w-48 gap-1 px-3 ${fieldBoxStateClassName({ disabled: false })}`}
+        className={`${fieldBoxClassName} h-control-3xl w-48 gap-1 px-3 ${fieldBoxStateClassName({ disabled: false, invalid, errorRingWhileFocused: true })}`}
       >
         <span aria-hidden="true" className="shrink-0 text-body font-bold text-text">
           {prefix}
@@ -116,6 +127,7 @@ export function MethodRefundTable({
             prefix={amountPrefix}
             value={item.amount}
             selected={item.index === selectedIndex}
+            invalid={item.invalid === true}
             onFocus={() => onSelect(item.index)}
             onChange={(amount) => onAmountChange(item.id, amount)}
           />

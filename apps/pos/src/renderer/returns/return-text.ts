@@ -4,7 +4,7 @@ import type {
   ReturnLineRefusalBody,
 } from "@purosur/contracts";
 import { formatCalendarDayNumeric, formatCents, formatWeight } from "@purosur/ui";
-import type { PaymentForReturn, SaleLineForReturn } from "./return-sale";
+import type { PaymentForReturn, SaleForReturn, SaleLineForReturn } from "./return-sale";
 
 type PlannedRefundState = PaymentForReturn["refund_state"];
 
@@ -16,6 +16,17 @@ export const REASON_OPTIONS = [
   { value: "change_of_mind", label: "Arrepentimiento" },
   { value: "defective", label: "Defecto" },
 ] as const satisfies readonly { value: ReturnReasonValue; label: string }[];
+
+type ReasonOption = { value: ReturnReasonValue; label: string; status?: string };
+
+export function reasonOptions(
+  windows: SaleForReturn["windows"],
+): readonly [ReasonOption, ...ReasonOption[]] {
+  const [changeOfMind, defective] = REASON_OPTIONS;
+  const marked = (option: ReasonOption): ReasonOption =>
+    windows[option.value].open ? option : { ...option, status: "Vencido" };
+  return [marked(changeOfMind), marked(defective)];
+}
 
 export const DISPOSITION_OPTIONS = [
   { value: "restock", label: "A la venta" },
