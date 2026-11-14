@@ -298,6 +298,41 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
       .element(screen.getByRole("button", { name: "Reintentar" }))
       .not.toBeInTheDocument();
   });
+
+  it("replaces the failure to look the sale up with the refusal of a scanned code that is not a ticket's QR", async () => {
+    const { screen, readBarcode } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async () => ({ kind: "unavailable" }),
+    });
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+    readBarcode("7790001");
+
+    await expect
+      .element(
+        alertText(
+          screen,
+          "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+  });
+
+  it("replaces the failure to look the sale up with the refusal of a typed text that is not a ticket's number", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async () => ({ kind: "unavailable" }),
+    });
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+    await lookUp(screen, "hola");
+
+    await expect
+      .element(alertText(screen, "Tipeá el número impreso del ticket, como 00003-00001192."))
+      .toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+  });
 });
 
 describe("ReturnScreen refusing a line", () => {
