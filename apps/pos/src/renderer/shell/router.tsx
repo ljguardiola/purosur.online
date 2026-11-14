@@ -1154,7 +1154,7 @@ const lockedRoute = createRoute({
     return { openedBy };
   },
   component: function LockedRoute() {
-    const { openedBy, signIn } = lockedRoute.useRouteContext();
+    const { openedBy, signIn, signInUsers } = lockedRoute.useRouteContext();
     const registerName = useRegisterName();
     const version = useRegisterVersion();
     return (
@@ -1162,6 +1162,7 @@ const lockedRoute = createRoute({
         opener={openedBy}
         registerName={registerName}
         version={version}
+        loadUsers={signInUsers}
         signIn={signIn}
       />
     );
