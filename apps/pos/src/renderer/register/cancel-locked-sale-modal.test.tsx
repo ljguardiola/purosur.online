@@ -29,9 +29,7 @@ describe("CancelLockedSaleModal", () => {
     await expect.element(dialog.getByText("$ 34.340,00")).toBeVisible();
     await expect
       .element(
-        dialog.getByText(
-          "Se vacía la venta y no se cobra nada. La mercadería no sale del stock.",
-        ),
+        dialog.getByText("Se vacía la venta y no se cobra nada. La mercadería no sale del stock."),
       )
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
