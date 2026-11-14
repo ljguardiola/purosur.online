@@ -5,17 +5,15 @@ import { useKeys } from "../platform/key-layer";
 export type LockedOpenSaleBannerProps = {
   total: number;
   hasApprovedPayment: boolean;
-  disabled: boolean;
   onCancel: () => void;
 };
 
 export function LockedOpenSaleBanner({
   total,
   hasApprovedPayment,
-  disabled,
   onCancel,
 }: LockedOpenSaleBannerProps) {
-  useKeys([{ key: "V", run: onCancel, enabled: !disabled, whileTyping: true }]);
+  useKeys([{ key: "V", run: onCancel, whileTyping: true }]);
 
   return (
     <HighlightedNotice
@@ -29,7 +27,7 @@ export function LockedOpenSaleBanner({
           : "Vaciá la venta para cerrar la caja."
       }
       actions={
-        <Button variant="text" keycap="V" disabled={disabled} onPress={onCancel}>
+        <Button variant="text" keycap="V" onPress={onCancel}>
           {hasApprovedPayment ? "Cancelar la venta" : "Vaciar venta"}
         </Button>
       }

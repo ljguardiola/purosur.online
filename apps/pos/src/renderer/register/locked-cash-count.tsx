@@ -190,7 +190,6 @@ export function LockedCashCount({
           <LockedOpenSaleBanner
             total={openSale.total}
             hasApprovedPayment={openSale.has_approved_payment}
-            disabled={emptying}
             onCancel={() => void askToCancelOpenSale()}
           />
         )}

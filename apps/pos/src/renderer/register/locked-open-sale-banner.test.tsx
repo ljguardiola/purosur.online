@@ -4,13 +4,12 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { LockedOpenSaleBanner } from "./locked-open-sale-banner";
 
-async function renderBanner(options: { hasApprovedPayment?: boolean; disabled?: boolean } = {}) {
+async function renderBanner(options: { hasApprovedPayment?: boolean } = {}) {
   const onCancel = vi.fn();
   const screen = await render(
     <LockedOpenSaleBanner
       total={2_519_250}
       hasApprovedPayment={options.hasApprovedPayment ?? false}
-      disabled={options.disabled ?? false}
       onCancel={onCancel}
     />,
   );
@@ -45,14 +44,5 @@ describe("LockedOpenSaleBanner", () => {
     await userEvent.keyboard("v");
 
     expect(onCancel).toHaveBeenCalledTimes(2);
-  });
-
-  it("asks nothing while disabled", async () => {
-    const { screen, onCancel } = await renderBanner({ disabled: true });
-
-    await userEvent.keyboard("v");
-
-    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeDisabled();
-    expect(onCancel).not.toHaveBeenCalled();
   });
 });
