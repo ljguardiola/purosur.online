@@ -50,10 +50,10 @@ test("names each row with its title and its statuses", async () => {
   const screen = await renderCard();
 
   await expect
-    .element(screen.getByRole("button", { name: "Esta caja, Nube conectada, 1 aviso" }))
+    .element(screen.getByRole("button", { name: "Esta caja Nube conectada 1 aviso" }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("button", { name: "Impresora, 10.10.10.2:9100" }))
+    .element(screen.getByRole("button", { name: "Impresora 10.10.10.2:9100" }))
     .toBeVisible();
 });
 
@@ -77,7 +77,10 @@ test("reports the id of a row activated with the keyboard", async () => {
   const onSelect = vi.fn();
   const screen = await renderCard({ onSelect });
 
-  screen.getByRole("button", { name: /Impresora/ }).element().focus();
+  screen
+    .getByRole("button", { name: /Impresora/ })
+    .element()
+    .focus();
   await userEvent.keyboard("{Enter}");
 
   expect(onSelect).toHaveBeenCalledExactlyOnceWith("printer");

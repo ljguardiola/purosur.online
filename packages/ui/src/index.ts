@@ -252,6 +252,12 @@ export type { LinkListCardProps, LinkListRowProps } from "./components/navigatio
 export { LinkListCard, LinkListRow } from "./components/navigation/link-list-card";
 export type { PaginationProps } from "./components/navigation/pagination";
 export { Pagination } from "./components/navigation/pagination";
+export type {
+  SectionListCardProps,
+  SectionListItem,
+  SectionListStatus,
+} from "./components/navigation/section-list-card";
+export { SectionListCard } from "./components/navigation/section-list-card";
 export type { SectionNavButtonProps } from "./components/navigation/section-nav-button";
 export { SectionNavButton } from "./components/navigation/section-nav-button";
 export type { SectionNavItemProps } from "./components/navigation/section-nav-item";
