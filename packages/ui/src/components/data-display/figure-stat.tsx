@@ -1,10 +1,13 @@
 import { PlaceholderLine } from "../feedback/placeholder-shapes";
 import { Eyebrow } from "../layout/eyebrow";
+import type { Tone } from "../shared/tone";
 
 export type FigureStatProps = {
   label: string;
   size?: "hero" | "display" | "heading" | undefined;
   variant?: "accent" | "plain" | undefined;
+  labelTone?: Tone | undefined;
+  monospace?: boolean | undefined;
 } & (
   | { value: string; detail?: string | undefined; loading?: false | undefined }
   | { loading: true; value?: undefined; detail?: undefined }
@@ -22,11 +25,13 @@ export function FigureStat({
   label,
   size = "display",
   variant = "accent",
+  labelTone,
+  monospace = false,
   ...figure
 }: FigureStatProps) {
   return (
     <div className="flex flex-col gap-1" aria-busy={figure.loading ? true : undefined}>
-      <Eyebrow text={label} />
+      <Eyebrow text={label} tone={labelTone} />
       {figure.detail === undefined ? null : (
         <p className="text-detail text-text-subtle">{figure.detail}</p>
       )}
@@ -38,7 +43,11 @@ export function FigureStat({
           <PlaceholderLine widthPercent={60} />
         </div>
       ) : (
-        <p className={`${sizeClassName[size]} ${variantClassName[variant]}`}>{figure.value}</p>
+        <p
+          className={`${sizeClassName[size]} ${variantClassName[variant]}${monospace ? " font-mono" : ""}`}
+        >
+          {figure.value}
+        </p>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { Package, Scale, Tag as TagIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useId } from "react";
-import { Eyebrow } from "../layout/eyebrow";
+import { FigureStat } from "./figure-stat";
 import { Tag } from "./tag";
 
 export type ProductCardProps = {
@@ -42,9 +42,14 @@ export function ProductCard({ name, price, soldBy, tag, figures, action }: Produ
       {figures.length === 0 ? null : (
         <div className="grid auto-cols-fr grid-flow-col gap-3">
           {figures.map(({ label, value }) => (
-            <div key={label} className="flex flex-col gap-1 rounded-md bg-surface px-5 py-4">
-              <Eyebrow text={label} tone="warning" />
-              <p className="font-mono text-display font-bold text-text">{value}</p>
+            <div key={label} className="rounded-md bg-surface px-5 py-4">
+              <FigureStat
+                label={label}
+                value={value}
+                labelTone="warning"
+                variant="plain"
+                monospace
+              />
             </div>
           ))}
         </div>

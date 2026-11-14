@@ -892,7 +892,6 @@ export type {
   ConsultProductOutcome,
   ProductToConsult,
 } from "./sales/product-consultation.js";
-export { consultProductMessageSchema } from "./sales/product-consultation.js";
 export type {
   AddProductOutcome,
   AddWeighedProductOutcome,

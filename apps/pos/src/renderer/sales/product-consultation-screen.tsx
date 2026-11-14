@@ -1,6 +1,7 @@
 import type {
   ConsultProductOutcome,
   CurrentSaleAnswer,
+  PaymentMethodAvailability,
   ProductToConsult,
   SearchProductsOutcome,
 } from "@purosur/contracts";
@@ -10,13 +11,15 @@ import {
   formatCents,
   formatSaleUnitQuantity,
   formatWeight,
+  LoadFailure,
+  LoadingPlaceholder,
   ModePill,
   ProductCard,
   ScaleCard,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Eye, ScanBarcode, Search } from "lucide-react";
+import { Eye, ScanBarcode, Search, TriangleAlert } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useKeys } from "../platform/key-layer";
@@ -28,7 +31,14 @@ import { RegisterFrame } from "../shell/register-frame";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { consultedPromotionText } from "./consulted-promotion-text";
 import { PaymentPanel } from "./payment-panel";
-import { useConsultedProductQuery, useCurrentSaleQuery, useSearchProducts } from "./sales-queries";
+import { isChargeable, paidOrderToApplyOf } from "./sale-charge";
+import type { ConsultationAnswer } from "./sales-queries";
+import {
+  useConsultedProductQuery,
+  useCurrentSaleQuery,
+  usePaymentMethodAvailabilityQuery,
+  useSearchProducts,
+} from "./sales-queries";
 import type { ScanProblem } from "./scan-problem-message";
 import { ScanProblemMessage } from "./scan-problem-message";
 
@@ -37,13 +47,14 @@ export type ProductConsultationScreenProps = {
   person: SignedInPerson;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
+  paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
   consultProduct: (product: ProductToConsult) => Promise<ConsultProductOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
   productId: string | undefined;
   onSessionInvalid: () => void;
 };
 
-type Consulted = Extract<ConsultProductOutcome, { kind: "consulted" }>;
+type Consulted = Extract<ConsultationAnswer, { kind: "consulted" }>;
 
 const LETTER = /\p{L}/u;
 const NO_FIGURE = "—";
@@ -52,19 +63,17 @@ const SEARCH_LEGEND = [
   { keyName: "Enter", label: "Consultar" },
 ] as const;
 
-function problemOf(outcome: ConsultProductOutcome): ScanProblem | undefined {
+function problemOf(outcome: ConsultationAnswer, wanted: ProductToConsult): ScanProblem | undefined {
   switch (outcome.kind) {
     case "consulted":
     case "not_signed_in":
     case "no_open_session":
       return undefined;
     case "not_found":
-      return { kind: "unknown_code" };
+      return "barcode" in wanted ? { kind: "unknown_code" } : { kind: "product_unavailable" };
     case "not_permitted":
     case "restoration_in_progress":
       return outcome;
-    case "unavailable":
-      return { kind: "search_failed" };
   }
 }
 
@@ -104,6 +113,7 @@ export function ProductConsultationScreen({
   person,
   lock,
   currentSale,
+  paymentMethodAvailability,
   consultProduct,
   searchProducts,
   productId,
@@ -120,11 +130,17 @@ export function ProductConsultationScreen({
   const [activeIndex, setActiveIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
+  const availability = usePaymentMethodAvailabilityQuery({
+    sessionId,
+    userId: person.user_id,
+    read: paymentMethodAvailability,
+  });
   const consultation = useConsultedProductQuery(consultProduct, wanted);
   const search = useSearchProducts(searchProducts);
   const answer = consultation.status === "loaded" ? consultation.value : undefined;
   const consulted = answer?.kind === "consulted" ? answer : undefined;
-  const problem = answer === undefined ? undefined : problemOf(answer);
+  const problem =
+    answer === undefined || wanted === undefined ? undefined : problemOf(answer, wanted);
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
@@ -132,7 +148,14 @@ export function ProductConsultationScreen({
     current.status === "loaded" && current.value !== "not_permitted" ? current.value : null;
 
   useEffect(() => {
+    function refocusWhenFocusIsLost(event: FocusEvent) {
+      if (event.relatedTarget === null) {
+        field.current?.querySelector("input")?.focus();
+      }
+    }
     field.current?.querySelector("input")?.focus();
+    document.addEventListener("focusout", refocusWhenFocusIsLost);
+    return () => document.removeEventListener("focusout", refocusWhenFocusIsLost);
   }, []);
 
   const sessionGone = answer?.kind === "not_signed_in" || answer?.kind === "no_open_session";
@@ -255,10 +278,10 @@ export function ProductConsultationScreen({
             pending={sale?.pending ?? 0}
             cancellable={false}
             hasApprovedPayment={false}
-            chargeRefusal={null}
-            paidOrderToApply={undefined}
-            availability={undefined}
-            canCharge={false}
+            chargeRefusal={sale?.charge_refusal ?? null}
+            paidOrderToApply={paidOrderToApplyOf(sale) ?? undefined}
+            availability={availability.status === "loaded" ? availability.value : undefined}
+            canCharge={isChargeable(sale)}
             canCancel={false}
             canDiscount={false}
             onDiscount={() => {}}
@@ -309,6 +332,16 @@ export function ProductConsultationScreen({
             }
           />
         </div>
+        {consultation.status === "loading" && wanted !== undefined ? (
+          <LoadingPlaceholder variant="card" lines={3} />
+        ) : null}
+        {consultation.status === "failed" ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo consultar el producto"
+            onRetry={consultation.retry}
+          />
+        ) : null}
         {consulted === undefined ? null : (
           <ProductCard
             name={consulted.name}

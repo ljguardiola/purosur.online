@@ -827,8 +827,16 @@ const consultRoute = createRoute({
     return { id, person };
   },
   component: function ConsultRoute() {
-    const { id, person, signOut, currentSale, consultProduct, searchProducts, refreshCashSession } =
-      consultRoute.useRouteContext();
+    const {
+      id,
+      person,
+      signOut,
+      currentSale,
+      paymentMethodAvailability,
+      consultProduct,
+      searchProducts,
+      refreshCashSession,
+    } = consultRoute.useRouteContext();
     const { product_id } = consultRoute.useSearch();
     return (
       <ProductConsultationScreen
@@ -836,6 +844,7 @@ const consultRoute = createRoute({
         person={person}
         lock={signOut}
         currentSale={currentSale}
+        paymentMethodAvailability={paymentMethodAvailability}
         consultProduct={consultProduct}
         searchProducts={searchProducts}
         productId={product_id}

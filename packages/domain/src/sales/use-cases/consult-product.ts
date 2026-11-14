@@ -6,7 +6,7 @@ import {
   type WeighingReading,
   type ZoneRulesSource,
 } from "../../shared/index.js";
-import { chargeLine } from "../model/line-pricing.js";
+import { chargeLine, shownPromotionId } from "../model/line-pricing.js";
 import { mayBeSaleLineQuantity, soldQuantity } from "../model/sale-line.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { validPromotions } from "./sale-addition.js";
@@ -76,22 +76,22 @@ export async function consultProduct(
         stockThousandths,
       };
     }
+    const promotions = validPromotions(tx, product.id, clock.now(), zoneRules.zoneRules());
     const charge = chargeLine(
       soldQuantity({
         saleUnit: product.saleUnit,
         quantity: product.saleUnit === "KG" ? (weightThousandths ?? ONE_KILOGRAM) : ONE_UNIT,
       }),
       price.unitPrice,
-      validPromotions(tx, product.id, clock.now(), zoneRules.zoneRules()),
+      promotions,
     );
-    const applied = tx
-      .promotionsTargeting(product.id)
-      .find((promotion) => promotion.id === charge.promotionId);
+    const shownId = shownPromotionId(charge, promotions);
+    const shown = tx.promotionsTargeting(product.id).find((promotion) => promotion.id === shownId);
     return {
       kind: "consulted",
       product,
       unitPrice: price.unitPrice,
-      promotion: applied ? { benefit: applied.benefit, weekdays: applied.weekdays } : null,
+      promotion: shown ? { benefit: shown.benefit, weekdays: shown.weekdays } : null,
       weightThousandths,
       amount: product.saleUnit === "KG" && weightThousandths === null ? null : charge.lineTotal,
       stockThousandths,

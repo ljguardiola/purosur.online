@@ -24,11 +24,13 @@ import type {
   SalesHistoryOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { hashKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
+import { PAUSE_BETWEEN_ANSWERS_MS } from "../platform/use-scale-weighing";
 
 const salesKey = ["sales"] as const;
 
@@ -533,18 +535,56 @@ export function useFindProductByCode(
       .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
 }
 
-const CONSULTATION_PAUSE_MS = 250;
+export type ConsultationAnswer = Exclude<ConsultProductOutcome, { kind: "unavailable" }>;
 
 export function useConsultedProductQuery(
   read: (product: ProductToConsult) => Promise<ConsultProductOutcome>,
   product: ProductToConsult | undefined,
-): CoreData<ConsultProductOutcome> {
-  return useCoreQuery({
+): CoreData<ConsultationAnswer> {
+  const queryClient = useQueryClient();
+  const consultation = useCoreQuery({
     queryKey: salesKeys.consultation(product),
-    read: () => (product === undefined ? Promise.resolve("unavailable" as const) : read(product)),
+    read: async () => {
+      if (product === undefined) {
+        return "unavailable";
+      }
+      const outcome = await read(product);
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
     enabled: product !== undefined,
     gcTime: 0,
-    refetchInterval: (answer) =>
-      answer?.kind === "consulted" && answer.sale_unit === "KG" ? CONSULTATION_PAUSE_MS : false,
   });
+  const weighed =
+    consultation.status === "loaded" &&
+    consultation.value.kind === "consulted" &&
+    consultation.value.sale_unit === "KG";
+  useEffect(() => {
+    if (!weighed) {
+      return undefined;
+    }
+    const queryKey = salesKeys.consultation(product);
+    const queryHash = hashKey(queryKey);
+    let pause: ReturnType<typeof setTimeout> | undefined;
+    function askAfterPause() {
+      pause = setTimeout(
+        () => void queryClient.refetchQueries({ queryKey, exact: true }),
+        PAUSE_BETWEEN_ANSWERS_MS,
+      );
+    }
+    const stopFollowing = queryClient.getQueryCache().subscribe((event) => {
+      if (
+        event.type === "updated" &&
+        event.action.type === "success" &&
+        event.query.queryHash === queryHash
+      ) {
+        askAfterPause();
+      }
+    });
+    askAfterPause();
+    return () => {
+      stopFollowing();
+      clearTimeout(pause);
+    };
+  }, [weighed, queryClient, product]);
+  return consultation;
 }

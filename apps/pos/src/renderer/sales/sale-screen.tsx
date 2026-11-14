@@ -59,6 +59,7 @@ import { EmptySalePanel } from "./empty-sale-panel";
 import { LinePricePanel } from "./line-price-panel";
 import { PaymentPanel } from "./payment-panel";
 import type { ProductToAdd } from "./product-to-add";
+import { isChargeable, paidOrderToApplyOf } from "./sale-charge";
 import { SaleDiscountPanel } from "./sale-discount-panel";
 import { LockedSaleLines, SaleLines } from "./sale-lines";
 import {
@@ -844,15 +845,8 @@ export function SaleScreen({
   useBarcodeReadings(editable && !panelOpen ? (reading) => void takeReading(reading) : undefined);
   const saleLines = sale?.lines ?? [];
   const selectedLine = saleLines.find(({ id }) => id === selectedLineId) ?? saleLines.at(-1);
-  const paidOrderToApply =
-    sale?.rebuilt_paid_order?.applied === false ? sale.rebuilt_paid_order : null;
-  const isZeroTotal = saleLines.length > 0 && sale?.total === 0;
-  const canCharge =
-    sale !== null &&
-    saleLines.length > 0 &&
-    !isZeroTotal &&
-    sale.charge_refusal === null &&
-    paidOrderToApply === null;
+  const paidOrderToApply = paidOrderToApplyOf(sale);
+  const canCharge = isChargeable(sale);
   const availability = usePaymentMethodAvailabilityQuery({
     sessionId,
     userId: person.user_id,
