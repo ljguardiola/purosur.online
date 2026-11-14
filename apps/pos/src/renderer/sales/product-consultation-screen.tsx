@@ -298,7 +298,7 @@ export function ProductConsultationScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           <form
             ref={field}
             noValidate
