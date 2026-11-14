@@ -1,5 +1,8 @@
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it, onTestFinished, vi } from "vitest";
 import { readRealJournal } from "./migration-journal-test-helpers.js";
 import { databaseBeforeMigration } from "./migration-under-test.js";
 
@@ -48,6 +51,20 @@ describe("a database migrated up to the migration under test", { timeout: 30_000
     const client = await migrated.applyEveryLaterMigration();
 
     expect(await appliedMigrationCount(client)).toBe(entries.length);
+  });
+
+  it("writes nothing to the temporary directory while building and migrating the database", async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), "migration-under-test-tmpdir-"));
+    onTestFinished(() => rm(temporaryDirectory, { recursive: true, force: true }));
+    vi.stubEnv("TMPDIR", temporaryDirectory);
+    onTestFinished(() => {
+      vi.unstubAllEnvs();
+    });
+
+    const database = await databaseBeforeMigration("_brands");
+    await database.applyMigration();
+
+    expect(await readdir(temporaryDirectory)).toEqual([]);
   });
 
   it("refuses a migration the journal does not hold", async () => {

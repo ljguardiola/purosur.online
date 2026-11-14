@@ -53,11 +53,3 @@ export async function migrationsFolderBefore(
     );
   }
 }
-
-export async function addMigrationEntry(destFolder: string, entry: JournalEntry): Promise<void> {
-  const journalPath = join(destFolder, "meta", "_journal.json");
-  const journal = JSON.parse(await readFile(journalPath, "utf8")) as Journal;
-  journal.entries.push(entry);
-  await writeFile(journalPath, JSON.stringify(journal));
-  await copyFile(join(MIGRATIONS_FOLDER, `${entry.tag}.sql`), join(destFolder, `${entry.tag}.sql`));
-}

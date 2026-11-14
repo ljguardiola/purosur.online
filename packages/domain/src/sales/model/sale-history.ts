@@ -4,7 +4,6 @@ import {
   type FiscalDocumentType,
   IN_PROGRESS_FISCAL_DOCUMENT_STATES,
 } from "../../fiscal/index.js";
-import { nextReceiptCopy, type ReceiptDelivery } from "./receipt-copy.js";
 
 export const SALES_HISTORY_PAGE_SIZE = 50;
 
@@ -28,20 +27,8 @@ export function isDeferralPending(record: DeferredSaleRecord | null): boolean {
   return record !== null && !record.satisfied;
 }
 
-export function isDeferredInvoicePending(
-  record: DeferredSaleRecord | null,
-  deferredInvoiceDelivery: Pick<ReceiptDelivery, "printAttemptedAt" | "reprintCount"> | null,
-): boolean {
-  return (
-    record?.satisfied === true &&
-    deferredInvoiceDelivery !== null &&
-    nextReceiptCopy(deferredInvoiceDelivery).kind === "original"
-  );
-}
-
 export interface SaleFiscalFacts {
   deferred: boolean;
-  deferredInvoicePending: boolean;
   fiscalDocument: SaleFiscalDocument | null;
 }
 
@@ -69,13 +56,12 @@ export function saleFiscalDocumentAmong(
 export function saleStandingOf({
   voided,
   deferred,
-  deferredInvoicePending,
   fiscalDocument,
 }: SaleFiscalFacts & { voided: boolean }): SaleStanding {
   if (voided) {
     return "voided";
   }
-  if (deferred || deferredInvoicePending) {
+  if (deferred) {
     return "deferred";
   }
   return fiscalDocument !== null &&

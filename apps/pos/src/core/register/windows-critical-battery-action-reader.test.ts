@@ -93,6 +93,25 @@ describe("the Windows critical-battery action reader", () => {
     expect(onFailure).toHaveBeenCalledWith(failure);
   });
 
+  it("cannot tell the action, without reporting it, when Windows refuses the power plan query in a remote session", async () => {
+    const onFailure = vi.fn();
+    const reader = windowsCriticalBatteryActionReader({
+      run: async () => {
+        throw Object.assign(
+          new Error(
+            "Command failed: powershell.exe -NoProfile -NonInteractive -Command ...\nGet-CimInstance : HRESULT 0x80070668",
+          ),
+          { code: 1, killed: false, signal: null },
+        );
+      },
+      platform: "win32",
+      onFailure,
+    });
+
+    expect(await reader.read()).toEqual({ kind: "unreadable" });
+    expect(onFailure).not.toHaveBeenCalled();
+  });
+
   it("reports an output it cannot understand", async () => {
     const { reader, onFailure } = readerPrinting("not json");
 
