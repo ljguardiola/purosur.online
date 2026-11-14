@@ -1,4 +1,5 @@
 import type {
+  ContingencyBackupTicketsAnswer,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   RegisterSerialDevicesOutcome,
@@ -8,10 +9,13 @@ import type {
 import { onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
 import type { SerialDevicesToRegister } from "../../platform/core-client";
+import type { CoreData } from "../../platform/use-core-query";
 import type { RegisterStatusData } from "../../shell/register-status-context";
 import { RegisterStatusProvider } from "../../shell/register-status-context";
 import type { SignedInPerson } from "../../shell/signed-in-person";
+import { backupTickets as backupTicketsAnswer } from "../../shell/test-support/contingency-backup-tickets";
 import { render } from "../../shell/test-support/render-with-router";
+import type { CashSessionState } from "../cash-session-state";
 import { SettingsScreen } from "../settings-screen";
 import type { SettingsSection } from "../settings-sections";
 
@@ -70,11 +74,27 @@ export const REGISTERED: RegisterSerialDevicesOutcome = {
 
 type Standings = RegisterStatus["serial_devices"];
 
-function registerStatus(person: SignedInPerson, standings: Standings): RegisterStatusData {
+type RegisterStatusOptions = {
+  person: SignedInPerson;
+  standings: Standings;
+  status: Partial<RegisterStatus>;
+  cashSession: CashSessionState;
+  backupTickets: CoreData<ContingencyBackupTicketsAnswer>;
+  onDiscardBackupTickets: () => void;
+};
+
+function registerStatus({
+  person,
+  standings,
+  status,
+  cashSession,
+  backupTickets,
+  onDiscardBackupTickets,
+}: RegisterStatusOptions): RegisterStatusData {
   return {
     person,
     registerName: "Caja 1",
-    cashSession: { status: "none" },
+    cashSession,
     status: {
       status: "loaded",
       value: {
@@ -83,12 +103,38 @@ function registerStatus(person: SignedInPerson, standings: Standings): RegisterS
         serial_devices: standings,
         serial_devices_setup_offered: false,
         contingency: null,
+        ...status,
       },
       refreshing: false,
     },
-    backupTickets: { status: "loading" },
-    onDiscardBackupTickets: () => {},
+    backupTickets,
+    onDiscardBackupTickets,
   };
+}
+
+export const OPEN_SESSION: CashSessionState = {
+  status: "open",
+  id: "s1",
+  openedAt: "2026-11-14T08:02:00.000-03:00",
+  openedBy: { user_id: "u1", first_name: "Linus", abilities: [] },
+  locked: false,
+};
+
+export const CLOCK_DRIFT = {
+  kind: "clock_drift",
+  level: "warning",
+  since: "2026-11-04T14:20:00.000-03:00",
+} as const;
+export const REGISTER_SILENT = {
+  kind: "register_silent",
+  level: "critical",
+  since: "2026-11-04T13:05:00.000-03:00",
+} as const;
+
+export function loadedBackupTickets(
+  tickets: Partial<ContingencyBackupTicketsAnswer> = {},
+): CoreData<ContingencyBackupTicketsAnswer> {
+  return { status: "loaded", value: backupTicketsAnswer(tickets), refreshing: false };
 }
 
 export type SettingsOptions = {
@@ -97,6 +143,10 @@ export type SettingsOptions = {
   offered?: boolean;
   sessionOpen?: boolean;
   standings?: Standings;
+  status?: Partial<RegisterStatus>;
+  cashSession?: CashSessionState;
+  backupTickets?: CoreData<ContingencyBackupTicketsAnswer>;
+  version?: string | null;
   readPrinter?: () => Promise<ReadReceiptPrinterOutcome>;
   setPrinter?: (address: string) => Promise<SetReceiptPrinterOutcome>;
   readDevices?: () => Promise<ReadSerialDevicesOutcome>;
@@ -109,6 +159,10 @@ export async function renderSettings({
   offered = false,
   sessionOpen = false,
   standings = { scale: "not_registered", reader: "not_registered" },
+  status = {},
+  cashSession = { status: "none" },
+  backupTickets = { status: "loading" },
+  version = "1.4.212",
   readPrinter = async () => NOT_CONFIGURED,
   setPrinter = async () => SAVED,
   readDevices = async () => NOTHING_REGISTERED,
@@ -122,8 +176,18 @@ export async function renderSettings({
   const registerSerialDevices = vi.fn(registerDevices);
   const onSessionInvalid = vi.fn();
   const onSelectSection = vi.fn();
+  const onDiscardBackupTickets = vi.fn();
   const screen = await render(
-    <RegisterStatusProvider value={registerStatus(person, standings)}>
+    <RegisterStatusProvider
+      value={registerStatus({
+        person,
+        standings,
+        status,
+        cashSession,
+        backupTickets,
+        onDiscardBackupTickets,
+      })}
+    >
       <SettingsScreen
         person={person}
         sessionOpen={sessionOpen}
@@ -135,6 +199,7 @@ export async function renderSettings({
         setReceiptPrinter={setReceiptPrinter}
         readSerialDevices={readSerialDevices}
         registerSerialDevices={registerSerialDevices}
+        readRegisterVersion={async () => version}
         onSessionInvalid={onSessionInvalid}
       />
     </RegisterStatusProvider>,
@@ -147,6 +212,7 @@ export async function renderSettings({
     registerSerialDevices,
     onSessionInvalid,
     onSelectSection,
+    onDiscardBackupTickets,
   };
 }
 
@@ -163,6 +229,18 @@ export function panelOf(screen: Screen, name: string) {
 
 export function legendOf(screen: Screen): string[] {
   return appartadosCard(screen)
+    .getByRole("listitem")
+    .elements()
+    .filter((item) => item.querySelector("kbd") !== null)
+    .map((item) => item.textContent.trim());
+}
+
+export function noticesList(screen: Screen) {
+  return panelOf(screen, "Esta caja").getByRole("list", { name: "Avisos de esta caja" });
+}
+
+export function panelLegendOf(screen: Screen): string[] {
+  return panelOf(screen, "Esta caja")
     .getByRole("listitem")
     .elements()
     .filter((item) => item.querySelector("kbd") !== null)

@@ -74,14 +74,15 @@ describe("SettingsScreen", () => {
     await expect.element(panelOf(screen, "Impresora de tickets")).toBeVisible();
   });
 
-  it("shows no section and no panel to a person who may configure nothing", async () => {
+  it("shows only Esta caja, with its panel, to a person who may configure nothing", async () => {
     const { screen } = await renderSettings({ person: NO_CONFIGURER });
 
     await expect
       .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
       .toBeVisible();
-    await expect.element(appartadosCard(screen).getByRole("button")).not.toBeInTheDocument();
-    await expect.element(screen.getByRole("complementary")).not.toBeInTheDocument();
+    const rows = appartadosCard(screen).getByRole("button").elements();
+    expect(rows.map((row) => row.textContent)).toEqual([expect.stringMatching(/^Esta caja/)]);
+    await expect.element(panelOf(screen, "Esta caja")).toBeVisible();
   });
 
   it("marks the shown section as the selected row", async () => {
