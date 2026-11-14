@@ -1,4 +1,9 @@
-import type { ConsultProductOutcome, OpenSale, SearchProductsOutcome } from "@purosur/contracts";
+import type {
+  ConsultProductOutcome,
+  OpenSale,
+  ProductToConsult,
+  SearchProductsOutcome,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -160,6 +165,35 @@ describe("ProductConsultationScreen showing a consulted product", () => {
 
       await expect.element(screen.getByRole("region", CARD).getByText("0,500 kg")).toBeVisible();
       await expect.poll(() => consultProduct.mock.calls.length).toBeGreaterThanOrEqual(5);
+    },
+  );
+
+  it.each([
+    ["fails", () => Promise.reject(new Error("core gone"))],
+    ["cannot answer", async (): Promise<ConsultProductOutcome> => ({ kind: "unavailable" })],
+  ])(
+    "shows a weighed product the core %s on asking again once it is consulted again after another",
+    async (_, failing) => {
+      let almendrasAsked = 0;
+      const consultProduct = vi.fn((product: ProductToConsult): Promise<ConsultProductOutcome> => {
+        if ("barcode" in product && product.barcode === "7790002000016") {
+          return Promise.resolve(LECHE);
+        }
+        almendrasAsked += 1;
+        return almendrasAsked === 2 ? failing() : Promise.resolve(ALMENDRAS);
+      });
+      const { screen, readBarcode } = await renderScreen({ consultProduct, productId: undefined });
+
+      readBarcode("7790001000017");
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("No se pudo consultar el producto");
+      readBarcode("7790002000016");
+      await expect.element(screen.getByRole("region", { name: LECHE.name })).toBeVisible();
+      readBarcode("7790001000017");
+      await expect.poll(() => almendrasAsked).toBeGreaterThanOrEqual(3);
+
+      await expect.element(screen.getByRole("region", CARD)).toBeVisible();
     },
   );
 
