@@ -30,7 +30,7 @@
     "react-aria": "^3.53.1",
     "react-aria-components": "^1.22.1",
     "react-stately": "^3.51.0",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^4.3.5",
     "zod": "^4.6.5"
   },
   "peerDependencies": {
@@ -40,8 +40,8 @@
   "devDependencies": {
     "@storybook/addon-a11y": "^10.6.3",
     "@storybook/react-vite": "^10.6.3",
-    "@tailwindcss/node": "^4.3.3",
-    "@tailwindcss/vite": "^4.3.3",
+    "@tailwindcss/node": "^4.3.5",
+    "@tailwindcss/vite": "^4.3.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
