@@ -107,6 +107,23 @@ function contingencyEvents(): string[] {
     .map((row) => row.event_type);
 }
 
+function healthCloud(reachable: () => boolean): CloudClientDeps {
+  return {
+    cloudUrl: "https://staging.purosur.online",
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          status: "ok",
+          version: "abc1234",
+          installation: { revoked: false },
+          arca: { token_valid: true, probe_ok_at: NOW.toISOString(), reachable: reachable() },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    sleep: async () => undefined,
+  };
+}
+
 async function openedSession(contingency: ReturnType<typeof wiring>): Promise<string> {
   const outcome = await contingency.openCashSession?.(5000);
   if (outcome?.kind !== "opened" || outcome.cash_session === null) {
@@ -227,20 +244,7 @@ describe("the register's contingency recording wiring", () => {
       fortnightEnd: "2026-10-15",
     });
     let reachable = false;
-    const cloud: CloudClientDeps = {
-      cloudUrl: "https://staging.purosur.online",
-      fetch: async () =>
-        new Response(
-          JSON.stringify({
-            status: "ok",
-            version: "abc1234",
-            installation: { revoked: false },
-            arca: { token_valid: true, probe_ok_at: NOW.toISOString(), reachable },
-          }),
-          { status: 200, headers: { "content-type": "application/json" } },
-        ),
-      sleep: async () => undefined,
-    };
+    const cloud = healthCloud(() => reachable);
     const contingency = wiring({
       readMode: (local) => readFiscalEmissionModeIn(local, NOW, fixedZoneRulesSource()),
     });
@@ -250,7 +254,9 @@ describe("the register's contingency recording wiring", () => {
     await vi.waitFor(() => expect(contingencyEvents()).toEqual(["contingency_reporting_started"]));
     const scheduled: (() => void)[] = [];
     const eventsSeenAfterCheck: string[][] = [];
-    const afterCheck = vi.fn(() => eventsSeenAfterCheck.push(contingencyEvents()));
+    const afterCheck = vi.fn(() => {
+      eventsSeenAfterCheck.push(contingencyEvents());
+    });
 
     contingency.startHealthChecks({
       zoneRules: fixedZoneRulesSource(),
@@ -295,5 +301,33 @@ describe("the register's contingency recording wiring", () => {
       "contingency_left",
     ]);
     expect(failures).toEqual([]);
+  });
+
+  it("reports a failure of what follows a health check as a failure of that check", async () => {
+    const scheduled: (() => void)[] = [];
+    const readFailed = new Error("read failed");
+    const reported: unknown[] = [];
+
+    wiring().startHealthChecks({
+      zoneRules: fixedZoneRulesSource(),
+      database,
+      cloudClient: healthCloud(() => false),
+      readDeviceToken: async () => "prefix.secret",
+      now: () => NOW,
+      scheduleNext: (run) => {
+        scheduled.push(run);
+        return () => undefined;
+      },
+      ...scriptedDeferrals(),
+      readOutboxChainKey: async () => CHAIN_KEY,
+      reportFailure: (error) => reported.push(error),
+      afterCheck: () => {
+        throw readFailed;
+      },
+    });
+    scheduled[0]?.();
+
+    await vi.waitFor(() => expect(reported).toContain(readFailed));
+    await vi.waitFor(() => expect(scheduled).toHaveLength(2));
   });
 });
