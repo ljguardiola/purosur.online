@@ -1,6 +1,7 @@
 import type { ChargeSaleInCashOutcome } from "@purosur/contracts";
 import { expect, it } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { gapBetweenSearchFieldAndScaleCard } from "../platform/test-support/search-row";
 import {
   chooseCash,
   renderScreen,
@@ -118,7 +119,7 @@ it("shows the balanza card beside the search field, with no reading", async () =
   expect(label.element().parentElement?.textContent).toBe("Balanza");
   const fieldBox = search.element().getBoundingClientRect();
   const cardBox = label.element().getBoundingClientRect();
-  expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+  expect(gapBetweenSearchFieldAndScaleCard(search.element(), label.element())).toBe(12);
   expect(cardBox.top).toBeLessThan(fieldBox.bottom);
 });
 

@@ -460,7 +460,7 @@ export function ChargeScreen({
         ) : null}
         {sale === undefined ? null : (
           <>
-            <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
                 <SearchField
                   label="Producto"
