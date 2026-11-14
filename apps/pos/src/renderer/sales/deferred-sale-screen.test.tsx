@@ -26,11 +26,12 @@ describe("DeferredSaleScreen waiting for the customer's document", () => {
     await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeVisible();
   });
 
-  it("offers no field to type the code, no search and no scale", async () => {
+  it("offers the field to type the code, and still no search and no scale", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("textbox")).not.toBeInTheDocument();
-    await expect.element(screen.getByText("Código de consulta")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("textbox", { name: /Código de consulta/ })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Buscar venta" })).toBeVisible();
+    expect(screen.getByRole("textbox").elements()).toHaveLength(1);
     await expect.element(screen.getByText("BALANZA")).not.toBeInTheDocument();
   });
 
