@@ -991,6 +991,8 @@ const historyRoute = createRoute({
 const deferredSaleRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/deferred-sale",
+  validateSearch: (search: { reading?: unknown }) =>
+    typeof search.reading === "string" ? { reading: search.reading } : {},
   beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
   component: function DeferredSaleRoute() {
     const {
