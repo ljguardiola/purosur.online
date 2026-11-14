@@ -29,11 +29,11 @@ import {
   useSetSessionOpenSale,
 } from "./register-queries";
 
-const EMPTY_FAILED = "No se pudo vaciar el carrito. Probá de nuevo.";
+const EMPTY_FAILED = "No se pudo vaciar la venta. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
 const EMPTY_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
   mercado_pago_charge_in_progress:
-    "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.",
+    "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar la venta.",
 };
 
 export type { RefusedClose };

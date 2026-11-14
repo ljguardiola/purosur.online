@@ -26,11 +26,11 @@ export function LockedOpenSaleBanner({
       description={
         hasApprovedPayment
           ? "Cancelala para cerrar la caja."
-          : "Vaciá el carrito para cerrar la caja."
+          : "Vaciá la venta para cerrar la caja."
       }
       actions={
         <Button variant="text" keycap="V" disabled={disabled} onPress={onCancel}>
-          {hasApprovedPayment ? "Cancelar la venta" : "Vaciar carrito"}
+          {hasApprovedPayment ? "Cancelar la venta" : "Vaciar venta"}
         </Button>
       }
     />

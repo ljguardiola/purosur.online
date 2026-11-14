@@ -47,13 +47,13 @@ export function CancelLockedSalePanel({
 
   return (
     <ConfirmationPanel
-      title="¿Vaciar el carrito?"
+      title="¿Vaciar la venta?"
       icon={<Trash2 />}
       tone="error"
       fieldLabel="VENTA ABIERTA · SIN PAGOS"
       value={formatCents(total)}
-      details={[{ label: "Líneas en el carrito", value: formatNumber(lineCount) }]}
-      actionLabel="Vaciar carrito"
+      details={[{ label: "Líneas en la venta", value: formatNumber(lineCount) }]}
+      actionLabel="Vaciar venta"
       actionIcon={<Trash2 />}
       busy={busy}
       actionDisabled={refused}
