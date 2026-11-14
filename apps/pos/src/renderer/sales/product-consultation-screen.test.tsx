@@ -395,6 +395,36 @@ describe("ProductConsultationScreen finding the product to consult", () => {
     await expect.element(field).not.toHaveAttribute("aria-invalid", "true");
   });
 
+  it("says no product has the code when the core answers after the person typed", async () => {
+    const answer = deferred<ConsultProductOutcome>();
+    const { screen, field, readBarcode } = await renderScreen({
+      productId: undefined,
+      consultProduct: () => answer.promise,
+    });
+    readBarcode("0000");
+    await userEvent.fill(field, "a");
+
+    answer.resolve({ kind: "not_found" });
+
+    await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
+  });
+
+  it("says a weighed product is no longer sold when asking again answers so after the person typed", async () => {
+    const again = deferred<ConsultProductOutcome>();
+    const consultProduct = vi
+      .fn<() => Promise<ConsultProductOutcome>>()
+      .mockResolvedValueOnce(ALMENDRAS)
+      .mockReturnValueOnce(again.promise);
+    const { screen, field } = await renderScreen({ consultProduct, productId: "almendras" });
+    await expect.element(screen.getByRole("region", CARD)).toBeVisible();
+    await expect.poll(() => consultProduct.mock.calls.length).toBe(2);
+    await userEvent.fill(field, "a");
+
+    again.resolve({ kind: "not_found" });
+
+    await expect.element(screen.getByText("Ese producto ya no se vende")).toBeVisible();
+  });
+
   it("says the product chosen is no longer sold when the core no longer finds it", async () => {
     const { screen } = await renderScreen({ consultProduct: consulting({ kind: "not_found" }) });
 
