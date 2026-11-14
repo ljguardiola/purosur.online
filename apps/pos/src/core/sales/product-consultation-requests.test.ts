@@ -20,8 +20,11 @@ function scaleReading(reading: ScaleReading): Scale {
   return { read: async () => reading };
 }
 
-function deps(reading: ScaleReading = { kind: "stable", weightThousandths: 410 }) {
-  return { ...saleRequestDeps(database), scale: scaleReading(reading) };
+function deps(
+  reading: ScaleReading = { kind: "stable", weightThousandths: 410 },
+  scaleStanding: () => { kind: string } = () => ({ kind: "matching" }),
+) {
+  return { ...saleRequestDeps(database), scale: scaleReading(reading), scaleStanding };
 }
 
 beforeEach(() => {
@@ -57,8 +60,32 @@ describe("consulting a product on the register", () => {
       weight_thousandths: 410,
       amount: 697_410,
       stock_thousandths: 12_400,
+      scale_configured: true,
     });
   });
+
+  it("answers that no scale is configured when the scale is not registered", async () => {
+    const outcome = await consultProductFor(
+      deps({ kind: "unavailable" }, () => ({ kind: "not_registered" })),
+      { product_id: "almendras" },
+    );
+
+    expect(outcome).toMatchObject({ kind: "consulted", scale_configured: false });
+  });
+
+  it.each(["matching", "unknown", "disconnected"])(
+    "answers that a scale is configured when its standing is %s",
+    async (kind) => {
+      const outcome = await consultProductFor(
+        deps(undefined, () => ({ kind })),
+        {
+          product_id: "almendras",
+        },
+      );
+
+      expect(outcome).toMatchObject({ kind: "consulted", scale_configured: true });
+    },
+  );
 
   it("finds the product by a scanned barcode", async () => {
     const outcome = await consultProductFor(deps(), { barcode: "7790001000017" });

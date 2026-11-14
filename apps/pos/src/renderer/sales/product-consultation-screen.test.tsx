@@ -61,6 +61,57 @@ describe("ProductConsultationScreen showing a consulted product", () => {
     await expect.element(screen.getByText("0,410 kg").first()).toBeVisible();
   });
 
+  it("shows no BALANZA card when no scale is configured", async () => {
+    const { screen } = await renderScreen({
+      consultProduct: consulting({
+        ...ALMENDRAS,
+        scale_configured: false,
+        weight_thousandths: null,
+        amount: null,
+      }),
+    });
+
+    await expect.element(screen.getByRole("region", CARD)).toBeVisible();
+    await expect.element(screen.getByText("Balanza")).not.toBeInTheDocument();
+  });
+
+  it("shows the BALANZA card without a reading when a scale is configured but gives no weight", async () => {
+    const { screen } = await renderScreen({
+      consultProduct: consulting({ ...ALMENDRAS, weight_thousandths: null, amount: null }),
+    });
+
+    await expect.element(screen.getByText("Balanza")).toBeVisible();
+    await expect.element(screen.getByText("Sin lectura")).toBeVisible();
+  });
+
+  it("shows no BALANZA card while no product is consulted", async () => {
+    const { screen } = await renderScreen({ productId: undefined });
+
+    await expect.element(screen.getByText("Balanza")).not.toBeInTheDocument();
+  });
+
+  it("shows no BALANZA card while the consultation loads", async () => {
+    const pending = deferred<ConsultProductOutcome>();
+    const { screen } = await renderScreen({ consultProduct: vi.fn(() => pending.promise) });
+
+    await expect.element(screen.getByText("Balanza")).not.toBeInTheDocument();
+  });
+
+  it("shows no BALANZA card when the consultation fails", async () => {
+    const { screen } = await renderScreen({
+      consultProduct: vi.fn(async () => Promise.reject(new Error("down"))),
+    });
+
+    await expect.element(screen.getByText("No se pudo consultar el producto")).toBeVisible();
+    await expect.element(screen.getByText("Balanza")).not.toBeInTheDocument();
+  });
+
+  it("shows no BALANZA card when the product is not found", async () => {
+    const { screen } = await renderScreen({ consultProduct: consulting({ kind: "not_found" }) });
+
+    await expect.element(screen.getByText("Balanza")).not.toBeInTheDocument();
+  });
+
   it("offers the mode's pill with Esc at the top right", async () => {
     const { screen } = await renderScreen();
 
@@ -474,7 +525,7 @@ describe("ProductConsultationScreen finding the product to consult", () => {
     await userEvent.fill(field, "alm");
     await expect.element(screen.getByRole("option", { name: /Almendras peladas/ })).toBeVisible();
 
-    await userEvent.click(screen.getByText("Balanza"));
+    await userEvent.click(screen.getByRole("main"));
 
     await expect.element(field).toHaveFocus();
     await userEvent.keyboard("{Escape}");

@@ -25,6 +25,7 @@ export const ALMENDRAS: Extract<ConsultProductOutcome, { kind: "consulted" }> = 
   weight_thousandths: 410,
   amount: 697_410,
   stock_thousandths: 12_400,
+  scale_configured: true,
 };
 
 export const LECHE: Extract<ConsultProductOutcome, { kind: "consulted" }> = {
@@ -37,6 +38,7 @@ export const LECHE: Extract<ConsultProductOutcome, { kind: "consulted" }> = {
   weight_thousandths: null,
   amount: 430_000,
   stock_thousandths: 14_000,
+  scale_configured: true,
 };
 
 const PERSON: ProductConsultationScreenProps["person"] = {

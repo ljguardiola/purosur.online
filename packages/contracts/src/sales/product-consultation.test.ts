@@ -16,6 +16,7 @@ const consulted = {
   weight_thousandths: 410,
   amount: 697_410,
   stock_thousandths: 12_400,
+  scale_configured: true,
 };
 
 function answer(outcome: unknown) {
@@ -55,6 +56,7 @@ describe("the core's answer to a product consultation", () => {
     { ...consulted, weight_thousandths: null, amount: null },
     { ...consulted, unit_price: null, promotion: null, amount: null },
     { ...consulted, stock_thousandths: null },
+    { ...consulted, scale_configured: false },
     { ...consulted, stock_thousandths: -500 },
     { ...consulted, sale_unit: "UNIT", weight_thousandths: null },
     { kind: "not_found" },
@@ -71,6 +73,7 @@ describe("the core's answer to a product consultation", () => {
     ["a negative price", { ...consulted, unit_price: -1 }],
     ["a negative amount", { ...consulted, amount: -1 }],
     ["a fractional stock", { ...consulted, stock_thousandths: 1.5 }],
+    ["without whether a scale is configured", { ...consulted, scale_configured: undefined }],
     ["an empty weight", { ...consulted, weight_thousandths: 0 }],
     ["a product sold by an unknown unit", { ...consulted, sale_unit: "BOX" }],
     [
