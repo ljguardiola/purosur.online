@@ -28,6 +28,7 @@ import type { DeferredSaleReading, SalesHistoryQuery } from "../platform/core-cl
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
+import type { ScannedDeferredSaleReading } from "./deferred-sale-qr";
 
 const salesKey = ["sales"] as const;
 
@@ -529,7 +530,7 @@ export function useFindProductByCode(
       .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
 }
 
-export type DeferredSaleLookup = { reading: DeferredSaleReading; scan: number };
+export type DeferredSaleLookup = { reading: ScannedDeferredSaleReading; scan: number };
 
 export type ShownDeferredSale = Exclude<FindDeferredSaleOutcome, { kind: "unavailable" }>;
 

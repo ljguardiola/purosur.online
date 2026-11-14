@@ -3,7 +3,9 @@ import type { DeferredSaleReading } from "../platform/core-client";
 
 const deferredSaleReadingSchema = findDeferredSaleMessageSchema.shape.reading;
 
-export function scannedDeferredSaleReading(text: string): DeferredSaleReading | undefined {
-  const reading: DeferredSaleReading = { kind: "scanned", text };
+export type ScannedDeferredSaleReading = Extract<DeferredSaleReading, { kind: "scanned" }>;
+
+export function scannedDeferredSaleReading(text: string): ScannedDeferredSaleReading | undefined {
+  const reading: ScannedDeferredSaleReading = { kind: "scanned", text };
   return deferredSaleReadingSchema.safeParse(reading).success ? reading : undefined;
 }

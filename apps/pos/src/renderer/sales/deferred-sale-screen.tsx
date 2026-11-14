@@ -32,6 +32,7 @@ import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { DeferredSaleLines } from "./deferred-sale-lines";
+import type { ScannedDeferredSaleReading } from "./deferred-sale-qr";
 import { scannedDeferredSaleReading } from "./deferred-sale-qr";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
 import {
@@ -123,7 +124,7 @@ export function DeferredSaleScreen({
       ? lookupRefusal
       : ended.refusal;
 
-  function look(next: DeferredSaleReading) {
+  function look(next: ScannedDeferredSaleReading) {
     setNotAQr(false);
     setEnded(undefined);
     setPrintNotice(undefined);
