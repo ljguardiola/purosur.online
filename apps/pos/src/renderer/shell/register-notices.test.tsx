@@ -129,7 +129,7 @@ describe("registerNotices", () => {
     [{ kind: "fiscal_emission_stopped", level: "critical", since: SINCE }, "lucide-receipt"],
     [CLOCK_DRIFT, "lucide-clock"],
     [SILENT, "lucide-cloud-off"],
-    [{ kind: "serial_device_missing", level: "warning", since: SINCE }, "lucide-scan-barcode"],
+    [{ kind: "serial_device_missing", level: "warning", since: SINCE }, "lucide-usb"],
     [{ kind: "disk_space_low", level: "warning", since: SINCE }, "lucide-hard-drive"],
     [{ kind: "wal_oversized", level: "warning", since: SINCE }, "lucide-database"],
   ])("draws %j with the %s icon", async (condition, icon) => {
