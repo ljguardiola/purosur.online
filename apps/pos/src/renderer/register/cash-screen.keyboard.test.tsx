@@ -60,6 +60,24 @@ describe("CashScreen recording movements from the keyboard", () => {
     expect(legend).not.toContain("TabCampo");
   });
 
+  it("shows a failed close in one line, with room between it and Cerrar caja", async () => {
+    const screen = await renderScreen({ closeCashSession: async () => ({ kind: "unavailable" }) });
+    await userEvent.keyboard("{F12}");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "46.000,00");
+    await expect.element(screen.getByText("FALTA", { exact: true })).toBeVisible();
+    await userEvent.keyboard("{Enter}");
+
+    const notice = screen.getByText("No se pudo cerrar la caja. Probá de nuevo.").first();
+    await expect.element(notice).toBeVisible();
+    const text = notice.element();
+    const lineHeight = Number.parseFloat(getComputedStyle(text).lineHeight);
+    expect(text.getBoundingClientRect().height).toBeLessThan(lineHeight * 1.5);
+    const button = screen.getByRole("button", { name: /^Cerrar caja/ }).element();
+    expect(
+      button.getBoundingClientRect().top - text.getBoundingClientRect().bottom,
+    ).toBeGreaterThanOrEqual(32);
+  });
+
   it("opens the close panel when Cerrar caja is pressed", async () => {
     const screen = await renderScreen();
 

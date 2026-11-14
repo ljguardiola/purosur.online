@@ -97,6 +97,18 @@ describe("CashClosedScreen", () => {
     expect(lock).not.toHaveBeenCalled();
   });
 
+  it("draws the F12 key right after Abrir caja instead of at the panel's far edge", async () => {
+    const { screen } = await renderClosed();
+
+    const link = screen.getByRole("button", { name: "Abrir caja" }).element();
+    const label = screen.getByText("Abrir caja", { exact: true }).element();
+    const key = screen.getByText("F12", { exact: true }).element();
+    expect(
+      key.getBoundingClientRect().left - label.getBoundingClientRect().right,
+    ).toBeLessThanOrEqual(16);
+    expect(link.getBoundingClientRect().width).toBeLessThan(200);
+  });
+
   it("goes to open the cash when Abrir caja is pressed", async () => {
     const { onOpenCash, screen } = await renderClosed();
 
