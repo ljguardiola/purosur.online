@@ -79,7 +79,10 @@ describe("LiveScaleCard", () => {
 
   it("is not shown when the register has no scale", async () => {
     const screen = await render(
-      <LiveScaleCard readScale={readingOf({ kind: "not_configured" })} weighingReading={undefined} />,
+      <LiveScaleCard
+        readScale={readingOf({ kind: "not_configured" })}
+        weighingReading={undefined}
+      />,
     );
 
     await expect.poll(() => screen.container.textContent).toBe("");
