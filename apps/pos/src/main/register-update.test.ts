@@ -46,7 +46,8 @@ interface Options {
   downloadChunks?: Uint8Array[];
   downloadResponse?: () => UpdateResponse;
   spawnFails?: boolean;
-  clearPendingFails?: boolean;
+  clearPendingFailures?: number;
+  removeFails?: boolean;
 }
 
 function setup(options: Options = {}) {
@@ -64,6 +65,7 @@ function setup(options: Options = {}) {
   let quits = 0;
   let holdReleases = 0;
   let cleared = 0;
+  let clearAttempts = 0;
   const safeAnswers = [...(options.safeAnswers ?? [true])];
 
   const updater = createRegisterUpdater({
@@ -86,8 +88,9 @@ function setup(options: Options = {}) {
     },
     files: {
       clearPending: async () => {
-        if (options.clearPendingFails) {
-          throw new Error("EBUSY: pending-update");
+        clearAttempts += 1;
+        if (clearAttempts <= (options.clearPendingFailures ?? 0)) {
+          throw new Error(`EBUSY: pending-update, attempt ${clearAttempts}`);
         }
         cleared += 1;
         files.clear();
@@ -105,6 +108,9 @@ function setup(options: Options = {}) {
         };
       },
       remove: async (name) => {
+        if (options.removeFails) {
+          throw new Error(`EPERM: ${name}`);
+        }
         removed.push(name);
         files.delete(name);
       },
@@ -167,7 +173,7 @@ function setup(options: Options = {}) {
     setToken: (next: string | undefined) => {
       token = next;
     },
-    counts: () => ({ asked, quits, holdReleases, cleared }),
+    counts: () => ({ asked, quits, holdReleases, cleared, clearAttempts }),
   };
 }
 
@@ -219,19 +225,87 @@ describe("createRegisterUpdater", () => {
       expect(requests).toHaveLength(1);
     });
 
-    it("reports a pending folder it can not clear and keeps checking", async () => {
-      const { updater, requests, waits, reported } = setup({
-        clearPendingFails: true,
+    it("reports nothing when the pending folder can not be cleared as it starts", async () => {
+      const { updater, reported } = setup({ clearPendingFailures: 1 });
+
+      updater.start();
+      await flush();
+
+      expect(reported).toEqual([]);
+    });
+
+    it("clears the pending folder again before the next check and reports nothing once it can", async () => {
+      const { updater, requests, waits, reported, counts } = setup({
+        clearPendingFailures: 1,
         checkResponse: async () => jsonResponse(200, { status: "up_to_date" }),
       });
 
       updater.start();
       await flush();
-      expect(reported).toEqual([new Error("EBUSY: pending-update")]);
       waits.shift()?.resolve();
       await flush();
 
+      expect(counts().cleared).toBe(1);
       expect(requests).toHaveLength(1);
+      expect(reported).toEqual([]);
+    });
+
+    it("reports the clearing that fails again before a check, and still checks", async () => {
+      const { updater, requests, waits, reported } = setup({
+        clearPendingFailures: 2,
+        checkResponse: async () => jsonResponse(200, { status: "up_to_date" }),
+      });
+
+      updater.start();
+      await flush();
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(reported).toEqual([new Error("EBUSY: pending-update, attempt 2")]);
+      expect(requests).toHaveLength(1);
+    });
+
+    it("installs the next update while an older file stays in the pending folder", async () => {
+      const { updater, waits, spawned } = setup({ clearPendingFailures: Number.POSITIVE_INFINITY });
+
+      updater.start();
+      await flush();
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(spawned.map((installer) => installer.path)).toEqual([
+        "/data/pending-update/update-1.4.2.exe",
+      ]);
+    });
+
+    it("tries to clear before every check while it can not, reporting it once in the run", async () => {
+      const { updater, waits, reported, counts } = setup({
+        clearPendingFailures: Number.POSITIVE_INFINITY,
+        checkResponse: async () => jsonResponse(200, { status: "up_to_date" }),
+      });
+
+      updater.start();
+      await flush();
+      waits.shift()?.resolve();
+      await flush();
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(counts().clearAttempts).toBe(3);
+      expect(reported).toEqual([new Error("EBUSY: pending-update, attempt 2")]);
+    });
+
+    it("does not clear again once the pending folder was cleared", async () => {
+      const { updater, waits, counts } = setup({
+        checkResponse: async () => jsonResponse(200, { status: "up_to_date" }),
+      });
+
+      updater.start();
+      await flush();
+      waits.shift()?.resolve();
+      await flush();
+
+      expect(counts().clearAttempts).toBe(1);
     });
 
     it("clears what a previous download left behind when it starts", async () => {
@@ -390,6 +464,18 @@ describe("createRegisterUpdater", () => {
 
       expect(spawned).toEqual([]);
       expect(reported).toHaveLength(1);
+    });
+
+    it("reports the download's failure when its file can not be removed", async () => {
+      const { updater, reported } = setup({
+        downloadResponse: () => ({ status: 404, json: async () => undefined, body: null }),
+        removeFails: true,
+      });
+
+      await updater.runPass();
+
+      expect(reported).toHaveLength(1);
+      expect(reported[0]).toMatchObject({ message: "The download answered 404" });
     });
 
     it("deletes the file and reports a download that breaks half way", async () => {
