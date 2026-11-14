@@ -8,6 +8,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
+import { gapBetweenSearchFieldAndScaleCard } from "../platform/test-support/search-row";
 import { ALMENDRAS, LECHE, renderScreen } from "./test-support/product-consultation-screen";
 import { SALE_OF_YERBA_AND_ALFAJOR } from "./test-support/sale-screen";
 
@@ -59,6 +60,14 @@ describe("ProductConsultationScreen showing a consulted product", () => {
 
     await expect.element(screen.getByText("Balanza")).toBeVisible();
     await expect.element(screen.getByText("0,410 kg").first()).toBeVisible();
+  });
+
+  it("leaves the same gap between the search field and the BALANZA card as the sale", async () => {
+    const { screen, field } = await renderScreen();
+
+    const label = screen.getByText("Balanza");
+    await expect.element(label).toBeVisible();
+    expect(gapBetweenSearchFieldAndScaleCard(field.element(), label.element())).toBe(12);
   });
 
   it("shows no BALANZA card when no scale is configured", async () => {
