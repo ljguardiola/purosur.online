@@ -13,7 +13,7 @@ import type { ProductConsultationScreenProps } from "../product-consultation-scr
 import { ProductConsultationScreen } from "../product-consultation-screen";
 import { AVAILABLE, SALE_OF_YERBA_AND_ALFAJOR } from "./sale-screen";
 
-export const TUESDAY = 2;
+const TUESDAY = 2;
 
 export const ALMENDRAS: Extract<ConsultProductOutcome, { kind: "consulted" }> = {
   kind: "consulted",
@@ -64,7 +64,7 @@ const REGISTER_STATUS: RegisterStatusData = {
   onDiscardBackupTickets: () => {},
 };
 
-export const FIELD_NAME = "Producto";
+const FIELD_NAME = "Producto";
 
 type Overrides = Partial<ProductConsultationScreenProps>;
 
