@@ -72,6 +72,24 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
       .toBeVisible();
   });
 
+  it("opens the reprint of the factura on Enter", async () => {
+    const { screen } = await findPrinted();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .element(screen.getByText("REIMPRIMIR FACTURA DE LA VENTA DE LAS 14:02"))
+      .toBeVisible();
+  });
+
+  it("shows the Enter key on the duplicate's button", async () => {
+    const { screen } = await findPrinted();
+
+    expect(
+      screen.getByRole("button", { name: REPRINT }).element().querySelector("kbd")?.textContent,
+    ).toBe("Enter");
+  });
+
   it("reprints the factura with the typed reason and says it comes out once the printer is ready", async () => {
     const { screen, reprintDeferredSaleInvoice } = await findPrinted();
     await userEvent.click(screen.getByRole("button", { name: REPRINT }));

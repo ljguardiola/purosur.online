@@ -30,7 +30,7 @@ describe("finding a deferred sale for a customer", () => {
     );
   }
 
-  it("finds it by its short code whichever session it belongs to", () => {
+  it("finds it by its reference whichever session it belongs to", () => {
     recordDeferredSale();
     database.exec(
       `UPDATE cash_sessions SET state = 'CLOSED', closed_at = '2026-09-30T20:00:00.000Z', closed_by = 'u1'
@@ -38,7 +38,11 @@ describe("finding a deferred sale for a customer", () => {
     );
 
     expect(
-      new SqliteDeferredSaleLookup(database).find({ kind: "short_code", shortCode: "7KQ4M2P9" }),
+      new SqliteDeferredSaleLookup(database).find({
+        kind: "reference",
+        id: "deferred-of-sale-1",
+        shortCode: "7KQ4M2P9",
+      }),
     ).toEqual({
       deferredSaleId: "deferred-of-sale-1",
       saleId: "sale-1",
@@ -82,14 +86,6 @@ describe("finding a deferred sale for a customer", () => {
         lineTotal: 695_000,
       },
     ]);
-  });
-
-  it("finds nothing for a short code no deferred sale holds", () => {
-    recordDeferredSale();
-
-    expect(
-      new SqliteDeferredSaleLookup(database).find({ kind: "short_code", shortCode: "2222AAAA" }),
-    ).toBeNull();
   });
 
   it("finds it by its reference only when the identifier and the short code belong to the same sale", () => {

@@ -1,8 +1,8 @@
 import type { DeferredSaleFacts } from "../../model/deferred-sale-lookup.js";
 import type {
   DeferredSaleInvoicing,
-  DeferredSaleLine,
   DeferredSaleInvoicingOutcome,
+  DeferredSaleLine,
   DeferredSaleLookup,
   DeferredSaleSearch,
 } from "../deferred-sale-lookup-ports.js";
@@ -71,8 +71,6 @@ export class FakeDeferredSaleLookup implements DeferredSaleLookup {
 
 function matches(sale: DeferredSaleFacts, search: DeferredSaleSearch): boolean {
   switch (search.kind) {
-    case "short_code":
-      return sale.shortCode === search.shortCode;
     case "reference":
       return sale.deferredSaleId === search.id && sale.shortCode === search.shortCode;
     case "sale":

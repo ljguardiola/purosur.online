@@ -23,6 +23,7 @@ import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const SOLD_AT = "2026-10-07T11:59:00.000Z";
+const REFERENCE = { kind: "reference", id: "deferred-of-sale-1", shortCode: "7KQ4M2P9" } as const;
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 
@@ -144,12 +145,10 @@ afterEach(() => {
 });
 
 describe("finding a deferred sale for a customer who returns", () => {
-  it("answers the sale a typed short code belongs to, not yet invoiced, at Argentina time, with its lines", async () => {
+  it("answers the sale a scanned reference belongs to, not yet invoiced, at Argentina time, with its lines", async () => {
     addDeferredSale("sale-1", "7KQ4M2P9");
 
-    expect(
-      await findDeferredSaleFor(deps(), { kind: "short_code", shortCode: "7KQ4M2P9" }),
-    ).toEqual({
+    expect(await findDeferredSaleFor(deps(), REFERENCE)).toEqual({
       kind: "found",
       sale_id: "sale-1",
       occurred_at: "2026-10-07T08:59:00.000-03:00",
@@ -170,22 +169,8 @@ describe("finding a deferred sale for a customer who returns", () => {
     });
   });
 
-  it("answers the sale a scanned reference belongs to", async () => {
-    addDeferredSale("sale-1", "7KQ4M2P9");
-
-    expect(
-      await findDeferredSaleFor(deps(), {
-        kind: "reference",
-        id: "deferred-of-sale-1",
-        shortCode: "7KQ4M2P9",
-      }),
-    ).toMatchObject({ kind: "found", sale_id: "sale-1" });
-  });
-
-  it("answers that no deferred sale has the code", async () => {
-    expect(
-      await findDeferredSaleFor(deps(), { kind: "short_code", shortCode: "7KQ4M2P9" }),
-    ).toEqual({ kind: "not_found" });
+  it("answers that no deferred sale has the reference", async () => {
+    expect(await findDeferredSaleFor(deps(), REFERENCE)).toEqual({ kind: "not_found" });
   });
 
   it("answers that a voided sale was voided", async () => {
@@ -194,35 +179,27 @@ describe("finding a deferred sale for a customer who returns", () => {
       "UPDATE sales SET state = 'VOIDED', voided_at = '2026-10-07T12:30:00.000Z' WHERE id = 'sale-1'",
     );
 
-    expect(
-      await findDeferredSaleFor(deps(), { kind: "short_code", shortCode: "7KQ4M2P9" }),
-    ).toEqual({ kind: "voided" });
+    expect(await findDeferredSaleFor(deps(), REFERENCE)).toEqual({ kind: "voided" });
   });
 
   it("answers that a sale left too long without an invoice expired", async () => {
     addDeferredSale("sale-1", "7KQ4M2P9", { occurredAt: "2026-01-02T12:00:00.000Z" });
 
-    expect(
-      await findDeferredSaleFor(deps(), { kind: "short_code", shortCode: "7KQ4M2P9" }),
-    ).toEqual({ kind: "expired" });
+    expect(await findDeferredSaleFor(deps(), REFERENCE)).toEqual({ kind: "expired" });
   });
 
   it("answers nothing about a sale when nobody is signed in", async () => {
     addDeferredSale("sale-1", "7KQ4M2P9");
     signedInPerson.clear();
 
-    expect(
-      await findDeferredSaleFor(deps(), { kind: "short_code", shortCode: "7KQ4M2P9" }),
-    ).toEqual({ kind: "not_signed_in" });
+    expect(await findDeferredSaleFor(deps(), REFERENCE)).toEqual({ kind: "not_signed_in" });
   });
 
   it("answers nothing about a sale to someone who may not sell", async () => {
     addDeferredSale("sale-1", "7KQ4M2P9");
     signedInPerson.set("clerk");
 
-    expect(
-      await findDeferredSaleFor(deps(), { kind: "short_code", shortCode: "7KQ4M2P9" }),
-    ).toEqual({ kind: "lacks_permission" });
+    expect(await findDeferredSaleFor(deps(), REFERENCE)).toEqual({ kind: "lacks_permission" });
   });
 });
 

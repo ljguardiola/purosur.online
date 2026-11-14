@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { scannedDeferredSaleReading } from "./deferred-sale-form";
+import { scannedDeferredSaleReading } from "./deferred-sale-qr";
 
 test("the text of a deferred sale's QR is looked up as scanned", () => {
   const text = "purosur-deferred-sale:0198-abc:7KQ4M2P9";

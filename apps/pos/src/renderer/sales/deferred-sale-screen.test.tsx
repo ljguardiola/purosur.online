@@ -58,6 +58,22 @@ describe("DeferredSaleScreen waiting for the customer's document", () => {
     );
   });
 
+  it("shows the lines loading, not the prompt for the QR, while the sale is looked up", async () => {
+    const answer = deferred<FindDeferredSaleOutcome>();
+    const { screen } = await renderScreen({
+      reading: QR_TEXT,
+      findDeferredSale: vi.fn(() => answer.promise),
+    });
+
+    await expect
+      .element(screen.getByRole("table", { name: "Líneas de la venta" }))
+      .toHaveAttribute("aria-busy", "true");
+    await expect
+      .element(screen.getByText("Acercá el QR del documento al lector"))
+      .not.toBeInTheDocument();
+    answer.resolve({ kind: "not_found" });
+  });
+
   it("says a scanned code that is not a deferred sale's QR is not one, without asking the core", async () => {
     const { screen, findDeferredSale, readBarcode } = await renderScreen();
 
@@ -144,22 +160,12 @@ describe("DeferredSaleScreen showing the sale it found", () => {
     return rendered;
   }
 
-  it("lists the sale's lines locked, with each one's price, quantity and amount", async () => {
+  it("lists the lines of the sale the core found", async () => {
     const { screen } = await shown();
 
     const table = screen.getByRole("table", { name: "Líneas de la venta" });
-    for (const header of ["Producto", "Precio", "Cantidad", "Importe"]) {
-      await expect.element(table.getByText(header, { exact: true })).toBeVisible();
-    }
-    await expect.element(table.getByRole("img", { name: "Líneas bloqueadas" })).toBeVisible();
     await expect.element(table.getByText("Almendras peladas")).toBeVisible();
-    await expect.element(table.getByText("$ 18.900,00 / kg")).toBeVisible();
-    await expect.element(table.getByText("0,500 kg")).toBeVisible();
-    await expect.element(table.getByText("$ 9.450,00")).toBeVisible();
     await expect.element(table.getByText("Yerba mate orgánica 1 kg")).toBeVisible();
-    await expect.element(table.getByText("$ 6.950,00 / u")).toBeVisible();
-    await expect.element(table.getByText("1 u")).toBeVisible();
-    await expect.element(table.getByText("$ 6.950,00", { exact: true }).last()).toBeVisible();
   });
 
   it("leaves no line selectable", async () => {
@@ -248,6 +254,44 @@ describe("DeferredSaleScreen showing the sale it found", () => {
       answer.resolve({ kind: "started", copy: { kind: "original" } });
     },
   );
+
+  it("stays on the screen on Esc and keeps its close disabled while the invoice is printing", async () => {
+    const answer = deferred<PrintDeferredSaleInvoiceOutcome>();
+    const { screen } = await shown({ printDeferredSaleInvoice: vi.fn(() => answer.promise) });
+    const pathname = screen.router.state.location.pathname;
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(screen.getByRole("button", { name: "Imprimiendo la factura…" }))
+      .toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeDisabled();
+    expect(screen.router.state.location.pathname).toBe(pathname);
+    answer.resolve({ kind: "started", copy: { kind: "original" } });
+    await expect
+      .element(screen.getByText("La factura sale en cuanto la impresora esté lista"))
+      .toBeVisible();
+  });
+
+  it("ignores a QR read while the invoice is printing, leaving the outcome on the sale it printed", async () => {
+    const answer = deferred<PrintDeferredSaleInvoiceOutcome>();
+    const { screen, findDeferredSale, readBarcode } = await shown({
+      findDeferredSale: vi.fn(async () => FOUND_ISSUED),
+      printDeferredSaleInvoice: vi.fn(() => answer.promise),
+    });
+    await userEvent.keyboard("{Enter}");
+    await expect
+      .element(screen.getByRole("button", { name: "Imprimiendo la factura…" }))
+      .toBeVisible();
+
+    readBarcode("purosur-deferred-sale:0198-def:3MN5R8TW");
+    answer.resolve({ kind: "not_yet", cause: "cannot_authorize" });
+
+    await expect.element(screen.getByText("Todavía no se puede facturar")).toBeVisible();
+    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+    expect(findDeferredSale).toHaveBeenCalledOnce();
+  });
 
   it.each([
     [

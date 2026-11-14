@@ -2658,28 +2658,6 @@ describe("createCoreClient", () => {
     },
   );
 
-  it("asks the core to find a deferred sale from the code the cashier typed", async () => {
-    const client = clientWithSequentialIds();
-    const port = new FakePort();
-    client.connect(port);
-
-    const found = client.findDeferredSale({ kind: "typed", code: "7kq4-m2p9" });
-    port.answer({
-      type: "find-deferred-sale-result",
-      request_id: "request-1",
-      outcome: { kind: "not_found" },
-    });
-
-    expect(await found).toEqual({ kind: "not_found" });
-    expect(port.posted).toEqual([
-      {
-        type: "find-deferred-sale",
-        request_id: "request-1",
-        reading: { kind: "typed", code: "7kq4-m2p9" },
-      },
-    ]);
-  });
-
   it("asks the core to find a deferred sale from the text of the QR the reader scanned", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
