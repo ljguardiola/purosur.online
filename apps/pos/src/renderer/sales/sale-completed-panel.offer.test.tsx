@@ -44,37 +44,24 @@ describe("SaleCompletedPanel asking whether to print the customer's ticket", () 
     await expect.element(screen.getByText("Imprimiendo")).not.toBeInTheDocument();
   });
 
-  it("counts down the seconds left the core reports at each reading", async () => {
+  it("shows the seconds left the core reports at each reading, counting none down on its own", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-    const readings = [10_000, 9000, 8000].map((remaining_ms) =>
-      found("awaiting_answer", { offer: { remaining_ms, length_ms: 10_000 } }),
-    );
+    const remaining = [10_000, 10_000, 9000];
+    let reading = 0;
     const { screen } = await renderPanel(CASH, {
-      readReceiptStatus: async () => readings.shift() ?? found("awaiting_answer"),
+      readReceiptStatus: async () => {
+        const remaining_ms = remaining[Math.min(reading, remaining.length - 1)] ?? 0;
+        reading += 1;
+        return found("awaiting_answer", { offer: { remaining_ms, length_ms: 10_000 } });
+      },
     });
+    await expect.element(screen.getByRole("timer")).toHaveTextContent("10 s");
+
+    await vi.advanceTimersByTimeAsync(1000);
     await expect.element(screen.getByRole("timer")).toHaveTextContent("10 s");
 
     await vi.advanceTimersByTimeAsync(1000);
     await expect.element(screen.getByRole("timer")).toHaveTextContent("9 s");
-
-    await vi.advanceTimersByTimeAsync(1000);
-    await expect.element(screen.getByRole("timer")).toHaveTextContent("8 s");
-  });
-
-  it("asks the core again when the time it reported left reaches the next whole second", async () => {
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-    const { screen, readReceiptStatus } = await renderPanel(CASH, {
-      readReceiptStatus: async () =>
-        found("awaiting_answer", { offer: { remaining_ms: 9600, length_ms: 10_000 } }),
-    });
-    await expect.element(screen.getByRole("timer")).toHaveTextContent("10 s");
-    const readsBefore = readReceiptStatus.mock.calls.length;
-
-    await vi.advanceTimersByTimeAsync(599);
-    expect(readReceiptStatus.mock.calls.length).toBe(readsBefore);
-
-    await vi.advanceTimersByTimeAsync(1);
-    expect(readReceiptStatus.mock.calls.length).toBe(readsBefore + 1);
   });
 
   it("shows the length of the offer the core reports, not a length of its own", async () => {
@@ -200,6 +187,26 @@ describe("SaleCompletedPanel asking whether to print the customer's ticket", () 
 
     await expect.poll(() => onNewSale.mock.calls.length).toBe(1);
     expect(answerReceiptQuestion).not.toHaveBeenCalled();
+  });
+
+  it("shows 0 s, with the answers disabled, when the offer closes on the core lapsing it", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    let status = found("awaiting_answer", { offer: { remaining_ms: 1000, length_ms: 10_000 } });
+    const { screen, onNewSale } = await renderPanel(CASH, {
+      readReceiptStatus: async () => status,
+    });
+    await expect.element(screen.getByRole("timer")).toHaveTextContent("1 s");
+
+    status = found("declined");
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect.poll(() => onNewSale.mock.calls.length).toBe(1);
+    await expect.element(screen.getByRole("timer")).toHaveTextContent("0 s");
+    await expect.element(screen.getByRole("button", { name: "Sí" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Omitir" })).toBeDisabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Nueva venta" }))
+      .not.toBeInTheDocument();
   });
 
   it("counts no time of its own, keeping the offer open with the time the core still reports", async () => {
