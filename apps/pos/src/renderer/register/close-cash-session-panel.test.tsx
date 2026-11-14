@@ -9,6 +9,7 @@ import { page, userEvent } from "vitest/browser";
 import type { CoreData } from "../platform/use-core-query";
 import { render } from "../shell/test-support/render-with-router";
 import { CloseCashSessionPanel } from "./close-cash-session-panel";
+import { countedCashRequestSchema } from "./counted-cash-form";
 
 const BALANCE: CashBalance = {
   opening_float: { amount: 5_230_000, direction: "in" },
@@ -64,6 +65,7 @@ async function renderPanel(props: Props = {}) {
   const screen = await render(
     <CloseCashSessionPanel
       sessionId="s1"
+      countedCashSchema={countedCashRequestSchema}
       balance={props.balance ?? { status: "loaded", value: BALANCE, refreshing: false }}
       openSale={props.openSale ?? false}
       loadCashCountPreview={async (counted) => ({ difference: counted - BALANCE.expected })}

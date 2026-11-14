@@ -17,6 +17,7 @@ import type {
 } from "@purosur/contracts";
 import type { CashMovementKind } from "@purosur/domain";
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SignInUsers } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
@@ -44,6 +45,7 @@ export const registerKeys = {
   receiptPrinter: [...registerKey, "receipt-printer"] as const,
   serialDevices: [...registerKey, "serial-devices"] as const,
   startupPending: [...registerKey, "startup-pending"] as const,
+  lockedRegisterUsers: [...registerKey, "locked-register-users"] as const,
   lockedClosers: (sessionId: string) => [...lockedClosersKey, sessionId] as const,
   cashBalance: (sessionId: string) => [...cashKey, sessionId, "balance"] as const,
   cashCountPreview: (sessionId: string, countedCash: number | undefined) =>
@@ -158,6 +160,12 @@ export function useRegisterStatusQuery(
   read: () => Promise<RegisterStatus | "unavailable">,
 ): CoreData<RegisterStatus> {
   return useCoreQuery({ queryKey: registerKeys.status, read });
+}
+
+export function useLockedRegisterUsersQuery(
+  read: () => Promise<SignInUsers>,
+): CoreData<SignInUsers> {
+  return useCoreQuery({ queryKey: registerKeys.lockedRegisterUsers, read });
 }
 
 export function useLockedClosersQuery(

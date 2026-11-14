@@ -19,6 +19,7 @@ import { CancelLockedSalePanel } from "./cancel-locked-sale-panel";
 import { CashMovementsTable } from "./cash-movements-table";
 import type { RefusedClose } from "./close-cash-session-panel";
 import { CloseCashSessionPanel } from "./close-cash-session-panel";
+import { lockedCountedCashRequestSchema } from "./counted-cash-form";
 import { LockedOpenSaleBanner } from "./locked-open-sale-banner";
 import {
   useCashBalanceQuery,
@@ -72,6 +73,7 @@ export function LockedCashCount({
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [emptying, setEmptying] = useState(false);
   const [cancelledRefunds, setCancelledRefunds] = useState<Refund[]>();
+  const [countedCash, setCountedCash] = useState("");
 
   const openSale = openSaleData.status === "loaded" ? openSaleData.value : null;
 
@@ -100,7 +102,6 @@ export function LockedCashCount({
     if (openSale === null) {
       return;
     }
-    setFailure(undefined);
     setEmptying(true);
     const outcome = await cancelSale(openSale.id).catch(
       (): CancelLockedSaleOutcome => ({ kind: "unavailable" }),
@@ -157,6 +158,8 @@ export function LockedCashCount({
     ) : (
       <CloseCashSessionPanel
         sessionId={sessionId}
+        countedCashSchema={lockedCountedCashRequestSchema}
+        countedCashDraft={{ typed: countedCash, onType: setCountedCash }}
         balance={balance}
         openSale={openSaleData.status !== "loaded" || openSaleData.value !== null}
         loadCashCountPreview={loadCashCountPreview}

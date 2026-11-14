@@ -23,11 +23,11 @@ import { useEffect, useRef, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
 import { countDifferenceFigure } from "./cash-amounts";
+import type { CountedCashRequestSchema } from "./counted-cash-form";
 import {
   countedCashMessage,
   countedCashOf,
   countedCashRequestFrom,
-  countedCashRequestSchema,
   EMPTY_COUNTED_CASH_FORM,
   INVALID_COUNTED_CASH_MESSAGE,
 } from "./counted-cash-form";
@@ -48,8 +48,12 @@ const NOT_PERMITTED: Notice = {
 const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", icon: "failure" };
 const EXPECTED_CASH = "EFECTIVO ESPERADO";
 
+export type CountedCashDraft = { typed: string; onType: (typed: string) => void };
+
 export type CloseCashSessionPanelProps = {
   sessionId: string;
+  countedCashSchema: CountedCashRequestSchema;
+  countedCashDraft?: CountedCashDraft;
   balance: CoreData<CashBalance>;
   openSale: boolean;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
@@ -98,6 +102,8 @@ function Balance({ balance }: { balance: CoreData<CashBalance> }) {
 
 export function CloseCashSessionPanel({
   sessionId,
+  countedCashSchema,
+  countedCashDraft,
   balance,
   openSale,
   loadCashCountPreview,
@@ -110,8 +116,11 @@ export function CloseCashSessionPanel({
   const [notice, setNotice] = useState<Notice>();
   const refreshOpenSale = useRefreshSessionOpenSale(sessionId);
   const { form, submit, submitting, values } = useRequestForm({
-    defaultValues: EMPTY_COUNTED_CASH_FORM,
-    request: { schema: countedCashRequestSchema, from: countedCashRequestFrom },
+    defaultValues:
+      countedCashDraft === undefined
+        ? EMPTY_COUNTED_CASH_FORM
+        : { countedCash: countedCashDraft.typed },
+    request: { schema: countedCashSchema, from: countedCashRequestFrom },
     fields: { counted_cash: "countedCash" },
     messages: { countedCash: countedCashMessage },
     onSubmit: async (request, { showFieldError }) => {
@@ -153,7 +162,7 @@ export function CloseCashSessionPanel({
     }
   }, [submitting]);
 
-  const counted = countedCashOf(countedCashRequestSchema, values);
+  const counted = countedCashOf(countedCashSchema, values);
   const difference = useCashCountPreviewQuery(sessionId, counted, loadCashCountPreview);
   const figure = difference === undefined ? undefined : countDifferenceFigure(difference);
   const blocked = submitting || openSale || balance.status !== "loaded";
@@ -205,7 +214,15 @@ export function CloseCashSessionPanel({
       <Balance balance={balance} />
       <div ref={field} className="flex flex-col gap-1.5">
         <Eyebrow text="Contado" />
-        <form.AppField name="countedCash" listeners={{ onChange: () => setNotice(undefined) }}>
+        <form.AppField
+          name="countedCash"
+          listeners={{
+            onChange: ({ value }) => {
+              setNotice(undefined);
+              countedCashDraft?.onType(value);
+            },
+          }}
+        >
           {(countedCash) => (
             <countedCash.TextField
               kind="counted-cash"

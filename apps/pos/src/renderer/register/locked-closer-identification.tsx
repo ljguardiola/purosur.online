@@ -30,6 +30,7 @@ export type IdentifiedCloser = { authorization: Authorization; first_name: strin
 
 export type ReturnedCloser = {
   refusal: Exclude<AuthorizationRefusal, { kind: "unavailable" }> | { kind: "not_locked" };
+  userId: string;
   firstName: string;
 };
 
@@ -97,7 +98,8 @@ function IdentificationPanel({
 }: LockedCloserIdentificationProps) {
   const navigate = useNavigate();
   const closers = useLockedClosersQuery(sessionId, loadClosers);
-  const [chosenId, setChosenId] = useState<string | null>(null);
+  const [chosenId, setChosenId] = useState<string | null>(returned?.userId ?? null);
+  const [returnedShown, setReturnedShown] = useState(true);
   const people = closers.status === "loaded" ? alphabetically(closers.value) : [];
   const chosen = people.find((person) => person.id === chosenId) ?? people[0] ?? null;
   const attempt = usePinAttempt(
@@ -107,6 +109,7 @@ function IdentificationPanel({
           id: chosen.id,
           firstName: chosen.first_name,
           attempt: async (pin) => {
+            setReturnedShown(false);
             const outcome = await identify({ user_id: chosen.id, pin });
             if (outcome.kind === "identified") {
               onIdentified({
@@ -119,7 +122,6 @@ function IdentificationPanel({
         },
   );
   const { refusal, locked, submitting, heading } = attempt;
-  const [returnedShown, setReturnedShown] = useState(true);
   let notice: PinNotice | undefined;
   if (refusal?.kind === "lacks_permission") {
     notice = lacksPermissionNotice(refusal.firstName);
@@ -157,6 +159,7 @@ function IdentificationPanel({
         }
       },
     },
+    { key: "F3", run: () => void navigate({ to: "/pin-code-redemption" }), enabled: locked },
     {
       key: "R",
       run: () => {

@@ -1,18 +1,18 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
-import { sortedItems, textOrder, UserSelect } from "@purosur/ui";
+import { LoadFailure, LoadingPlaceholder, sortedItems, textOrder, UserSelect } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, KeyRound, Lock, UserLock } from "lucide-react";
+import { Check, CircleX, KeyRound, Lock, UserLock } from "lucide-react";
 import { useState } from "react";
 import type { SignInUsers } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { SignInLockout } from "../platform/sign-in-lockout";
-import { useSignInUsersQuery } from "../platform/sign-in-users-query";
 import { usePinAttempt } from "../platform/use-pin-attempt";
 import { BrandPanelCard } from "../shell/brand-panel-card";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { useLockedRegisterUsersQuery } from "./register-queries";
 
 export type LockedRegisterScreenProps = {
   opener: SignedInPerson;
@@ -57,16 +57,19 @@ function LockedPanel({
   signIn,
 }: Omit<LockedRegisterScreenProps, "version">) {
   const navigate = useNavigate();
-  const users = useSignInUsersQuery(loadUsers);
+  const users = useLockedRegisterUsersQuery(loadUsers);
   const [chosenId, setChosenId] = useState(opener.user_id);
-  const people = peopleOf(users.status === "loaded" ? users.value.users : [], opener);
-  const chosen = people.find((person) => person.id === chosenId) ?? people[0];
-  const [firstPerson, ...otherPeople] = people;
-  const attempt = usePinAttempt({
-    id: chosen.id,
-    firstName: chosen.first_name,
-    attempt: (pin) => signIn(chosen.id, pin),
-  });
+  const people = users.status === "loaded" ? peopleOf(users.value.users, opener) : null;
+  const chosen = people?.find((person) => person.id === chosenId) ?? people?.[0] ?? null;
+  const attempt = usePinAttempt(
+    chosen === null
+      ? null
+      : {
+          id: chosen.id,
+          firstName: chosen.first_name,
+          attempt: (pin) => signIn(chosen.id, pin),
+        },
+  );
   const { refusal, locked, submitting } = attempt;
 
   function choose(id: string) {
@@ -75,9 +78,12 @@ function LockedPanel({
   }
 
   function move(step: 1 | -1) {
-    const current = people.findIndex((person) => person.id === chosen.id);
+    if (people === null) {
+      return;
+    }
+    const current = people.findIndex((person) => person.id === chosen?.id);
     const next = people[Math.min(people.length - 1, Math.max(0, current + step))];
-    if (next !== undefined && next.id !== chosen.id) {
+    if (next !== undefined && next.id !== chosen?.id) {
       choose(next.id);
     }
   }
@@ -86,10 +92,19 @@ function LockedPanel({
     {
       key: "ArrowUpDown",
       run: (pressed) => move(pressed === "ArrowDown" ? 1 : -1),
-      enabled: !submitting && !locked,
+      enabled: people !== null && !submitting && !locked,
     },
     { key: "F12", run: () => void navigate({ to: "/locked-close" }) },
     { key: "F3", run: () => void navigate({ to: "/pin-code-redemption" }) },
+    {
+      key: "R",
+      run: () => {
+        if (users.status === "failed") {
+          users.retry();
+        }
+      },
+      enabled: users.status === "failed",
+    },
   ]);
 
   if (refusal?.kind === "locked") {
@@ -110,21 +125,34 @@ function LockedPanel({
       icon={<Lock />}
       title={registerName === null ? opener.first_name : `${registerName} · ${opener.first_name}`}
     >
-      <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
-        <UserSelect
-          label="USUARIO"
-          options={[optionOf(firstPerson), ...otherPeople.map(optionOf)]}
-          value={chosen.id}
-          onChange={choose}
-          disabled={submitting}
+      {users.status === "loading" ? <LoadingPlaceholder variant="list" items={3} /> : null}
+      {users.status === "failed" ? (
+        <LoadFailure
+          variant="keyboard"
+          keycap="R"
+          icon={<CircleX />}
+          title="No se pudieron cargar los usuarios"
+          description="Volvé a intentarlo en unos segundos."
+          onRetry={users.retry}
         />
-        <PinAttemptControls
-          attempt={attempt}
-          pinInput={attempt.pinInput}
-          submitLabel="Desbloquear"
-          submitIcon={<Check />}
-        />
-      </form>
+      ) : null}
+      {people === null || chosen === null ? null : (
+        <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
+          <UserSelect
+            label="USUARIO"
+            options={[optionOf(people[0]), ...people.slice(1).map(optionOf)]}
+            value={chosen.id}
+            onChange={choose}
+            disabled={submitting}
+          />
+          <PinAttemptControls
+            attempt={attempt}
+            pinInput={attempt.pinInput}
+            submitLabel="Desbloquear"
+            submitIcon={<Check />}
+          />
+        </form>
+      )}
       <div className="flex flex-col gap-1">
         <CloseWithAnotherLink />
         <ScreenLink

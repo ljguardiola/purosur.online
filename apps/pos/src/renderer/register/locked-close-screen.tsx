@@ -67,7 +67,11 @@ export function LockedCloseScreen({
         onRefused={(refusal) =>
           setStep({
             kind: "identifying",
-            returned: { refusal, firstName: closer.first_name },
+            returned: {
+              refusal,
+              userId: closer.authorization.user_id,
+              firstName: closer.first_name,
+            },
           })
         }
       />

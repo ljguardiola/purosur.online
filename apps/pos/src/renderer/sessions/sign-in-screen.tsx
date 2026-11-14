@@ -15,11 +15,11 @@ import type { SignInUsers } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { SignInLockout } from "../platform/sign-in-lockout";
-import { useSignInUsersQuery } from "../platform/sign-in-users-query";
 import { usePinAttempt } from "../platform/use-pin-attempt";
 import { BrandPanelCard } from "../shell/brand-panel-card";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
 import { ScreenLink } from "../shell/screen-link";
+import { useSignInUsersQuery } from "./sessions-queries";
 
 export type SignInScreenProps = {
   loadUsers: () => Promise<SignInUsers>;
