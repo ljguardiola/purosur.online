@@ -135,23 +135,20 @@ describe("OpenSessionRail", () => {
     );
   });
 
-  it("offers the deferred sale lookup, after the sales history, to a person who may invoice deferred sales", async () => {
+  it("offers no deferred sale entry, even to a person who may invoice deferred sales", async () => {
     const screen = await render(
       <OpenSessionRail
         lock={() => {}}
-        current="deferred_sale"
+        current="sale"
         abilities={["view_sales_history", "invoice_deferred_sale"]}
       />,
     );
 
-    const deferredSale = screen.getByRole("link", { name: "Venta diferida" });
-    expect(deferredSale.element().getAttribute("href")).toBe("/deferred-sale");
-    await expect.element(deferredSale).toHaveAttribute("aria-current", "page");
     const links = screen
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Venta", "Historial", "Venta diferida", "Devolver", "Caja"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja"]);
   });
 
   it("offers no sales history to a person who may not view it", async () => {
