@@ -42,7 +42,7 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
     await expect.element(screen.getByRole("button", { name: REPRINT })).not.toBeInTheDocument();
   });
 
-  it("offers the duplicate once printing from the window finds the factura already printed", async () => {
+  it("offers the duplicate once printing from the board finds the factura already printed", async () => {
     const findDeferredSale = vi
       .fn()
       .mockResolvedValueOnce(FOUND_ISSUED)
@@ -52,9 +52,7 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
       findDeferredSale,
       printDeferredSaleInvoice: async () => ({ kind: "already_printed" }),
     });
-    await userEvent.click(await screen.getByRole("button", { name: "Imprimir factura" }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
     await expect.element(screen.getByText("La factura ya se imprimió")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: REPRINT })).toBeVisible();

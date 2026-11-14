@@ -1,4 +1,4 @@
-import type { FindDeferredSaleOutcome } from "@purosur/contracts";
+import type { FindDeferredSaleOutcome, PrintDeferredSaleInvoiceOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -203,38 +203,10 @@ describe("DeferredSaleScreen showing the sale it found", () => {
     await expect.element(screen.getByText("F1", { exact: true })).not.toBeInTheDocument();
   });
 
-  it("opens the window to print the invoice from Imprimir factura", async () => {
-    const { screen } = await shown();
-
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
-
-    const dialog = screen.getByRole("dialog", { name: "Imprimí la factura" });
-    await expect.element(dialog.getByText("$ 16.400,00")).toBeVisible();
-    await expect.element(dialog.getByText(/Nº 00000187/)).toBeVisible();
-    await expect.element(dialog.getByText("04/11/2026 · 14:02")).toBeVisible();
-  });
-
-  it("opens the window to print the invoice when Enter is pressed", async () => {
-    const { screen } = await shown();
-
-    await userEvent.keyboard("{Enter}");
-
-    await expect.element(screen.getByRole("dialog", { name: "Imprimí la factura" })).toBeVisible();
-  });
-
-  it("opens the window for a sale whose invoice is not issued yet", async () => {
-    const { screen } = await shown({ findDeferredSale: async () => FOUND_PENDING });
-
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
-
-    await expect.element(screen.getByRole("dialog").getByText("Se asigna al emitir")).toBeVisible();
-  });
-
-  it("prints the found sale's invoice, closes the window and says it comes out once the printer is ready", async () => {
+  it("prints the found sale's invoice from Imprimir factura and says it comes out once the printer is ready", async () => {
     const { screen, printDeferredSaleInvoice } = await shown();
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
     expect(printDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith("sale-1");
     await expect
@@ -244,37 +216,129 @@ describe("DeferredSaleScreen showing the sale it found", () => {
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("closes the window and shows the refusal when the core says the sale was voided meanwhile", async () => {
+  it("prints the invoice when Enter is pressed", async () => {
+    const { printDeferredSaleInvoice } = await shown();
+
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() =>
+      expect(printDeferredSaleInvoice).toHaveBeenCalledExactlyOnceWith("sale-1"),
+    );
+  });
+
+  it.each([
+    ["issuing the invoice of a pending sale", FOUND_PENDING, "Emitiendo la factura…"],
+    ["printing the invoice already issued", FOUND_ISSUED, "Imprimiendo la factura…"],
+  ] as const)(
+    "shows it is %s while the core works, without letting it be asked again",
+    async (_case, found, label) => {
+      const answer = deferred<PrintDeferredSaleInvoiceOutcome>();
+      const { screen, printDeferredSaleInvoice } = await shown({
+        findDeferredSale: async () => found,
+        printDeferredSaleInvoice: vi.fn(() => answer.promise),
+      });
+
+      await userEvent.keyboard("{Enter}");
+      await userEvent.keyboard("{Enter}");
+
+      const pending = screen.getByRole("button", { name: label });
+      await expect.element(pending).toBeVisible();
+      await expect.element(pending).toBeDisabled();
+      expect(printDeferredSaleInvoice).toHaveBeenCalledOnce();
+      answer.resolve({ kind: "started", copy: { kind: "original" } });
+    },
+  );
+
+  it.each([
+    [
+      "cannot_authorize",
+      "La caja no puede pedir facturas a ARCA ahora. No se imprimió nada; pedile al cliente que vuelva más tarde.",
+    ],
+    [
+      "older_sale_blocking",
+      "Una venta anterior está frenando la facturación. No se imprimió nada; pedile al cliente que vuelva más tarde.",
+    ],
+    [
+      "not_authorized",
+      "ARCA no autorizó la factura de esta venta y no se imprimió nada. La caja la vuelve a pedir sola: buscala de nuevo más tarde. Si vence el plazo sin autorizarse, queda como tarea para el dueño.",
+    ],
+  ] as const)(
+    "says in the panel nothing was printed when it is not yet possible (%s), keeping the sale",
+    async (cause, text) => {
+      const { screen } = await shown({
+        printDeferredSaleInvoice: async () => ({ kind: "not_yet", cause }),
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
+
+      await expect.element(screen.getByText("Todavía no se puede facturar")).toBeVisible();
+      await expect.element(screen.getByText(text)).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "Imprimir factura" })).toBeEnabled();
+      await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+    },
+  );
+
+  it.each([
+    ["already_printed"],
+    ["voided"],
+    ["sale_voided"],
+    ["expired"],
+    ["out_of_date_order"],
+    ["not_found"],
+  ] as const)("shows the refusal in the panel when printing answers %s", async (kind) => {
+    const title = {
+      already_printed: "La factura ya se imprimió",
+      voided: "Esa venta se anuló",
+      sale_voided: "Esa venta se anuló",
+      expired: "Pasó el plazo para facturar esta venta",
+      out_of_date_order: "Esta venta ya no se puede facturar",
+      not_found: "No hay una venta diferida con ese código en esta caja",
+    }[kind];
     const { screen } = await shown({
-      printDeferredSaleInvoice: async () => ({ kind: "voided" }),
+      findDeferredSale: vi
+        .fn()
+        .mockResolvedValueOnce(FOUND_ISSUED)
+        .mockResolvedValue({ ...FOUND_ISSUED, original_printed: true }),
+      printDeferredSaleInvoice: async () => ({ kind }),
     });
+
     await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
+    await expect.element(screen.getByText(title)).toBeVisible();
+  });
 
-    await expect.element(screen.getByText("Esa venta se anuló")).toBeVisible();
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  it("shows the printing notice and keeps the button when the core cannot print now", async () => {
+    const { screen } = await shown({
+      printDeferredSaleInvoice: async () => ({ kind: "printer_not_configured" }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
+
+    await expect.element(screen.getByText("La impresora no está configurada")).toBeVisible();
+    await expect.element(screen.getByText("Configurala para imprimir la factura.")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Imprimir factura" })).toBeEnabled();
+  });
+
+  it("says it could not print when the core does not answer", async () => {
+    const { screen } = await shown({
+      printDeferredSaleInvoice: async () => {
+        throw new Error("core down");
+      },
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
+
+    await expect.element(screen.getByText("No se pudo imprimir la factura")).toBeVisible();
   });
 
   it("tells the app the session ended when printing finds nobody signed in", async () => {
     const { screen, onSessionInvalid } = await shown({
       printDeferredSaleInvoice: async () => ({ kind: "not_signed_in" }),
     });
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
     await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
-  });
-
-  it("closes the window from Volver and keeps the sale shown", async () => {
-    const { screen } = await shown();
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Volver" }));
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   });
 
   it("goes back to the sale screen on Esc", async () => {
