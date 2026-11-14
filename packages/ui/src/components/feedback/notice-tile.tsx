@@ -6,7 +6,7 @@ export type NoticeTileProps = {
   tone: NoticeTone;
   icon: Icon;
   title: string;
-  subtitle: string;
+  subtitle?: string | undefined;
   description?: string;
   whatToDo?: string;
   focused: boolean;
@@ -39,7 +39,9 @@ export function NoticeTile({
       current={focused}
     >
       <p className={`text-body font-bold ${toneClassName[tone].strongText}`}>{title}</p>
-      <p className={`text-detail ${toneClassName[tone].strongText}`}>{subtitle}</p>
+      {subtitle ? (
+        <p className={`text-detail ${toneClassName[tone].strongText}`}>{subtitle}</p>
+      ) : null}
       {shownDescription ? <p className="text-detail text-text-subtle">{shownDescription}</p> : null}
       {shownWhatToDo ? (
         <p className="text-detail font-semibold text-text">{shownWhatToDo}</p>
