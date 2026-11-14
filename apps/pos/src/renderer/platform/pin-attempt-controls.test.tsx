@@ -1,13 +1,13 @@
-import { Check } from "lucide-react";
+import type { Icon } from "@purosur/ui";
 import { expectNoAccessibilityViolations, insetBoundary } from "@purosur/ui/test";
+import { Check } from "lucide-react";
 import { describe, expect, it } from "vitest";
-import type { ReactNode } from "react";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { PinAttemptControls } from "./pin-attempt-controls";
 import { usePinAttempt } from "./use-pin-attempt";
 
-function Controls({ submitLabel, submitIcon }: { submitLabel?: string; submitIcon?: ReactNode }) {
+function Controls({ submitLabel, submitIcon }: { submitLabel?: string; submitIcon?: Icon }) {
   const attempt = usePinAttempt({
     id: "u1",
     firstName: "Ada",
@@ -46,7 +46,9 @@ describe("PinAttemptControls", () => {
 
   it("draws the submit button with the icon the screen says, an arrow when it says none", async () => {
     const plain = await render(<Controls />);
-    expect(plain.getByRole("button", { name: "Entrar" }).element().querySelector(".lucide-arrow-right")).not.toBeNull();
+    expect(
+      plain.getByRole("button", { name: "Entrar" }).element().querySelector(".lucide-arrow-right"),
+    ).not.toBeNull();
     await plain.unmount();
 
     const checked = await render(<Controls submitLabel="Desbloquear" submitIcon={<Check />} />);

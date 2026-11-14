@@ -1,3 +1,4 @@
+import type { Icon } from "@purosur/ui";
 import { Button, InlineNotice, PinDotsField } from "@purosur/ui";
 import { ArrowRight } from "lucide-react";
 import type { Ref } from "react";
@@ -8,11 +9,13 @@ export function PinAttemptControls({
   pinInput,
   disabled = false,
   submitLabel = "Entrar",
+  submitIcon = <ArrowRight />,
 }: {
   attempt: Omit<PinAttempt, "pinInput" | "heading">;
   pinInput: Ref<HTMLInputElement>;
   disabled?: boolean;
   submitLabel?: string;
+  submitIcon?: Icon;
 }) {
   const { notice, noticeId } = attempt;
   const submitText =
@@ -43,7 +46,7 @@ export function PinAttemptControls({
       <Button
         type="submit"
         fullWidth
-        icon={<ArrowRight />}
+        icon={submitIcon}
         iconPosition="start"
         keycap="Enter"
         disabled={!attempt.canSubmit}
