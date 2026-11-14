@@ -8,7 +8,7 @@ import {
   LoadingPlaceholder,
   useRequestForm,
 } from "@purosur/ui";
-import { Lock, Printer, TriangleAlert, UserX } from "lucide-react";
+import { Check, Lock, Printer, TriangleAlert } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useState } from "react";
 import { focusFirstInput } from "../platform/focus-first-input";
@@ -142,11 +142,7 @@ function PrinterForm({
               </form.AppField>
             </div>
             {notice === undefined ? null : (
-              <InlineNotice
-                tone="error"
-                icon={notice.kind === "permission" ? <UserX /> : <TriangleAlert />}
-                title={notice.title}
-              />
+              <InlineNotice tone="error" icon={<TriangleAlert />} title={notice.title} />
             )}
           </div>
         </SettingsPanel>
@@ -167,7 +163,7 @@ export function PrinterSettings({ printer, ...props }: PrinterSettingsProps) {
           {
             id: "saved",
             tone: "success" as const,
-            icon: <Printer />,
+            icon: <Check />,
             title: "Dirección guardada",
             description: `La caja imprime en ${receiptPrinterAddressText(saved)} desde el próximo ticket.`,
             onDismiss: () => setSaved(undefined),

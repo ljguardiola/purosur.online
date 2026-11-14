@@ -21,7 +21,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-detail text-text-subtle">{label}</dt>
-      <dd className="text-body font-semibold text-text">{value}</dd>
+      <dd className="text-body text-text">{value}</dd>
     </div>
   );
 }
@@ -94,7 +94,13 @@ export function ThisRegisterSettings({
           icon={<Laptop />}
           title="Esta caja"
           onClose={onClose}
-          footer={notices.length > 0 ? <KeyLegend items={panelLegend} /> : undefined}
+          footer={
+            notices.length > 0 ? (
+              <div className="-mx-6 -mb-6 border-t border-border bg-surface-subtle px-6 py-3">
+                <KeyLegend items={panelLegend} />
+              </div>
+            ) : undefined
+          }
         >
           <dl className="flex flex-col gap-3">
             {status === undefined ? null : (

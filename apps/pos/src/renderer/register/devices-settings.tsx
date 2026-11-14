@@ -9,7 +9,7 @@ import {
   StatusIndicator,
   useRequestForm,
 } from "@purosur/ui";
-import { Lock, TriangleAlert, Usb, UserX } from "lucide-react";
+import { Check, Lock, TriangleAlert, Usb } from "lucide-react";
 import type { ComponentProps, FocusEvent, KeyboardEvent } from "react";
 import { useRef, useState } from "react";
 import type { SerialDevicesToRegister } from "../platform/core-client";
@@ -338,11 +338,7 @@ function DevicesForm({
             </form.AppField>
           </fieldset>
           {notice === undefined ? null : (
-            <InlineNotice
-              tone="error"
-              icon={notice.kind === "permission" ? <UserX /> : <TriangleAlert />}
-              title={notice.title}
-            />
+            <InlineNotice tone="error" icon={<TriangleAlert />} title={notice.title} />
           )}
         </SettingsPanel>
       }
@@ -368,7 +364,7 @@ export function DevicesSettings({
           {
             id: "saved",
             tone: "success" as const,
-            icon: <Usb />,
+            icon: <Check />,
             title: "Dispositivos guardados",
             description: savedDescription,
             onDismiss: () => setSavedDescription(undefined),

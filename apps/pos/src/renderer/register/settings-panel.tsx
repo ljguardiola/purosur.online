@@ -54,6 +54,7 @@ export function SaveButton({
       size="large"
       fullWidth
       icon={<Check />}
+      iconPosition="start"
       keycap="Enter"
       disabled={disabled}
       dataStatus={submitting ? "loading" : "loaded"}
