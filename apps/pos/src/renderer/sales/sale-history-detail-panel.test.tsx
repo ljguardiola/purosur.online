@@ -163,6 +163,40 @@ describe("SaleHistoryDetailPanel", () => {
     await expect.element(panel.getByText("Point débito")).toBeVisible();
   });
 
+  describe("a voided sale", () => {
+    const voided = {
+      ...DETAIL,
+      state: "voided",
+      returnable: false,
+      payments: [{ method: "QR", card_type: null, amount: 1_230_000 }],
+      void_refunds: [
+        { method: "QR", card_type: null, amount: 1_230_000, state: "PENDING" },
+        { method: "CASH", card_type: null, amount: 50_000, state: "APPROVED" },
+      ],
+    } as const;
+
+    it("shows each refund the void recorded in place of the payment it returns", async () => {
+      const { panel } = await renderPanel({ detail: found(voided) });
+
+      await expect.element(panel.getByText("QR · reembolso pendiente")).toBeVisible();
+      await expect.element(panel.getByText("$ 12.300,00")).toBeVisible();
+      await expect.element(panel.getByText("Efectivo · en el acto")).toBeVisible();
+      await expect.element(panel.getByText("QR", { exact: true })).not.toBeInTheDocument();
+    });
+
+    it("keeps the plain payment of a sale that was not voided", async () => {
+      const { panel } = await renderPanel({
+        detail: found({
+          ...DETAIL,
+          payments: [{ method: "QR", card_type: null, amount: 1_230_000 }],
+        }),
+      });
+
+      await expect.element(panel.getByText("QR", { exact: true })).toBeVisible();
+      await expect.element(panel.getByText("QR · reembolso pendiente")).not.toBeInTheDocument();
+    });
+  });
+
   describe("a deferred sale", () => {
     const deferredDetail = { ...DETAIL, state: "deferred" } as const;
 

@@ -46,6 +46,7 @@ const SALE: Sale = {
   credit_note: null,
   deferred_invoice_next_copy: null,
   short_code: null,
+  void_refunds: [],
 };
 
 const WITH_PERMISSION: SignedInPerson = {
