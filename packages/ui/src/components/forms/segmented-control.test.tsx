@@ -420,6 +420,23 @@ test("shows the label of a field variant above the group, as an uppercase eyebro
   expect(style.fontWeight).toBe("700");
 });
 
+test("shows an option's status beside its label, naming the option with both", async () => {
+  const [discount, newPrice] = options;
+  const screen = await render(
+    <SegmentedControl
+      {...fieldProps({ options: [{ ...discount, status: "Expired" }, newPrice] })}
+    />,
+  );
+
+  await expect.element(screen.getByText("Expired")).toBeVisible();
+  await expect
+    .element(screen.getByRole("radio", { name: "Discount, Expired", exact: true }))
+    .toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("radio", { name: "New price", exact: true }))
+    .toBeInTheDocument();
+});
+
 test("keeps the group named by its label when the field variant shows it", async () => {
   const screen = await render(<SegmentedControl {...fieldProps()} />);
 

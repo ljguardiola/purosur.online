@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { RenderedScreen } from "./test-support/return-screen";
 import {
+  CASH_SALE,
   legendOf,
   linesTable,
   markLine,
@@ -63,6 +64,32 @@ describe("ReturnScreen editing a line", () => {
     await expect
       .element(screen.getByText("Cambio por otra igual", { exact: true }))
       .not.toBeInTheDocument();
+  });
+
+  it("marks Vencido the reason whose return window is over, keeping the change of mind chosen", async () => {
+    const { screen } = await renderScreen({
+      findSaleForReturn: async () => ({
+        kind: "found",
+        sale: {
+          ...CASH_SALE,
+          windows: {
+            ...CASH_SALE.windows,
+            change_of_mind: { ...CASH_SALE.windows.change_of_mind, open: false },
+          },
+        },
+        ticket_source: "TYPED",
+        ticket_verification_required: true,
+      }),
+    });
+
+    await openLineEditor(screen, "Nibs de cacao");
+
+    await expect
+      .element(screen.getByRole("radio", { name: "Arrepentimiento, Vencido", exact: true }))
+      .toBeChecked();
+    await expect
+      .element(screen.getByRole("radio", { name: "Defecto", exact: true }))
+      .not.toBeChecked();
   });
 
   it("lists 0-9 Cantidad, Tab Campo, the arrows Opción and Enter Aplicar, and no F1", async () => {

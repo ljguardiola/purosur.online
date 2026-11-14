@@ -1238,4 +1238,18 @@ describe("SqliteRegisterSalesHistory", () => {
       });
     });
   });
+
+  describe("whether the register has an open cash session", () => {
+    it("says so while one is open", () => {
+      expect(history.registerHasOpenSession()).toBe(true);
+    });
+
+    it("says there is none once the open session closes", () => {
+      database.exec(
+        "UPDATE cash_sessions SET state = 'CLOSED', closed_at = '2026-10-08T20:00:00.000Z' WHERE id = 'open-session'",
+      );
+
+      expect(history.registerHasOpenSession()).toBe(false);
+    });
+  });
 });

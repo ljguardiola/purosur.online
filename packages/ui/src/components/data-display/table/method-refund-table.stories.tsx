@@ -44,6 +44,13 @@ export const SecondSelected: Story = {
   args: { selectedIndex: 1 },
 };
 
+export const InvalidAmount: Story = {
+  decorators: [inTallCard],
+  args: {
+    rows: rows.map((row) => (row.id === "cash" ? { ...row, amount: "", invalid: true } : row)),
+  },
+};
+
 function TypingTable(props: MethodRefundTableProps) {
   const [selectedIndex, setSelectedIndex] = useState(props.selectedIndex);
   const [rows, setRows] = useState(props.rows);

@@ -74,6 +74,18 @@ export const FieldSecondChosen: Story = {
   args: { ...Field.args, value: "newPrice" },
 };
 
+export const FieldWithStatus: Story = {
+  ...Field,
+  args: {
+    ...Field.args,
+    size: "large",
+    options: [
+      { value: "discount", label: "Arrepentimiento", status: "Vencido" },
+      returnReasonOptions[1],
+    ],
+  },
+};
+
 export const FieldFocusVisible: Story = {
   ...Field,
   play: playTabReachesFocusVisible(

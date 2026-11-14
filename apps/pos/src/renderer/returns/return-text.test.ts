@@ -9,14 +9,28 @@ import {
   REFUND_WHEN_IN_ROW,
   REFUND_WHEN_IN_TABLE,
   RESOLUTION_LABELS,
+  reasonOptions,
   refundRefusalText,
 } from "./return-text";
-import { NIBS, PASTA } from "./test-support/sale-for-return";
+import { NIBS, PASTA, SALE } from "./test-support/sale-for-return";
 
 describe("the options of a return line", () => {
   it("offer the two reasons, in the words of a customer", () => {
     expect(REASON_OPTIONS).toEqual([
       { value: "change_of_mind", label: "Arrepentimiento" },
+      { value: "defective", label: "Defecto" },
+    ]);
+  });
+
+  it("mark Vencido the reason whose return window is over, and no other", () => {
+    const windows = {
+      ...SALE.windows,
+      change_of_mind: { ...SALE.windows.change_of_mind, open: false },
+      defective: { ...SALE.windows.defective, open: true },
+    };
+
+    expect(reasonOptions(windows)).toEqual([
+      { value: "change_of_mind", label: "Arrepentimiento", status: "Vencido" },
       { value: "defective", label: "Defecto" },
     ]);
   });

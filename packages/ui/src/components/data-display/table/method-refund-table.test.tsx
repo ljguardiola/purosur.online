@@ -129,6 +129,19 @@ test("reports what is typed in a row's input with the row's id, keeping two deci
   await expect.element(screen.getByRole("textbox", { name: "Cash" })).toHaveValue("");
 });
 
+test("marks invalid the amount of the row the caller says is invalid, and no other", async () => {
+  const screen = await render(
+    table({ rows: rows.map((row) => (row.id === "cash" ? { ...row, invalid: true } : row)) }),
+  );
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Cash" }))
+    .toHaveAttribute("aria-invalid", "true");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Debit card" }))
+    .not.toHaveAttribute("aria-invalid");
+});
+
 test("lists the keys of its legend below the rows", async () => {
   const screen = await render(table({ legend: [{ keyName: "ArrowUpDown", label: "Medio" }] }));
 

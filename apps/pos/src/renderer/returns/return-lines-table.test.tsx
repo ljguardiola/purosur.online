@@ -2,16 +2,17 @@ import { tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { changeLine, checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
+import { checkLine, draftLineOf, EMPTY_RETURN_DRAFT } from "./return-form";
 import type { ReturnLinesTableProps } from "./return-lines-table";
 import { ReturnLinesTable } from "./return-lines-table";
 import { NIBS, PASTA, SALE, TEA } from "./test-support/sale-for-return";
 
 const SALE_OF_THREE = { ...SALE, lines: [PASTA, NIBS, TEA] };
 
-const DRAFT = changeLine(checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), NIBS), NIBS.id, {
-  quantity: "0,400",
-});
+const DRAFT = {
+  ...checkLine(EMPTY_RETURN_DRAFT, PASTA),
+  [NIBS.id]: { ...draftLineOf(NIBS), quantity: "0,400" },
+};
 
 const PREVIEWED: ReturnLinesTableProps["previewed"] = {
   kind: "previewed",

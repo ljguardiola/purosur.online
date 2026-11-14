@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { scannedReturnReading, typedReturnReading } from "./return-ticket-form";
+import {
+  returnTicketRequestFrom,
+  returnTicketRequestSchema,
+  scannedReturnReading,
+} from "./return-ticket-form";
 
 const FISCAL_QR = `https://www.arca.gob.ar/fe/qr/?p=${btoa(JSON.stringify({ ver: 1, ptoVta: 3, tipoCmp: 11, nroCmp: 1192 }))}`;
 
@@ -12,18 +16,20 @@ describe("the number typed in the search", () => {
   ])(
     "is looked up as typed, however many zeros the ticket prints: %j",
     (text, pointOfSale, number) => {
-      expect(typedReturnReading(text)).toEqual({
-        kind: "typed",
-        point_of_sale: pointOfSale,
-        number,
-      });
+      const request = returnTicketRequestFrom({ search: text });
+
+      expect(request).toEqual({ reading: { kind: "typed", point_of_sale: pointOfSale, number } });
+      expect(returnTicketRequestSchema.safeParse(request).success).toBe(true);
     },
   );
 
   it.each(["", "1192", "0-1192", "100000-1192", "3-", "3-0", "3-11,5", "A3-1192", "3-1-2"])(
     "is not a ticket's number: %j",
     (text) => {
-      expect(typedReturnReading(text)).toBeUndefined();
+      const issues = returnTicketRequestSchema.safeParse(returnTicketRequestFrom({ search: text }))
+        .error?.issues;
+
+      expect(issues?.map(({ path }) => path[0])).toContain("reading");
     },
   );
 });

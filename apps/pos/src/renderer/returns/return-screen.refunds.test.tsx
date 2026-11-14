@@ -190,6 +190,24 @@ describe("ReturnScreen refunding by payment method", () => {
     await expect.element(table.getByRole("textbox", { name: "Efectivo" })).toHaveValue("3.000,00");
   });
 
+  it("marks the amount the core could not read as invalid, saying so, without completing", async () => {
+    const completeReturn = vi.fn(async (): Promise<CompleteReturnOutcome> => COMPLETED);
+    const { screen } = await renderScreen({ ...TWO_PAYMENTS, completeReturn });
+    await openRefunds(screen);
+    const table = screen.getByRole("table", { name: "Reintegro por medio de pago" });
+    await userEvent.fill(table.getByRole("textbox", { name: "Efectivo" }), "99999999999999999999");
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .element(table.getByRole("textbox", { name: "Efectivo" }))
+      .toHaveAttribute("aria-invalid", "true");
+    await expect
+      .element(alertText(screen, "Ingresá un importe válido, por ejemplo 1.500,00."))
+      .toBeVisible();
+    expect(completeReturn).not.toHaveBeenCalled();
+  });
+
   it("goes back to the lines, keeping them marked, on Esc", async () => {
     const { screen } = await renderScreen(TWO_PAYMENTS);
     await openRefunds(screen);

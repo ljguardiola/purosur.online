@@ -1,17 +1,28 @@
 import { describe, expect, it } from "vitest";
+import type { ReturnDraft, ReturnDraftLine } from "./return-form";
 import {
-  changeLine,
   checkLine,
+  draftLineOf,
   draftLinesFor,
   EMPTY_RETURN_DRAFT,
   EMPTY_RETURN_FORM,
+  isRefundTextInvalid,
   refundsOf,
   refundTextsFor,
   returnRequestFrom,
   returnRequestSchema,
   uncheckLine,
 } from "./return-form";
+import type { SaleLineForReturn } from "./return-sale";
 import { CASH, HONEY, NIBS, PASTA, SALE, TRANSFER } from "./test-support/sale-for-return";
+
+function withLine(
+  draft: ReturnDraft,
+  line: SaleLineForReturn,
+  edit: Partial<ReturnDraftLine>,
+): ReturnDraft {
+  return { ...draft, [line.id]: { ...draftLineOf(line), ...edit } };
+}
 
 const OTHER_CASH = { ...CASH, payment_id: "pay-cash-2", amount: 500_000, remaining: 500_000 };
 
@@ -48,9 +59,6 @@ describe("a return draft", () => {
   it("has no line, however it is named, that was not checked", () => {
     const inherited = { ...PASTA, id: "constructor" };
 
-    expect(changeLine(EMPTY_RETURN_DRAFT, inherited.id, { quantity: "1" })).toBe(
-      EMPTY_RETURN_DRAFT,
-    );
     expect(draftLinesFor({ ...SALE, lines: [inherited] }, EMPTY_RETURN_DRAFT)).toEqual([]);
   });
 
@@ -60,64 +68,15 @@ describe("a return draft", () => {
     expect(Object.keys(uncheckLine(draft, PASTA.id))).toEqual([NIBS.id]);
   });
 
-  it("changes only what is asked of one line", () => {
-    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
-      reason: "defective",
-    });
-
-    expect(draft[PASTA.id]).toEqual({
-      quantity: "3",
-      reason: "defective",
-      disposition: "restock",
-      resolution: null,
-    });
-  });
-
-  it("forgets the choice between refunding and exchanging when the reason changes", () => {
-    const chosen = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
-      reason: "defective",
-      resolution: "exchange",
-    });
-
-    expect(
-      changeLine(chosen, PASTA.id, { reason: "change_of_mind" })[PASTA.id]?.resolution,
-    ).toBeNull();
-  });
-
-  it("keeps the choice between refunding and exchanging while the reason stays", () => {
-    const chosen = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
-      reason: "defective",
-      resolution: "exchange",
-    });
-
-    expect(changeLine(chosen, PASTA.id, { quantity: "2" })[PASTA.id]?.resolution).toBe("exchange");
-    expect(changeLine(chosen, PASTA.id, { reason: "defective" })[PASTA.id]?.resolution).toBe(
-      "exchange",
-    );
-  });
-
-  it("takes the reason and the resolution chosen together", () => {
-    const chosen = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
-      reason: "defective",
-      resolution: "refund",
-    });
-
-    expect(chosen[PASTA.id]).toMatchObject({ reason: "defective", resolution: "refund" });
-  });
-
-  it("changes nothing in a line that is not checked", () => {
-    expect(changeLine(EMPTY_RETURN_DRAFT, PASTA.id, { reason: "defective" })).toEqual({});
-  });
-
   it("asks the core about the checked lines in the order of the sale", () => {
-    const draft = changeLine(
-      changeLine(checkLine(checkLine(EMPTY_RETURN_DRAFT, NIBS), PASTA), NIBS.id, {
+    const draft = withLine(
+      withLine(EMPTY_RETURN_DRAFT, NIBS, {
         quantity: "0,200",
         reason: "defective",
         disposition: "discard",
         resolution: "exchange",
       }),
-      PASTA.id,
+      PASTA,
       { quantity: "2", reason: "change_of_mind", disposition: "restock" },
     );
 
@@ -140,16 +99,14 @@ describe("a return draft", () => {
   });
 
   it("asks for a quantity of nothing when what is typed is not a quantity", () => {
-    const draft = changeLine(checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), NIBS), PASTA.id, {
-      quantity: "dos",
-    });
-    const weighed = changeLine(draft, NIBS.id, { quantity: "0,3501" });
+    const draft = withLine(checkLine(EMPTY_RETURN_DRAFT, NIBS), PASTA, { quantity: "dos" });
+    const weighed = withLine(draft, NIBS, { quantity: "0,3501" });
 
     expect(draftLinesFor(SALE, weighed).map(({ quantity }) => quantity)).toEqual([0, 0]);
   });
 
   it("asks for all that remains of a line that goes back whole for the chosen reason, whatever is typed", () => {
-    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, {
+    const draft = withLine(EMPTY_RETURN_DRAFT, HONEY, {
       quantity: "1",
       reason: "change_of_mind",
     });
@@ -158,7 +115,7 @@ describe("a return draft", () => {
   });
 
   it("asks for what is typed of a line that goes back whole only for another reason", () => {
-    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, {
+    const draft = withLine(EMPTY_RETURN_DRAFT, HONEY, {
       quantity: "1",
       reason: "defective",
     });
@@ -216,6 +173,22 @@ describe("the refund shown for each payment", () => {
   });
 });
 
+describe("an amount typed for a payment", () => {
+  it.each(["", "  ", "1.500,00", "0,50"])(
+    "is not refused when it reads as an amount: %j",
+    (text) => {
+      expect(isRefundTextInvalid(text)).toBe(false);
+    },
+  );
+
+  it.each(["diez", "99.999.999.999.999.999.999,00"])(
+    "is refused when the core could not read it as an amount: %j",
+    (text) => {
+      expect(isRefundTextInvalid(text)).toBe(true);
+    },
+  );
+});
+
 describe("the refunds asked of the core", () => {
   it("are the payments with something to refund, read as amounts", () => {
     const texts = refundTextsFor([CASH, OTHER_CASH], 1_000_000, {
@@ -240,7 +213,7 @@ describe("the refunds asked of the core", () => {
 describe("the request a return is completed with", () => {
   it("carries the checked lines and the refund of each payment", () => {
     const request = returnRequestFrom(SALE, 970_000, {
-      lines: changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+      lines: withLine(EMPTY_RETURN_DRAFT, PASTA, {
         reason: "change_of_mind",
         disposition: "restock",
       }),

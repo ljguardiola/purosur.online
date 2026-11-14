@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
   alertText,
+  CASH_SALE,
   chooseReturnLine,
   legendOf,
   lineRow,
@@ -230,6 +231,43 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
     );
   });
 
+  it("shows the lines table and the panel's figure loading, not the empty search, while it looks the sale up", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: () => new Promise(() => {}),
+    });
+
+    await expect.element(linesTable(screen)).toHaveAttribute("aria-busy", "true");
+    await expect.element(screen.getByText("Sin ventas")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Devolución" }).getByText("$ 0,00"))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers to look the sale up again when the core does not answer, and shows it once found", async () => {
+    let answered = false;
+    const { screen, findSaleForReturn } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: vi.fn(async (reading) => {
+        if (!answered) {
+          answered = true;
+          return { kind: "unavailable" } as const;
+        }
+        return {
+          kind: "found",
+          sale: { ...CASH_SALE },
+          ticket_source: "HISTORY",
+          ticket_verification_required: reading.kind !== "sale",
+        } as const;
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
+    expect(findSaleForReturn).toHaveBeenCalledTimes(2);
+  });
+
   it("says why when the sale cannot be returned", async () => {
     const { screen } = await renderScreen({
       saleId: "sale-1",
@@ -265,5 +303,49 @@ describe("ReturnScreen refusing a line", () => {
       .element(screen.getByRole("button", { name: "Completar devolución" }))
       .toBeDisabled();
     expect(legendOf(screen)).toEqual(["↑↓Líneas", "EspacioMarcar", "F6Editar"]);
+  });
+});
+
+describe("ReturnScreen showing what it refunds", () => {
+  it("shows $ 0,00, not loading, when the core refuses to preview the marked lines", async () => {
+    const { screen } = await renderScreen({
+      previewReturn: async () => ({ kind: "lacks_permission" }),
+    });
+    await openReturn(screen);
+
+    await markLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
+  });
+
+  it("shows $ 0,00, not loading, with the failure when the core does not answer the preview", async () => {
+    const { screen } = await renderScreen({
+      previewReturn: async () => ({ kind: "unavailable" }),
+    });
+    await openReturn(screen);
+
+    await markLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .element(summary(screen).getByText("No se pudo calcular el reintegro"))
+      .toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
+  });
+});
+
+describe("ReturnScreen once the sale is found", () => {
+  it("starts a new search with what the cashier types in the search", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+
+    await userEvent.type(searchBox(screen), "5");
+
+    await expect.element(screen.getByText("Sin ventas")).toBeVisible();
+    await expect.element(searchBox(screen)).toHaveValue("00003-000011925");
+    await expect.element(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
   });
 });

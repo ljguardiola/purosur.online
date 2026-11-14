@@ -249,8 +249,11 @@ describe("readSaleHistoryDetail", () => {
   });
 
   describe("whether the sale may be returned", () => {
-    function returnable(overrides: Parameters<typeof historySale>[0]) {
-      const history = new FakeRegisterSalesHistory([historySale(overrides)]);
+    function returnable(
+      overrides: Parameters<typeof historySale>[0],
+      { sessionOpen = true }: { sessionOpen?: boolean } = {},
+    ) {
+      const history = new FakeRegisterSalesHistory([historySale(overrides)], { sessionOpen });
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
       const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
       return outcome.kind === "found" ? outcome.detail.returnable : undefined;
@@ -270,6 +273,10 @@ describe("readSaleHistoryDetail", () => {
 
     it("says a sale that cannot be voided any longer may still be returned", () => {
       expect(returnable({ inOpenSession: false })).toBe(true);
+    });
+
+    it("says a sale may not be returned while the register has no open cash session", () => {
+      expect(returnable({ inOpenSession: false }, { sessionOpen: false })).toBe(false);
     });
   });
 
