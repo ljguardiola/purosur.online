@@ -1,12 +1,10 @@
 import type { ListedCashMovement } from "@purosur/contracts";
-import { cashMovementTypeSchema } from "@purosur/contracts";
 import type { CashMovementType } from "@purosur/domain";
 import type { KeyLegendItem, TableLoadingState } from "@purosur/ui";
 import {
   dataColumn,
   formatClockTime,
   formatNumber,
-  ListFilter,
   plural,
   Table,
   TableCellText,
@@ -58,15 +56,6 @@ const PRESENTATION = {
     detail: () => null,
   },
 } as const satisfies Record<CashMovementType, Presentation>;
-
-type TypeFilter = "ALL" | Exclude<CashMovementType, "CLOSING">;
-
-const TYPE_FILTER_OPTIONS = [
-  { value: "ALL", label: "Todos" },
-  ...cashMovementTypeSchema.options
-    .filter((type) => type !== "CLOSING")
-    .map((type) => ({ value: type, label: PRESENTATION[type].label })),
-] as const;
 
 function timeOrder(a: ListedCashMovement, b: ListedCashMovement): number {
   return Date.parse(a.occurred_at) - Date.parse(b.occurred_at);
@@ -130,7 +119,6 @@ function loadingOf(state: Exclude<CoreData<unknown>, { status: "failed" }>): Tab
 
 export function CashMovementsTable({ state, legend, locked = false }: CashMovementsTableProps) {
   const movements = state.status === "loaded" ? state.value : [];
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ column: "time"; direction: "ascending" | "descending" }>({
     column: "time",
@@ -139,18 +127,12 @@ export function CashMovementsTable({ state, legend, locked = false }: CashMoveme
   const table = useTableModel({
     items: movements,
     id: (movement) => movement.id,
-    filter: (movement) => typeFilter === "ALL" || movement.type === typeFilter,
     columns,
     sort,
     onSortChange: setSort,
     paging: { page, onPageChange: setPage },
   });
-  const matchCount = table.getRowCount();
-
-  function chooseTypeFilter(next: TypeFilter) {
-    setTypeFilter(next);
-    setPage(1);
-  }
+  const movementCount = table.getRowCount();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col *:first:min-h-0">
@@ -170,33 +152,19 @@ export function CashMovementsTable({ state, legend, locked = false }: CashMoveme
               },
             }
           : { loading: loadingOf(state) })}
-        empty={{
-          icon: <Receipt />,
-          ...(typeFilter === "ALL"
-            ? { title: "Todavía no hay movimientos", variant: "blank" }
-            : { title: "No hay movimientos de este tipo", variant: "filtered" }),
-        }}
+        empty={{ icon: <Receipt />, title: "Todavía no hay movimientos", variant: "blank" }}
         legendAside={
-          <div className="flex items-center gap-4">
-            <ListFilter
-              name="type"
-              label="Tipo:"
-              options={TYPE_FILTER_OPTIONS}
-              value={typeFilter}
-              onChange={chooseTypeFilter}
-            />
-            {matchCount === 0 ? null : (
-              <>
-                <p className="text-text-subtle text-detail">
-                  {plural(matchCount, {
-                    one: "1 movimiento",
-                    other: `${formatNumber(matchCount)} movimientos`,
-                  })}
-                </p>
-                <TablePagination table={table} label="Páginas de movimientos" />
-              </>
-            )}
-          </div>
+          movementCount === 0 ? null : (
+            <div className="flex items-center gap-4">
+              <p className="text-text-subtle text-detail">
+                {plural(movementCount, {
+                  one: "1 movimiento",
+                  other: `${formatNumber(movementCount)} movimientos`,
+                })}
+              </p>
+              <TablePagination table={table} label="Páginas de movimientos" />
+            </div>
+          )
         }
       />
     </div>

@@ -11,6 +11,7 @@ import type {
   CurrentSaleAnswer,
   FindProductByCodeOutcome,
   FoundProduct,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   OpenSale,
   PaymentMethodAvailability,
@@ -29,11 +30,9 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { KeyLegendItem } from "@purosur/ui";
 import {
   EmptyState,
-  formatWeight,
   InlineNotice,
   LoadingPlaceholder,
   localAlertText,
-  ScaleCard,
   SearchField,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
@@ -57,6 +56,7 @@ import { changedLineId } from "./changed-line";
 import type { KeyedChargeMethod } from "./charge-method-availability";
 import { EmptySalePanel } from "./empty-sale-panel";
 import { LinePricePanel } from "./line-price-panel";
+import { LiveScaleCard } from "./live-scale-card";
 import { PaymentPanel } from "./payment-panel";
 import type { ProductToAdd } from "./product-to-add";
 import { isChargeable, paidOrderToApplyOf } from "./sale-charge";
@@ -91,6 +91,7 @@ export type SaleScreenProps = {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
+  readScale: () => Promise<LiveScaleReadingOutcome>;
   weighProduct: (
     productId: string,
     confirmedWeightThousandths: number | null,
@@ -241,6 +242,7 @@ export function SaleScreen({
   findProductByCode,
   addProduct,
   addWeighedProduct,
+  readScale,
   weighProduct,
   weighLine,
   changeLineQuantity,
@@ -1216,16 +1218,7 @@ export function SaleScreen({
             />
             <ScanProblemMessage problem={shownProblem} />
           </form>
-          <ScaleCard
-            reading={
-              scaleReading === undefined
-                ? undefined
-                : {
-                    value: formatWeight(scaleReading.weightThousandths),
-                    settled: scaleReading.settled,
-                  }
-            }
-          />
+          <LiveScaleCard readScale={readScale} weighingReading={scaleReading} />
         </div>
         {batteryCritical === undefined ? null : (
           <InlineNotice

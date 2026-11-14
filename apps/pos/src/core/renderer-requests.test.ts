@@ -28,6 +28,7 @@ import type {
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -537,6 +538,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         weighings.push(`${productId} ${confirmedWeightThousandths}`);
         return { kind: "weighing" };
       },
+      readScale: async (): Promise<LiveScaleReadingOutcome> => ({ kind: "not_configured" }),
       weighLine: async (
         lineId: string,
         expectedWeightThousandths: number,
@@ -2249,6 +2251,35 @@ describe("answerRendererRequest", () => {
       }),
     ).toEqual({ type: "weigh-product-result", request_id: "r90", outcome: { kind: "weighing" } });
     expect(weighings).toEqual(["p7 1250"]);
+  });
+
+  it("answers what the scale reads", async () => {
+    const outcome = { kind: "reading", weight_thousandths: 410, settled: true } as const;
+    const { deps: withScale } = deps(true, { readScale: async () => outcome });
+
+    expect(
+      await answerRendererRequest(withScale, { type: "read-scale", request_id: "r92" }),
+    ).toEqual({ type: "read-scale-result", request_id: "r92", outcome });
+  });
+
+  it("answers that the scale has no reading when it fails or is not possible, and reports why", async () => {
+    const error = new Error("serial port busy");
+    const failing = deps(true, {
+      readScale: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { readScale: undefined });
+    const noReading = {
+      type: "read-scale-result",
+      request_id: "r93",
+      outcome: { kind: "no_reading" },
+    };
+    const request = { type: "read-scale", request_id: "r93" } as const;
+
+    expect(await answerRendererRequest(failing.deps, request)).toEqual(noReading);
+    expect(failing.failures).toEqual([{ context: "reading the scale", error }]);
+    expect(await answerRendererRequest(withoutDatabase.deps, request)).toEqual(noReading);
   });
 
   it("answers that weighing a product is unavailable when it fails or is not possible, and reports why", async () => {

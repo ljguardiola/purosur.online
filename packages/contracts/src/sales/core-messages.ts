@@ -33,6 +33,7 @@ import {
   chargeSaleInCashWithChangeDiscountOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
   findProductByCodeOutcomeSchema,
+  liveScaleReadingOutcomeSchema,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
   nonCashChargeSchema,
@@ -170,6 +171,11 @@ const weighProductMessageSchema = z.object({
   request_id: requestId,
   product_id: z.string(),
   confirmed_weight_thousandths: confirmedWeightSchema,
+});
+
+const readScaleMessageSchema = z.object({
+  type: z.literal("read-scale"),
+  request_id: requestId,
 });
 
 const weighLineMessageSchema = z.object({
@@ -338,6 +344,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addWeighedProductMessageSchema,
   weighProductMessageSchema,
   weighLineMessageSchema,
+  readScaleMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleInCashWithChangeDiscountMessageSchema,
@@ -527,6 +534,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("weigh-product-result"),
     request_id: requestId,
     outcome: weighProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("read-scale-result"),
+    request_id: requestId,
+    outcome: liveScaleReadingOutcomeSchema,
   }),
   z.object({
     type: z.literal("weigh-line-result"),

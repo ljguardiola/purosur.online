@@ -143,7 +143,11 @@ import {
 } from "./register/regularize-orphan-authorizations-step";
 import { restorationStandingFor } from "./register/restoration-standing-requests";
 import { createRestorationStandingWatch } from "./register/restoration-standing-watch";
-import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
+import {
+  createSerialDeviceWatch,
+  pathOfMatchingDevice,
+  readStanding,
+} from "./register/serial-device-watch";
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
@@ -203,6 +207,7 @@ import {
   nonCashChargeFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
+  readScaleFor,
   rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
   scanProductFor,
@@ -1639,6 +1644,14 @@ const rendererRequestDeps: RendererRequestDeps = {
             productId,
             confirmedWeightThousandths,
           ),
+  readScale: () =>
+    readScaleFor({
+      scale: systelScale,
+      scaleStanding: () =>
+        serialDeviceWatch
+          ? readStanding(serialDeviceWatch.reading(), "scale")
+          : { kind: "unknown" },
+    }),
   weighLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined

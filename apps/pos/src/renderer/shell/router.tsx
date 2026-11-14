@@ -40,6 +40,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenCashSessionOutcome,
@@ -273,6 +274,7 @@ export interface RouterContext {
     productId: string,
     confirmedWeightThousandths: number | null,
   ) => Promise<WeighProductOutcome>;
+  readScale: () => Promise<LiveScaleReadingOutcome>;
   weighLine: (
     lineId: string,
     expectedWeightThousandths: number,
@@ -793,6 +795,7 @@ const openSessionRoute = createRoute({
       addProduct,
       addWeighedProduct,
       weighProduct,
+      readScale,
       weighLine,
       changeLineQuantity,
       changeLineWeight,
@@ -822,6 +825,7 @@ const openSessionRoute = createRoute({
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        readScale={readScale}
         weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
@@ -1547,6 +1551,7 @@ export function createAppRouter(
     | "addProduct"
     | "addWeighedProduct"
     | "weighProduct"
+    | "readScale"
     | "weighLine"
     | "changeLineQuantity"
     | "changeLineWeight"
