@@ -3,6 +3,7 @@ import {
   MAX_CASH_AMOUNT_CENTS,
   MAX_UNIT_PRICE_CENTS,
   type nonCashCharge,
+  TAX_AUTHORITY_QR_URL,
 } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -2173,8 +2174,10 @@ describe("asking for the register's sales history", () => {
     request_id: REQUEST_ID,
     session: "open",
     page: 1,
-    document: null,
+    search: null,
   };
+  const fiscalQr = (voucherType: number, pointOfSale = 3, number = 1204): string =>
+    `${TAX_AUTHORITY_QR_URL}${btoa(JSON.stringify({ ver: 1, ptoVta: pointOfSale, tipoCmp: voucherType, nroCmp: number }))}`;
 
   it("accepts a request naming the session and the page", () => {
     expect(salesRendererToCoreMessageSchema.parse(ask)).toEqual(ask);
@@ -2194,13 +2197,18 @@ describe("asking for the register's sales history", () => {
   );
 
   it.each([
-    { point_of_sale: 3, number: 187 },
-    { point_of_sale: null, number: 187 },
-  ])("accepts the document number %j", (document) => {
-    expect(salesRendererToCoreMessageSchema.parse({ ...ask, document })).toEqual({
-      ...ask,
-      document,
-    });
+    [
+      { point_of_sale: 3, number: 187 },
+      { pointOfSale: 3, number: 187 },
+    ],
+    [
+      { point_of_sale: null, number: 187 },
+      { pointOfSale: null, number: 187 },
+    ],
+  ])("reads the typed document number %j as the invoice to look for", (typed, invoice) => {
+    expect(
+      salesRendererToCoreMessageSchema.parse({ ...ask, search: { kind: "typed", ...typed } }),
+    ).toEqual({ ...ask, search: { kind: "invoice", ...invoice } });
   });
 
   it.each([
@@ -2214,13 +2222,51 @@ describe("asking for the register's sales history", () => {
     { point_of_sale: 3, number: 1.5 },
     { point_of_sale: 3, number: null },
     { point_of_sale: 3 },
-    "0003-00000187",
-    187,
-  ])("rejects the document number %j", (document) => {
-    expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, document }).success).toBe(false);
+  ])("rejects the typed document number %j", (typed) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ ...ask, search: { kind: "typed", ...typed } })
+        .success,
+    ).toBe(false);
   });
 
-  it.each(["request_id", "session", "page", "document"])(
+  it.each(["0003-00000187", 187, { point_of_sale: 3, number: 187 }, { kind: "other" }])(
+    "rejects the search %j",
+    (search) => {
+      expect(salesRendererToCoreMessageSchema.safeParse({ ...ask, search }).success).toBe(false);
+    },
+  );
+
+  it("reads the fiscal QR of a factura C as the invoice it carries", () => {
+    expect(
+      salesRendererToCoreMessageSchema.parse({
+        ...ask,
+        search: { kind: "scanned", text: fiscalQr(11, 3, 1204) },
+      }),
+    ).toEqual({ ...ask, search: { kind: "invoice", pointOfSale: 3, number: 1204 } });
+  });
+
+  it("reads the QR of a deferred sale's ticket as the deferred sale it names", () => {
+    expect(
+      salesRendererToCoreMessageSchema.parse({
+        ...ask,
+        search: { kind: "scanned", text: "purosur-deferred-sale:0198-abc:7KQ4M2P9" },
+      }),
+    ).toEqual({ ...ask, search: { kind: "deferred", id: "0198-abc", shortCode: "7KQ4M2P9" } });
+  });
+
+  it.each([
+    ["a credit note's QR", fiscalQr(13)],
+    ["another kind of QR", "https://example.test/qr"],
+    ["a deferred sale's QR with an invalid code", "purosur-deferred-sale:0198-abc:7KQ4M2P0"],
+    ["empty", ""],
+  ])("rejects a scanned text that is %s", (_case, text) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ ...ask, search: { kind: "scanned", text } })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each(["request_id", "session", "page", "search"])(
     "rejects a request missing its %s",
     (field) => {
       const message = Object.fromEntries(Object.entries(ask).filter(([key]) => key !== field));
