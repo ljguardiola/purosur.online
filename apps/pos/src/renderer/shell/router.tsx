@@ -1183,22 +1183,22 @@ const lockedCloseRoute = createRoute({
       cashBalance,
       cashCountPreview,
       sessionOpenSale,
+      cashMovements,
       lockedClosers,
       identifyLockedCloser,
       closeLockedCashSession,
       cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
-    const registerName = useRegisterName();
     const version = useRegisterVersion();
     return (
       <LockedCloseScreen
         sessionId={id}
         opener={openedBy}
-        registerName={registerName}
         version={version}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}
+        loadCashMovements={cashMovements}
         loadClosers={lockedClosers}
         identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>

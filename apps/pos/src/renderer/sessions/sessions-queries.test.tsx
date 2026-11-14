@@ -6,11 +6,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
-import {
-  sessionsKey,
-  useAuthorizersQuery,
-  useResetAuthorizers,
-} from "./sessions-queries";
+import { sessionsKey, useAuthorizersQuery, useResetAuthorizers } from "./sessions-queries";
 
 const ADA: SignInUser = { id: "u1", first_name: "Ada" };
 const GRACE: SignInUser = { id: "u2", first_name: "Grace" };

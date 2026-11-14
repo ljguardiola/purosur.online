@@ -6,6 +6,7 @@ import type { CancelSale, LoadOpenSale } from "./test-support/locked-cash-count"
 import {
   CANCELLABLE_SALE,
   closeWith,
+  deferred,
   OPEN_SALE_NOTICE,
   PART_PAID_SALE,
   renderStep,
@@ -110,7 +111,7 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
   });
 
   it("disables the screen's buttons while the cart is being emptied", async () => {
-    const pending = Promise.withResolvers<CancelLockedSaleOutcome>();
+    const pending = deferred<CancelLockedSaleOutcome>();
     const { screen } = await withOpenSale({ cancelSale: () => pending.promise });
     await userEvent.keyboard("v");
 
