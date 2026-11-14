@@ -109,7 +109,7 @@ type RunProcess = (
 ) => Promise<{ stdout: string; stderr: string }>;
 
 function powerShellLiteral(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
+  return `'${value.replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'`;
 }
 
 function stderrOf(error: unknown): string {
@@ -124,6 +124,7 @@ export function startInstallerThroughPowerShell(
 ): (path: string, args: readonly string[]) => Promise<void> {
   return async (path, args) => {
     const script = [
+      "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
       "$ErrorActionPreference = 'Stop'",
       `try { Start-Process -FilePath ${powerShellLiteral(path)} -ArgumentList ${args.map(powerShellLiteral).join(",")} } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`,
     ].join("; ");
