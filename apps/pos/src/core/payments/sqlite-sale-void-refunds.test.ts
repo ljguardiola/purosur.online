@@ -13,9 +13,9 @@ let database: LocalDatabase;
 function addSale(id: string): void {
   database
     .prepare(
-      "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at) VALUES (?, 'register-1', 'device-1', 'session-1', 'u1', 'VOIDED', ?)",
+      "INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, voided_at) VALUES (?, 'register-1', 'device-1', 'session-1', 'u1', 'VOIDED', ?, ?)",
     )
-    .run(id, OCCURRED_AT.toISOString());
+    .run(id, OCCURRED_AT.toISOString(), OCCURRED_AT.toISOString());
 }
 
 function addPayment(
@@ -30,9 +30,19 @@ function addPayment(
     method === "QR" ? "MERCADOPAGO_QR" : method === "POINT" ? "MERCADOPAGO_POINT" : "NONE";
   database
     .prepare(
-      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, approval_order, occurred_at) VALUES (?, ?, 'SALE', ?, ?, ?, ?, 'APPROVED', ?, ?)",
+      "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, card_type, amount, state, approval_order, occurred_at, wait_ends_at) VALUES (?, ?, 'SALE', ?, ?, ?, ?, 'APPROVED', ?, ?, ?)",
     )
-    .run(id, saleId, method, provider, cardType, amount, approvalOrder, OCCURRED_AT.toISOString());
+    .run(
+      id,
+      saleId,
+      method,
+      provider,
+      cardType,
+      amount,
+      approvalOrder,
+      OCCURRED_AT.toISOString(),
+      method === "CASH" ? null : OCCURRED_AT.toISOString(),
+    );
 }
 
 function addRefund(
@@ -94,6 +104,12 @@ describe("the refunds the void of a sale recorded", () => {
   it("leave out the refunds of a return and of other sales", () => {
     addPayment("pay-1", "sale-1", "QR", 12300, 1);
     addPayment("pay-2", "sale-2", "QR", 800, 2);
+    database
+      .prepare(
+        `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'register-1', 'device-1', 'session-1', 'u1', 'QR', ?)`,
+      )
+      .run(OCCURRED_AT.toISOString());
     addRefund("refund-void", "pay-1", "QR", 10000, "PENDING");
     addRefund("refund-return", "pay-1", "QR", 2300, "PENDING", "return-1");
     addRefund("refund-other", "pay-2", "QR", 800, "PENDING");
