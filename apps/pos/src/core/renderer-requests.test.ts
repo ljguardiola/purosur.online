@@ -3620,11 +3620,11 @@ describe("answerRendererRequest", () => {
         "find-deferred-sale",
         {
           type: "find-deferred-sale",
-          reading: { kind: "reference", id: "deferred-1", shortCode: "7KQ4M2P9" },
+          reading: { kind: "short_code", shortCode: "7KQ4M2P9" },
         } as const,
         "findDeferredSale",
         "finding a deferred sale",
-        "find-deferred reference 7KQ4M2P9",
+        "find-deferred short_code 7KQ4M2P9",
         "find-deferred-sale-result",
       ],
       [

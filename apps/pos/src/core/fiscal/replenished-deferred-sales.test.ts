@@ -295,17 +295,19 @@ describe("rebuilding the deferred-sale record of an unclear outcome in a restore
   describe("finding the rebuilt record from the customer's non-fiscal document", () => {
     const lookup = () => new SqliteDeferredSaleLookup(database);
 
-    it("finds a pending record by the reference it was issued with", () => {
+    it("finds a pending record by the short code and the reference it was issued with", () => {
       rebuildReplenishedUnclearDeferredSale(database, PENDING);
 
-      expect(
-        lookup().find({ kind: "reference", id: "deferred-1", shortCode: "7KQ4M2P9" }),
-      ).toMatchObject({
+      const pending = {
         deferredSaleId: "deferred-1",
         saleId: "sale-1",
         shortCode: "7KQ4M2P9",
         invoice: { kind: "pending" },
-      });
+      };
+      expect(lookup().find({ kind: "short_code", shortCode: "7KQ4M2P9" })).toMatchObject(pending);
+      expect(
+        lookup().find({ kind: "reference", id: "deferred-1", shortCode: "7KQ4M2P9" }),
+      ).toMatchObject(pending);
     });
 
     it("finds a record the tax authority rejected as still waiting for its invoice", () => {
@@ -314,9 +316,7 @@ describe("rebuilding the deferred-sale record of an unclear outcome in a restore
         authorizedDocument: null,
       });
 
-      expect(
-        lookup().find({ kind: "reference", id: "deferred-1", shortCode: "7KQ4M2P9" }),
-      ).toMatchObject({
+      expect(lookup().find({ kind: "short_code", shortCode: "7KQ4M2P9" })).toMatchObject({
         deferredSaleId: "deferred-1",
         invoice: { kind: "pending" },
       });

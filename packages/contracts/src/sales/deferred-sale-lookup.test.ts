@@ -10,6 +10,39 @@ function finding(reading: unknown) {
   return { type: "find-deferred-sale", request_id: REQUEST_ID, reading };
 }
 
+describe("finding a deferred sale from what the cashier typed", () => {
+  it("reads a typed code as the short code to look for", () => {
+    const message = salesRendererToCoreMessageSchema.parse(
+      finding({ kind: "typed", code: "7KQ4M2P9" }),
+    );
+
+    expect(message).toEqual(finding({ kind: "short_code", shortCode: "7KQ4M2P9" }));
+  });
+
+  it.each([
+    ["7KQ4-M2P9", "with its separator"],
+    ["  7kq4m2p9 ", "in lowercase and padded"],
+    ["7KQ4 M2P9", "split by a space"],
+    ["7kq4-m2p9", "in lowercase with its separator"],
+  ])("accepts the code %j typed %s", (code) => {
+    expect(salesRendererToCoreMessageSchema.parse(finding({ kind: "typed", code }))).toEqual(
+      finding({ kind: "short_code", shortCode: "7KQ4M2P9" }),
+    );
+  });
+
+  it.each([
+    ["too short", "7KQ4-M2P"],
+    ["too long", "7KQ4-M2P9X"],
+    ["outside the alphabet", "7KQ4-M2P0"],
+    ["empty", ""],
+    ["only a separator", "-"],
+  ])("rejects a typed code that is %s", (_case, code) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse(finding({ kind: "typed", code })).success,
+    ).toBe(false);
+  });
+});
+
 describe("finding a deferred sale from its scanned QR", () => {
   const text = "purosur-deferred-sale:0198-abc:7KQ4M2P9";
 
@@ -17,13 +50,6 @@ describe("finding a deferred sale from its scanned QR", () => {
     expect(salesRendererToCoreMessageSchema.parse(finding({ kind: "scanned", text }))).toEqual(
       finding({ kind: "reference", id: "0198-abc", shortCode: "7KQ4M2P9" }),
     );
-  });
-
-  it("rejects a short code typed by hand instead of the scanned QR", () => {
-    expect(
-      salesRendererToCoreMessageSchema.safeParse(finding({ kind: "typed", code: "7KQ4M2P9" }))
-        .success,
-    ).toBe(false);
   });
 
   it.each([
@@ -50,6 +76,15 @@ describe("why a reading of a deferred sale is refused", () => {
   }
 
   it.each([
+    ["a malformed code", "7KQ4-M2P0"],
+    ["a code that is not text", 7_000_000],
+  ])("names the short code for %s", (_case, code) => {
+    expect(messagesOf({ kind: "typed", code })).toContain(
+      "code must be a deferred sale's short code",
+    );
+  });
+
+  it.each([
     ["a text that is not a deferred sale's QR", "https://example.test/qr"],
     ["a text that is not text", 42],
   ])("names the QR for %s", (_case, text) => {
@@ -61,10 +96,7 @@ describe("the request to find a deferred sale", () => {
   it.each([
     [
       "without its request id",
-      {
-        type: "find-deferred-sale",
-        reading: { kind: "scanned", text: "purosur-deferred-sale:0198-abc:7KQ4M2P9" },
-      },
+      { type: "find-deferred-sale", reading: { kind: "typed", code: "7KQ4M2P9" } },
     ],
     ["without its reading", { type: "find-deferred-sale", request_id: REQUEST_ID }],
     ["with another kind of reading", finding({ kind: "spoken", text: "7KQ4M2P9" })],
@@ -131,10 +163,7 @@ describe("the result of finding a deferred sale", () => {
       "a line without its unit price",
       { ...found, lines: [{ ...almonds, list_unit_price: undefined }] },
     ],
-    [
-      "a unit price that is not whole",
-      { ...found, lines: [{ ...almonds, list_unit_price: 10.5 }] },
-    ],
+    ["a unit price that is not whole", { ...found, lines: [{ ...almonds, list_unit_price: 10.5 }] }],
     ["a line of an unknown sale unit", { ...found, lines: [{ ...almonds, sale_unit: "LITER" }] }],
     ["an outcome the register does not have", { kind: "cancelled" }],
   ])("rejects %s", (_case, outcome) => {
