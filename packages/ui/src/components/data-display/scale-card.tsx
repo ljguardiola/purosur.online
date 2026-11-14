@@ -10,7 +10,7 @@ export function ScaleCard({ reading, noReading = false }: ScaleCardProps) {
   return (
     <div
       className={
-        "flex min-w-56 items-center gap-3 rounded-lg border px-4 py-3 " +
+        "flex h-control-5xl min-w-56 items-center gap-3 rounded-lg border px-4 " +
         (reading === undefined && !noReading
           ? "border-border bg-surface"
           : "border-warning-soft bg-warning-subtle")

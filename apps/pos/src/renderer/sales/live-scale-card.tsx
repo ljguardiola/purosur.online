@@ -33,9 +33,8 @@ export function LiveScaleCard({ readScale, weighingReading }: LiveScaleCardProps
     case "not_configured":
       return null;
     case "no_reading":
-      return <ScaleCard noReading />;
     case "settling":
-      return <ScaleCard />;
+      return <ScaleCard noReading />;
     case "reading":
       return (
         <ScaleCard
