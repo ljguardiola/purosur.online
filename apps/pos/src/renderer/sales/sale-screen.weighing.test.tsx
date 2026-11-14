@@ -9,6 +9,7 @@ import type {
 } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { gapBetweenSearchFieldAndScaleCard } from "../platform/test-support/search-row";
 import type { SaleScreenProps } from "./sale-screen";
 import type { Overrides } from "./test-support/sale-screen";
 import {
@@ -298,7 +299,7 @@ describe("SaleScreen balanza card", () => {
     await expect.poll(() => label.element().parentElement?.textContent).toBe("BalanzaSin lectura");
     const fieldBox = field.element().getBoundingClientRect();
     const cardBox = label.element().getBoundingClientRect();
-    expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+    expect(gapBetweenSearchFieldAndScaleCard(field.element(), label.element())).toBe(12);
     expect(cardBox.top).toBeLessThan(fieldBox.bottom);
   });
 

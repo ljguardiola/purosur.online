@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import type { ReactNode } from "react";
 import { describe, expect, expectTypeOf, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { gapBetweenSearchFieldAndScaleCard } from "../platform/test-support/search-row";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
 import type { NoSessionScreenProps } from "./no-session-screen";
@@ -71,7 +72,7 @@ describe("NoSessionScreen", () => {
     expect(label.element().parentElement?.textContent).toBe("Balanza");
     const fieldBox = field.element().getBoundingClientRect();
     const cardBox = label.element().getBoundingClientRect();
-    expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+    expect(gapBetweenSearchFieldAndScaleCard(field.element(), label.element())).toBe(12);
     expect(cardBox.top).toBeLessThan(fieldBox.bottom);
   });
 

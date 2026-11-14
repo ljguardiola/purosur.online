@@ -89,6 +89,14 @@ export function readSaleStockMovements(
     }));
 }
 
+export function stockBalanceOf(database: LocalDatabase, productId: string): number | undefined {
+  return database
+    .prepare<[string], { quantity: number }>(
+      "SELECT quantity FROM stock_balances WHERE product_id = ?",
+    )
+    .get(productId)?.quantity;
+}
+
 export function addToStockBalance(database: LocalDatabase, productId: string, delta: number): void {
   database
     .prepare(

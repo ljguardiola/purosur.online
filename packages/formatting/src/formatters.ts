@@ -358,3 +358,20 @@ export function formatTimeAgo(seconds: number): string {
   }
   return "hace un momento";
 }
+
+const RECURRING_WEEKDAY_NAMES = [
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábados",
+  "domingos",
+] as const;
+
+const weekdayConjunction = new Intl.ListFormat("es-AR", { style: "long", type: "conjunction" });
+
+export function formatRecurringWeekdays(weekdays: readonly number[]): string {
+  const names = RECURRING_WEEKDAY_NAMES.filter((_, index) => weekdays.includes(index + 1));
+  return `los ${weekdayConjunction.format(names)}`;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const PAUSE_BETWEEN_ANSWERS_MS = 0;
+export const PAUSE_BETWEEN_ANSWERS_MS = 0;
 
 export type WeightReading = { weightThousandths: number };
 

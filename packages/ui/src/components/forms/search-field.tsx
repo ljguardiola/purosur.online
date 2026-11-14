@@ -21,6 +21,7 @@ export type SearchFieldProps = {
   // field for assistive technology only, the same way the placeholder does when it is not.
   label?: string;
   invalid?: boolean;
+  tone?: "default" | "mode";
   // A key shortcut shown at the field's right end. It draws the hint and takes the press; the
   // caller binds the key itself.
   action?: { label: string; keyName: KeyName; onPress: () => void };
@@ -50,10 +51,14 @@ const valueClassName: Record<FieldSize, string> = {
 
 const lockedBoxClassName = `${fieldBoxStateClassName({ disabled: true })} focus-within:inset-ring-action`;
 
-function boxStateClassName(disabled: boolean, invalid: boolean): string {
-  return invalid && !disabled
-    ? "bg-surface inset-ring-2 inset-ring-error"
-    : fieldBoxStateClassName({ disabled });
+function boxStateClassName(disabled: boolean, invalid: boolean, tone: "default" | "mode"): string {
+  if (invalid && !disabled) {
+    return "bg-surface inset-ring-2 inset-ring-error";
+  }
+  const state = fieldBoxStateClassName({ disabled });
+  return tone === "mode"
+    ? state.replace("focus-within:inset-ring-action", "focus-within:inset-ring-border-accent")
+    : state;
 }
 
 const chipClassName =
@@ -84,6 +89,7 @@ export function SearchField(props: SearchFieldProps) {
     disabledReason,
     combobox,
     invalid = false,
+    tone = "default",
     action,
   } = props;
 
@@ -129,7 +135,7 @@ export function SearchField(props: SearchFieldProps) {
     >
       <div
         className={`${fieldBoxClassName} ${frameClassName[size]} ${
-          locked ? lockedBoxClassName : boxStateClassName(disabled, invalid)
+          locked ? lockedBoxClassName : boxStateClassName(disabled, invalid, tone)
         }`}
       >
         {leading}

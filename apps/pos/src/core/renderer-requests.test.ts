@@ -20,6 +20,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   EnrollmentStandingAnswer,
   FindDeferredSaleOutcome,
   FindProductByCodeOutcome,
@@ -39,6 +40,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
@@ -347,6 +349,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       printOriginalReceipt: async (saleId: string): Promise<PrintOriginalReceiptOutcome> => {
         saleChanges.push(["original-print", saleId].join(" "));
         return { kind: "already_attempted" };
+      },
+      consultProduct: async (product: ProductToConsult): Promise<ConsultProductOutcome> => {
+        saleChanges.push(["consult", JSON.stringify(product)].join(" "));
+        return { kind: "not_found" };
       },
       findDeferredSale: async (
         reading: FindDeferredSaleReading,
@@ -3646,6 +3652,14 @@ describe("answerRendererRequest", () => {
         "printing a sale's original receipt",
         "original-print s1",
         "print-original-receipt-result",
+      ],
+      [
+        "consult-product",
+        { type: "consult-product", product: { barcode: "7790001000017" } } as const,
+        "consultProduct",
+        "consulting a product",
+        'consult {"barcode":"7790001000017"}',
+        "consult-product-result",
       ],
       [
         "find-deferred-sale",

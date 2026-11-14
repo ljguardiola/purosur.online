@@ -32,7 +32,7 @@ import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 const cents = z.int().nonnegative();
 
-const linePromotionSchema = z.discriminatedUnion("kind", [
+export const linePromotionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("PERCENT_OFF"),
     percent: z.number().refine(isValidDiscountPercent),

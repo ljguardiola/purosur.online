@@ -22,6 +22,8 @@ export type { LineItem, LineItemListProps } from "./components/data-display/line
 export { LineItemList } from "./components/data-display/line-item-list";
 export type { PercentBarProps } from "./components/data-display/percent-bar";
 export { PercentBar } from "./components/data-display/percent-bar";
+export type { ProductCardProps } from "./components/data-display/product-card";
+export { ProductCard } from "./components/data-display/product-card";
 export type { ProportionBarProps } from "./components/data-display/proportion-bar";
 export { ProportionBar } from "./components/data-display/proportion-bar";
 export type { ScaleCardProps } from "./components/data-display/scale-card";
@@ -95,6 +97,8 @@ export type { LoadingPlaceholderProps } from "./components/feedback/loading-plac
 export { LoadingPlaceholder } from "./components/feedback/loading-placeholder";
 export type { LocalAlertExplanationProps } from "./components/feedback/local-alert-explanation";
 export { LocalAlertExplanation } from "./components/feedback/local-alert-explanation";
+export type { ModePillProps } from "./components/feedback/mode-pill";
+export { ModePill } from "./components/feedback/mode-pill";
 export type { NotificationCardProps } from "./components/feedback/notification-card";
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { NotificationPanelProps } from "./components/feedback/notification-panel";
@@ -221,6 +225,7 @@ export type { ConfirmationPanelProps } from "./components/layout/confirmation-pa
 export { ConfirmationPanel } from "./components/layout/confirmation-panel";
 export type { DetailPanelProps } from "./components/layout/detail-panel";
 export { DetailPanel } from "./components/layout/detail-panel";
+export { DimmedPanel } from "./components/layout/dimmed-panel";
 export type { ElevatedPanelProps } from "./components/layout/elevated-panel";
 export { ElevatedPanel } from "./components/layout/elevated-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
@@ -298,6 +303,7 @@ export {
   formatPercent,
   formatPointOfSaleNumber,
   formatPricePerSaleUnit,
+  formatRecurringWeekdays,
   formatSaleUnitQuantity,
   formatShortCode,
   formatSignedCents,

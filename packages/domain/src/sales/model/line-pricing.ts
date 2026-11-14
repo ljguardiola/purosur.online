@@ -39,6 +39,13 @@ export function chargeLine(
   return best;
 }
 
+export function shownPromotionId(
+  charge: LineCharge,
+  promotions: readonly LinePromotion[],
+): string | null {
+  return charge.promotionId ?? inIdentifierOrder(promotions)[0]?.id ?? null;
+}
+
 function inIdentifierOrder(promotions: readonly LinePromotion[]): LinePromotion[] {
   const ids = promotions.map(({ id }) => id).sort();
   return [...promotions].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));

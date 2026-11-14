@@ -56,6 +56,22 @@ test("draws a plain value in the main text color, at the same size", async () =>
   expect(style.color).toBe(tokenRgb("text"));
 });
 
+test("draws its label in the tone it is given", async () => {
+  const screen = await render(<FigureStat labelTone="warning" label="Peso" value="0,410 kg" />);
+  const style = getComputedStyle(screen.getByText("Peso").element());
+
+  expect(style.color).toBe(tokenRgb("warning"));
+  expect(style.textTransform).toBe("uppercase");
+});
+
+test("draws a monospaced value in the monospace font, at the same size", async () => {
+  const screen = await render(<FigureStat monospace label="Peso" value="0,410 kg" />);
+  const style = getComputedStyle(screen.getByText("0,410 kg").element());
+
+  expect(style.fontFamily).toMatch(/monospace$/);
+  expect(style.fontSize).toBe("32px");
+});
+
 test("draws the detail in subtle text", async () => {
   const screen = await render(
     <FigureStat label="Vuelto" detail="Cobrado − aplicado" value="$ 1" />,
@@ -65,6 +81,14 @@ test("draws the detail in subtle text", async () => {
   expect(style.color).toBe(tokenRgb("text-subtle"));
   expect(style.fontSize).toBe("14px");
   expect(style.fontWeight).toBe("400");
+});
+
+test("draws its value in the body font unless it is monospaced", async () => {
+  const screen = await render(<FigureStat label="Vuelto" value="$ 1.500,00" />);
+
+  expect(getComputedStyle(screen.getByText("$ 1.500,00").element()).fontFamily).not.toMatch(
+    /monospace$/,
+  );
 });
 
 test("shows only the label and the value when it is given no detail", async () => {
