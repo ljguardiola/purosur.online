@@ -33,14 +33,21 @@ function CloseWithAnotherLink() {
   );
 }
 
-function peopleOf(users: readonly SignInUser[], opener: SignedInPerson): SignInUser[] {
-  const listed = users.some((user) => user.id === opener.user_id)
-    ? users
-    : [...users, { id: opener.user_id, first_name: opener.first_name }];
-  return sortedItems(listed, {
-    order: textOrder((user: SignInUser) => user.first_name),
-    direction: "ascending",
-  });
+function optionOf(person: SignInUser) {
+  return { value: person.id, label: person.first_name };
+}
+
+function peopleOf(
+  users: readonly SignInUser[],
+  opener: SignedInPerson,
+): [SignInUser, ...SignInUser[]] {
+  const [first, ...rest] = sortedItems(
+    users.some((user) => user.id === opener.user_id)
+      ? users
+      : [...users, { id: opener.user_id, first_name: opener.first_name }],
+    { order: textOrder((user: SignInUser) => user.first_name), direction: "ascending" },
+  );
+  return [first ?? { id: opener.user_id, first_name: opener.first_name }, ...rest];
 }
 
 function LockedPanel({
@@ -54,15 +61,12 @@ function LockedPanel({
   const [chosenId, setChosenId] = useState(opener.user_id);
   const people = peopleOf(users.status === "loaded" ? users.value.users : [], opener);
   const chosen = people.find((person) => person.id === chosenId) ?? people[0];
-  const attempt = usePinAttempt(
-    chosen === undefined
-      ? null
-      : {
-          id: chosen.id,
-          firstName: chosen.first_name,
-          attempt: (pin) => signIn(chosen.id, pin),
-        },
-  );
+  const [firstPerson, ...otherPeople] = people;
+  const attempt = usePinAttempt({
+    id: chosen.id,
+    firstName: chosen.first_name,
+    attempt: (pin) => signIn(chosen.id, pin),
+  });
   const { refusal, locked, submitting } = attempt;
 
   function choose(id: string) {
@@ -71,9 +75,9 @@ function LockedPanel({
   }
 
   function move(step: 1 | -1) {
-    const current = people.findIndex((person) => person.id === chosen?.id);
+    const current = people.findIndex((person) => person.id === chosen.id);
     const next = people[Math.min(people.length - 1, Math.max(0, current + step))];
-    if (next !== undefined && next.id !== chosen?.id) {
+    if (next !== undefined && next.id !== chosen.id) {
       choose(next.id);
     }
   }
@@ -109,8 +113,8 @@ function LockedPanel({
       <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
         <UserSelect
           label="USUARIO"
-          options={people.map((person) => ({ value: person.id, label: person.first_name }))}
-          value={chosen?.id ?? null}
+          options={[optionOf(firstPerson), ...otherPeople.map(optionOf)]}
+          value={chosen.id}
           onChange={choose}
           disabled={submitting}
         />

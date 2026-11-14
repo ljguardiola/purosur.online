@@ -168,6 +168,11 @@ function IdentificationPanel({
     },
   ]);
 
+  const [firstOption, ...otherOptions] = people.map((person) => ({
+    value: person.id,
+    label: person.first_name,
+  }));
+
   if (refusal?.kind === "locked") {
     return (
       <BrandPanelCard
@@ -209,11 +214,11 @@ function IdentificationPanel({
           title="Nadie en esta caja tiene permiso para cerrar la sesión de otra persona."
         />
       ) : null}
-      {people.length > 0 ? (
+      {firstOption === undefined ? null : (
         <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
           <UserSelect
             label="USUARIO"
-            options={people.map((person) => ({ value: person.id, label: person.first_name }))}
+            options={[firstOption, ...otherOptions]}
             value={chosen?.id ?? null}
             onChange={choose}
             disabled={submitting}
@@ -224,7 +229,7 @@ function IdentificationPanel({
             submitLabel="Continuar"
           />
         </form>
-      ) : null}
+      )}
     </BrandPanelCard>
   );
 }

@@ -1,4 +1,9 @@
-import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
+import type {
+  CashBalance,
+  CashCountPreview,
+  CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
+} from "@purosur/contracts";
 import {
   Button,
   Eyebrow,
@@ -29,6 +34,11 @@ import {
 import { cashBalanceRows } from "./expected-cash-panel";
 import { useCashCountPreviewQuery, useRefreshSessionOpenSale } from "./register-queries";
 
+export type RefusedClose = Extract<
+  CloseLockedCashSessionOutcome,
+  { kind: "wrong_pin" | "rate_limited" | "locked" | "lacks_permission" | "not_locked" }
+>;
+
 type Notice = { title: string; icon: "permission" | "failure" };
 
 const NOT_PERMITTED: Notice = {
@@ -43,9 +53,12 @@ export type CloseCashSessionPanelProps = {
   balance: CoreData<CashBalance>;
   openSale: boolean;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
-  closeCashSession: (countedCash: number) => Promise<CloseCashSessionOutcome>;
+  closeCashSession: (
+    countedCash: number,
+  ) => Promise<CloseCashSessionOutcome | CloseLockedCashSessionOutcome>;
   onClose: () => void;
   onClosed: () => void;
+  onRefused?: (refusal: RefusedClose) => void;
 };
 
 function Balance({ balance }: { balance: CoreData<CashBalance> }) {
@@ -91,6 +104,7 @@ export function CloseCashSessionPanel({
   closeCashSession,
   onClose,
   onClosed,
+  onRefused,
 }: CloseCashSessionPanelProps) {
   const field = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<Notice>();
@@ -115,7 +129,11 @@ export function CloseCashSessionPanel({
           await refreshOpenSale();
           break;
         case "lacks_permission":
-          setNotice(NOT_PERMITTED);
+          if (onRefused === undefined) {
+            setNotice(NOT_PERMITTED);
+          } else {
+            onRefused(outcome);
+          }
           break;
         case "unavailable":
         case "not_signed_in":
@@ -123,6 +141,8 @@ export function CloseCashSessionPanel({
           break;
         case "no_open_session":
           break;
+        default:
+          onRefused?.(outcome);
       }
     },
   });
