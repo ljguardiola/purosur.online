@@ -11,6 +11,7 @@ const backupsKey = ["backups"] as const;
 
 const backupsKeys = {
   tickets: [...backupsKey, "tickets"] as const,
+  discard: [...backupsKey, "discard"] as const,
 };
 
 const TICKETS_REREAD_MS = 5000;
@@ -33,8 +34,13 @@ export function useDiscardContingencyBackupTickets(
 ): () => void {
   const queryClient = useQueryClient();
   const mutation = useMutation({
+    mutationKey: backupsKeys.discard,
     mutationFn: discard,
     onSettled: () => queryClient.invalidateQueries({ queryKey: backupsKeys.tickets }),
   });
-  return () => mutation.mutate();
+  return () => {
+    if (queryClient.isMutating({ mutationKey: backupsKeys.discard }) === 0) {
+      mutation.mutate();
+    }
+  };
 }

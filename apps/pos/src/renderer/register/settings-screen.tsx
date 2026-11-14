@@ -15,7 +15,6 @@ import { cloudStanding } from "../shell/cloud-standing";
 import { registerNoticeSummary } from "../shell/register-notices";
 import { useRegisterStatusData } from "../shell/register-status-context";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { ThisRegisterSettings } from "../shell/this-register-settings";
 import { DevicesSettings } from "./devices-settings";
 import { PrinterSettings } from "./printer-settings";
 import { receiptPrinterAddressText } from "./receipt-printer-form";
@@ -24,6 +23,7 @@ import { useReceiptPrinterQuery, useRegisterVersionQuery } from "./register-quer
 import { serialDeviceStandingIndicator } from "./serial-device-standing";
 import type { SettingsSection } from "./settings-sections";
 import { sectionToShow, shownSections } from "./settings-sections";
+import { ThisRegisterSettings } from "./this-register-settings";
 
 export type SettingsScreenProps = {
   person: SignedInPerson;
@@ -49,7 +49,7 @@ function registerStatuses(
     return [];
   }
   const { conditions, contingency, cloud } = data.status.value;
-  const { count, tone } = registerNoticeSummary({
+  const { count } = registerNoticeSummary({
     conditions,
     contingency,
     backupTickets: data.backupTickets.status === "loaded" ? data.backupTickets.value : undefined,
@@ -57,7 +57,12 @@ function registerStatuses(
   return [
     cloudStanding(cloud),
     ...(count > 0
-      ? [{ tone, text: `${count} ${plural(count, { one: "aviso", other: "avisos" })}` }]
+      ? [
+          {
+            tone: "warning" as const,
+            text: `${count} ${plural(count, { one: "aviso", other: "avisos" })}`,
+          },
+        ]
       : []),
   ];
 }

@@ -1,5 +1,6 @@
 import type { RegisterSerialDevicesOutcome } from "@purosur/contracts";
 import {
+  dataColumn,
   EmptyState,
   Eyebrow,
   InlineNotice,
@@ -7,7 +8,9 @@ import {
   LoadingPlaceholder,
   Select,
   StatusIndicator,
+  Table,
   useRequestForm,
+  useTableModel,
 } from "@purosur/ui";
 import { Check, Lock, TriangleAlert, Usb } from "lucide-react";
 import type { ComponentProps, FocusEvent, KeyboardEvent } from "react";
@@ -32,6 +35,7 @@ import { SaveButton, SettingsPanel } from "./settings-panel";
 const TITLE = "Balanza y lector";
 
 type Read = Extract<ShownSerialDevices, { kind: "read" }>;
+type DetectedDevice = Read["detected"][number];
 type Role = "scale" | "reader";
 type Toasts = ComponentProps<typeof SettingsPage>["toasts"];
 
@@ -88,20 +92,25 @@ function StandingChips({ standings }: { standings: Read["standings"] }) {
 }
 
 function DetectedDevices({ read }: { read: Read }) {
+  const columns = [
+    dataColumn({
+      id: "device",
+      header: "Dispositivo",
+      render: (device: DetectedDevice) =>
+        `${device.vendor_id}:${device.product_id} · ${device.path}`,
+    }),
+    dataColumn({
+      id: "registered",
+      header: "Registrado como",
+      align: "end",
+      render: (device: DetectedDevice) => registeredRoleOf(read.standings, device.path),
+    }),
+  ] as const;
+  const table = useTableModel({ items: read.detected, id: (device) => device.path, columns });
   return (
     <div className="flex flex-col gap-2 border-b border-border pb-4">
       <Eyebrow text="DISPOSITIVOS SERIE DETECTADOS" />
-      <ul aria-label="Dispositivos serie detectados" className="flex flex-col gap-1">
-        {read.detected.map((device) => (
-          <li
-            key={device.path}
-            className="flex items-center justify-between gap-4 text-detail text-text"
-          >
-            <span>{`${device.vendor_id}:${device.product_id} · ${device.path}`}</span>
-            <span>{registeredRoleOf(read.standings, device.path)}</span>
-          </li>
-        ))}
-      </ul>
+      <Table aria-label="Dispositivos serie detectados" table={table} variant="nested" />
     </div>
   );
 }
