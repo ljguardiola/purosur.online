@@ -221,10 +221,25 @@ describe("LockedCloserIdentification", () => {
     expect(pathname(screen)).toBe("/");
   });
 
+  it("goes to the code redemption with F3 once the chosen person is locked out", async () => {
+    const { screen } = await renderStep({
+      identify: async () => ({ kind: "locked", consecutive_failures: 8 }),
+    });
+    await expectChosen(screen, "Sofía");
+    await identifyChosen(screen, "1234");
+    await expect
+      .element(screen.getByRole("heading", { name: "Sofía está bloqueado" }))
+      .toBeVisible();
+
+    await userEvent.keyboard("{F3}");
+
+    await vi.waitFor(() => expect(pathname(screen)).toBe("/pin-code-redemption"));
+  });
+
   it("says why it came back from the count until someone else is chosen", async () => {
     const { screen } = await renderStep({
       loadClosers: async () => TWO_CLOSERS,
-      returned: { refusal: { kind: "lacks_permission" }, firstName: "Sofía" },
+      returned: { refusal: { kind: "lacks_permission" }, userId: "u3", firstName: "Sofía" },
     });
 
     await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
@@ -242,7 +257,9 @@ describe("LockedCloserIdentification", () => {
     [{ kind: "locked", consecutive_failures: 8 }, "Sofía está bloqueado", "Se equivocó 8 veces"],
     [{ kind: "not_locked" }, "No se pudo cerrar la caja", "Volvé a intentarlo"],
   ])("says why it came back from the count: %j", async (refusal, title, description) => {
-    const { screen } = await renderStep({ returned: { refusal, firstName: "Sofía" } });
+    const { screen } = await renderStep({
+      returned: { refusal, userId: "u3", firstName: "Sofía" },
+    });
 
     await expect.element(screen.getByText(title).first()).toBeVisible();
     await expect.element(screen.getByText(description, { exact: false }).first()).toBeVisible();
@@ -252,6 +269,7 @@ describe("LockedCloserIdentification", () => {
     const { screen } = await renderStep({
       returned: {
         refusal: { kind: "rate_limited", retry_after_seconds: 5, attempts_left: 4 },
+        userId: "u3",
         firstName: "Sofía",
       },
     });
@@ -271,7 +289,7 @@ describe("LockedCloserIdentification", () => {
     const { screen } = await renderStep({
       loadClosers: async () => TWO_CLOSERS,
       identify: async () => ({ kind: "locked", consecutive_failures: 8 }),
-      returned: { refusal: { kind: "lacks_permission" }, firstName: "Sofía" },
+      returned: { refusal: { kind: "lacks_permission" }, userId: "u3", firstName: "Sofía" },
     });
     await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
     await userEvent.keyboard("{ArrowDown}");
@@ -283,6 +301,29 @@ describe("LockedCloserIdentification", () => {
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
       .toBeVisible();
+    await expect.element(screen.getByText("Sofía no puede cerrar la caja")).not.toBeInTheDocument();
+  });
+
+  it("chooses the person the count came back for", async () => {
+    const { screen } = await renderStep({
+      loadClosers: async () => TWO_CLOSERS,
+      returned: { refusal: { kind: "lacks_permission" }, userId: "u4", firstName: "Tomás" },
+    });
+
+    await expect.element(screen.getByText("Tomás no puede cerrar la caja")).toBeVisible();
+    await expectChosen(screen, "Tomás");
+  });
+
+  it("drops why it came back from the count once the same person is tried again", async () => {
+    const { screen } = await renderStep({
+      identify: async () => ({ kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 4 }),
+      returned: { refusal: { kind: "lacks_permission" }, userId: "u3", firstName: "Sofía" },
+    });
+    await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
+
+    await identifyChosen(screen, "1234");
+
+    await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
     await expect.element(screen.getByText("Sofía no puede cerrar la caja")).not.toBeInTheDocument();
   });
 

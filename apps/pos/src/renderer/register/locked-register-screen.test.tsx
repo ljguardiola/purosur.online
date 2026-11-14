@@ -1,7 +1,7 @@
 import type { SignInOutcome, SignInUser } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { SignInUsers } from "../platform/core-client";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import { render } from "../shell/test-support/render-with-router";
@@ -98,16 +98,65 @@ describe("LockedRegisterScreen", () => {
     expect(options.nth(2).element().textContent).toMatch(/Marta$/);
   });
 
-  it("lists the opener alone when the people of sign-in cannot be read", async () => {
+  it("shows the people of sign-in are loading before they arrive, keeping the links", async () => {
+    const screen = await renderScreen({ loadUsers: () => new Promise<SignInUsers>(() => {}) });
+
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(userSelect(screen)).not.toBeInTheDocument();
+    await expect.element(screen.getByLabelText("PIN")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("heading", { name: "Caja 1 · Lucas" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Cerrar con otro usuario" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Cambiar PIN con código" }))
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("says the people of sign-in could not be read, offering Reintentar with R", async () => {
     const screen = await renderScreen({
       loadUsers: () => Promise.reject(new Error("the core could not read them")),
     });
 
-    await userEvent.click(userSelect(screen));
-
-    await expect.element(screen.getByRole("option", { name: "Lucas" })).toBeVisible();
-    expect(screen.getByRole("option").elements()).toHaveLength(1);
+    await expect.element(screen.getByText("No se pudieron cargar los usuarios")).toBeVisible();
+    await expect.element(screen.getByText("Volvé a intentarlo en unos segundos.")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+    await expect.element(screen.getByText("R", { exact: true })).toBeVisible();
+    await expect.element(userSelect(screen)).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("link", { name: "Cerrar con otro usuario" }))
+      .toBeVisible();
+    await expectNoAccessibilityViolations(screen.container);
   });
+
+  it.each([
+    ["Reintentar", () => userEvent.click(page.getByRole("button", { name: "Reintentar" }))],
+    ["R", () => userEvent.keyboard("r")],
+  ])(
+    "reads the people of sign-in again with %s, from the placeholder, with the opener chosen",
+    async (_key, retry) => {
+      let finish: (users: SignInUsers) => void = () => {};
+      const loadUsers = vi
+        .fn<() => Promise<SignInUsers>>()
+        .mockRejectedValueOnce(new Error("the core could not read them"))
+        .mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              finish = resolve;
+            }),
+        );
+      const screen = await renderScreen({ loadUsers });
+      await expect.element(screen.getByText("No se pudieron cargar los usuarios")).toBeVisible();
+
+      await retry();
+
+      await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+      finish({ users: ROSTER, last_active_user_id: "u1" });
+      await expectChosen(screen, "Lucas");
+      expect(loadUsers).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("adds the opener to the list when sign-in does not list them", async () => {
     const screen = await renderScreen({

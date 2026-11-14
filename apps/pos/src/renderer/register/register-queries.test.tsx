@@ -21,6 +21,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { SignInUsers } from "../platform/core-client";
 import { createQueryClient } from "../platform/query-client";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "./cash-session-state";
@@ -34,6 +35,7 @@ import {
   useCashMovementsQuery,
   useCashSessionQuery,
   useLockedClosersQuery,
+  useLockedRegisterUsersQuery,
   useOpeningFloatSuggestionQuery,
   useReadSessionOpenSale,
   useReceiptPrinterQuery,
@@ -902,6 +904,45 @@ describe("locked register closers query", () => {
     );
 
     await expect.element(screen.getByText("loading")).toBeVisible();
+  });
+});
+
+function LockedRegisterUsersProbe({ read }: { read: () => Promise<SignInUsers> }) {
+  const users = useLockedRegisterUsersQuery(read);
+  return (
+    <p>{describeData(users, (value) => value.users.map((user) => user.first_name).join(","))}</p>
+  );
+}
+
+describe("locked register users query", () => {
+  it("holds the people who can sign in", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <LockedRegisterUsersProbe
+          read={async () => ({
+            users: [
+              { id: "u1", first_name: "Ada" },
+              { id: "u2", first_name: "Grace" },
+            ],
+            last_active_user_id: "u2",
+          })}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("Ada,Grace")).toBeVisible();
+  });
+
+  it("fails when the people who can sign in cannot be read", async () => {
+    const screen = await render(
+      <QueryClientProvider client={createQueryClient()}>
+        <LockedRegisterUsersProbe
+          read={() => Promise.reject(new Error("the connection was replaced"))}
+        />
+      </QueryClientProvider>,
+    );
+
+    await expect.element(screen.getByText("failed")).toBeVisible();
   });
 });
 

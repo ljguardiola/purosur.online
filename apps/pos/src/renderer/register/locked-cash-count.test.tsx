@@ -135,7 +135,14 @@ describe("LockedCashCount", () => {
     await expect.poll(() => refused).toEqual([refusal]);
   });
 
-  it("disables Cerrar caja while the open sale is read and while one is open", async () => {
+  it("disables Cerrar caja while the open sale is read", async () => {
+    const { screen } = await renderStep({ loadOpenSale: () => new Promise(() => {}) });
+
+    await expect.element(screen.getByRole("main").getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
+  });
+
+  it("disables Cerrar caja while a sale is open", async () => {
     const { screen } = await renderStep({ loadOpenSale: async () => CANCELLABLE_SALE });
 
     await expect.element(screen.getByText("Hay una venta abierta", { exact: false })).toBeVisible();

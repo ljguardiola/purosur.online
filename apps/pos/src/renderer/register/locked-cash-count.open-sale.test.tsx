@@ -61,6 +61,42 @@ describe("LockedCashCount banner of the open sale", () => {
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
 
+  it.each<[string, SessionOpenSale]>([
+    ["no payments", CANCELLABLE_SALE],
+    ["payments", PART_PAID_SALE],
+  ])(
+    "goes back to the locked register with Esc while a sale with %s is open, without closing",
+    async (_case, sale) => {
+      const { screen, close } = await renderStep({ loadOpenSale: async () => sale });
+      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+
+      await userEvent.keyboard("{Escape}");
+
+      await vi.waitFor(() => expect(screen.router.state.location.pathname).toBe("/locked"));
+      expect(close).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each<[string, SessionOpenSale, string]>([
+    ["emptying the cart", CANCELLABLE_SALE, "¿Vaciar el carrito?"],
+    ["cancelling the sale", PART_PAID_SALE, "¿Cancelar la venta?"],
+  ])(
+    "keeps the typed count once the panel for %s goes back with Esc",
+    async (_case, sale, panel) => {
+      const { screen } = await renderStep({ loadOpenSale: async () => sale });
+      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+      await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
+
+      await userEvent.keyboard("v");
+      await expect.element(screen.getByRole("complementary", { name: panel })).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+
+      await expect
+        .element(screen.getByRole("textbox", { name: "Contado" }))
+        .toHaveValue("45.800,00");
+    },
+  );
+
   it("shows a placeholder while the open sale is read", async () => {
     const { screen } = await renderStep({ loadOpenSale: () => new Promise(() => {}) });
 
@@ -158,6 +194,26 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
     await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
+
+  it.each<CancelLockedSaleOutcome>([{ kind: "cancelled", refunds: [] }, { kind: "not_permitted" }])(
+    "drops the earlier failure once the cart is asked to be emptied again and the core answers $kind",
+    async (outcome) => {
+      const cancelSale = vi
+        .fn<CancelSale>()
+        .mockResolvedValueOnce({ kind: "unavailable" })
+        .mockResolvedValueOnce(outcome);
+      const { screen } = await withOpenSale({ cancelSale });
+      await userEvent.keyboard("v");
+      await userEvent.keyboard("{Enter}");
+      await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
+
+      await userEvent.keyboard("v");
+      await userEvent.keyboard("{Enter}");
+
+      await expect.poll(() => cancelSale.mock.calls.length).toBe(2);
+      await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).not.toBeInTheDocument();
+    },
+  );
 
   it.each<RefusedClose>([
     { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 4 },

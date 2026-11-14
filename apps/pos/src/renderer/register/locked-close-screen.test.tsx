@@ -5,6 +5,7 @@ import type {
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
   SessionOpenSale,
+  SignInUser,
 } from "@purosur/contracts";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -41,6 +42,7 @@ async function renderScreen(
     close?: Close;
     cancelSale?: CancelSale;
     loadOpenSale?: () => Promise<SessionOpenSale | null | "unavailable">;
+    loadClosers?: () => Promise<SignInUser[]>;
   } = {},
 ) {
   await page.viewport(1280, 720);
@@ -57,7 +59,7 @@ async function renderScreen(
       loadCashCountPreview={loadCashCountPreview}
       loadOpenSale={options.loadOpenSale ?? (async () => null)}
       loadCashMovements={async () => []}
-      loadClosers={async () => [{ id: "u3", first_name: "Sofía" }]}
+      loadClosers={options.loadClosers ?? (async () => [{ id: "u3", first_name: "Sofía" }])}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
       cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled", refunds: [] }))}
@@ -166,6 +168,26 @@ describe("LockedCloseScreen", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("goes back to who closes the register with the refused closer chosen", async () => {
+    const { screen } = await renderScreen({
+      loadClosers: async () => [
+        { id: "u1", first_name: "Ana" },
+        { id: "u3", first_name: "Sofía" },
+      ],
+      close: async () => ({ kind: "lacks_permission" }),
+    });
+    const userSelect = screen.getByRole("button", { name: /USUARIO/ });
+    await expect.element(userSelect.getByText("Ana", { exact: true })).toBeVisible();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(userSelect.getByText("Sofía", { exact: true })).toBeVisible();
+
+    await identifySofia(screen);
+    await closeWith(screen, "45800,00");
+
+    await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
+    await expect.element(userSelect.getByText("Sofía", { exact: true })).toBeVisible();
   });
 
   it("shows the open sale once the person who closes is identified and cancels it with their PIN", async () => {
