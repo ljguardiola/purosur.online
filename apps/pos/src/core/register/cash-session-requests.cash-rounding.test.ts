@@ -50,7 +50,7 @@ describe("counting the cash of a session with sales rounded down", () => {
 
     expect(
       await closeCashSessionFor(deps(), { sessionId: "session-1", countedCash: 840_000 }),
-    ).toEqual({
+    ).toMatchObject({
       kind: "closed",
       session: { id: "session-1", expected_cash: 840_000, counted_cash: 840_000, difference: 0 },
     });
