@@ -1,5 +1,5 @@
 import { Dialog, DialogTrigger, Popover } from "react-aria-components";
-import { expect, expectTypeOf, test } from "vitest";
+import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -67,10 +67,29 @@ test("looks the same as the non-interactive pill of its tone", async () => {
   }
 });
 
+test("calls onPress when pressed by pointer or by keyboard", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <StatusPillButton tone="warning" onPress={onPress}>
+      1 aviso
+    </StatusPillButton>,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+  expect(onPress).toHaveBeenCalledTimes(1);
+  screen.getByRole("button", { name: "1 aviso" }).element().focus();
+  await userEvent.keyboard("{Enter}");
+  expect(onPress).toHaveBeenCalledTimes(2);
+});
+
 test("accepts the neutral, warning and error tones, and needs its text but no action of its own", () => {
   expectTypeOf<{ tone: "neutral"; children: string }>().toExtend<StatusPillButtonProps>();
   expectTypeOf<{ tone: "info"; children: string }>().not.toExtend<StatusPillButtonProps>();
   expectTypeOf<{ tone: "warning" }>().not.toExtend<StatusPillButtonProps>();
-  expectTypeOf<StatusPillButtonProps>().not.toHaveProperty("onPress");
+  expectTypeOf<{
+    tone: "neutral";
+    children: string;
+    onPress: () => void;
+  }>().toExtend<StatusPillButtonProps>();
   expectTypeOf<StatusPillButtonProps>().not.toHaveProperty("className");
 });

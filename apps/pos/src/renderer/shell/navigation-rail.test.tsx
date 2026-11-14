@@ -41,6 +41,32 @@ describe("NavigationRail", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("lists Ajustes between the entries and Salir, linking to the settings, when it is offered", async () => {
+    const screen = await render(
+      <NavigationRail entries={[HISTORY]} settings={{ current: false }} onSignOut={vi.fn()} />,
+    );
+
+    const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+    const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
+    expect(items).toEqual(["Inicio", "Historial", "Ajustes", "Salir"]);
+    expect(screen.getByRole("link", { name: "Ajustes" }).element().getAttribute("href")).toBe(
+      "/settings",
+    );
+    await expect
+      .element(screen.getByRole("link", { name: "Ajustes" }))
+      .not.toHaveAttribute("aria-current");
+  });
+
+  it("marks Ajustes as the current screen when it is the current one", async () => {
+    const screen = await render(
+      <NavigationRail entries={[HISTORY]} settings={{ current: true }} onSignOut={vi.fn()} />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Ajustes" }))
+      .toHaveAttribute("aria-current", "page");
+  });
+
   it("marks Inicio as the current screen and no other item", async () => {
     const screen = await renderRail({ entries: [HISTORY] });
 

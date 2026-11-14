@@ -1119,7 +1119,10 @@ describe("App", () => {
       const screen = await signInAsConfigurer(core);
 
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
     });
@@ -1151,7 +1154,10 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
 
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
     });
 
@@ -1188,9 +1194,12 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
 
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-      await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
+      await userEvent.click(screen.getByRole("link", { name: "Ajustes" }));
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
       await expect
         .element(screen.getByRole("button", { name: "Ahora no" }))
@@ -2329,7 +2338,7 @@ describe("App", () => {
       .toBeVisible();
   });
 
-  it("shows the contingency backup tickets notice the core reports in the register header, and discards them when it is closed", async () => {
+  it("counts the contingency backup tickets notice in the header, shows it in Esta caja and discards the tickets on Supr", async () => {
     const discard = vi.fn(
       async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
     );
@@ -2363,9 +2372,13 @@ describe("App", () => {
         .getByRole("button", { name: "1 aviso" }),
     );
     await expect
-      .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
+      .element(
+        screen
+          .getByRole("list", { name: "Avisos de esta caja" })
+          .getByText("Ya podés descartar los tickets de respaldo"),
+      )
       .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+    await userEvent.keyboard("{Delete}");
 
     await expect.poll(() => discard.mock.calls.length).toBe(1);
   });

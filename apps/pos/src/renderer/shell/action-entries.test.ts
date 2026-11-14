@@ -32,30 +32,12 @@ describe("entriesFor", () => {
 });
 
 describe("ACTION_ENTRIES", () => {
-  it("offers the receipt printer to a person who may configure it, opening its screen", () => {
+  it("has no entry for the receipt printer or the scale and reader, which live in Ajustes", () => {
     expect(
-      entriesFor(ACTION_ENTRIES, ["configure_receipt_printer"]).map(({ label, to }) => ({
-        label,
-        to,
-      })),
-    ).toEqual([{ label: "Impresora", to: "/receipt-printer" }]);
-  });
-
-  it("offers the scale and reader to a person who may configure them, opening their screen", () => {
-    expect(
-      entriesFor(ACTION_ENTRIES, ["configure_serial_devices"]).map(({ label, to }) => ({
-        label,
-        to,
-      })),
-    ).toEqual([{ label: "Balanza y lector", to: "/serial-devices" }]);
-  });
-
-  it("places the scale and reader beside the receipt printer", () => {
-    expect(
-      entriesFor(ACTION_ENTRIES, ["configure_receipt_printer", "configure_serial_devices"]).map(
-        ({ label }) => label,
-      ),
-    ).toEqual(["Impresora", "Balanza y lector"]);
+      entriesFor(ACTION_ENTRIES, ["configure_receipt_printer", "configure_serial_devices"]),
+    ).toEqual([]);
+    expect(ACTION_ENTRIES.map(({ label }) => label)).not.toContain("Impresora");
+    expect(ACTION_ENTRIES.map(({ label }) => label)).not.toContain("Balanza y lector");
   });
 
   it("offers the sales history to a person who may view it, opening its screen", () => {

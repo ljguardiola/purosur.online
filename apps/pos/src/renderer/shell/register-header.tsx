@@ -1,114 +1,28 @@
-import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/contracts";
-import type { Icon } from "@purosur/ui";
-import {
-  formatDayAndTime,
-  LoadFailure,
-  LoadingPlaceholder,
-  localAlertText,
-  NotificationCard,
-  NotificationPanel,
-  plural,
-  StatusPill,
-  StatusPillButton,
-} from "@purosur/ui";
-import {
-  Ban,
-  BatteryLow,
-  BatteryWarning,
-  Clock,
-  CloudOff,
-  Database,
-  HardDrive,
-  Power,
-  Receipt,
-  ScanBarcode,
-  ShieldOff,
-  TriangleAlert,
-  Unplug,
-} from "lucide-react";
+import type { RegisterStatus } from "@purosur/contracts";
+import { LoadFailure, LoadingPlaceholder, plural, StatusPill, StatusPillButton } from "@purosur/ui";
+import { useNavigate } from "@tanstack/react-router";
+import { TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment } from "react";
-import { ContingencyBackupTicketsNoticeCard } from "../backups/contingency-backup-tickets-notice-card";
-import { contingencyBackupTicketsNoticeCount } from "../backups/contingency-backup-tickets-notice-count";
-import { ContingencyNoticeCard } from "../fiscal/contingency-notice-card";
 import { FiscalModeIndicator } from "../fiscal/fiscal-mode-indicator";
 import type { SerialDeviceRole } from "../register/serial-device-standing";
 import { serialDeviceStandingIndicator } from "../register/serial-device-standing";
+import { cloudStanding } from "./cloud-standing";
 import { registerEyebrow } from "./register-eyebrow";
+import type { RegisterNoticeSummary } from "./register-notices";
+import { registerNoticeSummary } from "./register-notices";
 import type { RegisterStatusData } from "./register-status-context";
 
-type Condition = RegisterStatus["conditions"][number];
-
-const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
-  sales_denied: <Ban />,
-  installation_revoked: <ShieldOff />,
-  fiscal_emission_stopped: <Receipt />,
-  clock_drift: <Clock />,
-  register_silent: <CloudOff />,
-  serial_device_missing: <ScanBarcode />,
-  disk_space_low: <HardDrive />,
-  wal_oversized: <Database />,
-  battery_low: <BatteryLow />,
-  on_battery: <Unplug />,
-  battery_missing: <BatteryWarning />,
-  critical_battery_action_not_shutdown: <Power />,
-};
-
-function conditionTone(condition: Condition): "error" | "warning" {
-  return condition.level === "critical" ? "error" : "warning";
-}
-
-function NoticesPill({
-  conditions,
-  contingency,
-  backupTickets,
-  onDiscardBackupTickets,
-}: {
-  conditions: RegisterStatus["conditions"];
-  contingency: RegisterStatus["contingency"];
-  backupTickets: ContingencyBackupTicketsAnswer | undefined;
-  onDiscardBackupTickets: () => void;
-}) {
-  const tone =
-    conditions.some((condition) => conditionTone(condition) === "error") ||
-    (backupTickets?.missing_key ?? 0) > 0
-      ? "error"
-      : "warning";
-  const count =
-    conditions.length +
-    (contingency?.notice ? 1 : 0) +
-    (backupTickets === undefined ? 0 : contingencyBackupTicketsNoticeCount(backupTickets));
+function NoticesPill({ summary }: { summary: RegisterNoticeSummary }) {
+  const navigate = useNavigate();
+  const { count, tone } = summary;
   return (
-    <NotificationPanel
-      title="Avisos de esta caja"
-      trigger={
-        <StatusPillButton tone={tone}>
-          {`${count} ${plural(count, { one: "aviso", other: "avisos" })}`}
-        </StatusPillButton>
-      }
+    <StatusPillButton
+      tone={tone}
+      onPress={() => void navigate({ to: "/settings", search: { section: "register" } })}
     >
-      {conditions.map((condition) => {
-        const text = localAlertText(condition);
-        return (
-          <NotificationCard
-            key={condition.kind}
-            tone={conditionTone(condition)}
-            icon={CONDITION_ICONS[condition.kind]}
-            title={text.title}
-            description={text.meaning}
-            whatToDo={text.whatToDo}
-            time={`Desde ${formatDayAndTime(condition.since)}`}
-          />
-        );
-      })}
-      {contingency?.notice ? <ContingencyNoticeCard kind={contingency.kind} /> : null}
-      {backupTickets === undefined ? null : (
-        <ContingencyBackupTicketsNoticeCard
-          tickets={backupTickets}
-          onDiscard={onDiscardBackupTickets}
-        />
-      )}
-    </NotificationPanel>
+      {`${count} ${plural(count, { one: "aviso", other: "avisos" })}`}
+    </StatusPillButton>
   );
 }
 
@@ -169,18 +83,14 @@ export function RegisterHeader({
   cashSession,
   status,
   backupTickets,
-  onDiscardBackupTickets,
   crumb,
   mode,
 }: RegisterHeaderProps) {
-  const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
-  const noticeCount =
-    (status.status === "loaded"
-      ? status.value.conditions.length + (status.value.contingency?.notice ? 1 : 0)
-      : 0) +
-    (loadedBackupTickets === undefined
-      ? 0
-      : contingencyBackupTicketsNoticeCount(loadedBackupTickets));
+  const noticeSummary = registerNoticeSummary({
+    conditions: status.status === "loaded" ? status.value.conditions : [],
+    contingency: status.status === "loaded" ? status.value.contingency : null,
+    backupTickets: backupTickets.status === "loaded" ? backupTickets.value : undefined,
+  });
   return (
     <section aria-label="Estado de la caja" className="flex shrink-0 flex-col gap-3 px-8 pt-6 pb-2">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -192,7 +102,7 @@ export function RegisterHeader({
         />
         <div className="flex flex-wrap items-center gap-2">
           {status.status === "loaded" && status.value.cloud === "unreachable" ? (
-            <StatusPill tone="error">Sin conexión con la nube</StatusPill>
+            <StatusPill tone="error">{cloudStanding("unreachable").text}</StatusPill>
           ) : null}
           {status.status === "loaded" ? (
             <FiscalModeIndicator contingency={status.value.contingency} />
@@ -209,14 +119,7 @@ export function RegisterHeader({
                 ) : null,
               )
             : null}
-          {noticeCount > 0 ? (
-            <NoticesPill
-              conditions={status.status === "loaded" ? status.value.conditions : []}
-              contingency={status.status === "loaded" ? status.value.contingency : null}
-              backupTickets={loadedBackupTickets}
-              onDiscardBackupTickets={onDiscardBackupTickets}
-            />
-          ) : null}
+          {noticeSummary.count > 0 ? <NoticesPill summary={noticeSummary} /> : null}
           {mode}
         </div>
       </div>

@@ -92,7 +92,7 @@ describe("savedSerialDevicesDescription", () => {
     { devices: { reader: READER_IDENTITY }, description: "La caja reconoce el lector elegido." },
     {
       devices: { scale: SCALE_IDENTITY, reader: READER_IDENTITY },
-      description: "La caja reconoce la balanza y el lector elegidos.",
+      description: "La balanza y el lector quedaron registrados.",
     },
   ])("describes what was registered as '$description'", ({ devices, description }) => {
     expect(savedSerialDevicesDescription(devices)).toBe(description);

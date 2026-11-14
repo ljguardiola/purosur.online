@@ -1,7 +1,7 @@
 import { AreaNavButton, AreaNavItem, PuroSurIsotype } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import { House, LogOut } from "lucide-react";
+import { House, LogOut, Settings } from "lucide-react";
 import type { ActionEntry } from "./action-entries";
 
 const RailLink = createLink(AreaNavItem);
@@ -18,6 +18,7 @@ export type NavigationRailProps = {
   current?: ActionEntry["to"];
   home?: { label: string; icon: LucideIcon; to?: ActionEntry["to"] };
   links?: readonly RailLinkProps[];
+  settings?: { current: boolean };
   onSignOut?: () => void;
   signOutActive?: boolean;
 };
@@ -29,6 +30,7 @@ export function NavigationRail({
   current,
   home = INICIO,
   links = [],
+  settings,
   onSignOut,
   signOutActive = false,
 }: NavigationRailProps) {
@@ -64,6 +66,15 @@ export function NavigationRail({
         <RailLink key={label} rail="dark" to={to} label={label} icon={<Glyph />} active={current} />
       ))}
       <div className="flex-1" />
+      {settings === undefined ? null : (
+        <RailLink
+          rail="dark"
+          to="/settings"
+          label="Ajustes"
+          icon={<Settings />}
+          active={settings.current}
+        />
+      )}
       {onSignOut === undefined ? null : (
         <AreaNavButton
           rail="dark"

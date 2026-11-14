@@ -100,7 +100,7 @@ describe("NoSessionScreen", () => {
     expect(screen.container.textContent).not.toContain("void_sale");
   });
 
-  it("offers only Inicio and Salir when no entry exists", async () => {
+  it("offers only Inicio, Ajustes and Salir when no entry exists", async () => {
     const { screen } = await renderScreen({ person: { ...PERSON, abilities: [] } });
 
     const railItems = Array.from(
@@ -110,7 +110,7 @@ describe("NoSessionScreen", () => {
         .querySelectorAll("a, button"),
     ).map((item) => item.textContent);
 
-    expect(railItems).toEqual(["Inicio", "Salir"]);
+    expect(railItems).toEqual(["Inicio", "Ajustes", "Salir"]);
   });
 
   it("offers the entries the person's permissions unlock", async () => {
