@@ -52,6 +52,15 @@ export const WithNotice: Story = {
 
 export const Busy: Story = { args: { ...refundArgs, busy: true } };
 
+export const ActionDisabled: Story = {
+  args: {
+    ...refundArgs,
+    tone: "error",
+    notice: "Hay un cobro en curso. Esperá a que termine.",
+    actionDisabled: true,
+  },
+};
+
 export const ErrorTone: Story = {
   args: {
     title: "Anular venta",
