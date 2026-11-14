@@ -569,6 +569,7 @@ function Register({ core }: { core: CoreClient }) {
         void queryClient.invalidateQueries({ queryKey: registerKeys.cashSession });
         void queryClient.invalidateQueries({ queryKey: salesKeys.paymentMethodAvailabilityRoot });
         void queryClient.invalidateQueries({ queryKey: lockedClosersKey });
+        void queryClient.invalidateQueries({ queryKey: registerKeys.lockedRegisterUsers });
         void queryClient.invalidateQueries({ queryKey: stockKeys.initialCount });
       }),
     [core, queryClient],

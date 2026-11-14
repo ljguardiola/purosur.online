@@ -1,6 +1,8 @@
+import type { Icon } from "@purosur/ui";
 import { Button, InlineNotice, PinDotsField } from "@purosur/ui";
 import { ArrowRight } from "lucide-react";
 import type { Ref } from "react";
+import type { PinNotice } from "./pin-refusal";
 import type { PinAttempt } from "./use-pin-attempt";
 
 export function PinAttemptControls({
@@ -8,13 +10,18 @@ export function PinAttemptControls({
   pinInput,
   disabled = false,
   submitLabel = "Entrar",
+  submitIcon,
+  notice: screenNotice,
 }: {
   attempt: Omit<PinAttempt, "pinInput" | "heading">;
   pinInput: Ref<HTMLInputElement>;
   disabled?: boolean;
   submitLabel?: string;
+  submitIcon?: Icon;
+  notice?: PinNotice | undefined;
 }) {
-  const { notice, noticeId } = attempt;
+  const { noticeId } = attempt;
+  const notice = screenNotice ?? attempt.notice;
   const submitText =
     attempt.secondsLeft > 0 ? `${submitLabel} en ${attempt.secondsLeft} s` : submitLabel;
 
@@ -43,7 +50,7 @@ export function PinAttemptControls({
       <Button
         type="submit"
         fullWidth
-        icon={<ArrowRight />}
+        icon={submitIcon ?? <ArrowRight />}
         iconPosition="start"
         keycap="Enter"
         disabled={!attempt.canSubmit}

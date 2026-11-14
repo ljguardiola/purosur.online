@@ -595,6 +595,7 @@ describe("the open sale of the cash session", () => {
   const openSale = {
     id: "sale-1",
     total: 3_434_000,
+    line_count: 4,
     paid: 0,
     has_approved_payment: false,
     cancellable: true,
@@ -623,6 +624,7 @@ describe("the open sale of the cash session", () => {
   it.each([
     ["its id", { ...openSale, id: undefined }],
     ["its total", { ...openSale, total: undefined }],
+    ["how many lines it holds", { ...openSale, line_count: undefined }],
     ["what was paid", { ...openSale, paid: undefined }],
     ["whether it has an approved payment", { ...openSale, has_approved_payment: undefined }],
     ["whether it is cancellable", { ...openSale, cancellable: undefined }],
@@ -642,6 +644,8 @@ describe("the open sale of the cash session", () => {
     { ...openSale, cancel_refusal: "holds_standalone_terminal_payment" },
     { ...openSale, cancel_refusal: "holds_mercado_pago_payment" },
     { ...openSale, paid: -1 },
+    { ...openSale, line_count: -1 },
+    { ...openSale, line_count: 1.5 },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, method: "CARD" }] },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, state: "DONE" }] },
     { ...openSale, refunds_on_cancel: [{ ...cashRefund, amount: -1 }] },

@@ -1,10 +1,15 @@
-import type { CashBalance, CloseCashSessionOutcome } from "@purosur/contracts";
+import type {
+  CashBalance,
+  CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
+} from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { CoreData } from "../platform/use-core-query";
 import { render } from "../shell/test-support/render-with-router";
 import { CloseCashSessionPanel } from "./close-cash-session-panel";
+import { countedCashRequestSchema } from "./counted-cash-form";
 
 const BALANCE: CashBalance = {
   opening_float: { amount: 5_230_000, direction: "in" },
@@ -34,7 +39,10 @@ type Props = {
   balance?: CoreData<CashBalance>;
   openSale?: boolean;
   outcome?: CloseCashSessionOutcome | Promise<CloseCashSessionOutcome>;
-  closeCashSession?: (countedCash: number) => Promise<CloseCashSessionOutcome>;
+  closeCashSession?: (
+    countedCash: number,
+  ) => Promise<CloseCashSessionOutcome | CloseLockedCashSessionOutcome>;
+  handlesRefusals?: boolean;
 };
 
 function noticeIconOf(alert: Element): SVGElement | null {
@@ -53,18 +61,21 @@ async function renderPanel(props: Props = {}) {
   );
   const onClose = vi.fn();
   const onClosed = vi.fn();
+  const onRefused = vi.fn();
   const screen = await render(
     <CloseCashSessionPanel
       sessionId="s1"
+      countedCashSchema={countedCashRequestSchema}
       balance={props.balance ?? { status: "loaded", value: BALANCE, refreshing: false }}
       openSale={props.openSale ?? false}
       loadCashCountPreview={async (counted) => ({ difference: counted - BALANCE.expected })}
       closeCashSession={closeCashSession}
       onClose={onClose}
       onClosed={onClosed}
+      {...(props.handlesRefusals === true ? { onRefused } : {})}
     />,
   );
-  return { screen, closeCashSession, onClose, onClosed };
+  return { screen, closeCashSession, onClose, onClosed, onRefused };
 }
 
 describe("CloseCashSessionPanel", () => {
@@ -309,6 +320,28 @@ describe("CloseCashSessionPanel", () => {
       .element(screen.getByRole("alert"))
       .toHaveTextContent("No tenés permiso para cerrar la caja.");
   });
+
+  it.each<CloseLockedCashSessionOutcome>([
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 4 },
+    { kind: "rate_limited", retry_after_seconds: 5, attempts_left: 4 },
+    { kind: "locked", consecutive_failures: 8 },
+    { kind: "lacks_permission" },
+    { kind: "not_locked" },
+  ])(
+    "hands the refusal on, with no notice of its own, when told to and the core answers $kind",
+    async (refusal) => {
+      const { screen, onRefused } = await renderPanel({
+        handlesRefusals: true,
+        closeCashSession: async () => refusal,
+      });
+      await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "144.000,00");
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect.poll(() => onRefused).toHaveBeenCalledWith(refusal);
+      await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+    },
+  );
 
   it("shows the field error when the core refuses the counted cash", async () => {
     const { screen } = await renderPanel({ outcome: { kind: "invalid_counted_cash" } });
