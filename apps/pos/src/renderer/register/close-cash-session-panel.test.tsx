@@ -121,24 +121,39 @@ describe("CloseCashSessionPanel", () => {
     await expect.element(screen.getByRole("textbox", { name: "Contado" })).toBeVisible();
   });
 
-  it("draws the expected cash in the text's own color and the breakdown's amounts in regular weight", async () => {
+  it("draws the expected cash in the text's own color", async () => {
     const { screen } = await renderPanel();
 
     const hero = screen.getByText("$ 144.200,00", { exact: true }).element();
     const title = screen.getByRole("heading", { name: "Cerrar caja", exact: true }).element();
     expect(getComputedStyle(hero).color).toBe(getComputedStyle(title).color);
-    const amount = screen.getByText("$ 52.300,00", { exact: true }).element();
-    expect(getComputedStyle(amount).fontWeight).toBe("400");
   });
 
-  it("writes the breakdown's labels smaller than their amounts", async () => {
-    const { screen } = await renderPanel();
+  it("writes every breakdown row's label smaller than its amount, drawn in regular weight", async () => {
+    const { screen } = await renderPanel({
+      balance: {
+        status: "loaded",
+        value: { ...BALANCE, refunds: { amount: 120_000, direction: "out" } },
+        refreshing: false,
+      },
+    });
 
-    const label = screen.getByText("Fondo inicial", { exact: true }).element();
-    const amount = screen.getByText("$ 52.300,00", { exact: true }).element();
-    expect(Number.parseFloat(getComputedStyle(label).fontSize)).toBeLessThan(
-      Number.parseFloat(getComputedStyle(amount).fontSize),
-    );
+    for (const row of [
+      "Fondo inicial",
+      "Ventas en efectivo",
+      "Vuelto entregado",
+      "Devoluciones",
+      "Ingresos",
+      "Gastos",
+      "Retiros",
+    ]) {
+      const label = screen.getByText(row, { exact: true }).element();
+      const amount = label.nextElementSibling as Element;
+      expect(Number.parseFloat(getComputedStyle(label).fontSize), `${row} label size`).toBeLessThan(
+        Number.parseFloat(getComputedStyle(amount).fontSize),
+      );
+      expect(getComputedStyle(amount).fontWeight, `${row} amount weight`).toBe("400");
+    }
   });
 
   it("gives the focus back to Contado after a failed close", async () => {
