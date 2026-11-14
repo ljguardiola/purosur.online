@@ -2407,6 +2407,7 @@ describe("asking for the detail of one sale of the history", () => {
     next_copy: { kind: "duplicate", order_number: 2 },
     deferred_invoice_next_copy: null,
     short_code: null,
+    void_refunds: [],
   };
   const answer = (outcome: unknown) => ({
     type: "sale-history-detail-result",

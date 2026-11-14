@@ -60,17 +60,17 @@ export const salesHistoryOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type SalesHistoryOutcome = z.infer<typeof salesHistoryOutcomeSchema>;
 
+const plannedRefundSchema = z.object({
+  method: z.enum(PAYMENT_METHODS),
+  card_type: z.enum(POINT_CARD_TYPES).nullable(),
+  amount: z.int().nonnegative(),
+  state: z.enum(PLANNED_REFUND_STATES),
+});
+
 const saleVoidabilitySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("voidable"),
-    refunds: z.array(
-      z.object({
-        method: z.enum(PAYMENT_METHODS),
-        card_type: z.enum(POINT_CARD_TYPES).nullable(),
-        amount: z.int().nonnegative(),
-        state: z.enum(PLANNED_REFUND_STATES),
-      }),
-    ),
+    refunds: z.array(plannedRefundSchema),
     credit_note_corrects: z
       .object({ point_of_sale: pointOfSaleNumberSchema, number: z.int().positive() })
       .nullable(),
@@ -121,6 +121,7 @@ const saleHistoryDetailSchema = z.object({
   next_copy: receiptCopySchema,
   deferred_invoice_next_copy: receiptCopySchema.nullable(),
   short_code: z.string().nullable(),
+  void_refunds: z.array(plannedRefundSchema),
 });
 
 export const saleHistoryDetailOutcomeSchema = z.discriminatedUnion("kind", [
