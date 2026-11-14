@@ -46,9 +46,10 @@ export function contingencyBackupTicketsNotices(
       icon: <CircleCheck />,
       title: "Ya podés descartar los tickets de respaldo",
       subtitle: `${formatNumber(tickets.discardable)} ${plural(tickets.discardable, { one: "ticket guardado", other: "tickets guardados" })}`,
-      ...(tickets.discard_permitted
-        ? {}
-        : { whatToDo: "Tiralos. Este aviso lo cierra quien venda en esta caja." }),
+      description: `Esta caja sincronizó con la nube todo lo de la contingencia: ${plural(tickets.discardable, { one: "el ticket guardado", other: `los ${formatNumber(tickets.discardable)} tickets guardados` })} en la caja del local ya no ${plural(tickets.discardable, { one: "hace", other: "hacen" })} falta.`,
+      whatToDo: tickets.discard_permitted
+        ? "Tiralos y cerrá este aviso."
+        : "Tiralos. Este aviso lo cierra quien venda en esta caja.",
       discardable: tickets.discard_permitted,
     });
   }
