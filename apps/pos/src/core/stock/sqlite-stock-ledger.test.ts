@@ -7,6 +7,7 @@ import {
   addToStockBalance,
   insertSaleStockMovement,
   SqliteReplicatedStockLedger,
+  stockBalanceOf,
 } from "./sqlite-stock-ledger";
 
 const SOLD_AT = new Date("2026-09-30T12:00:00.000Z");
@@ -133,6 +134,21 @@ describe("a product's stock balance", () => {
       { product_id: "p1", quantity: -2000 },
       { product_id: "p2", quantity: -500 },
     ]);
+  });
+});
+
+describe("reading a product's stock balance", () => {
+  it("answers the balance the register holds for the product", () => {
+    database
+      .prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 12400)")
+      .run();
+    database.prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p2', -500)").run();
+
+    expect([stockBalanceOf(database, "p1"), stockBalanceOf(database, "p2")]).toEqual([12400, -500]);
+  });
+
+  it("answers nothing for a product the register holds no balance for", () => {
+    expect(stockBalanceOf(database, "p1")).toBeUndefined();
   });
 });
 

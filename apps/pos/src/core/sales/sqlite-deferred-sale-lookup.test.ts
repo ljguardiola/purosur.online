@@ -53,6 +53,37 @@ describe("finding a deferred sale for a customer", () => {
     });
   });
 
+  it("reads the sale's lines in the order they were sold, with their list unit price", () => {
+    recordDeferredSale();
+    database.exec(
+      `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity,
+                               list_unit_price, price_list_id, line_total, sale_unit, weight_source)
+       VALUES ('line-2', 'sale-1', 2, 'p-yerba', 'Yerba mate orgánica 1 kg', 1, 695000, 'list-1',
+               695000, 'UNIT', NULL),
+              ('line-1', 'sale-1', 1, 'p-almonds', 'Almendras peladas', 500, 1890000, 'list-1',
+               945000, 'KG', 'SCALE'),
+              ('line-3', 'sale-2', 1, 'p-yerba', 'Yerba mate orgánica 1 kg', 1, 695000, 'list-1',
+               695000, 'UNIT', NULL)`,
+    );
+
+    expect(new SqliteDeferredSaleLookup(database).linesOf("sale-1")).toEqual([
+      {
+        productName: "Almendras peladas",
+        saleUnit: "KG",
+        quantity: 500,
+        listUnitPrice: 1_890_000,
+        lineTotal: 945_000,
+      },
+      {
+        productName: "Yerba mate orgánica 1 kg",
+        saleUnit: "UNIT",
+        quantity: 1,
+        listUnitPrice: 695_000,
+        lineTotal: 695_000,
+      },
+    ]);
+  });
+
   it("finds nothing for a short code no deferred sale holds", () => {
     recordDeferredSale();
 

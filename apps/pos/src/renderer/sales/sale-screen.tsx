@@ -54,10 +54,13 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelPaidSalePanel } from "./cancel-paid-sale-panel";
 import { changedLineId } from "./changed-line";
 import type { KeyedChargeMethod } from "./charge-method-availability";
+import { scannedDeferredSaleReading } from "./deferred-sale-qr";
 import { EmptySalePanel } from "./empty-sale-panel";
 import { LinePricePanel } from "./line-price-panel";
 import { LiveScaleCard } from "./live-scale-card";
 import { PaymentPanel } from "./payment-panel";
+import type { ProductToAdd } from "./product-to-add";
+import { isChargeable, paidOrderToApplyOf } from "./sale-charge";
 import { SaleDiscountPanel } from "./sale-discount-panel";
 import { LockedSaleLines, SaleLines } from "./sale-lines";
 import {
@@ -135,6 +138,7 @@ export type SaleScreenProps = {
   onSessionInvalid: () => void;
   registerStatus: CoreData<RegisterStatus>;
   paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>;
+  productToAdd?: ProductToAdd | undefined;
 };
 
 type SaleEditOutcome =
@@ -168,6 +172,12 @@ type SaleEditFailure = Extract<
 >;
 
 const LETTER = /\p{L}/u;
+
+const SEARCH_LEGEND: readonly KeyLegendItem[] = [
+  { keyName: "ArrowUpDown", label: "Elegir" },
+  { keyName: "Enter", label: "Agregar" },
+  { keyName: "F4", label: "Consultar" },
+];
 
 const PANEL_LEGEND: readonly KeyLegendItem[] = [
   { keyName: "Tab", label: "Campo" },
@@ -249,6 +259,7 @@ export function SaleScreen({
   onSessionInvalid,
   registerStatus,
   paymentMethodAvailability,
+  productToAdd,
 }: SaleScreenProps) {
   const navigate = useNavigate();
   const field = useRef<HTMLFormElement>(null);
@@ -294,6 +305,7 @@ export function SaleScreen({
   const adjustingNow = useRef(false);
   const discountingNow = useRef(false);
   const listboxId = useId();
+  const productToAddOnArrival = useRef(productToAdd);
 
   useEffect(() => {
     function refocusWhenFocusIsLost(event: FocusEvent) {
@@ -588,6 +600,10 @@ export function SaleScreen({
 
   async function takeReading(reading: string) {
     const submitted = reading.trim();
+    if (!weighingOrWaiting() && scannedDeferredSaleReading(submitted) !== undefined) {
+      void navigate({ to: "/deferred-sale", search: { reading: submitted } });
+      return;
+    }
     flushSync(() => {
       setCode(submitted);
       setProblem(undefined);
@@ -836,15 +852,8 @@ export function SaleScreen({
   useBarcodeReadings(editable && !panelOpen ? (reading) => void takeReading(reading) : undefined);
   const saleLines = sale?.lines ?? [];
   const selectedLine = saleLines.find(({ id }) => id === selectedLineId) ?? saleLines.at(-1);
-  const paidOrderToApply =
-    sale?.rebuilt_paid_order?.applied === false ? sale.rebuilt_paid_order : null;
-  const isZeroTotal = saleLines.length > 0 && sale?.total === 0;
-  const canCharge =
-    sale !== null &&
-    saleLines.length > 0 &&
-    !isZeroTotal &&
-    sale.charge_refusal === null &&
-    paidOrderToApply === null;
+  const paidOrderToApply = paidOrderToApplyOf(sale);
+  const canCharge = isChargeable(sale);
   const availability = usePaymentMethodAvailabilityQuery({
     sessionId,
     userId: person.user_id,
@@ -852,6 +861,16 @@ export function SaleScreen({
   });
   const refreshAvailability = useRefreshPaymentMethodAvailability(sessionId, person.user_id);
   const readAvailabilityAgain = useEffectEvent(() => void refreshAvailability());
+  const addProductToAddOnArrival = useEffectEvent(() => {
+    const product = productToAddOnArrival.current;
+    if (product === undefined) {
+      return;
+    }
+    productToAddOnArrival.current = undefined;
+    void navigate({ to: "/session", search: {}, replace: true });
+    void add({ ...product, matches: [] });
+  });
+  useEffect(() => addProductToAddOnArrival(), []);
   const saleTotal = sale?.total;
   const availabilityReadForTotal = useRef<number>(undefined);
   useEffect(() => {
@@ -930,6 +949,15 @@ export function SaleScreen({
         enabled: choosing,
       },
       {
+        key: "F4",
+        run: () => {
+          if (chosen !== undefined) {
+            void navigate({ to: "/consult", search: { product_id: chosen.product_id } });
+          }
+        },
+        enabled: chosen !== undefined,
+      },
+      {
         key: "Enter",
         run: () => field.current?.requestSubmit(),
         enabled: weighing !== undefined && code.trim() !== "",
@@ -967,6 +995,12 @@ export function SaleScreen({
           }
         },
         enabled: selectedLine?.sale_unit === "KG" && editable && !editing && weighing === undefined,
+      },
+      {
+        key: "F4",
+        label: "Consulta",
+        run: () => void navigate({ to: "/consult" }),
+        enabled: answer !== undefined && answer !== "not_permitted" && weighing === undefined,
       },
       {
         key: "F6",
@@ -1144,7 +1178,7 @@ export function SaleScreen({
             description={localAlertText(diskFull).meaning}
           />
         )}
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           <form
             ref={field}
             noValidate
@@ -1184,6 +1218,7 @@ export function SaleScreen({
               listboxId={listboxId}
               search={found}
               activeIndex={activeIndex}
+              legend={SEARCH_LEGEND}
               onChoose={(product) => void add(product)}
             />
             <ScanProblemMessage problem={shownProblem} />

@@ -1,6 +1,6 @@
 import type { FindDeferredSaleOutcome } from "@purosur/contracts";
 import type { NoticeTone } from "@purosur/ui";
-import { formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
+import { documentNumberText } from "./sale-history-text";
 
 export type FoundDeferredSale = Extract<FindDeferredSaleOutcome, { kind: "found" }>;
 
@@ -14,10 +14,10 @@ export type DeferredSaleRefusalKind =
   | "lacks_permission"
   | "unavailable";
 
-export function deferredSaleInvoiceNumber(invoice: FoundDeferredSale["invoice"]): string {
+export function deferredSaleComprobanteLine(invoice: FoundDeferredSale["invoice"]): string {
   return invoice.kind === "issued"
-    ? `PV ${formatPointOfSaleNumber(invoice.point_of_sale)}\nNº ${formatInvoiceNumber(invoice.number)}`
-    : "Se asigna al emitir";
+    ? `Factura C · ${documentNumberText(invoice)}`
+    : "Factura C · Se asigna al emitir";
 }
 
 const REFUSALS: Record<
@@ -52,7 +52,7 @@ const REFUSALS: Record<
   not_a_deferred_sale_qr: {
     tone: "error",
     title: "Ese QR no es de una venta diferida",
-    description: "Escaneá el QR del documento no fiscal, o tipeá su código de consulta.",
+    description: "Escaneá el QR del documento no fiscal.",
   },
   lacks_permission: {
     tone: "error",

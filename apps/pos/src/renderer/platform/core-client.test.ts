@@ -1560,6 +1560,23 @@ describe("createCoreClient", () => {
     },
   );
 
+  it.each([{ kind: "not_found" }, { kind: "no_open_session" }, { kind: "unavailable" }])(
+    "asks the core to consult a product and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const consulted = client.consultProduct({ barcode: "7790001000017" });
+      port.answer({ type: "consult-product-result", request_id: "request-1", outcome });
+
+      expect(await consulted).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "consult-product", request_id: "request-1", product: { barcode: "7790001000017" } },
+      ]);
+    },
+  );
+
   it.each([
     {
       kind: "found",

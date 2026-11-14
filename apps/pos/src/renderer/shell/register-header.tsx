@@ -26,6 +26,7 @@ import {
   TriangleAlert,
   Unplug,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Fragment } from "react";
 import { ContingencyBackupTicketsNoticeCard } from "../backups/contingency-backup-tickets-notice-card";
 import { contingencyBackupTicketsNoticeCount } from "../backups/contingency-backup-tickets-notice-count";
@@ -157,7 +158,10 @@ function Crumbs({
   );
 }
 
-export type RegisterHeaderProps = RegisterStatusData & { crumb?: string | undefined };
+export type RegisterHeaderProps = RegisterStatusData & {
+  crumb?: string | undefined;
+  mode?: ReactNode;
+};
 
 export function RegisterHeader({
   person,
@@ -167,6 +171,7 @@ export function RegisterHeader({
   backupTickets,
   onDiscardBackupTickets,
   crumb,
+  mode,
 }: RegisterHeaderProps) {
   const loadedBackupTickets = backupTickets.status === "loaded" ? backupTickets.value : undefined;
   const noticeCount =
@@ -212,6 +217,7 @@ export function RegisterHeader({
               onDiscardBackupTickets={onDiscardBackupTickets}
             />
           ) : null}
+          {mode}
         </div>
       </div>
       {status.status === "loading" ? <LoadingPlaceholder variant="card" lines={1} /> : null}

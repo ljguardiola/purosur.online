@@ -13,6 +13,7 @@ import type {
   ManualAdjustmentRequest,
   OpenCashSession,
   OpenCashSessionOutcome,
+  ProductToConsult,
   ReturnDraftLineBody,
   SaleDiscountRequest,
   SignInOutcome,
@@ -437,6 +438,7 @@ function Register({ core }: { core: CoreClient }) {
     followMercadoPagoCharge,
     abandonMercadoPagoCharge,
     searchProducts: (query: string) => core.searchProducts(query),
+    consultProduct: (product: ProductToConsult) => core.consultProduct(product),
     findProductByCode: (code: string) => core.findProductByCode(code),
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>

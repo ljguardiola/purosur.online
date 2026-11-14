@@ -9,6 +9,7 @@ import type {
 } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { gapBetweenSearchFieldAndScaleCard } from "../platform/test-support/search-row";
 import type { SaleScreenProps } from "./sale-screen";
 import type { Overrides } from "./test-support/sale-screen";
 import {
@@ -298,7 +299,7 @@ describe("SaleScreen balanza card", () => {
     await expect.poll(() => label.element().parentElement?.textContent).toBe("BalanzaSin lectura");
     const fieldBox = field.element().getBoundingClientRect();
     const cardBox = label.element().getBoundingClientRect();
-    expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+    expect(gapBetweenSearchFieldAndScaleCard(field.element(), label.element())).toBe(12);
     expect(cardBox.top).toBeLessThan(fieldBox.bottom);
   });
 
@@ -721,6 +722,17 @@ describe("SaleScreen products waiting during a weighing", () => {
     await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
     await expect.element(screen.getByText("En espera")).not.toBeInTheDocument();
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
+  });
+
+  it("refuses a deferred sale's QR like any unknown code, keeping the weighing on the sale screen", async () => {
+    const { screen, readBarcode } = await weighingWith();
+    const pathname = screen.router.state.location.pathname;
+
+    readBarcode("purosur-deferred-sale:0198-abc:7KQ4M2P9");
+
+    await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
+    await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
+    expect(screen.router.state.location.pathname).toBe(pathname);
   });
 
   it("queues a code typed in the search field while the reading is moving instead of adding it", async () => {

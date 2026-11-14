@@ -73,6 +73,13 @@ export const BackofficeFilled: Story = {
   args: { value: "Miel", placeholder: "Filtrar por nombre o SKU" },
 };
 
+export const ModeTone: Story = {
+  args: { value: "", tone: "mode", icon: <ScanBarcode /> },
+  play: async () => {
+    await userEvent.tab();
+  },
+};
+
 export const WithLabel: Story = {
   decorators: [inBackofficeSize],
   args: {

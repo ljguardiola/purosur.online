@@ -291,7 +291,7 @@ describe("SaleDiscountPanel", () => {
 
       await expect
         .element(screen.getByRole("alert"))
-        .toHaveTextContent("Ya no tenés permiso para descontar sobre el total.");
+        .toHaveTextContent("Ya no tenés permiso para descontar al total.");
     });
 
     it("says the discount failed and keeps the button enabled when the core cannot be reached", async () => {

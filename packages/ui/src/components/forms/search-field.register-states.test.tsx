@@ -10,7 +10,7 @@ import { SearchField, type SearchFieldProps } from "./search-field";
 function Harness({
   initial = "",
   ...props
-}: Partial<Pick<SearchFieldProps, "invalid" | "action">> & { initial?: string }) {
+}: Partial<Pick<SearchFieldProps, "invalid" | "action" | "tone">> & { initial?: string }) {
   const [value, setValue] = useState(initial);
   return (
     <SearchField
@@ -102,4 +102,14 @@ test("combines the error border with a key action", async () => {
 
   expect(paintedBoxShadowLayers(box(screen))).toEqual([insetBoundary("error", "2px")]);
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("draws a brown border while focused when in the mode tone", async () => {
+  const screen = await render(<Harness tone="mode" />);
+
+  await userEvent.tab();
+
+  await expect
+    .poll(() => paintedBoxShadowLayers(box(screen)))
+    .toEqual([insetBoundary("border-accent", "2px")]);
 });

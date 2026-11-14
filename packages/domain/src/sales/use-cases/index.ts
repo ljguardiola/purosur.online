@@ -101,6 +101,15 @@ export type {
 } from "./charge-sale-with-paid-order.js";
 export { chargeSaleWithPaidOrder } from "./charge-sale-with-paid-order.js";
 export type {
+  ConsultedProduct,
+  ConsultedPromotion,
+  ConsultProductInput,
+  ConsultProductOutcome,
+  ConsultProductPorts,
+  ProductToConsult,
+} from "./consult-product.js";
+export { consultProduct } from "./consult-product.js";
+export type {
   CurrentSaleInput,
   CurrentSaleOutcome,
   CurrentSalePorts,
@@ -115,6 +124,7 @@ export { declineSaleReceipt } from "./decline-sale-receipt.js";
 export type {
   DeferredSaleInvoicing,
   DeferredSaleInvoicingOutcome,
+  DeferredSaleLine,
   DeferredSaleLookup,
   DeferredSaleSearch,
 } from "./deferred-sale-lookup-ports.js";
