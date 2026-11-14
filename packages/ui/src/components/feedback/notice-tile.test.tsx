@@ -39,19 +39,34 @@ test("renders the caller's title, subtitle and icon", async () => {
   expect(tileOf(screen).querySelector("svg")).not.toBeNull();
 });
 
-test("does not accept a tile without a title or a subtitle", () => {
+test("does not accept a tile without a title", () => {
   expectTypeOf<{
     tone: "warning";
     icon: Icon;
     subtitle: string;
     focused: boolean;
   }>().not.toExtend<NoticeTileProps>();
+});
+
+test("accepts a tile without a subtitle", () => {
   expectTypeOf<{
     tone: "warning";
     icon: Icon;
     title: string;
     focused: boolean;
-  }>().not.toExtend<NoticeTileProps>();
+  }>().toExtend<NoticeTileProps>();
+});
+
+test("draws only the title and the focused details when it has no subtitle", async () => {
+  const screen = await renderTile({
+    subtitle: undefined,
+    description: "La hora difiere.",
+    focused: true,
+  });
+
+  expect(tileOf(screen).querySelectorAll("p")).toHaveLength(2);
+  const region = screen.container.querySelector('[role="status"], [role="alert"]') as HTMLElement;
+  await expect.poll(() => region.textContent).toBe("Reloj de la caja desajustado La hora difiere.");
 });
 
 test("draws every tone's tinted surface, strong title and icon", async () => {
