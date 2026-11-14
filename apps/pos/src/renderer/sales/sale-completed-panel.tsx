@@ -215,6 +215,10 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
   if (asking && !offered) {
     setOffered(true);
   }
+  const [offerLengthMs, setOfferLengthMs] = useState<number | null>(null);
+  if (offer !== null && offer.length_ms !== offerLengthMs) {
+    setOfferLengthMs(offer.length_ms);
+  }
   const mayStartNewSale =
     receipt.status === "failed" ||
     (receipt.status === "loaded" && receipt.value.standing !== "preparing");
@@ -233,6 +237,9 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
       !answerSent &&
       receipt.status === "loaded" &&
       receipt.value.standing === "declined");
+  const shownOffer =
+    offer ??
+    (lapsed && offerLengthMs !== null ? { remaining_ms: 0, length_ms: offerLengthMs } : null);
   const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
   const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
   const backupPrinterFailure = useBackupPrinterFailureQuery({
@@ -401,7 +408,7 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
       label="Venta completada"
       header={header}
       footer={
-        offer === null ? (
+        shownOffer === null ? (
           <Button
             size="large"
             fullWidth
@@ -414,7 +421,12 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
             Nueva venta
           </Button>
         ) : (
-          <PrintOffer offer={offer} disabled={answerSent} onPrint={print} onSkip={skip} />
+          <PrintOffer
+            offer={shownOffer}
+            disabled={answerSent || offer === null}
+            onPrint={print}
+            onSkip={skip}
+          />
         )
       }
     >
