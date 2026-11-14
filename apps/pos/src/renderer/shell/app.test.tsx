@@ -3643,7 +3643,7 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
         .toBeVisible();
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
       return identified;
     }
@@ -3710,7 +3710,7 @@ describe("App", () => {
     describe("cancelling its open sale", () => {
       async function cancelFromLocked(
         cashDrawer: Parameters<typeof identifyFromLocked>[0],
-        action = "Vaciar venta",
+        action = "Vaciar carrito",
       ) {
         const identified = await identifyFromLocked({
           sessionOpenSale: async () => ({
@@ -3727,7 +3727,7 @@ describe("App", () => {
         });
         await userEvent.click(identified.screen.getByRole("button", { name: action }));
         await userEvent.click(
-          identified.screen.getByRole("dialog").getByRole("button", { name: action }),
+          identified.screen.getByRole("complementary").getByRole("button", { name: action }),
         );
         return identified;
       }
@@ -3741,7 +3741,9 @@ describe("App", () => {
         await expect
           .element(screen.getByText("Hay una venta abierta de $ 34.340,00"))
           .not.toBeInTheDocument();
-        await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+        await expect
+          .element(screen.getByRole("complementary", { name: "Cerrar caja" }))
+          .toBeVisible();
       });
 
       it("reads the expected cash again once a part-paid sale is cancelled", async () => {

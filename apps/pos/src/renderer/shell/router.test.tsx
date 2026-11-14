@@ -2859,7 +2859,7 @@ describe("the register's router", () => {
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     expect(identified).toEqual([{ user_id: "u3", pin: "1234" }]);
@@ -2898,9 +2898,11 @@ describe("the register's router", () => {
     const screen = await render(<RouterProvider router={router} />);
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
-    await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vaciar carrito" }));
 
-    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }));
+    await userEvent.click(
+      screen.getByRole("complementary").getByRole("button", { name: "Vaciar carrito" }),
+    );
 
     await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);
   });
