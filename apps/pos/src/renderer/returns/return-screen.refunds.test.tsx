@@ -99,6 +99,18 @@ describe("ReturnScreen refunding by payment method", () => {
     await expect.element(searchBox(screen)).toBeDisabled();
   });
 
+  it("keeps each refund amount of the panel on one line", async () => {
+    const { screen } = await renderScreen(TWO_PAYMENTS);
+
+    await openRefunds(screen);
+
+    const panel = refundsPanel(screen);
+    const label = panel.getByText("Efectivo · en el acto", { exact: true }).element();
+    const amount = label.nextElementSibling as HTMLElement;
+    expect(amount.textContent).toBe("$ 13.935,00");
+    expect(getComputedStyle(amount).textWrapMode).toBe("nowrap");
+  });
+
   it("lists the arrows Medio and Enter Finalizar, with no P key", async () => {
     const { screen } = await renderScreen(TWO_PAYMENTS);
 

@@ -280,6 +280,20 @@ test("keeps an unbreakable value inside the row, narrowing the label past its lo
   await expectNoAccessibilityViolations(screen.container);
 });
 
+test("keeps an amount value on one line in a narrow panel, wrapping a long label instead", async () => {
+  const label = "Transferencia · reembolso pendiente";
+  const screen = await render(
+    <div style={{ width: "350px" }}>
+      <SummaryRow label={label} value="$ 5.000,00" amount />
+    </div>,
+  );
+  const valueElement = screen.getByText("$ 5.000,00", { exact: true }).element() as HTMLElement;
+  const valueLines = document.createRange();
+  valueLines.selectNodeContents(valueElement);
+
+  expect(valueLines.getClientRects()).toHaveLength(1);
+});
+
 test("keeps the value inside the row when the label is a single unbreakable word", async () => {
   const unbreakableLabel = "Subtotalofeverythingscannedsofarinthissale";
   const screen = await render(
