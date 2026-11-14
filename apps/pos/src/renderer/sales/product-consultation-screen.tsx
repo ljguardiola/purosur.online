@@ -129,6 +129,7 @@ export function ProductConsultationScreen({
   const [results, setResults] = useState<SearchResults>();
   const [activeIndex, setActiveIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
+  const [problemCleared, setProblemCleared] = useState(false);
   const current = useCurrentSaleQuery({ sessionId, userId: person.user_id, read: currentSale });
   const availability = usePaymentMethodAvailabilityQuery({
     sessionId,
@@ -140,7 +141,9 @@ export function ProductConsultationScreen({
   const answer = consultation.status === "loaded" ? consultation.value : undefined;
   const consulted = answer?.kind === "consulted" ? answer : undefined;
   const problem =
-    answer === undefined || wanted === undefined ? undefined : problemOf(answer, wanted);
+    answer === undefined || wanted === undefined || problemCleared
+      ? undefined
+      : problemOf(answer, wanted);
   const found = results?.query === code.trim() && !dismissed ? results : undefined;
   const choosing = found !== undefined && found.products.length > 0;
   const chosen = choosing ? found.products[activeIndex] : undefined;
@@ -168,6 +171,7 @@ export function ProductConsultationScreen({
   function consult(product: ProductToConsult) {
     setCode("");
     setResults(undefined);
+    setProblemCleared(false);
     setWanted(product);
   }
 
@@ -192,6 +196,7 @@ export function ProductConsultationScreen({
   function type(typed: string) {
     setCode(typed);
     setDismissed(false);
+    setProblemCleared(true);
     const query = typed.trim();
     if (!LETTER.test(query)) {
       setResults(undefined);
