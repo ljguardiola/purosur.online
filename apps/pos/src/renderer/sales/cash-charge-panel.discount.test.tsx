@@ -251,8 +251,8 @@ it("says the person no longer may discount the total, when nobody was asked to a
   await userEvent.click(panel.complete);
 
   await expect
-    .element(panel.screen.getByText("Ya no tenés permiso para descontar al total."))
-    .toBeVisible();
+    .element(panel.screen.getByRole("alert"))
+    .toHaveTextContent("Ya no tenés permiso para descontar al total.");
   expect(panel.callbacks.onCompleted).not.toHaveBeenCalled();
 });
 
