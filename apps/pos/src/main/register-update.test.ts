@@ -155,7 +155,9 @@ function setup(options: Options = {}) {
     spawnInstallerThroughShell: async (path, args) => {
       events.push("shell-spawn");
       if (options.shellLaunchFails) {
-        throw new Error("Start-Process: the file contains a virus or potentially unwanted software");
+        throw new Error(
+          "Start-Process: the file contains a virus or potentially unwanted software",
+        );
       }
       launchedThroughShell.push({ path, args });
     },
