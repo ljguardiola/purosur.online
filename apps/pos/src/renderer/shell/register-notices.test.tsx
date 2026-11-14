@@ -31,8 +31,10 @@ describe("registerNoticeSummary", () => {
 
   it("does not count a contingency without a notice nor tickets still being read", () => {
     const summary = registerNoticeSummary(
-      input({ contingency: { kind: "deferring", notice: false, since: null },
-        backupTickets: undefined }),
+      input({
+        contingency: { kind: "deferring", notice: false, since: null },
+        backupTickets: undefined,
+      }),
     );
 
     expect(summary.count).toBe(0);

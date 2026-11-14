@@ -615,7 +615,11 @@ describe("the register's fiscal mode on its status", () => {
     holdRealTimeSeries();
     holdTheOfflineCode();
 
-    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: true, since: null });
+    expect((await status()).contingency).toEqual({
+      kind: "offline_code",
+      notice: true,
+      since: null,
+    });
   });
 
   it("is a deferring contingency with a notice while the register is offline and holds no code", async () => {
@@ -661,7 +665,11 @@ describe("the register's fiscal mode on its status", () => {
     holdTheOfflineCode();
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
-    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: false, since: null });
+    expect((await status()).contingency).toEqual({
+      kind: "offline_code",
+      notice: false,
+      since: null,
+    });
   });
 
   it("is a contingency without a notice while its storage stops new sales", async () => {

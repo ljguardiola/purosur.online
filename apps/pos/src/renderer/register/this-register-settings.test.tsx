@@ -128,9 +128,7 @@ describe("the Esta caja section of Ajustes", () => {
         status: { contingency: { ...OFFLINE_CODE, since: "2026-11-04T13:05:00.000-03:00" } },
       });
 
-      await expect
-        .element(noticesList(screen).getByText("Desde 04/11 · 13:05"))
-        .toBeVisible();
+      await expect.element(noticesList(screen).getByText("Desde 04/11 · 13:05")).toBeVisible();
     });
 
     it("tells no start for a contingency without an open interval", async () => {
