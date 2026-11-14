@@ -758,6 +758,39 @@ test("a reset without values goes back to the values the form started with", asy
   await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
 });
 
+function FailingProbe() {
+  const { form, submit, failing } = useRequestForm({
+    defaultValues: { name: "" },
+    request: { schema: z.object({ name: z.string().min(1) }), from: (values) => values },
+    fields: { name: "name" },
+    messages: { name: "Escribí el nombre." },
+    onSubmit: () => Promise.resolve(),
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+      <output aria-label="Estado">{failing ? "con error" : "sin error"}</output>
+    </>
+  );
+}
+
+test("the form is failing while a field shows an error, and not once the error is gone", async () => {
+  const screen = await render(<FailingProbe />);
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin error");
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Escribí el nombre.")).toBeVisible();
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("con error");
+
+  await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "Ana");
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin error");
+});
+
 function DateProbe({ onSubmit }: { onSubmit: (date: string) => Promise<void> }) {
   const { form, submit } = useRequestForm({
     defaultValues: { day: null as CalendarDate | null },
