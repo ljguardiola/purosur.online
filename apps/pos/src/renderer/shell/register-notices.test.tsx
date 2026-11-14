@@ -53,7 +53,7 @@ describe("registerNotices", () => {
     expect(drift).toMatchObject({
       tone: "warning",
       title: "Reloj de la caja desajustado",
-      subtitle: "Desde 04/11/2026 · 14:20",
+      subtitle: "Desde 04/11 · 14:20",
     });
     expect(drift?.description).toBeTruthy();
     expect(drift?.whatToDo).toBeTruthy();

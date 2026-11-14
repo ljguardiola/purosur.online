@@ -176,7 +176,7 @@ describe("Esta caja", () => {
       await expect
         .element(noticesList(screen).getByText("Reloj de la caja desajustado"))
         .toBeVisible();
-      await expect.element(noticesList(screen).getByText("Desde 04/11/2026 · 14:20")).toBeVisible();
+      await expect.element(noticesList(screen).getByText("Desde 04/11 · 14:20")).toBeVisible();
       await expectNoAccessibilityViolations(screen.container);
     });
   });
