@@ -1144,7 +1144,7 @@ export function SaleScreen({
             description={localAlertText(diskFull).meaning}
           />
         )}
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           <form
             ref={field}
             noValidate

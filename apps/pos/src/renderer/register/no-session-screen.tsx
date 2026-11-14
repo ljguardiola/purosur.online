@@ -18,7 +18,7 @@ export type NoSessionScreenProps = {
 function LockedRegister() {
   return (
     <div className="hidden min-h-0 flex-1 flex-col gap-4 peer-empty:flex">
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <SearchField
             label="Producto"
