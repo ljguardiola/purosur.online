@@ -92,8 +92,9 @@ export function createContingencyRecordingWiring({
     startHealthChecks: (healthChecks: RegisterHealthChecksDeps) =>
       startRegisterHealthChecks({
         ...healthChecks,
-        afterCheck: () => {
-          void check().then(() => healthChecks.afterCheck?.());
+        afterCheck: async () => {
+          await check();
+          await healthChecks.afterCheck?.();
         },
       }),
     authorizeSale: (saleId: string) => checkAfter(authorizeSale(saleId)),
