@@ -39,7 +39,7 @@ const THREE_YERBAS: OpenSale = {
   total: 714_000,
   pending: 714_000,
 };
-const REMOVED_TITLE = "Se quitó el descuento sobre el total porque cambió una línea";
+const REMOVED_TITLE = "Se quitó el descuento al total porque cambió una línea";
 const REMOVED_HELP = "Volvé a aplicarlo si corresponde.";
 
 async function applyFivePercent(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
@@ -363,7 +363,7 @@ describe("SaleScreen telling the discount on the total was removed", () => {
     await expect
       .element(
         screen.getByText(
-          "Se quitaron el descuento manual de Yerba mate 1 kg y el descuento sobre el total porque cambió la cantidad",
+          "Se quitaron el descuento manual de Yerba mate 1 kg y el descuento al total porque cambió la cantidad",
         ),
       )
       .toBeVisible();

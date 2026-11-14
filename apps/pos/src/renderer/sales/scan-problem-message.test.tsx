@@ -27,7 +27,7 @@ describe("ScanProblemMessage", () => {
     },
     {
       problem: { kind: "empty_failed" },
-      title: "No se pudo vaciar el carrito",
+      title: "No se pudo vaciar la venta",
       help: "Probá de nuevo.",
     },
     {
@@ -49,13 +49,13 @@ describe("ScanProblemMessage", () => {
   it.each<{ problem: ScanProblem; title: string; help: string }>([
     {
       problem: { kind: "has_approved_payment" },
-      title: "No se puede vaciar el carrito",
+      title: "No se puede vaciar la venta",
       help: "Ya tiene un pago aprobado.",
     },
     {
       problem: { kind: "mercado_pago_charge_in_progress", action: "empty" },
       title: "Hay un cobro con Mercado Pago en curso",
-      help: "Esperá a que termine para vaciar el carrito.",
+      help: "Esperá a que termine para vaciar la venta.",
     },
     {
       problem: { kind: "mercado_pago_charge_in_progress", action: "cancel" },

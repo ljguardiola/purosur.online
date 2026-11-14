@@ -144,13 +144,13 @@ export function messageFor(problem: ScanProblem): Message {
     case "sale_discount_removed":
       return {
         icon: Percent,
-        title: "Se quitó el descuento sobre el total porque cambió una línea",
+        title: "Se quitó el descuento al total porque cambió una línea",
         help: "Volvé a aplicarlo si corresponde.",
       };
     case "manual_and_sale_discount_removed":
       return {
         icon: Percent,
-        title: `Se quitaron el descuento manual de ${problem.product_name} y el descuento sobre el total porque cambió la cantidad`,
+        title: `Se quitaron el descuento manual de ${problem.product_name} y el descuento al total porque cambió la cantidad`,
         help: "Volvé a aplicarlo si corresponde.",
       };
     case "scan_failed":
@@ -186,7 +186,7 @@ export function messageFor(problem: ScanProblem): Message {
     case "empty_failed":
       return {
         icon: TriangleAlert,
-        title: "No se pudo vaciar el carrito",
+        title: "No se pudo vaciar la venta",
         help: "Probá de nuevo.",
       };
     case "cancel_failed":
@@ -198,7 +198,7 @@ export function messageFor(problem: ScanProblem): Message {
     case "has_approved_payment":
       return {
         icon: Ban,
-        title: "No se puede vaciar el carrito",
+        title: "No se puede vaciar la venta",
         help: "Ya tiene un pago aprobado.",
       };
     case "mercado_pago_charge_in_progress":
@@ -207,7 +207,7 @@ export function messageFor(problem: ScanProblem): Message {
         title: "Hay un cobro con Mercado Pago en curso",
         help:
           problem.action === "empty"
-            ? "Esperá a que termine para vaciar el carrito."
+            ? "Esperá a que termine para vaciar la venta."
             : "Esperá a que termine para cancelar la venta.",
       };
     case "search_failed":

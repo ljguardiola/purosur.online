@@ -45,7 +45,7 @@ const FAILED_MESSAGE = "No se pudo aplicar el descuento. Probá de nuevo.";
 const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total de la venta.";
 const EMPTY_SALE_MESSAGE = "La venta no tiene líneas para descontar.";
 const ZERO_TOTAL_MESSAGE = `El total de la venta ya es ${formatCents(0)}: no hay nada para descontar.`;
-const AUTHORIZING = "descontar sobre el total";
+const AUTHORIZING = "descontar al total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 const NOT_PREVIEWED = "—";
 

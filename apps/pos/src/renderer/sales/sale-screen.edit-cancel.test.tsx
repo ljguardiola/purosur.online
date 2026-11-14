@@ -469,7 +469,7 @@ describe("SaleScreen cancelling the sale", () => {
 
     await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await expect.element(screen.getByText("No se pudo vaciar el carrito")).toBeVisible();
+    await expect.element(screen.getByText("No se pudo vaciar la venta")).toBeVisible();
     await expect
       .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
       .not.toBeInTheDocument();
@@ -485,7 +485,7 @@ describe("SaleScreen cancelling the sale", () => {
 
     await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await expect.element(screen.getByText("No se puede vaciar el carrito")).toBeVisible();
+    await expect.element(screen.getByText("No se puede vaciar la venta")).toBeVisible();
     await expect.element(screen.getByText("Ya tiene un pago aprobado.")).toBeVisible();
     await expect.element(screen.getByText("Probá de nuevo.")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
@@ -502,7 +502,7 @@ describe("SaleScreen cancelling the sale", () => {
 
     await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
-      .element(screen.getByText("Esperá a que termine para vaciar el carrito."))
+      .element(screen.getByText("Esperá a que termine para vaciar la venta."))
       .toBeVisible();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
