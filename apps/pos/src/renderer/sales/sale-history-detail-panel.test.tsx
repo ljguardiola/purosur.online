@@ -164,7 +164,7 @@ describe("SaleHistoryDetailPanel", () => {
   });
 
   describe("a voided sale", () => {
-    const voided = {
+    const voided: typeof DETAIL = {
       ...DETAIL,
       state: "voided",
       returnable: false,
@@ -173,7 +173,7 @@ describe("SaleHistoryDetailPanel", () => {
         { method: "QR", card_type: null, amount: 1_230_000, state: "PENDING" },
         { method: "CASH", card_type: null, amount: 50_000, state: "APPROVED" },
       ],
-    } as const;
+    };
 
     it("shows each refund the void recorded in place of the payment it returns", async () => {
       const { panel } = await renderPanel({ detail: found(voided) });

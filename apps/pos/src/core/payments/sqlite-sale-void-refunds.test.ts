@@ -47,6 +47,7 @@ function addPayment(
 
 function addRefund(
   id: string,
+  saleId: string,
   paymentId: string,
   method: "CASH" | "QR" | "POINT",
   amount: number,
@@ -55,6 +56,7 @@ function addRefund(
 ): void {
   insertPaymentRefund(database, {
     id,
+    saleId,
     paymentId,
     method,
     provider:
@@ -90,9 +92,9 @@ describe("the refunds the void of a sale recorded", () => {
     addPayment("pay-point", "sale-1", "POINT", 4000, 2, "CREDIT");
     addPayment("pay-cash", "sale-1", "CASH", 500, 1);
     addPayment("pay-qr", "sale-1", "QR", 12300, 3);
-    addRefund("refund-point", "pay-point", "POINT", 4000, "PENDING");
-    addRefund("refund-qr", "pay-qr", "QR", 12300, "PENDING");
-    addRefund("refund-cash", "pay-cash", "CASH", 500, "APPROVED");
+    addRefund("refund-point", "sale-1", "pay-point", "POINT", 4000, "PENDING");
+    addRefund("refund-qr", "sale-1", "pay-qr", "QR", 12300, "PENDING");
+    addRefund("refund-cash", "sale-1", "pay-cash", "CASH", 500, "APPROVED");
 
     expect(new SqliteSaleVoidRefunds(database).refundsOfVoid("sale-1")).toEqual([
       { method: "CASH", cardType: null, amount: 500, state: "APPROVED" },
@@ -110,9 +112,9 @@ describe("the refunds the void of a sale recorded", () => {
          VALUES ('return-1', 'sale-1', 'register-1', 'device-1', 'session-1', 'u1', 'QR', ?)`,
       )
       .run(OCCURRED_AT.toISOString());
-    addRefund("refund-void", "pay-1", "QR", 10000, "PENDING");
-    addRefund("refund-return", "pay-1", "QR", 2300, "PENDING", "return-1");
-    addRefund("refund-other", "pay-2", "QR", 800, "PENDING");
+    addRefund("refund-void", "sale-1", "pay-1", "QR", 10000, "PENDING");
+    addRefund("refund-return", "sale-1", "pay-1", "QR", 2300, "PENDING", "return-1");
+    addRefund("refund-other", "sale-2", "pay-2", "QR", 800, "PENDING");
 
     expect(new SqliteSaleVoidRefunds(database).refundsOfVoid("sale-1")).toEqual([
       { method: "QR", cardType: null, amount: 10000, state: "PENDING" },

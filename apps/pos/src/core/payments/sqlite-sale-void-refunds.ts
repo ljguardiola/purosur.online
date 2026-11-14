@@ -1,4 +1,4 @@
-import type { PlannedRefundState, PointCardType } from "@purosur/domain";
+import type { PointCardType } from "@purosur/domain";
 import type { SaleVoidRefund, SaleVoidRefunds } from "@purosur/domain/sales/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
@@ -6,11 +6,15 @@ interface VoidRefundRow {
   method: SaleVoidRefund["method"];
   card_type: PointCardType | null;
   amount: number;
-  state: PlannedRefundState;
+  state: SaleVoidRefund["state"];
 }
 
 export class SqliteSaleVoidRefunds implements SaleVoidRefunds {
-  constructor(private readonly database: LocalDatabase) {}
+  private readonly database: LocalDatabase;
+
+  constructor(database: LocalDatabase) {
+    this.database = database;
+  }
 
   refundsOfVoid(saleId: string): SaleVoidRefund[] {
     return this.database
