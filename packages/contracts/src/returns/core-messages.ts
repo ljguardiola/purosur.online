@@ -1,6 +1,10 @@
-import { ticketReferenceFromQrText } from "@purosur/domain";
 import { z } from "zod";
-import { authorizationSchema, pointOfSaleNumberSchema, requestIdSchema } from "../shared/index.js";
+import {
+  authorizationSchema,
+  pointOfSaleNumberSchema,
+  requestIdSchema,
+  scannedTicketTextSchema,
+} from "../shared/index.js";
 import {
   completeReturnOutcomeSchema,
   findSaleForReturnOutcomeSchema,
@@ -9,8 +13,6 @@ import {
   returnDraftLineSchema,
   ticketSourceSchema,
 } from "./return.js";
-
-const QR_MESSAGE = "text must be the QR of a sale's ticket";
 
 const typedReadingSchema = z
   .object({
@@ -26,14 +28,7 @@ const typedReadingSchema = z
 const scannedReadingSchema = z
   .object({
     kind: z.literal("scanned"),
-    text: z.string({ error: QR_MESSAGE }).transform((text, context) => {
-      const ticket = ticketReferenceFromQrText(text);
-      if (ticket === null) {
-        context.addIssue({ code: "custom", message: QR_MESSAGE });
-        return z.NEVER;
-      }
-      return ticket;
-    }),
+    text: scannedTicketTextSchema,
   })
   .transform(({ text }) => ({ source: "QR" as const, ticket: text }));
 

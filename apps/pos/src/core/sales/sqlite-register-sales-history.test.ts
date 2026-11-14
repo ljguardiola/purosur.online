@@ -717,6 +717,77 @@ describe("SqliteRegisterSalesHistory", () => {
     });
   });
 
+  describe("the candidates for a deferred sale's reference", () => {
+    const ids = (entries: { saleId: string }[]) => entries.map(({ saleId }) => saleId);
+    const referenceOf = (saleId: string) => {
+      const row = database
+        .prepare<[string], { id: string; short_code: string }>(
+          "SELECT id, short_code FROM deferred_sales WHERE sale_id = ?",
+        )
+        .get(saleId);
+      return { id: row?.id ?? "", shortCode: row?.short_code ?? "" };
+    };
+
+    it("finds the sale of the deferred sale with that id and short code", () => {
+      addSale({ id: "wanted", deferred: true });
+      addSale({ id: "other", deferred: true });
+      addSale({ id: "ordinary" });
+
+      const found = history.salesOfRegisterOfDeferredSale(referenceOf("wanted"));
+
+      expect(ids(found)).toEqual(["wanted"]);
+      expect(found[0]?.fiscal).toMatchObject({ deferred: true });
+    });
+
+    it("finds nothing when the short code is not the one of that id", () => {
+      addSale({ id: "wanted", deferred: true });
+      addSale({ id: "other", deferred: true });
+
+      expect(
+        history.salesOfRegisterOfDeferredSale({
+          id: referenceOf("wanted").id,
+          shortCode: referenceOf("other").shortCode,
+        }),
+      ).toEqual([]);
+    });
+
+    it("finds a deferred sale an authorization already satisfied", () => {
+      addSale({
+        id: "adopted",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 },
+        deferred: "satisfied",
+      });
+
+      expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("adopted")))).toEqual([
+        "adopted",
+      ]);
+    });
+
+    it("finds only the sale of the open session when asked for that session", () => {
+      addSale({ id: "today", session: "open-session", deferred: true });
+      addSale({ id: "yesterday", session: "old-session", deferred: true });
+
+      expect(ids(history.salesOfOpenSessionOfDeferredSale(referenceOf("today")))).toEqual([
+        "today",
+      ]);
+      expect(history.salesOfOpenSessionOfDeferredSale(referenceOf("yesterday"))).toEqual([]);
+      expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("yesterday")))).toEqual([
+        "yesterday",
+      ]);
+    });
+
+    it("lists only completed and voided sales of this register", () => {
+      openSession("other-session", "r2");
+      addSale({ id: "voided", state: "VOIDED", deferred: true });
+      addSale({ id: "cancelled", state: "CANCELLED", deferred: true });
+      addSale({ id: "elsewhere", session: "other-session", register: "r2", deferred: true });
+
+      expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("voided")))).toEqual(["voided"]);
+      expect(history.salesOfRegisterOfDeferredSale(referenceOf("cancelled"))).toEqual([]);
+      expect(history.salesOfRegisterOfDeferredSale(referenceOf("elsewhere"))).toEqual([]);
+    });
+  });
+
   describe("listing every standing", () => {
     beforeEach(() => {
       addSale({ id: "no-document", occurredAt: "2026-10-08T10:00:00.000Z" });

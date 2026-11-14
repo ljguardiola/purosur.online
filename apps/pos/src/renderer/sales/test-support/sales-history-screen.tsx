@@ -12,6 +12,7 @@ import type {
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SalesHistoryQuery } from "../../platform/core-client";
+import { BarcodeReadings } from "../../shell/barcode-readings";
 import { RegisterWindow } from "../../shell/test-support/register-window";
 import { render } from "../../shell/test-support/render-with-router";
 import type { SalesHistoryScreenProps } from "../sales-history-screen";
@@ -162,27 +163,40 @@ export async function renderScreen({
   );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
+  const readers = new Set<(code: string) => void>();
   const screen = await render(
-    <RegisterWindow>
-      <SalesHistoryScreen
-        person={person}
-        sessionOpen={sessionOpen}
-        lock={lock}
-        salesHistory={salesHistory}
-        saleHistoryDetail={saleHistoryDetail}
-        reprintSaleReceipt={reprintSaleReceipt}
-        printOriginalReceipt={printOriginalReceipt}
-        voidSale={voidSale}
-        printCreditNote={printCreditNote}
-        reprintCreditNote={reprintCreditNote}
-        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
-        printDeferredSaleInvoice={printDeferredSaleInvoice}
-        loadAuthorizers={async () => AUTHORIZERS}
-        onSessionInvalid={onSessionInvalid}
-      />
-    </RegisterWindow>,
+    <BarcodeReadings
+      onBarcodeRead={(listener) => {
+        readers.add(listener);
+        return () => {
+          readers.delete(listener);
+        };
+      }}
+    >
+      <RegisterWindow>
+        <SalesHistoryScreen
+          person={person}
+          sessionOpen={sessionOpen}
+          lock={lock}
+          salesHistory={salesHistory}
+          saleHistoryDetail={saleHistoryDetail}
+          reprintSaleReceipt={reprintSaleReceipt}
+          printOriginalReceipt={printOriginalReceipt}
+          voidSale={voidSale}
+          printCreditNote={printCreditNote}
+          reprintCreditNote={reprintCreditNote}
+          reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
+          printDeferredSaleInvoice={printDeferredSaleInvoice}
+          loadAuthorizers={async () => AUTHORIZERS}
+          onSessionInvalid={onSessionInvalid}
+        />
+      </RegisterWindow>
+    </BarcodeReadings>,
   );
   return {
+    readBarcode(code: string) {
+      for (const listener of readers) listener(code);
+    },
     screen,
     salesHistory,
     saleHistoryDetail,
@@ -217,7 +231,7 @@ export function legendOf(screen: Screen): string[] {
 }
 
 export function searchField(screen: Screen) {
-  return screen.getByRole("searchbox", { name: "Escribí el número del comprobante" });
+  return screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" });
 }
 
 export function detailPanel(screen: Screen) {

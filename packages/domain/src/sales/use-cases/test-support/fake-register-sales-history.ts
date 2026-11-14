@@ -10,6 +10,7 @@ import type {
 export interface FakeHistorySale {
   entry: SalesHistoryEntry;
   inOpenSession: boolean;
+  deferredReference?: { id: string; shortCode: string };
   record?: SaleHistoryRecord;
 }
 
@@ -17,6 +18,10 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
   readonly documentSearches: {
     scope: "open_session" | "register";
     document: SaleDocumentNumber;
+  }[] = [];
+  readonly deferredSearches: {
+    scope: "open_session" | "register";
+    reference: { id: string; shortCode: string };
   }[] = [];
   readonly filters: { scope: "open_session" | "register"; filter: SalesHistoryFilter }[] = [];
   private readonly sales: FakeHistorySale[];
@@ -51,6 +56,19 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
     return this.candidatesOf(this.sales, document);
   }
 
+  salesOfOpenSessionOfDeferredSale(reference: { id: string; shortCode: string }) {
+    this.deferredSearches.push({ scope: "open_session", reference });
+    return this.ofDeferredSale(
+      this.sales.filter(({ inOpenSession }) => inOpenSession),
+      reference,
+    );
+  }
+
+  salesOfRegisterOfDeferredSale(reference: { id: string; shortCode: string }) {
+    this.deferredSearches.push({ scope: "register", reference });
+    return this.ofDeferredSale(this.sales, reference);
+  }
+
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {
     return this.sales.find(({ entry }) => entry.saleId === saleId)?.record;
   }
@@ -62,6 +80,18 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
         fiscalDocument: null,
       }
     );
+  }
+
+  private ofDeferredSale(
+    sales: FakeHistorySale[],
+    { id, shortCode }: { id: string; shortCode: string },
+  ) {
+    return sales
+      .filter(
+        ({ deferredReference }) =>
+          deferredReference?.id === id && deferredReference.shortCode === shortCode,
+      )
+      .map(({ entry }) => entry);
   }
 
   private candidatesOf(sales: FakeHistorySale[], { number }: SaleDocumentNumber) {

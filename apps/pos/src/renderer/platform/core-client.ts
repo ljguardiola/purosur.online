@@ -106,6 +106,7 @@ import type {
   StockCoreToRendererMessage,
   StockRendererToCoreMessage,
   SyncCoreToRendererMessage,
+  salesHistoryMessageSchema,
   VoidSaleOutcome,
   WeighCountedProductOutcome,
   WeighLineOutcome,
@@ -160,7 +161,7 @@ type RendererToCoreMessage =
   | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
   | InstallationRendererToCoreMessage
-  | SalesRendererToCoreMessage
+  | Exclude<SalesRendererToCoreMessage, { type: "sales-history" }>
   | Exclude<ReturnsRendererToCoreMessage, { type: "find-sale-for-return" }>
   | PaymentsRendererToCoreMessage
   | StockRendererToCoreMessage
@@ -210,10 +211,16 @@ export interface CorePort {
 
 export type CashMovementInput = RecordCashMovementRequest;
 
-export type SalesHistoryQuery = Pick<
-  Extract<SalesRendererToCoreMessage, { type: "sales-history" }>,
-  "session" | "page"
-> & { document?: { pointOfSale: number | null; number: number } | undefined };
+type SalesHistoryRequest = NonNullable<
+  (typeof salesHistoryMessageSchema)["~standard"]["types"]
+>["input"];
+
+export type SalesHistoryQuery = Pick<SalesHistoryRequest, "session" | "page"> & {
+  search?:
+    | { kind: "typed"; pointOfSale: number | null; number: number }
+    | { kind: "scanned"; text: string }
+    | undefined;
+};
 
 export type SerialDevicesToRegister = Extract<
   RegisterRendererToCoreMessage,
@@ -419,6 +426,7 @@ export interface CoreClient {
 
 type CoreRequest =
   | Exclude<RendererToCoreMessage, { type: "ping" }>
+  | SalesHistoryRequest
   | FindDeferredSaleRequest
   | FindSaleForReturnRequest;
 
@@ -1011,17 +1019,19 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "reprint-sale-receipt-result" ? answer.outcome : undefined),
       );
     },
-    salesHistory({ session, page, document }) {
+    salesHistory({ session, page, search }) {
       return ask(
         {
           type: "sales-history",
           request_id: deps.newRequestId(),
           session,
           page,
-          document:
-            document === undefined
+          search:
+            search === undefined
               ? null
-              : { point_of_sale: document.pointOfSale, number: document.number },
+              : search.kind === "typed"
+                ? { kind: "typed", point_of_sale: search.pointOfSale, number: search.number }
+                : search,
         },
         (answer) => (answer.type === "sales-history-result" ? answer.outcome : undefined),
       );
