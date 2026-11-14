@@ -16,7 +16,7 @@ async function renderModal(options: { open?: boolean; busy?: boolean } = {}) {
       {...callbacks}
     />,
   );
-  return { screen, callbacks, dialog: screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }) };
+  return { screen, callbacks, dialog: screen.getByRole("dialog", { name: "¿Vaciar la venta?" }) };
 }
 
 describe("CancelLockedSaleModal", () => {
@@ -30,7 +30,7 @@ describe("CancelLockedSaleModal", () => {
     await expect
       .element(
         dialog.getByText(
-          "Se vacía el carrito y no se cobra nada. La mercadería no sale del stock.",
+          "Se vacía la venta y no se cobra nada. La mercadería no sale del stock.",
         ),
       )
       .toBeVisible();

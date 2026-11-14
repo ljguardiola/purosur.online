@@ -241,6 +241,21 @@ it("shows a refused PIN inside the authorization modal and stays open", async ()
   expect(panel.callbacks.onCompleted).not.toHaveBeenCalled();
 });
 
+it("says the person no longer may discount the total, when nobody was asked to authorize", async () => {
+  const panel = await renderCashChargePanel({
+    chargeWithDiscount: async () => ({ kind: "lacks_permission" }),
+  });
+  await userEvent.fill(panel.field, "10000");
+  await typeDiscount(panel, "100");
+
+  await userEvent.click(panel.complete);
+
+  await expect
+    .element(panel.screen.getByText("Ya no tenés permiso para descontar al total."))
+    .toBeVisible();
+  expect(panel.callbacks.onCompleted).not.toHaveBeenCalled();
+});
+
 it("works out what stays pending from the core's answer for the discount typed", async () => {
   const panel = await renderCashChargePanel();
 

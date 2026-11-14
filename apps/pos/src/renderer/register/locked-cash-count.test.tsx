@@ -112,10 +112,10 @@ const PART_PAID_SALE: SessionOpenSale = {
   ],
 };
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
-const EMPTY_FAILED_NOTICE = "No se pudo vaciar el carrito. Probá de nuevo.";
+const EMPTY_FAILED_NOTICE = "No se pudo vaciar la venta. Probá de nuevo.";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 const QR_WAIT_BEFORE_EMPTYING_NOTICE =
-  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.";
+  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar la venta.";
 const QR_WAIT_BEFORE_CANCELLING_NOTICE =
   "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
 
@@ -422,7 +422,7 @@ describe("LockedCashCount", () => {
     const { screen, close } = await withOpenSale();
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
-    await expect.element(screen.getByText("Vaciá el carrito para cerrar la caja.")).toBeVisible();
+    await expect.element(screen.getByText("Vaciá la venta para cerrar la caja.")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeVisible();
     await expect
       .element(screen.getByText("Grace tiene que retomar la caja para terminarla o cancelarla."))
@@ -517,7 +517,7 @@ describe("LockedCashCount", () => {
 
     await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    const dialog = screen.getByRole("dialog", { name: "¿Vaciar el carrito?" });
+    const dialog = screen.getByRole("dialog", { name: "¿Vaciar la venta?" });
     await expect.element(dialog).toBeVisible();
     await expect.element(dialog.getByText("$ 34.340,00")).toBeVisible();
     expect(cancelSale).not.toHaveBeenCalled();
@@ -600,7 +600,7 @@ describe("LockedCashCount", () => {
 
     await screen.getByRole("button", { name: "Vaciar venta" }).click();
 
-    await expect.element(screen.getByRole("dialog", { name: "¿Vaciar el carrito?" })).toBeVisible();
+    await expect.element(screen.getByRole("dialog", { name: "¿Vaciar la venta?" })).toBeVisible();
     await expect.element(screen.getByText("Venta en curso · Con pagos")).not.toBeInTheDocument();
   });
 

@@ -60,7 +60,7 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
 
     await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
-      .element(screen.getByText("Esperá a que termine para vaciar el carrito."))
+      .element(screen.getByText("Esperá a que termine para vaciar la venta."))
       .toBeVisible();
     await expect
       .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
@@ -95,7 +95,7 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
 
     await screen.getByRole("button", { name: "Vaciar", exact: true }).click();
 
-    await expect.element(screen.getByText("No se pudo vaciar el carrito")).toBeVisible();
+    await expect.element(screen.getByText("No se pudo vaciar la venta")).toBeVisible();
     await expect
       .element(screen.getByRole("complementary", { name: "Vaciar venta" }))
       .not.toBeInTheDocument();
