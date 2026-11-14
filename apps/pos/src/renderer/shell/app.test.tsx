@@ -1115,7 +1115,10 @@ describe("App", () => {
       const screen = await signInAsConfigurer(core);
 
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
     });
@@ -1147,7 +1150,10 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
 
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
     });
 
@@ -1184,9 +1190,12 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
 
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-      await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
+      await userEvent.click(screen.getByRole("link", { name: "Ajustes" }));
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
       await expect
         .element(screen.getByRole("button", { name: "Ahora no" }))

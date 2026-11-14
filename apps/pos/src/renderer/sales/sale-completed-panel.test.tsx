@@ -285,7 +285,7 @@ describe("SaleCompletedPanel", () => {
       standing: "printer_not_configured",
       state: "Sin configurar",
       title: "La impresora no está configurada",
-      help: "Cargá su dirección en Impresora y después imprimí el ticket desde el historial de ventas.",
+      help: "Cargá su dirección en Ajustes y después imprimí el ticket desde el historial de ventas.",
     },
   ] as const)(
     "tells that the sale stands and what to do when the printer reports $standing, with no retry",
@@ -400,7 +400,8 @@ describe("SaleCompletedPanel", () => {
 
         await userEvent.click(screen.getByRole("button", { name: "Cambiar impresora" }));
 
-        await expect.poll(() => screen.router.state.location.pathname).toBe("/receipt-printer");
+        await expect.poll(() => screen.router.state.location.pathname).toBe("/settings");
+        expect(screen.router.state.location.search).toMatchObject({ section: "printer" });
       },
     );
 
@@ -415,7 +416,8 @@ describe("SaleCompletedPanel", () => {
       expect((change.element() as HTMLElement).querySelector("kbd")?.textContent).toBe("F2");
       await userEvent.keyboard("{F2}");
 
-      await expect.poll(() => screen.router.state.location.pathname).toBe("/receipt-printer");
+      await expect.poll(() => screen.router.state.location.pathname).toBe("/settings");
+      expect(screen.router.state.location.search).toMatchObject({ section: "printer" });
     });
 
     it("shows the link to change the printer as text with no icon", async () => {
