@@ -1569,6 +1569,10 @@ const rendererRequestDeps: RendererRequestDeps = {
               now,
               zoneRules,
               scale: systelScale,
+              scaleStanding: () =>
+                serialDeviceWatch
+                  ? readStanding(serialDeviceWatch.reading(), "scale")
+                  : { kind: "unknown" },
             },
             product,
           ),

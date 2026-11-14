@@ -32,6 +32,7 @@ const consultProductOutcomeSchema = z.discriminatedUnion("kind", [
     weight_thousandths: z.int().positive().nullable(),
     amount: cents.nullable(),
     stock_thousandths: z.int().nullable(),
+    scale_configured: z.boolean(),
   }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_permitted") }),

@@ -329,13 +329,14 @@ export function ProductConsultationScreen({
             />
             <ScanProblemMessage problem={problem} />
           </form>
-          <ScaleCard
-            reading={
-              consulted?.weight_thousandths == null
-                ? undefined
-                : { value: formatWeight(consulted.weight_thousandths), settled: true }
-            }
-          />
+          {consulted === undefined ||
+          !consulted.scale_configured ? null : consulted.weight_thousandths === null ? (
+            <ScaleCard noReading />
+          ) : (
+            <ScaleCard
+              reading={{ value: formatWeight(consulted.weight_thousandths), settled: true }}
+            />
+          )}
         </div>
         {consultation.status === "loading" && wanted !== undefined ? (
           <LoadingPlaceholder variant="card" lines={3} />

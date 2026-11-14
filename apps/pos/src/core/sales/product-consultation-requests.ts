@@ -7,10 +7,10 @@ import { SqliteSaleLedger } from "./sqlite-sale-ledger";
 export type ProductConsultationDeps = Pick<
   SaleRequestDeps,
   "database" | "gate" | "restoration" | "now" | "zoneRules"
-> & { scale: Scale };
+> & { scale: Scale; scaleStanding: () => { kind: string } };
 
 export async function consultProductFor(
-  { database, gate, restoration, now, zoneRules, scale }: ProductConsultationDeps,
+  { database, gate, restoration, now, zoneRules, scale, scaleStanding }: ProductConsultationDeps,
   product: ProductToConsult,
 ): Promise<ConsultProductOutcome> {
   const guarded = await gate.run({ kind: "sell" }, async ({ signedInUserId }) =>
@@ -55,5 +55,6 @@ export async function consultProductFor(
     weight_thousandths: outcome.weightThousandths,
     amount: outcome.amount,
     stock_thousandths: outcome.stockThousandths,
+    scale_configured: scaleStanding().kind !== "not_registered",
   };
 }
