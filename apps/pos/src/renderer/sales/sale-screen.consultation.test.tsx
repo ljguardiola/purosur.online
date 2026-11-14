@@ -13,7 +13,9 @@ const ALMENDRAS = {
 describe("SaleScreen opening Consulta", () => {
   it("offers F4 Consulta and opens the mode with no product", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA_AND_ALFAJOR });
-    await expect.element(screen.getByRole("listitem").filter({ hasText: /^F4Consulta$/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole("listitem").filter({ hasText: /^F4Consulta$/ }))
+      .toBeVisible();
 
     await userEvent.keyboard("{F4}");
 
@@ -33,7 +35,9 @@ describe("SaleScreen opening Consulta", () => {
     const { screen, field } = await renderScreen({ searchProducts });
 
     await userEvent.fill(field, "alm");
-    await expect.element(screen.getByRole("listitem").filter({ hasText: /^F4Consultar$/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole("listitem").filter({ hasText: /^F4Consultar$/ }))
+      .toBeVisible();
     await userEvent.keyboard("{F4}");
 
     await vi.waitFor(() =>

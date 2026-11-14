@@ -638,7 +638,9 @@ describe("the sale after the register restarts", () => {
 
 describe("a product's stock balance", () => {
   it("reads the balance the register holds for the product within the sale's transaction", () => {
-    database.prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 12400)").run();
+    database
+      .prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 12400)")
+      .run();
 
     expect(ledger.transaction((tx) => [tx.stockBalance("p1"), tx.stockBalance("p2")])).toEqual([
       12400,

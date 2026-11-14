@@ -139,7 +139,9 @@ describe("a product's stock balance", () => {
 
 describe("reading a product's stock balance", () => {
   it("answers the balance the register holds for the product", () => {
-    database.prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 12400)").run();
+    database
+      .prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p1', 12400)")
+      .run();
     database.prepare("INSERT INTO stock_balances (product_id, quantity) VALUES ('p2', -500)").run();
 
     expect([stockBalanceOf(database, "p1"), stockBalanceOf(database, "p2")]).toEqual([12400, -500]);
