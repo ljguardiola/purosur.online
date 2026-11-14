@@ -982,7 +982,6 @@ export {
   customerReceiptSettled,
   grossSaleSubtotal,
   isDeferralPending,
-  isDeferredInvoicePending,
   manualAdjustmentReason,
   mayBeCashRounding,
   mayBeManualDiscountAmount,
