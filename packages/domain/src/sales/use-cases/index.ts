@@ -326,6 +326,7 @@ export type {
   SellableProduct,
   SellingSession,
 } from "./sale-ledger.js";
+export type { SaleVoidRefund, SaleVoidRefunds } from "./sale-void-refunds.js";
 export type { SalesByDayQuery, SalesReportReader } from "./sales-report-reader.js";
 export type {
   FoundProduct,
