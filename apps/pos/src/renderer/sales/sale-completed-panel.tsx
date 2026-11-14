@@ -23,7 +23,6 @@ import { Check, Plus, Printer, Receipt, TriangleAlert, Undo2 } from "lucide-reac
 import { useEffect, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import { pointCardName } from "../platform/payment-method-names";
-import { useCountdown } from "../platform/use-countdown";
 import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import type { ReceiptPrintStatus } from "./sales-queries";
 import {
@@ -178,15 +177,13 @@ function PrintOffer({
   onPrint: () => void;
   onSkip: () => void;
 }) {
-  const [seed] = useState(() => ({ seconds: Math.ceil(offer.remaining_ms / 1000) }));
-  const remainingSeconds = useCountdown(seed);
   return (
     <TimedOfferCard
       icon={<Printer />}
       title="¿Imprimir ticket?"
       skip={{ label: "Omitir", onPress: onSkip }}
       countdown={{
-        remainingSeconds,
+        remainingSeconds: Math.ceil(offer.remaining_ms / 1000),
         totalSeconds: Math.ceil(offer.length_ms / 1000),
         label: "Tiempo para imprimir",
       }}
