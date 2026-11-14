@@ -78,7 +78,7 @@ export async function renderScreen(overrides: Overrides = {}) {
   const authorizers: SignInUser[] = [{ id: "u2", first_name: "Grace" }];
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const readers = new Set<(code: string) => void>();
-  const screen = await render(
+  const deferredSaleScreen = (
     <BarcodeReadings
       onBarcodeRead={(listener) => {
         readers.add(listener);
@@ -98,8 +98,9 @@ export async function renderScreen(overrides: Overrides = {}) {
         loadAuthorizers={overrides.loadAuthorizers ?? (async () => authorizers)}
         onSessionInvalid={onSessionInvalid}
       />
-    </BarcodeReadings>,
+    </BarcodeReadings>
   );
+  const screen = await render(deferredSaleScreen);
   return {
     screen,
     findDeferredSale,
@@ -108,6 +109,10 @@ export async function renderScreen(overrides: Overrides = {}) {
     onSessionInvalid,
     readBarcode(code: string) {
       for (const listener of readers) listener(code);
+    },
+    async leaveAndReturn() {
+      await screen.rerender(null);
+      await screen.rerender(deferredSaleScreen);
     },
   };
 }

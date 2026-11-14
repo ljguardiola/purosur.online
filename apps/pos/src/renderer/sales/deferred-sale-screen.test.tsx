@@ -109,6 +109,32 @@ describe("DeferredSaleScreen waiting for the customer's document", () => {
     await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
   });
 
+  it("looks the sale up again from loading when the screen is reached again with the same QR", async () => {
+    const coreDown = deferred<void>();
+    const { screen, leaveAndReturn } = await renderScreen({
+      reading: QR_TEXT,
+      findDeferredSale: vi
+        .fn()
+        .mockResolvedValueOnce(FOUND_ISSUED)
+        .mockImplementationOnce(async () => {
+          await coreDown.promise;
+          throw new Error("core down");
+        }),
+    });
+    await expect.element(screen.getByRole("button", { name: "Imprimir factura" })).toBeVisible();
+
+    await leaveAndReturn();
+
+    await expect
+      .element(screen.getByRole("table", { name: "Líneas de la venta" }))
+      .toHaveAttribute("aria-busy", "true");
+    await expect
+      .element(screen.getByRole("button", { name: "Imprimir factura" }))
+      .not.toBeInTheDocument();
+    coreDown.resolve();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
+  });
+
   it("tells the app the session ended when the core says nobody is signed in", async () => {
     const { onSessionInvalid } = await renderScreen({
       reading: QR_TEXT,
