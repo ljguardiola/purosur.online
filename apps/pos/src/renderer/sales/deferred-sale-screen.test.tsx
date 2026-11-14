@@ -172,6 +172,29 @@ describe("DeferredSaleScreen waiting for the customer's document", () => {
     expect(findDeferredSale).toHaveBeenCalledTimes(2);
   });
 
+  it("offers no Reintentar once a code that is not a deferred sale's QR replaces the failed lookup", async () => {
+    const findDeferredSale = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("core down"))
+      .mockResolvedValueOnce(FOUND_ISSUED);
+    const { screen, readBarcode } = await renderScreen({ reading: QR_TEXT, findDeferredSale });
+    await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
+
+    readBarcode("7790001");
+
+    await expect.element(screen.getByText("Ese QR no es de una venta diferida")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar" }))
+      .not.toBeInTheDocument();
+    await userEvent.keyboard("r");
+    readBarcode(QR_TEXT);
+    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+    await expect
+      .element(screen.getByText("Ese QR no es de una venta diferida"))
+      .not.toBeInTheDocument();
+    expect(findDeferredSale).toHaveBeenCalledTimes(2);
+  });
+
   it("offers no Reintentar for a refusal the core answered", async () => {
     const { screen } = await renderScreen({
       reading: QR_TEXT,

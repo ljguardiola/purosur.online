@@ -1,8 +1,8 @@
 import type { DeferredSaleFacts } from "../../model/deferred-sale-lookup.js";
 import type {
   DeferredSaleInvoicing,
-  DeferredSaleLine,
   DeferredSaleInvoicingOutcome,
+  DeferredSaleLine,
   DeferredSaleLookup,
   DeferredSaleSearch,
 } from "../deferred-sale-lookup-ports.js";

@@ -163,7 +163,10 @@ describe("the result of finding a deferred sale", () => {
       "a line without its unit price",
       { ...found, lines: [{ ...almonds, list_unit_price: undefined }] },
     ],
-    ["a unit price that is not whole", { ...found, lines: [{ ...almonds, list_unit_price: 10.5 }] }],
+    [
+      "a unit price that is not whole",
+      { ...found, lines: [{ ...almonds, list_unit_price: 10.5 }] },
+    ],
     ["a line of an unknown sale unit", { ...found, lines: [{ ...almonds, sale_unit: "LITER" }] }],
     ["an outcome the register does not have", { kind: "cancelled" }],
   ])("rejects %s", (_case, outcome) => {
