@@ -12,8 +12,7 @@ const SCREEN_ROUTES = {
   cash: "/cash",
   history: "/history",
   return: "/return",
-  receipt_printer: "/receipt-printer",
-  serial_devices: "/serial-devices",
+  settings: "/settings",
 } as const satisfies Record<string, ActionEntry["to"]>;
 
 export function OpenSessionRail({
@@ -58,8 +57,8 @@ export function OpenSessionRail({
           current: current === "return",
         },
         { label: "Caja", icon: Wallet, to: sessionRoute("/cash"), current: current === "cash" },
-        ...linksTo(["/receipt-printer", "/serial-devices"]),
       ]}
+      settings={{ current: current === "settings" }}
       onSignOut={lock}
     />
   );

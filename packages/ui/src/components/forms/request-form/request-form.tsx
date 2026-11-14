@@ -280,7 +280,10 @@ export function useRequestForm<
   const currentValues = useStore(form.store, (state) => state.values);
   const tanStackSubmitting = useStore(form.store, (state) => state.isSubmitting);
   const failing = useStore(form.store, (state) =>
-    Object.values(state.fieldMeta).some((meta) => meta.errors.length > 0),
+    (Object.keys(messages) as Field[]).some(
+      (field) =>
+        Object.hasOwn(state.fieldMeta, field) && (state.fieldMeta[field]?.errors.length ?? 0) > 0,
+    ),
   );
 
   return {

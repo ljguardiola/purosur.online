@@ -61,7 +61,7 @@ const PRINT_PROBLEMS = {
   },
   printer_not_configured: {
     title: "La impresora no está configurada",
-    description: "Cargá su dirección en Impresora y después imprimí el ticket de nuevo.",
+    description: "Cargá su dirección en Ajustes y después imprimí el ticket de nuevo.",
   },
   lacks_permission: {
     title: "No tenés permiso para imprimir",

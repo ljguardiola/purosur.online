@@ -128,7 +128,6 @@ import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
 import { OlderVersionScreen } from "../register/older-version-screen";
-import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
 import type { StartupPendingAnswer } from "../register/register-queries";
 import {
   registerNameQueryOptions,
@@ -141,8 +140,8 @@ import {
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
 import type { RestoringStanding } from "../register/restoring-screen";
 import { RestoringScreen } from "../register/restoring-screen";
-import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
-import { SerialDevicesScreen } from "../register/serial-devices-screen";
+import { SettingsScreen } from "../register/settings-screen";
+import { isSettingsSection } from "../register/settings-sections";
 import { StartupPendingScreen } from "../register/startup-pending-screen";
 import { ReturnScreen } from "../returns/return-screen";
 import { KEYED_CHARGE_METHODS } from "../sales/charge-method-availability";
@@ -612,7 +611,7 @@ const signedInRoute = createRoute({
       }),
     );
     if (landsOnSerialDevices) {
-      throw redirect({ to: "/serial-devices", search: { offered: true } });
+      throw redirect({ to: "/settings", search: { section: "devices", offered: true } });
     }
     return { person };
   },
@@ -649,69 +648,42 @@ const signedInRoute = createRoute({
   },
 });
 
-const receiptPrinterRoute = createRoute({
+const settingsRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
-  path: "/receipt-printer",
-  beforeLoad: ({ context }) => {
-    const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
-    if (!person.abilities.includes("configure_receipt_printer")) {
-      throw redirect({ to: routeFor(context) });
-    }
-    return { person, sessionOpen };
-  },
-  component: function ReceiptPrinterRoute() {
+  path: "/settings",
+  validateSearch: (search: { section?: unknown; offered?: unknown }) => ({
+    ...(isSettingsSection(search.section) ? { section: search.section } : {}),
+    ...(search.offered === true ? { offered: true as const } : {}),
+  }),
+  beforeLoad: ({ context }) => requireSignedInPersonAnywhere(context),
+  component: function SettingsRoute() {
     const {
       person,
       sessionOpen,
       signOut,
       readReceiptPrinter,
       setReceiptPrinter,
-      refreshCashSession,
-    } = receiptPrinterRoute.useRouteContext();
-    return (
-      <ReceiptPrinterScreen
-        person={person}
-        sessionOpen={sessionOpen}
-        signOut={signOut}
-        readReceiptPrinter={readReceiptPrinter}
-        setReceiptPrinter={setReceiptPrinter}
-        onSessionInvalid={() => void refreshCashSession()}
-      />
-    );
-  },
-});
-
-const serialDevicesRoute = createRoute({
-  getParentRoute: () => registerStatusRoute,
-  path: "/serial-devices",
-  validateSearch: (search: { offered?: unknown }) => ({ offered: search.offered === true }),
-  beforeLoad: ({ context }) => {
-    const { person, sessionOpen } = requireSignedInPersonAnywhere(context);
-    if (!mayConfigureSerialDevices(person)) {
-      throw redirect({ to: routeFor(context) });
-    }
-    return { person, sessionOpen };
-  },
-  component: function SerialDevicesRoute() {
-    const {
-      person,
-      sessionOpen,
-      signOut,
       readSerialDevices,
       registerSerialDevices,
       refreshCashSession,
-    } = serialDevicesRoute.useRouteContext();
-    const { offered } = serialDevicesRoute.useSearch();
-    const navigate = serialDevicesRoute.useNavigate();
+    } = settingsRoute.useRouteContext();
+    const { section, offered } = settingsRoute.useSearch();
+    const navigate = settingsRoute.useNavigate();
     return (
-      <SerialDevicesScreen
+      <SettingsScreen
         person={person}
         sessionOpen={sessionOpen}
         signOut={signOut}
+        {...(section === undefined ? {} : { section })}
+        offered={offered === true}
+        onSelectSection={(next) =>
+          void navigate({ search: (previous) => ({ ...previous, section: next }) })
+        }
+        readReceiptPrinter={readReceiptPrinter}
+        setReceiptPrinter={setReceiptPrinter}
         readSerialDevices={readSerialDevices}
         registerSerialDevices={registerSerialDevices}
         onSessionInvalid={() => void refreshCashSession()}
-        {...(offered ? { onSkip: () => void navigate({ to: "/" }) } : {})}
       />
     );
   },
@@ -1459,8 +1431,7 @@ export const routeTree = rootRoute.addChildren([
   sessionEyebrowRoute.addChildren([
     registerStatusRoute.addChildren([
       signedInRoute,
-      receiptPrinterRoute,
-      serialDevicesRoute,
+      settingsRoute,
       initialCountRoute,
       openSessionRoute,
       consultRoute,

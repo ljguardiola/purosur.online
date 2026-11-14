@@ -1558,7 +1558,11 @@ describe("the register's router", () => {
       .toBeVisible();
     await first.unmount();
 
-    const devices = routerAt("/settings?section=devices", "up", "enrolled", BOTH_CONFIGURER);
+    const devices = createRegisterRouter(
+      routeTree,
+      contextWith("up", "enrolled", BOTH_CONFIGURER),
+      "/settings?section=devices",
+    );
     const screen = await render(<RouterProvider router={devices} />);
 
     await expect
@@ -1567,7 +1571,11 @@ describe("the register's router", () => {
   });
 
   it("shows a person only the sections they may configure, whatever the route asks for", async () => {
-    const router = routerAt("/settings?section=devices", "up", "enrolled", PRINTER_CONFIGURER);
+    const router = createRegisterRouter(
+      routeTree,
+      contextWith("up", "enrolled", PRINTER_CONFIGURER),
+      "/settings?section=devices",
+    );
 
     const screen = await render(<RouterProvider router={router} />);
 

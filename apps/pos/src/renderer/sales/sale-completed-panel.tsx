@@ -66,7 +66,7 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
   printer_not_configured: {
     printerState: "Sin configurar",
     title: "La impresora no está configurada",
-    help: "Cargá su dirección en Impresora y después imprimí el ticket desde el historial de ventas.",
+    help: "Cargá su dirección en Ajustes y después imprimí el ticket desde el historial de ventas.",
   },
   failed: {
     printerState: undefined,
@@ -279,7 +279,7 @@ export function SaleCompletedPanel(props: SaleCompletedPanelProps) {
   }
 
   function changePrinter() {
-    void navigate({ to: "/receipt-printer" });
+    void navigate({ to: "/settings", search: { section: "printer" } });
   }
 
   useKeys([
