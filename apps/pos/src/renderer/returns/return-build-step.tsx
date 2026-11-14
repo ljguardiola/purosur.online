@@ -156,6 +156,7 @@ export function ReturnBuildStep({
           {
             label: `${paidPaymentName(payment.method, payment.card_type)} · ${REFUND_WHEN_IN_ROW[payment.refund_state]}`,
             value: formatCents(amount),
+            amount: true,
           },
         ];
   });
