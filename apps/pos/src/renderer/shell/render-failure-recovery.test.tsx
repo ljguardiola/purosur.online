@@ -43,6 +43,8 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       enrollment: "enrolled",
       person: undefined,
       cashSession: { status: "none" },
+      closedCash: undefined,
+      dismissClosedCash: () => {},
       enroll: async () => ({ kind: "enrolled" }),
       registerName: async () => null,
       registerVersion: async () => null,

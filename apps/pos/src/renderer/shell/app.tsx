@@ -41,6 +41,7 @@ import { cancelReads, setQueryAnswer } from "../platform/set-query-answer";
 import { useCoreStatus } from "../platform/use-core-status";
 import type { CashSessionState } from "../register/cash-session-state";
 import { cashSessionStateOf } from "../register/cash-session-state";
+import type { ClosedCashSummary } from "../register/closed-cash-summary";
 import {
   cashKey,
   cashSessionQueryOptions,
@@ -102,6 +103,7 @@ function Register({ core }: { core: CoreClient }) {
     enabled: coreStatus === "up" && holdsEnrollment,
   });
   const [signedInPerson, setPerson] = useState<SignedInPerson>();
+  const [closedCash, setClosedCash] = useState<ClosedCashSummary>();
   const { offerSerialDevicesAfterSignIn, takeSerialDevicesOffer } = useSerialDevicesOffer();
   const startupPendingGate = useStartupPendingGate();
   const cashSession = useCashSessionQuery({
@@ -168,6 +170,7 @@ function Register({ core }: { core: CoreClient }) {
   function signOut() {
     core.signOut().catch(() => {});
     setPerson(undefined);
+    setClosedCash(undefined);
   }
 
   async function openCashSession(openingFloat: number) {
@@ -200,6 +203,7 @@ function Register({ core }: { core: CoreClient }) {
     if (outcome.kind === "closed") {
       await cancelCashSessionReads();
       setPerson(closer);
+      setClosedCash({ session: outcome.session, movements: outcome.movements });
       setCashSession({ status: "none" });
     }
     if (outcome.kind === "no_open_session") {
@@ -534,6 +538,7 @@ function Register({ core }: { core: CoreClient }) {
       core.weighCountedProduct(productId, confirmedWeightThousandths),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
+    dismissClosedCash: () => setClosedCash(undefined),
   };
 
   const [router] = useState(() => createAppRouter(queryClient, services));
@@ -541,6 +546,7 @@ function Register({ core }: { core: CoreClient }) {
   useEffect(() => {
     if (coreStatus !== "up") {
       setPerson(undefined);
+      setClosedCash(undefined);
       void queryClient.resetQueries({ queryKey: registerKeys.service });
       void queryClient.resetQueries({ queryKey: registerKeys.restorationStanding });
     }
@@ -628,10 +634,20 @@ function Register({ core }: { core: CoreClient }) {
         enrollment,
         person,
         cashSession,
+        closedCash,
       },
     });
     void router.invalidate();
-  }, [router, coreStatus, registerService, restoration, enrollment, person, cashSession]);
+  }, [
+    router,
+    coreStatus,
+    registerService,
+    restoration,
+    enrollment,
+    person,
+    cashSession,
+    closedCash,
+  ]);
 
   return <RouterProvider router={router} context={{ queryClient, ...services }} />;
 }
