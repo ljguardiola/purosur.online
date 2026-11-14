@@ -63,13 +63,26 @@ export function CashClosedScreen({ person, summary, lock, onOpenCash }: CashClos
             </>
           }
         >
-          <FigureStat size="hero" label="CONTADO" value={formatCents(session.counted_cash)} />
+          <FigureStat
+            size="hero"
+            variant="plain"
+            label="CONTADO"
+            value={formatCents(session.counted_cash)}
+          />
           <SummaryRowGroup
             rows={[
-              { label: "Efectivo esperado", value: formatCents(session.expected_cash) },
-              { label: "Diferencia", value: closedDifferenceText(session.difference) },
-              { label: "Abierta", value: formatDayMonthAndTime(session.opened_at) },
-              { label: "Cerrada", value: formatDayMonthAndTime(session.closed_at) },
+              {
+                label: "Efectivo esperado",
+                value: formatCents(session.expected_cash),
+                detail: true,
+              },
+              {
+                label: "Diferencia",
+                value: closedDifferenceText(session.difference),
+                detail: true,
+              },
+              { label: "Abierta", value: formatDayMonthAndTime(session.opened_at), detail: true },
+              { label: "Cerrada", value: formatDayMonthAndTime(session.closed_at), detail: true },
             ]}
           />
         </SidePanel>

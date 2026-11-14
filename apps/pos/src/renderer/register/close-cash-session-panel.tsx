@@ -52,7 +52,7 @@ function Balance({ balance }: { balance: CoreData<CashBalance> }) {
   if (balance.status === "loading") {
     return (
       <>
-        <FigureStat size="hero" label={EXPECTED_CASH} loading />
+        <FigureStat size="hero" variant="plain" label={EXPECTED_CASH} loading />
         <LoadingPlaceholder variant="card" lines={4} />
       </>
     );
@@ -72,8 +72,13 @@ function Balance({ balance }: { balance: CoreData<CashBalance> }) {
   }
   return (
     <>
-      <FigureStat size="hero" label={EXPECTED_CASH} value={formatCents(balance.value.expected)} />
-      <SummaryRowGroup variant="plain" rows={cashBalanceRows(balance.value)} />
+      <FigureStat
+        size="hero"
+        variant="plain"
+        label={EXPECTED_CASH}
+        value={formatCents(balance.value.expected)}
+      />
+      <SummaryRowGroup variant="plain" rows={cashBalanceRows(balance.value, "detail")} />
     </>
   );
 }
@@ -123,8 +128,10 @@ export function CloseCashSessionPanel({
   });
 
   useEffect(() => {
-    field.current?.querySelector("input")?.focus();
-  }, []);
+    if (!submitting) {
+      field.current?.querySelector("input")?.focus();
+    }
+  }, [submitting]);
 
   const counted = countedCashOf(countedCashRequestSchema, values);
   const difference = useCashCountPreviewQuery(sessionId, counted, loadCashCountPreview);
@@ -176,13 +183,15 @@ export function CloseCashSessionPanel({
       }
     >
       <Balance balance={balance} />
-      <div ref={field}>
+      <div ref={field} className="flex flex-col gap-1.5">
+        <Eyebrow text="Contado" />
         <form.AppField name="countedCash" listeners={{ onChange: () => setNotice(undefined) }}>
           {(countedCash) => (
             <countedCash.TextField
               kind="counted-cash"
               prefix="$"
               label="Contado"
+              labelVisuallyHidden
               decimals={2}
               disabled={submitting}
             />

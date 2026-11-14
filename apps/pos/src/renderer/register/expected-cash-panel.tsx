@@ -20,7 +20,19 @@ export type ExpectedCashPanelProps = {
   children?: ReactNode;
 };
 
-export function cashBalanceRows(balance: CashBalance): SummaryRowGroupProps["rows"] {
+type CashBalanceRow = { label: string; value: string };
+
+export function cashBalanceRows(
+  balance: CashBalance,
+  form: "regular" | "detail" = "regular",
+): SummaryRowGroupProps["rows"] {
+  const shaped = (row: CashBalanceRow) =>
+    form === "detail" ? { ...row, detail: true as const } : row;
+  const [first, ...rest] = balanceRows(balance);
+  return [shaped(first), ...rest.map(shaped)];
+}
+
+function balanceRows(balance: CashBalance): [CashBalanceRow, ...CashBalanceRow[]] {
   return [
     { label: "Fondo inicial", value: formatCents(balance.opening_float.amount) },
     { label: "Ventas en efectivo", value: directedAmount(balance.cash_sales) },
