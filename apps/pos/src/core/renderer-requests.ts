@@ -1340,13 +1340,7 @@ export async function answerRendererRequest(
               salesHistory({
                 session: message.session,
                 page: message.page,
-                document:
-                  message.document === null
-                    ? null
-                    : {
-                        pointOfSale: message.document.point_of_sale,
-                        number: message.document.number,
-                      },
+                search: message.search,
               })),
         ),
       };

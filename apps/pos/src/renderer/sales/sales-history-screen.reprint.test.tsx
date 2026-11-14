@@ -58,6 +58,7 @@ describe("SalesHistoryScreen reprinting a sale's receipt", () => {
 
   it("shows no lock when the person may reprint, and a lock when the core says another person must authorize", async () => {
     const free = await renderScreen();
+    await expect.element(detailPanel(free.screen).getByText("VENTA · 11:42")).toBeVisible();
     await userEvent.keyboard("{F5}");
     await expect.element(reprintPanel(free.screen)).toBeVisible();
     await expect

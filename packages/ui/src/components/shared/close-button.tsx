@@ -14,7 +14,7 @@ export const escapeKeycapButtonClassName =
   "data-focus-visible:focus-ring";
 
 const labelledCloseButtonClassName =
-  "flex h-control-lg shrink-0 items-center gap-2 rounded-lg px-1 text-body font-medium text-text-accent " +
+  "flex h-control-lg shrink-0 items-center gap-2 rounded-lg px-1 text-detail font-semibold text-text-accent " +
   "outline-none data-disabled:opacity-disabled data-focus-visible:focus-ring";
 
 export function CloseButton({

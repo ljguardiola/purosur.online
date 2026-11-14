@@ -52,6 +52,25 @@ class DownloadRejected extends Error {}
 export function createRegisterUpdater(deps: RegisterUpdaterDependencies): RegisterUpdater {
   let passRunning = false;
   let installerLaunched = false;
+  let pendingCleared = false;
+  let clearingAttempted = false;
+  let clearingFailureReported = false;
+
+  async function clearPending(): Promise<void> {
+    if (pendingCleared) {
+      return;
+    }
+    try {
+      await deps.files.clearPending();
+      pendingCleared = true;
+    } catch (error) {
+      if (clearingAttempted && !clearingFailureReported) {
+        clearingFailureReported = true;
+        deps.report(error);
+      }
+    }
+    clearingAttempted = true;
+  }
 
   async function download(
     name: string,
@@ -134,7 +153,7 @@ export function createRegisterUpdater(deps: RegisterUpdaterDependencies): Regist
     try {
       await download(name, answer);
     } catch (error) {
-      await deps.files.remove(name);
+      await deps.files.remove(name).catch(() => {});
       throw error;
     }
     await install(name);
@@ -150,6 +169,7 @@ export function createRegisterUpdater(deps: RegisterUpdaterDependencies): Regist
     }
     passRunning = true;
     try {
+      await clearPending();
       await check();
     } catch (error) {
       deps.report(error);
@@ -159,11 +179,7 @@ export function createRegisterUpdater(deps: RegisterUpdaterDependencies): Regist
   }
 
   async function loop(): Promise<void> {
-    try {
-      await deps.files.clearPending();
-    } catch (error) {
-      deps.report(error);
-    }
+    await clearPending();
     await deps.wait(FIRST_CHECK_DELAY_MS);
     while (!installerLaunched) {
       await runPass();
