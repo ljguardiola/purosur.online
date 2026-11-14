@@ -451,6 +451,7 @@ describe("the detail of a sale of the history", () => {
         next_copy: { kind: "original" },
         deferred_invoice_next_copy: null,
         short_code: null,
+        void_refunds: [],
       },
     });
   });
@@ -586,6 +587,33 @@ describe("the detail of a sale of the history", () => {
       reprint: { kind: "sale_voided" },
       returnable: false,
     });
+  });
+
+  it("answers the refunds a voided sale recorded with the state the void planned", async () => {
+    addSale({
+      id: "gone",
+      occurredAt: "2026-10-08T10:00:00.000Z",
+      operationNumber: 2,
+      state: "VOIDED",
+    });
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, approval_order, occurred_at, wait_ends_at)
+         VALUES ('qr-gone', 'gone', 'SALE', 'QR', 'MERCADOPAGO_QR', 12300, 'APPROVED', 2, '2026-10-08T10:00:00.000Z', '2026-10-08T10:00:00.000Z')`,
+      )
+      .run();
+    database
+      .prepare(
+        `INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at)
+         VALUES ('refund-qr', 'qr-gone', 'QR', 'MERCADOPAGO_QR', 12300, 'PENDING', '2026-10-08T10:05:00.000Z')`,
+      )
+      .run();
+
+    const answer = await saleHistoryDetailFor(deps(), "gone");
+
+    expect(answer.kind === "found" && answer.detail.void_refunds).toEqual([
+      { method: "QR", card_type: null, amount: 12300, state: "PENDING" },
+    ]);
   });
 
   it("answers the numbered duplicate as the next printing once the receipt was printed", async () => {

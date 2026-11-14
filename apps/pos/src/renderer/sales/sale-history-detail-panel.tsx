@@ -26,6 +26,7 @@ import { nonEmptyRows } from "../shell/sale-receipt-text";
 import { creditNoteRowOf } from "./credit-note-text";
 import { comprobanteLine, comprobanteRow, paymentRowName } from "./sale-history-text";
 import type { ShownSaleHistoryDetail } from "./sales-queries";
+import { voidRefundRow } from "./void-sale-text";
 
 export type SaleButton = {
   key?: KeyName;
@@ -46,10 +47,12 @@ function detailRows(sale: SaleDetail): SummaryRowProps[] {
   return [
     ...(comprobante === undefined ? [] : [comprobante]),
     ...sale.credit_notes.map(creditNoteRowOf),
-    ...sale.payments.map((payment) => ({
-      label: paymentRowName(payment.method, payment.card_type),
-      value: formatCents(payment.amount),
-    })),
+    ...(sale.void_refunds.length > 0
+      ? sale.void_refunds.map(voidRefundRow)
+      : sale.payments.map((payment) => ({
+          label: paymentRowName(payment.method, payment.card_type),
+          value: formatCents(payment.amount),
+        }))),
     ...(sale.cash_rounding > 0
       ? [{ label: "Redondeo", value: `– ${formatCents(sale.cash_rounding)}` }]
       : []),

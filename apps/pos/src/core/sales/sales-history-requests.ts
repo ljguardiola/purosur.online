@@ -14,6 +14,7 @@ import {
   type SaleVoidability,
 } from "@purosur/domain/sales/use-cases";
 import { toWireCreditNote } from "../fiscal/wire-credit-note";
+import { SqliteSaleVoidRefunds } from "../payments/sqlite-sale-void-refunds";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteRegisterCashSession } from "../register/sqlite-register-cash-session";
@@ -114,6 +115,7 @@ export async function saleHistoryDetailFor(
           history: new SqliteRegisterSalesHistory(database),
           ledger: new SqliteReceiptLedger(database),
           cashSession: new SqliteRegisterCashSession(database),
+          voidRefunds: new SqliteSaleVoidRefunds(database),
         },
         { saleId },
       ),
@@ -167,6 +169,10 @@ export async function saleHistoryDetailFor(
       deferred_invoice_next_copy:
         detail.deferredInvoiceNextCopy === null ? null : toWireCopy(detail.deferredInvoiceNextCopy),
       short_code: detail.shortCode,
+      void_refunds: detail.voidRefunds.map(({ cardType, ...refund }) => ({
+        ...refund,
+        card_type: cardType,
+      })),
     },
   };
 }
