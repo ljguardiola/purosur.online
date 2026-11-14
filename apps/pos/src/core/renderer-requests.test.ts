@@ -20,6 +20,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   EnrollmentStandingAnswer,
   FindDeferredSaleOutcome,
   FindProductByCodeOutcome,
@@ -27,6 +28,7 @@ import type {
   FirstPinCodeRequestOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -38,6 +40,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadClockGuardOutcome,
   ReadInitialCountOutcome,
   ReadReceiptPrinterOutcome,
@@ -347,6 +350,10 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         saleChanges.push(["original-print", saleId].join(" "));
         return { kind: "already_attempted" };
       },
+      consultProduct: async (product: ProductToConsult): Promise<ConsultProductOutcome> => {
+        saleChanges.push(["consult", JSON.stringify(product)].join(" "));
+        return { kind: "not_found" };
+      },
       findDeferredSale: async (
         reading: FindDeferredSaleReading,
       ): Promise<FindDeferredSaleOutcome> => {
@@ -533,6 +540,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         weighings.push(`${productId} ${confirmedWeightThousandths}`);
         return { kind: "weighing" };
       },
+      readScale: async (): Promise<LiveScaleReadingOutcome> => ({ kind: "not_configured" }),
       weighLine: async (
         lineId: string,
         expectedWeightThousandths: number,
@@ -2247,6 +2255,35 @@ describe("answerRendererRequest", () => {
     expect(weighings).toEqual(["p7 1250"]);
   });
 
+  it("answers what the scale reads", async () => {
+    const outcome = { kind: "reading", weight_thousandths: 410, settled: true } as const;
+    const { deps: withScale } = deps(true, { readScale: async () => outcome });
+
+    expect(
+      await answerRendererRequest(withScale, { type: "read-scale", request_id: "r92" }),
+    ).toEqual({ type: "read-scale-result", request_id: "r92", outcome });
+  });
+
+  it("answers that the scale has no reading when it fails or is not possible, and reports why", async () => {
+    const error = new Error("serial port busy");
+    const failing = deps(true, {
+      readScale: async () => {
+        throw error;
+      },
+    });
+    const withoutDatabase = deps(true, { readScale: undefined });
+    const noReading = {
+      type: "read-scale-result",
+      request_id: "r93",
+      outcome: { kind: "no_reading" },
+    };
+    const request = { type: "read-scale", request_id: "r93" } as const;
+
+    expect(await answerRendererRequest(failing.deps, request)).toEqual(noReading);
+    expect(failing.failures).toEqual([{ context: "reading the scale", error }]);
+    expect(await answerRendererRequest(withoutDatabase.deps, request)).toEqual(noReading);
+  });
+
   it("answers that weighing a product is unavailable when it fails or is not possible, and reports why", async () => {
     const error = new Error("serial port busy");
     const failing = deps(true, {
@@ -2696,7 +2733,15 @@ describe("answerRendererRequest", () => {
   it("closes a cash session with the session and the count as sent, and answers the outcome", async () => {
     const closed: CloseCashSessionOutcome = {
       kind: "closed",
-      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+      session: {
+        id: "s1",
+        expected_cash: 5000,
+        counted_cash: 4800,
+        difference: -200,
+        opened_at: "2026-09-30T09:00:00.000-03:00",
+        closed_at: "2026-09-30T20:14:00.000-03:00",
+      },
+      movements: [],
     };
     const closing = deps(true);
     const { deps: withClosing } = deps(true, { closeCashSession: async () => closed });
@@ -2763,7 +2808,14 @@ describe("answerRendererRequest", () => {
   it("closes a locked register's cash session with the session, the count and the closer as sent, and answers the outcome", async () => {
     const closed: CloseLockedCashSessionOutcome = {
       kind: "closed",
-      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+      session: {
+        id: "s1",
+        expected_cash: 5000,
+        counted_cash: 4800,
+        difference: -200,
+        opened_at: "2026-09-30T09:00:00.000-03:00",
+        closed_at: "2026-09-30T20:14:00.000-03:00",
+      },
     };
     const closer = { user_id: "u2", pin: "1234" };
     const received: unknown[] = [];
@@ -3602,6 +3654,14 @@ describe("answerRendererRequest", () => {
         "printing a sale's original receipt",
         "original-print s1",
         "print-original-receipt-result",
+      ],
+      [
+        "consult-product",
+        { type: "consult-product", product: { barcode: "7790001000017" } } as const,
+        "consultProduct",
+        "consulting a product",
+        'consult {"barcode":"7790001000017"}',
+        "consult-product-result",
       ],
       [
         "find-deferred-sale",

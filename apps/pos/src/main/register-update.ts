@@ -5,6 +5,8 @@ const FIRST_CHECK_DELAY_MS = 60_000;
 const CHECK_INTERVAL_MS = 3_600_000;
 const SAFE_MOMENT_RETRY_MS = 60_000;
 const INSTALLER_ARGUMENTS = ["--updated", "/S", "--force-run"] as const;
+const LAUNCH_ATTEMPTS = 10;
+const LAUNCH_RETRY_MS = 60_000;
 
 export interface UpdateResponse {
   status: number;
@@ -38,6 +40,7 @@ export interface RegisterUpdaterDependencies {
   askSafeMoment(): Promise<boolean>;
   releaseHold(): void;
   spawnInstaller(path: string, args: readonly string[]): Promise<void>;
+  spawnInstallerThroughShell(path: string, args: readonly string[]): Promise<void>;
   quit(): void;
   report(error: unknown): void;
 }
@@ -114,20 +117,28 @@ export function createRegisterUpdater(deps: RegisterUpdaterDependencies): Regist
   }
 
   async function install(name: string): Promise<void> {
-    await waitForSafeMoment();
-    const previousStatus = deps.coreStatus();
-    deps.setCoreStatus("updating");
-    try {
-      await deps.spawnInstaller(deps.files.pathOf(name), INSTALLER_ARGUMENTS);
-    } catch (error) {
-      deps.report(error);
-      deps.releaseHold();
-      deps.setCoreStatus(previousStatus);
-      await deps.files.remove(name);
-      return;
+    for (let attempt = 1; ; attempt += 1) {
+      const lastAttempt = attempt === LAUNCH_ATTEMPTS;
+      await waitForSafeMoment();
+      const previousStatus = deps.coreStatus();
+      deps.setCoreStatus("updating");
+      const launch = lastAttempt ? deps.spawnInstallerThroughShell : deps.spawnInstaller;
+      try {
+        await launch(deps.files.pathOf(name), INSTALLER_ARGUMENTS);
+        installerLaunched = true;
+        deps.quit();
+        return;
+      } catch (error) {
+        deps.releaseHold();
+        deps.setCoreStatus(previousStatus);
+        if (lastAttempt) {
+          deps.report(error);
+          await deps.files.remove(name).catch(() => {});
+          return;
+        }
+      }
+      await deps.wait(LAUNCH_RETRY_MS);
     }
-    installerLaunched = true;
-    deps.quit();
   }
 
   async function check(): Promise<void> {

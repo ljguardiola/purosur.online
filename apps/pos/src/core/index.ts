@@ -143,7 +143,11 @@ import {
 } from "./register/regularize-orphan-authorizations-step";
 import { restorationStandingFor } from "./register/restoration-standing-requests";
 import { createRestorationStandingWatch } from "./register/restoration-standing-watch";
-import { createSerialDeviceWatch, pathOfMatchingDevice } from "./register/serial-device-watch";
+import {
+  createSerialDeviceWatch,
+  pathOfMatchingDevice,
+  readStanding,
+} from "./register/serial-device-watch";
 import { serialDevicesReportOf } from "./register/serial-devices-report";
 import { readSerialDevicesFor, registerSerialDevicesFor } from "./register/serial-devices-requests";
 import { listSerialPorts, serialportEnumeration } from "./register/serialport-enumeration";
@@ -176,6 +180,7 @@ import {
 } from "./returns/returns-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
+import { consultProductFor } from "./sales/product-consultation-requests";
 import {
   createReceiptPrinting,
   printingAfterCompletedSales,
@@ -202,6 +207,7 @@ import {
   nonCashChargeFor,
   previewSaleDiscountFor,
   previewSaleLineAdjustmentFor,
+  readScaleFor,
   rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
   scanProductFor,
@@ -1551,6 +1557,25 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             query,
           ),
+  consultProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (product) =>
+          consultProductFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+              zoneRules,
+              scale: systelScale,
+              scaleStanding: () =>
+                serialDeviceWatch
+                  ? readStanding(serialDeviceWatch.reading(), "scale")
+                  : { kind: "unknown" },
+            },
+            product,
+          ),
   findProductByCode:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1623,6 +1648,14 @@ const rendererRequestDeps: RendererRequestDeps = {
             productId,
             confirmedWeightThousandths,
           ),
+  readScale: () =>
+    readScaleFor({
+      scale: systelScale,
+      scaleStanding: () =>
+        serialDeviceWatch
+          ? readStanding(serialDeviceWatch.reading(), "scale")
+          : { kind: "unknown" },
+    }),
   weighLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined

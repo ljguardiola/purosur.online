@@ -32,3 +32,11 @@ export const HeadingSize: Story = {
 export const Loading: Story = {
   args: { label: "Efectivo esperado", loading: true, value: undefined },
 };
+
+export const ToneLabel: Story = {
+  args: { labelTone: "warning", label: "Peso", value: "0,410 kg" },
+};
+
+export const MonospaceValue: Story = {
+  args: { variant: "plain", monospace: true, label: "Peso", value: "0,410 kg" },
+};

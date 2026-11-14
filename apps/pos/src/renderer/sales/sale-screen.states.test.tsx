@@ -12,11 +12,11 @@ function legendOf() {
 }
 
 describe("SaleScreen with an empty sale", () => {
-  it("says the sale is empty in the middle of the table, offering only F2 to search", async () => {
+  it("says the sale is empty in the middle of the table, offering only F2 to search and F4 Consulta", async () => {
     const { screen } = await renderScreen();
 
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
-    expect(legendOf()).toEqual(["F2Buscar"]);
+    expect(legendOf()).toEqual(["F2Buscar", "F4Consulta"]);
     await expect.element(screen.getByRole("columnheader")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -88,6 +88,7 @@ describe("SaleScreen with a code that has no product", () => {
       "↑↓Líneas",
       "F2Buscar",
       "F3Pesar",
+      "F4Consulta",
       "F6Precio",
       "F7Descuento",
       "F8Vaciar",
@@ -196,6 +197,7 @@ describe("SaleScreen with the critical battery alert", () => {
       "↑↓Líneas",
       "F2Buscar",
       "F3Pesar",
+      "F4Consulta",
       "F6Precio",
       "F7Descuento",
       "F8Vaciar",

@@ -977,6 +977,56 @@ describe("receipt print status query", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    [9600, 600],
+    [9000, 1000],
+  ])(
+    "while the offer is open with %i ms left, asks again after %i ms, when the time left reaches the next whole second",
+    async (remaining_ms, untilNextReading) => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const read = vi.fn(async () =>
+        standingOf({
+          kind: "found",
+          next_copy: { kind: "original" },
+          printed: false,
+          standing: "awaiting_answer",
+          comprobante: { kind: "none" },
+          offer: { remaining_ms, length_ms: 10_000 },
+        }),
+      );
+      const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
+      await expect.element(screen.getByText("awaiting_answer")).toBeVisible();
+
+      await vi.advanceTimersByTimeAsync(untilNextReading - 1);
+      expect(read).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(read).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("asks again after a whole second while no offer is open", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const read = vi.fn(async () =>
+      standingOf({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing: "printing",
+        comprobante: { kind: "none" },
+        offer: null,
+      }),
+    );
+    const screen = await renderWithClient(<ReceiptPrintStatusProbe read={read} />);
+    await expect.element(screen.getByText("printing")).toBeVisible();
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(read).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["failed", "printer_not_configured", "declined"] as const)(
     "stops asking once the core answers the final standing %s",
     async (standing) => {

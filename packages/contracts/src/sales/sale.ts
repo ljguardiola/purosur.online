@@ -32,7 +32,7 @@ import { saleCreditNoteSchema } from "./sale-credit-note.js";
 
 const cents = z.int().nonnegative();
 
-const linePromotionSchema = z.discriminatedUnion("kind", [
+export const linePromotionSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("PERCENT_OFF"),
     percent: z.number().refine(isValidDiscountPercent),
@@ -456,6 +456,18 @@ const scaleWeighingOutcomes = [
   z.object({ kind: z.literal("unsteady_out_of_range") }),
   z.object({ kind: z.literal("scale_unavailable") }),
 ] as const;
+
+export const liveScaleReadingOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("not_configured") }),
+  z.object({ kind: z.literal("no_reading") }),
+  z.object({ kind: z.literal("settling") }),
+  z.object({
+    kind: z.literal("reading"),
+    weight_thousandths: z.number().int(),
+    settled: z.boolean(),
+  }),
+]);
+export type LiveScaleReadingOutcome = z.infer<typeof liveScaleReadingOutcomeSchema>;
 
 export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,

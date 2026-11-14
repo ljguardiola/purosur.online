@@ -960,6 +960,22 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to read the scale and resolves with what it shows", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const reading = client.readScale();
+    port.answer({
+      type: "read-scale-result",
+      request_id: "request-1",
+      outcome: { kind: "reading", weight_thousandths: 410, settled: true },
+    });
+
+    expect(await reading).toEqual({ kind: "reading", weight_thousandths: 410, settled: true });
+    expect(port.posted).toEqual([{ type: "read-scale", request_id: "request-1" }]);
+  });
+
   it("asks the core to add a product sold by weight with its typed weight and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1544,6 +1560,23 @@ describe("createCoreClient", () => {
     },
   );
 
+  it.each([{ kind: "not_found" }, { kind: "no_open_session" }, { kind: "unavailable" }])(
+    "asks the core to consult a product and resolves with the outcome: %j",
+    async (outcome) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const consulted = client.consultProduct({ barcode: "7790001000017" });
+      port.answer({ type: "consult-product-result", request_id: "request-1", outcome });
+
+      expect(await consulted).toEqual(outcome);
+      expect(port.posted).toEqual([
+        { type: "consult-product", request_id: "request-1", product: { barcode: "7790001000017" } },
+      ]);
+    },
+  );
+
   it.each([
     {
       kind: "found",
@@ -1885,7 +1918,15 @@ describe("createCoreClient", () => {
     client.connect(port);
     const closed = {
       kind: "closed",
-      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+      session: {
+        id: "s1",
+        expected_cash: 5000,
+        counted_cash: 4800,
+        difference: -200,
+        opened_at: "2026-09-30T09:00:00.000-03:00",
+        closed_at: "2026-09-30T20:14:00.000-03:00",
+      },
+      movements: [],
     };
 
     const outcome = client.closeCashSession("s1", 4800);

@@ -24,6 +24,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CurrentSaleAnswer,
   EnrollmentOutcome,
@@ -35,6 +36,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   NonCashChargeAnswer,
   OpenCashSession,
   OpenCashSessionOutcome,
@@ -48,6 +50,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadReceiptPrinterOutcome,
   ReadSerialDevicesOutcome,
   RebuildSaleAgainstPaidOrderOutcome,
@@ -181,6 +184,7 @@ export interface RendererRequestDeps {
     | ((request: { saleId: string }) => Promise<ChargeSaleWithPaidOrderOutcome>)
     | undefined;
   searchProducts: ((query: string) => Promise<SearchProductsOutcome>) | undefined;
+  consultProduct: ((product: ProductToConsult) => Promise<ConsultProductOutcome>) | undefined;
   findProductByCode: ((code: string) => Promise<FindProductByCodeOutcome>) | undefined;
   addProduct: ((productId: string) => Promise<AddProductOutcome>) | undefined;
   addWeighedProduct:
@@ -192,6 +196,7 @@ export interface RendererRequestDeps {
         confirmedWeightThousandths: number | null,
       ) => Promise<WeighProductOutcome>)
     | undefined;
+  readScale: (() => Promise<LiveScaleReadingOutcome>) | undefined;
   weighLine:
     | ((
         lineId: string,
@@ -1218,6 +1223,18 @@ export async function answerRendererRequest(
         ),
       };
     }
+    case "consult-product": {
+      const { consultProduct } = deps;
+      return {
+        type: "consult-product-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "consulting a product",
+          consultProduct && (() => consultProduct(message.product)),
+        ),
+      };
+    }
     case "find-deferred-sale": {
       const { findDeferredSale } = deps;
       return {
@@ -1538,6 +1555,23 @@ export async function answerRendererRequest(
             (() => weighProduct(message.product_id, message.confirmed_weight_thousandths)),
         ),
       };
+    }
+    case "read-scale": {
+      const { readScale } = deps;
+      try {
+        return {
+          type: "read-scale-result",
+          request_id: message.request_id,
+          outcome: (await readScale?.()) ?? { kind: "no_reading" },
+        };
+      } catch (error) {
+        deps.reportFailure("reading the scale", error);
+        return {
+          type: "read-scale-result",
+          request_id: message.request_id,
+          outcome: { kind: "no_reading" },
+        };
+      }
     }
     case "weigh-line": {
       const { weighLine } = deps;

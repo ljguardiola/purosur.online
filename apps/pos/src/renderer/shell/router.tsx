@@ -24,6 +24,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CoreStatusMessage,
   CorrectRegisterClockOutcome,
@@ -39,6 +40,7 @@ import type {
   FollowMercadoPagoChargeOutcome,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenCashSessionOutcome,
@@ -52,6 +54,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadClockGuardOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
@@ -117,9 +120,10 @@ import type {
   SerialDevicesToRegister,
   SignInUsers,
 } from "../platform/core-client";
-import { CashCountScreen } from "../register/cash-count-screen";
+import { CashClosedScreen } from "../register/cash-closed-screen";
 import { CashScreen } from "../register/cash-screen";
 import type { CashSessionState } from "../register/cash-session-state";
+import type { ClosedCashSummary } from "../register/closed-cash-summary";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
@@ -144,6 +148,9 @@ import { ReturnScreen } from "../returns/return-screen";
 import { KEYED_CHARGE_METHODS } from "../sales/charge-method-availability";
 import { ChargeScreen } from "../sales/charge-screen";
 import { DeferredSaleScreen } from "../sales/deferred-sale-screen";
+import { ProductConsultationScreen } from "../sales/product-consultation-screen";
+import type { ProductToAdd } from "../sales/product-to-add";
+import { productToAddFrom } from "../sales/product-to-add";
 import { SaleScreen } from "../sales/sale-screen";
 import { SalesHistoryScreen } from "../sales/sales-history-screen";
 import { FirstSignInScreen } from "../sessions/first-sign-in-screen";
@@ -174,6 +181,8 @@ export interface RouterContext {
   enrollment: Enrollment;
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
+  closedCash: ClosedCashSummary | undefined;
+  dismissClosedCash: () => void;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUsers>;
   authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
@@ -254,6 +263,7 @@ export interface RouterContext {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   searchProducts: (query: string) => Promise<SearchProductsOutcome>;
+  consultProduct: (product: ProductToConsult) => Promise<ConsultProductOutcome>;
   findProductByCode: (code: string) => Promise<FindProductByCodeOutcome>;
   addProduct: (productId: string) => Promise<AddProductOutcome>;
   addWeighedProduct: (
@@ -264,6 +274,7 @@ export interface RouterContext {
     productId: string,
     confirmedWeightThousandths: number | null,
   ) => Promise<WeighProductOutcome>;
+  readScale: () => Promise<LiveScaleReadingOutcome>;
   weighLine: (
     lineId: string,
     expectedWeightThousandths: number,
@@ -384,6 +395,7 @@ type ScreenPath =
   | "/session"
   | "/history"
   | "/locked"
+  | "/cash-closed"
   | "/enroll"
   | "/starting"
   | "/core-down"
@@ -404,10 +416,12 @@ export function routeFor({
   enrollment,
   person,
   cashSession,
+  closedCash,
 }: Pick<
   RouterContext,
   "coreStatus" | "registerService" | "restoration" | "enrollment" | "person" | "cashSession"
->): ScreenPath {
+> &
+  Partial<Pick<RouterContext, "closedCash">>): ScreenPath {
   if (coreStatus === "refused") {
     return "/older-version";
   }
@@ -450,6 +464,9 @@ export function routeFor({
   if (cashSession.status === "open") {
     return person === undefined ? "/locked" : "/session";
   }
+  if (person !== undefined && closedCash !== undefined) {
+    return "/cash-closed";
+  }
   return person === undefined ? "/sign-in" : "/";
 }
 
@@ -460,15 +477,20 @@ function requireRoute(expected: ScreenPath | readonly ScreenPath[], context: Rou
   }
 }
 
+function routeLeavingClosedCash(context: RouterContext): ScreenPath {
+  const route = routeFor(context);
+  return route === "/cash-closed" ? "/" : route;
+}
+
 function requireSignedInPerson(context: RouterContext): SignedInPerson {
-  if (context.person === undefined || routeFor(context) !== "/") {
+  if (context.person === undefined || routeLeavingClosedCash(context) !== "/") {
     throw redirect({ to: routeFor(context) });
   }
   return context.person;
 }
 
 function requireSignedInPersonAnywhere(context: RouterContext) {
-  const route = routeFor(context);
+  const route = routeLeavingClosedCash(context);
   if (context.person === undefined || (route !== "/" && route !== "/session")) {
     throw redirect({ to: route });
   }
@@ -484,6 +506,17 @@ function requireOpenSession(context: RouterContext) {
     throw redirect({ to: routeFor(context) });
   }
   return { ...context.cashSession, person: context.person };
+}
+
+function requireClosedCash(context: RouterContext) {
+  if (
+    context.person === undefined ||
+    context.closedCash === undefined ||
+    routeFor(context) !== "/cash-closed"
+  ) {
+    throw redirect({ to: routeFor(context) });
+  }
+  return { person: context.person, closedCash: context.closedCash };
 }
 
 function requireRestoringStanding(context: RouterContext): {
@@ -733,6 +766,10 @@ function InitialCountRoute() {
 const openSessionRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
   path: "/session",
+  validateSearch: (search: { add?: unknown }): { add?: ProductToAdd } => {
+    const add = productToAddFrom(search.add);
+    return add === undefined ? {} : { add };
+  },
   beforeLoad: async ({ context }) => {
     const { id, person } = requireOpenSession(context);
     const landsOnStartupPending = await context.startupPendingGate.lands(() =>
@@ -758,6 +795,7 @@ const openSessionRoute = createRoute({
       addProduct,
       addWeighedProduct,
       weighProduct,
+      readScale,
       weighLine,
       changeLineQuantity,
       changeLineWeight,
@@ -773,6 +811,7 @@ const openSessionRoute = createRoute({
       registerStatus,
       paymentMethodAvailability,
     } = openSessionRoute.useRouteContext();
+    const { add } = openSessionRoute.useSearch();
     const status = useRegisterStatusQuery(registerStatus);
     return (
       <SaleScreen
@@ -786,6 +825,7 @@ const openSessionRoute = createRoute({
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        readScale={readScale}
         weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
@@ -800,6 +840,44 @@ const openSessionRoute = createRoute({
         onSessionInvalid={() => void refreshCashSession()}
         registerStatus={status}
         paymentMethodAvailability={paymentMethodAvailability}
+        productToAdd={add}
+      />
+    );
+  },
+});
+
+const consultRoute = createRoute({
+  getParentRoute: () => registerStatusRoute,
+  path: "/consult",
+  validateSearch: (search: { product_id?: unknown }): { product_id?: string } =>
+    typeof search.product_id === "string" ? { product_id: search.product_id } : {},
+  beforeLoad: ({ context }) => {
+    const { id, person } = requireOpenSession(context);
+    return { id, person };
+  },
+  component: function ConsultRoute() {
+    const {
+      id,
+      person,
+      signOut,
+      currentSale,
+      paymentMethodAvailability,
+      consultProduct,
+      searchProducts,
+      refreshCashSession,
+    } = consultRoute.useRouteContext();
+    const { product_id } = consultRoute.useSearch();
+    return (
+      <ProductConsultationScreen
+        sessionId={id}
+        person={person}
+        lock={signOut}
+        currentSale={currentSale}
+        paymentMethodAvailability={paymentMethodAvailability}
+        consultProduct={consultProduct}
+        searchProducts={searchProducts}
+        productId={product_id}
+        onSessionInvalid={() => void refreshCashSession()}
       />
     );
   },
@@ -1071,6 +1149,9 @@ const cashRoute = createRoute({
       cashMovements,
       cashMovementKinds,
       cashMovementPreview,
+      cashCountPreview,
+      sessionOpenSale,
+      closeCashSession,
       authorizers,
       recordCashMovement,
       readClockGuard,
@@ -1087,6 +1168,9 @@ const cashRoute = createRoute({
         loadCashMovementKinds={cashMovementKinds}
         loadCashMovementPreview={cashMovementPreview}
         loadAuthorizers={authorizers}
+        loadCashCountPreview={cashCountPreview}
+        loadSessionOpenSale={sessionOpenSale}
+        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash)}
         recordCashMovement={recordCashMovement}
         clockGuard={
           <ClockGuardOffer
@@ -1101,24 +1185,19 @@ const cashRoute = createRoute({
   },
 });
 
-const cashCountRoute = createRoute({
+const cashClosedRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
-  path: "/cash-count",
-  beforeLoad: ({ context }) => {
-    const { id, person } = requireOpenSession(context);
-    return { id, person };
-  },
-  component: function CashCountRoute() {
-    const { id, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
-      cashCountRoute.useRouteContext();
+  path: "/cash-closed",
+  beforeLoad: ({ context }) => requireClosedCash(context),
+  onLeave: ({ context }) => context.dismissClosedCash(),
+  component: function CashClosedRoute() {
+    const { person, closedCash, signOut, dismissClosedCash } = cashClosedRoute.useRouteContext();
     return (
-      <CashCountScreen
-        sessionId={id}
-        abilities={person.abilities}
+      <CashClosedScreen
+        person={person}
+        summary={closedCash}
         lock={signOut}
-        loadCashBalance={cashBalance}
-        loadCashCountPreview={cashCountPreview}
-        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash)}
+        onOpenCash={dismissClosedCash}
       />
     );
   },
@@ -1384,13 +1463,14 @@ export const routeTree = rootRoute.addChildren([
       serialDevicesRoute,
       initialCountRoute,
       openSessionRoute,
+      consultRoute,
       startupPendingRoute,
       chargeRoute,
       historyRoute,
       deferredSaleRoute,
       returnRoute,
       cashRoute,
-      cashCountRoute,
+      cashClosedRoute,
       lockedRoute,
       lockedCloseRoute,
     ]),
@@ -1470,10 +1550,12 @@ export function createAppRouter(
     | "followMercadoPagoCharge"
     | "abandonMercadoPagoCharge"
     | "searchProducts"
+    | "consultProduct"
     | "findProductByCode"
     | "addProduct"
     | "addWeighedProduct"
     | "weighProduct"
+    | "readScale"
     | "weighLine"
     | "changeLineQuantity"
     | "changeLineWeight"
@@ -1521,6 +1603,7 @@ export function createAppRouter(
     | "searchCountableProducts"
     | "weighCountedProduct"
     | "refreshCashSession"
+    | "dismissClosedCash"
   >,
 ) {
   return createRegisterRouter(
@@ -1533,6 +1616,7 @@ export function createAppRouter(
       enrollment: "unknown",
       person: undefined,
       cashSession: { status: "unknown" },
+      closedCash: undefined,
       ...services,
     },
     "/starting",

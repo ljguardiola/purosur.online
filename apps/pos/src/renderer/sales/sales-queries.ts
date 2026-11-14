@@ -3,17 +3,20 @@ import type {
   AnswerReceiptQuestionOutcome,
   CashChargeAmountsAnswer,
   CashChargeAnswer,
+  ConsultProductOutcome,
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
   CurrentSaleAnswer,
   FindProductByCodeOutcome,
   FollowMercadoPagoChargeOutcome,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenSale,
   PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
   PreviewSaleLineAdjustmentOutcome,
+  ProductToConsult,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
@@ -22,11 +25,13 @@ import type {
   SalesHistoryOutcome,
   SearchProductsOutcome,
 } from "@purosur/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { hashKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
+import { PAUSE_BETWEEN_ANSWERS_MS } from "../platform/use-scale-weighing";
 
 const salesKey = ["sales"] as const;
 
@@ -56,7 +61,10 @@ export const salesKeys = {
     ] as const,
   saleDiscountPreview: (subtotal: number, discount: SaleDiscountRequest) =>
     [...salesKey, "sale-discount-preview", subtotal, discount.kind, discount.value] as const,
+  liveScaleReading: [...salesKey, "live-scale-reading"] as const,
   search: (query: string) => [...salesKey, "search", query] as const,
+  consultation: (product: ProductToConsult | undefined) =>
+    [...salesKey, "consultation", product ?? null] as const,
   productByCode: (code: string) => [...salesKey, "product-by-code", code] as const,
   paymentMethodAvailabilityRoot: [...salesKey, "payment-method-availability"] as const,
   paymentMethodAvailability: (sessionId: string, userId: string) =>
@@ -153,6 +161,10 @@ export function useRefreshPaymentMethodAvailability(
 
 const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;
 
+function untilNextWholeSecondLeft(remainingMs: number): number {
+  return remainingMs % 1000 || 1000;
+}
+
 export type ReceiptPrintStatus = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>;
 
 export function useReceiptPrintStatusQuery({
@@ -174,7 +186,9 @@ export function useReceiptPrintStatusQuery({
       status?.standing === "declined" ||
       status?.standing === "printer_not_configured"
         ? false
-        : RECEIPT_PRINT_POLL_MILLISECONDS,
+        : status?.offer
+          ? untilNextWholeSecondLeft(status.offer.remaining_ms)
+          : RECEIPT_PRINT_POLL_MILLISECONDS,
   });
 }
 
@@ -195,6 +209,7 @@ export function useAnswerReceiptQuestionMutation({
 
 const BACKUP_TICKET_POLL_MILLISECONDS = 1000;
 const BACKUP_PRINTER_FAILURE_POLL_MILLISECONDS = 5000;
+const LIVE_SCALE_READING_POLL_MILLISECONDS = 250;
 
 export function useBackupTicketOfSaleQuery({
   saleId,
@@ -233,6 +248,21 @@ export function useBackupPrinterFailureQuery({
     },
     enabled,
     refetchInterval: () => BACKUP_PRINTER_FAILURE_POLL_MILLISECONDS,
+  });
+}
+
+export function useLiveScaleReadingQuery({
+  read,
+  enabled,
+}: {
+  read: () => Promise<LiveScaleReadingOutcome>;
+  enabled: boolean;
+}): CoreData<LiveScaleReadingOutcome> {
+  return useCoreQuery({
+    queryKey: salesKeys.liveScaleReading,
+    read: () => read().catch((): LiveScaleReadingOutcome => ({ kind: "no_reading" })),
+    enabled,
+    refetchInterval: () => LIVE_SCALE_READING_POLL_MILLISECONDS,
   });
 }
 
@@ -520,4 +550,72 @@ export function useFindProductByCode(
         gcTime: 0,
       })
       .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
+}
+
+export type ConsultationAnswer = Exclude<ConsultProductOutcome, { kind: "unavailable" }>;
+
+export function useConsultedProductQuery(
+  read: (product: ProductToConsult) => Promise<ConsultProductOutcome>,
+  product: ProductToConsult | undefined,
+): CoreData<ConsultationAnswer> {
+  const queryClient = useQueryClient();
+  const [failedAgain, setFailedAgain] = useState<string>();
+  const consultation = useCoreQuery({
+    queryKey: salesKeys.consultation(product),
+    read: async () => {
+      if (product === undefined) {
+        return "unavailable";
+      }
+      const outcome = await read(product);
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+    enabled: product !== undefined,
+    gcTime: 0,
+  });
+  const weighed =
+    consultation.status === "loaded" &&
+    consultation.value.kind === "consulted" &&
+    consultation.value.sale_unit === "KG";
+  useEffect(() => {
+    if (!weighed) {
+      return undefined;
+    }
+    const queryKey = salesKeys.consultation(product);
+    const queryHash = hashKey(queryKey);
+    let pause: ReturnType<typeof setTimeout> | undefined;
+    function askAfterPause() {
+      pause = setTimeout(
+        () => void queryClient.refetchQueries({ queryKey, exact: true }),
+        PAUSE_BETWEEN_ANSWERS_MS,
+      );
+    }
+    const stopFollowing = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== "updated" || event.query.queryHash !== queryHash) {
+        return;
+      }
+      if (event.action.type === "success") {
+        setFailedAgain(undefined);
+        askAfterPause();
+      } else if (event.action.type === "error") {
+        setFailedAgain(queryHash);
+      }
+    });
+    askAfterPause();
+    return () => {
+      stopFollowing();
+      clearTimeout(pause);
+      setFailedAgain(undefined);
+    };
+  }, [weighed, queryClient, product]);
+  const queryKey = salesKeys.consultation(product);
+  if (consultation.status === "loaded" && failedAgain === hashKey(queryKey)) {
+    return {
+      status: "failed",
+      retry: () => {
+        setFailedAgain(undefined);
+        void queryClient.resetQueries({ queryKey, exact: true });
+      },
+    };
+  }
+  return consultation;
 }

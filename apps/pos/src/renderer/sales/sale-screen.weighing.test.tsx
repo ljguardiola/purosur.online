@@ -2,12 +2,14 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   FindProductByCodeOutcome,
+  LiveScaleReadingOutcome,
   OpenSale,
   WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { gapBetweenSearchFieldAndScaleCard } from "../platform/test-support/search-row";
 import type { SaleScreenProps } from "./sale-screen";
 import type { Overrides } from "./test-support/sale-screen";
 import {
@@ -277,17 +279,35 @@ describe("SaleScreen weighing card", () => {
   });
 });
 
+const SCALE_SETTLING = vi.fn(async (): Promise<LiveScaleReadingOutcome> => ({ kind: "settling" }));
+const SCALE_READING_410 = vi.fn(
+  async (): Promise<LiveScaleReadingOutcome> => ({
+    kind: "reading",
+    weight_thousandths: 410,
+    settled: true,
+  }),
+);
+
 describe("SaleScreen balanza card", () => {
-  it("is beside the search field and shows no reading outside a weighing", async () => {
-    const { screen, field } = await renderScreen({ currentSale: async () => SALE_OF_QUESO });
+  it("is beside the search field and says Sin lectura while the scale has no weight yet", async () => {
+    const { screen, field } = await renderScreen({
+      currentSale: async () => SALE_OF_QUESO,
+      readScale: SCALE_SETTLING,
+    });
 
     const label = screen.getByText("Balanza", { exact: true });
-    await expect.element(label).toBeVisible();
-    expect(label.element().parentElement?.textContent).toBe("Balanza");
+    await expect.poll(() => label.element().parentElement?.textContent).toBe("BalanzaSin lectura");
     const fieldBox = field.element().getBoundingClientRect();
     const cardBox = label.element().getBoundingClientRect();
-    expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
+    expect(gapBetweenSearchFieldAndScaleCard(field.element(), label.element())).toBe(12);
     expect(cardBox.top).toBeLessThan(fieldBox.bottom);
+  });
+
+  it("shows the scale's live reading outside a weighing", async () => {
+    const { screen } = await renderScreen({ readScale: SCALE_READING_410 });
+
+    const label = screen.getByText("Balanza", { exact: true });
+    await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza0,410 kg");
   });
 
   it("shows the reading of the weighing in progress", async () => {
@@ -317,15 +337,18 @@ describe("SaleScreen balanza card", () => {
     await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza0,800 kg");
   });
 
-  it("shows no reading again once the weighing ends", async () => {
-    const { screen, field } = await renderScreen(weighingScale(stableScale()));
+  it("shows the live reading again once the weighing ends", async () => {
+    const { screen, field } = await renderScreen({
+      ...weighingScale(stableScale()),
+      readScale: SCALE_READING_410,
+    });
     await scan(field, "7790001");
     const label = screen.getByText("Balanza", { exact: true });
     await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza1,250 kg");
 
     await userEvent.keyboard("{Escape}");
 
-    await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza");
+    await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza0,410 kg");
   });
 });
 

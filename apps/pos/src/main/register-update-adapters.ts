@@ -99,3 +99,43 @@ export function spawnDetachedInstaller(path: string, args: readonly string[]): P
     });
   });
 }
+
+const POWERSHELL_TIMEOUT_MS = 30_000;
+
+type RunProcess = (
+  file: string,
+  args: readonly string[],
+  options: { timeout: number; windowsHide: boolean },
+) => Promise<{ stdout: string; stderr: string }>;
+
+function powerShellLiteral(value: string): string {
+  return `'${value.replace(/['\u2018\u2019\u201A\u201B]/g, "$&$&")}'`;
+}
+
+function stderrOf(error: unknown): string {
+  if (typeof error === "object" && error !== null && "stderr" in error) {
+    return String(error.stderr).trim();
+  }
+  return "";
+}
+
+export function startInstallerThroughPowerShell(
+  run: RunProcess,
+): (path: string, args: readonly string[]) => Promise<void> {
+  return async (path, args) => {
+    const script = [
+      "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
+      "$ErrorActionPreference = 'Stop'",
+      `try { Start-Process -FilePath ${powerShellLiteral(path)} -ArgumentList ${args.map(powerShellLiteral).join(",")} } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`,
+    ].join("; ");
+    try {
+      await run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
+        timeout: POWERSHELL_TIMEOUT_MS,
+        windowsHide: true,
+      });
+    } catch (error) {
+      const message = stderrOf(error) || (error instanceof Error ? error.message : String(error));
+      throw new Error(`Windows refused to start the installer: ${message}`, { cause: error });
+    }
+  };
+}

@@ -15,6 +15,10 @@ import {
   printDeferredSaleInvoiceResultMessageSchema,
 } from "./deferred-sale-lookup.js";
 import {
+  consultProductMessageSchema,
+  consultProductResultMessageSchema,
+} from "./product-consultation.js";
+import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
   adjustSaleLineOutcomeSchema,
@@ -29,6 +33,7 @@ import {
   chargeSaleInCashWithChangeDiscountOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
   findProductByCodeOutcomeSchema,
+  liveScaleReadingOutcomeSchema,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
   nonCashChargeSchema,
@@ -166,6 +171,11 @@ const weighProductMessageSchema = z.object({
   request_id: requestId,
   product_id: z.string(),
   confirmed_weight_thousandths: confirmedWeightSchema,
+});
+
+const readScaleMessageSchema = z.object({
+  type: z.literal("read-scale"),
+  request_id: requestId,
 });
 
 const weighLineMessageSchema = z.object({
@@ -334,6 +344,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addWeighedProductMessageSchema,
   weighProductMessageSchema,
   weighLineMessageSchema,
+  readScaleMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleInCashWithChangeDiscountMessageSchema,
@@ -346,6 +357,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   answerReceiptQuestionMessageSchema,
   printOriginalReceiptMessageSchema,
   findDeferredSaleMessageSchema,
+  consultProductMessageSchema,
   printDeferredSaleInvoiceMessageSchema,
   printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
@@ -524,6 +536,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: weighProductOutcomeSchema,
   }),
   z.object({
+    type: z.literal("read-scale-result"),
+    request_id: requestId,
+    outcome: liveScaleReadingOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("weigh-line-result"),
     request_id: requestId,
     outcome: weighLineOutcomeSchema,
@@ -569,6 +586,7 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: printOriginalReceiptOutcomeSchema,
   }),
   findDeferredSaleResultMessageSchema,
+  consultProductResultMessageSchema,
   printDeferredSaleInvoiceResultMessageSchema,
   z.object({
     type: z.literal("print-credit-note-result"),

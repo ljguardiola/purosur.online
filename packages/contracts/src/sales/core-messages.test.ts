@@ -296,6 +296,16 @@ describe("sale requests", () => {
     ).toBe(false);
   });
 
+  it("accepts a request to read the scale", () => {
+    const message = { type: "read-scale", request_id: REQUEST_ID };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request to read the scale without its request id", () => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ type: "read-scale" }).success).toBe(false);
+  });
+
   it("accepts a request for the sale in progress", () => {
     const message = { type: "sale-request", request_id: REQUEST_ID };
 
@@ -1315,6 +1325,10 @@ describe("sale line answers", () => {
     ["weigh-line-result", { kind: "stale_weight" }],
     ["weigh-product-result", { kind: "scale_unavailable" }],
     ["weigh-product-result", { kind: "not_sold_by_weight" }],
+    ["read-scale-result", { kind: "not_configured" }],
+    ["read-scale-result", { kind: "no_reading" }],
+    ["read-scale-result", { kind: "settling" }],
+    ["read-scale-result", { kind: "reading", weight_thousandths: 410, settled: true }],
     ["remove-sale-line-result", { kind: "removed", sale, removed_sale_discount: false }],
     ["remove-sale-line-result", { kind: "no_open_sale" }],
     ["remove-sale-line-result", { kind: "sale_has_payments" }],
@@ -1332,6 +1346,7 @@ describe("sale line answers", () => {
     "add-weighed-product-result",
     "weigh-product-result",
     "weigh-line-result",
+    "read-scale-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s with an outcome it does not know", (type) => {
@@ -1350,6 +1365,7 @@ describe("sale line answers", () => {
     "add-weighed-product-result",
     "weigh-product-result",
     "weigh-line-result",
+    "read-scale-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s without its request id", (type) => {

@@ -366,6 +366,7 @@ export class FakeSaleLedger implements SaleLedger {
         this.failIfAsked("recordSaleStockMovement");
         working.stockMovements.push(movement);
       },
+      stockBalance: (productId) => working.stockBalances[productId],
       addToStockBalance: (productId, delta) => {
         this.failIfAsked("addToStockBalance");
         working.stockBalances[productId] = (working.stockBalances[productId] ?? 0) + delta;

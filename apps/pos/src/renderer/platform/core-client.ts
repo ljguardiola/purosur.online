@@ -26,6 +26,7 @@ import type {
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
   CompleteReturnOutcome,
+  ConsultProductOutcome,
   ConvertPaidOrderIntoRefundOutcome,
   CorrectRegisterClockOutcome,
   CredentialsCoreToRendererMessage,
@@ -47,6 +48,7 @@ import type {
   InstallationCoreToRendererMessage,
   InstallationRendererToCoreMessage,
   ListedCashMovement,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenCashSession,
@@ -63,6 +65,7 @@ import type {
   PrintCreditNoteOutcome,
   PrintDeferredSaleInvoiceOutcome,
   PrintOriginalReceiptOutcome,
+  ProductToConsult,
   ReadClockGuardOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
@@ -261,6 +264,7 @@ export interface CoreClient {
   openingFloatSuggestion(): Promise<OpeningFloatSuggestion | null | "unavailable">;
   scanProduct(code: string): Promise<ScanProductOutcome>;
   searchProducts(query: string): Promise<SearchProductsOutcome>;
+  consultProduct(product: ProductToConsult): Promise<ConsultProductOutcome>;
   findProductByCode(code: string): Promise<FindProductByCodeOutcome>;
   addProduct(productId: string): Promise<AddProductOutcome>;
   addWeighedProduct(
@@ -271,6 +275,7 @@ export interface CoreClient {
     productId: string,
     confirmedWeightThousandths: number | null,
   ): Promise<WeighProductOutcome>;
+  readScale(): Promise<LiveScaleReadingOutcome>;
   weighLine(
     lineId: string,
     expectedWeightThousandths: number,
@@ -1071,6 +1076,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         answer.type === "search-products-result" ? answer.outcome : undefined,
       );
     },
+    consultProduct(product) {
+      return ask({ type: "consult-product", request_id: deps.newRequestId(), product }, (answer) =>
+        answer.type === "consult-product-result" ? answer.outcome : undefined,
+      );
+    },
     findProductByCode(code) {
       return ask(
         { type: "find-product-by-code", request_id: deps.newRequestId(), code },
@@ -1103,6 +1113,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           confirmed_weight_thousandths: confirmedWeightThousandths,
         },
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
+      );
+    },
+    readScale() {
+      return ask({ type: "read-scale", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "read-scale-result" ? answer.outcome : undefined,
       );
     },
     weighLine(lineId, expectedWeightThousandths, confirmedWeightThousandths) {

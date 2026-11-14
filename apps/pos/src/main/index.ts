@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { promisify } from "node:util";
 import * as Sentry from "@sentry/electron/main";
 import {
   app,
@@ -40,6 +42,7 @@ import {
   pendingUpdateFiles,
   sha512Hash,
   spawnDetachedInstaller,
+  startInstallerThroughPowerShell,
   updateFetch,
 } from "./register-update-adapters";
 import { createSnapshotWorkerLauncher } from "./snapshot-worker-launcher";
@@ -315,6 +318,7 @@ function startRegister(settings: ChannelSettings): void {
       askSafeMoment: () => safeMomentAsker.ask(),
       releaseHold: () => currentCoreProcess?.postMessage({ type: "update-hold-release" }),
       spawnInstaller: spawnDetachedInstaller,
+      spawnInstallerThroughShell: startInstallerThroughPowerShell(promisify(execFile)),
       quit: () => app.quit(),
       report: (error) => Sentry.captureException(error),
     }).start();
