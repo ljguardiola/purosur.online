@@ -12,7 +12,6 @@ const SCREEN_ROUTES = {
   cash: "/cash",
   history: "/history",
   return: "/return",
-  deferred_sale: "/deferred-sale",
   receipt_printer: "/receipt-printer",
   serial_devices: "/serial-devices",
 } as const satisfies Record<string, ActionEntry["to"]>;
@@ -47,7 +46,7 @@ export function OpenSessionRail({
           : { label: "Venta", icon: ShoppingCart, to: "/session" }
       }
       links={[
-        ...linksTo(["/history", "/deferred-sale"]),
+        ...linksTo(["/history"]),
         { label: "Devolver", icon: Undo2, to: "/return", current: current === "return" },
         { label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" },
         ...linksTo(["/receipt-printer", "/serial-devices"]),
