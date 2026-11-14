@@ -155,6 +155,10 @@ export function useRefreshPaymentMethodAvailability(
 
 const RECEIPT_PRINT_POLL_MILLISECONDS = 1000;
 
+function untilNextWholeSecondLeft(remainingMs: number): number {
+  return remainingMs % 1000 || 1000;
+}
+
 export type ReceiptPrintStatus = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>;
 
 export function useReceiptPrintStatusQuery({
@@ -176,7 +180,9 @@ export function useReceiptPrintStatusQuery({
       status?.standing === "declined" ||
       status?.standing === "printer_not_configured"
         ? false
-        : RECEIPT_PRINT_POLL_MILLISECONDS,
+        : status?.offer
+          ? untilNextWholeSecondLeft(status.offer.remaining_ms)
+          : RECEIPT_PRINT_POLL_MILLISECONDS,
   });
 }
 
