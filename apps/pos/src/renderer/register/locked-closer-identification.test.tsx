@@ -188,6 +188,41 @@ describe("LockedCloserIdentification", () => {
     await expect.element(screen.getByRole("button", { name: "Continuar" })).toBeDisabled();
   });
 
+  it.each<[string, Parameters<typeof renderStep>[0], string]>([
+    [
+      "cannot close the register",
+      { identify: async () => ({ kind: "lacks_permission" }) },
+      "Sofía no puede cerrar la caja",
+    ],
+    [
+      "came back from the count",
+      {
+        returned: {
+          refusal: { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 4 },
+          userId: "u3",
+          firstName: "Sofía",
+        },
+      },
+      "El PIN de Sofía cambió",
+    ],
+  ])("says the chosen person %s between the PIN and Continuar", async (_case, options, title) => {
+    const { screen } = await renderStep(options);
+    await expectChosen(screen, "Sofía");
+    if (options?.identify !== undefined) {
+      await identifyChosen(screen, "1234");
+    }
+
+    const notice = screen.getByText(title);
+    await expect.element(notice).toBeVisible();
+    const pin = screen.getByLabelText("PIN").element();
+    const shown = notice.element();
+    const continuar = screen.getByRole("button", { name: "Continuar" }).element();
+    expect(pin.compareDocumentPosition(shown) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      shown.compareDocumentPosition(continuar) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it.each<IdentifyLockedCloserOutcome>([{ kind: "unavailable" }, { kind: "not_locked" }])(
     "says the PIN could not be checked when the core answers $kind",
     async (outcome) => {

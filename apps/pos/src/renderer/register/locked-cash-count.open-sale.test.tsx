@@ -61,6 +61,24 @@ describe("LockedCashCount banner of the open sale", () => {
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
   });
 
+  it.each<[string, SessionOpenSale, string]>([
+    ["emptying the cart", CANCELLABLE_SALE, "¿Vaciar la venta?"],
+    ["cancelling the sale", PART_PAID_SALE, "¿Cancelar la venta?"],
+  ])(
+    "hides the banner while the panel for %s is open, and shows it again once Esc closes it",
+    async (_case, sale, panel) => {
+      const { screen } = await renderStep({ loadOpenSale: async () => sale });
+      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+
+      await userEvent.keyboard("v");
+      await expect.element(screen.getByRole("complementary", { name: panel })).toBeVisible();
+
+      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
+      await userEvent.keyboard("{Escape}");
+      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+    },
+  );
+
   it.each<[string, SessionOpenSale]>([
     ["no payments", CANCELLABLE_SALE],
     ["payments", PART_PAID_SALE],
