@@ -4,8 +4,8 @@ import { ConfirmationPanel, formatCents } from "@purosur/ui";
 import { Ban } from "lucide-react";
 import { useState } from "react";
 import { useKeys } from "../platform/key-layer";
-import { paymentMethodName } from "../platform/payment-method-names";
 import { AuthorizationModal } from "../shell/authorization-modal";
+import { refundLabel } from "../shell/refund-label";
 import type { Refund } from "../shell/refund-lines";
 import { useAuthorization } from "../shell/use-authorization";
 
@@ -30,15 +30,6 @@ export type CancelPaidSalePanelProps = {
   onSessionInvalid: () => void;
   onClose: () => void;
 };
-
-function refundMethodName(method: Refund["method"]): string {
-  return method === "QR" ? "QR" : paymentMethodName(method);
-}
-
-function refundLabel(refund: Refund): string {
-  const when = refund.state === "PENDING" ? "reembolso pendiente" : "en el acto";
-  return `${refundMethodName(refund.method)} · ${when}`;
-}
 
 export function CancelPaidSalePanel({
   saleId,
