@@ -279,6 +279,13 @@ describe("SaleScreen weighing card", () => {
 });
 
 const SCALE_SETTLING = vi.fn(async (): Promise<LiveScaleReadingOutcome> => ({ kind: "settling" }));
+const SCALE_READING_410 = vi.fn(
+  async (): Promise<LiveScaleReadingOutcome> => ({
+    kind: "reading",
+    weight_thousandths: 410,
+    settled: true,
+  }),
+);
 
 describe("SaleScreen balanza card", () => {
   it("is beside the search field and shows no value while the scale settles", async () => {
@@ -297,37 +304,10 @@ describe("SaleScreen balanza card", () => {
   });
 
   it("shows the scale's live reading outside a weighing", async () => {
-    const { screen } = await renderScreen({
-      readScale: vi.fn(
-        async (): Promise<LiveScaleReadingOutcome> => ({
-          kind: "reading",
-          weight_thousandths: 410,
-          settled: true,
-        }),
-      ),
-    });
+    const { screen } = await renderScreen({ readScale: SCALE_READING_410 });
 
     const label = screen.getByText("Balanza", { exact: true });
     await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza0,410 kg");
-  });
-
-  it("shows Sin lectura when the scale does not respond", async () => {
-    const { screen } = await renderScreen({
-      readScale: vi.fn(async (): Promise<LiveScaleReadingOutcome> => ({ kind: "no_reading" })),
-    });
-
-    const label = screen.getByText("Balanza", { exact: true });
-    await expect.poll(() => label.element().parentElement?.textContent).toBe("BalanzaSin lectura");
-  });
-
-  it("is not shown when the register has no scale", async () => {
-    const readScale = vi.fn(
-      async (): Promise<LiveScaleReadingOutcome> => ({ kind: "not_configured" }),
-    );
-    const { screen } = await renderScreen({ readScale });
-
-    await expect.poll(() => readScale.mock.calls.length).toBeGreaterThan(0);
-    expect(screen.getByText("Balanza", { exact: true }).elements()).toHaveLength(0);
   });
 
   it("shows the reading of the weighing in progress", async () => {
@@ -360,7 +340,7 @@ describe("SaleScreen balanza card", () => {
   it("shows the live reading again once the weighing ends", async () => {
     const { screen, field } = await renderScreen({
       ...weighingScale(stableScale()),
-      readScale: SCALE_SETTLING,
+      readScale: SCALE_READING_410,
     });
     await scan(field, "7790001");
     const label = screen.getByText("Balanza", { exact: true });
@@ -368,7 +348,7 @@ describe("SaleScreen balanza card", () => {
 
     await userEvent.keyboard("{Escape}");
 
-    await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza");
+    await expect.poll(() => label.element().parentElement?.textContent).toBe("Balanza0,410 kg");
   });
 });
 

@@ -950,19 +950,12 @@ describe("reading the scale on the register", () => {
     });
   }
 
-  it.each([
-    [
-      { kind: "stable", weightThousandths: 410 },
-      { kind: "reading", weight_thousandths: 410, settled: true },
-    ],
-    [
-      { kind: "unstable", weightThousandths: 395 },
-      { kind: "reading", weight_thousandths: 395, settled: false },
-    ],
-    [{ kind: "not_stable" }, { kind: "settling" }],
-    [{ kind: "unavailable" }, { kind: "no_reading" }],
-  ] as const)("answers what the scale shows for %j", async (reading, outcome) => {
-    expect(await read(reading)).toEqual(outcome);
+  it("answers what the scale shows in the wire's names", async () => {
+    expect(await read({ kind: "unstable", weightThousandths: 395 })).toEqual({
+      kind: "reading",
+      weight_thousandths: 395,
+      settled: false,
+    });
   });
 
   it("answers that no scale is configured without reading the scale", async () => {

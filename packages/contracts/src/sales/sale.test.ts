@@ -584,6 +584,7 @@ describe("liveScaleReadingOutcomeSchema", () => {
     { kind: "settling" },
     { kind: "reading", weight_thousandths: 410, settled: true },
     { kind: "reading", weight_thousandths: 0, settled: false },
+    { kind: "reading", weight_thousandths: -20, settled: true },
   ])("accepts the outcome %j", (outcome) => {
     expect(liveScaleReadingOutcomeSchema.parse(outcome)).toEqual(outcome);
   });
@@ -592,7 +593,6 @@ describe("liveScaleReadingOutcomeSchema", () => {
     { kind: "reading" },
     { kind: "reading", weight_thousandths: 410 },
     { kind: "reading", settled: true },
-    { kind: "reading", weight_thousandths: -1, settled: true },
     { kind: "reading", weight_thousandths: 1.5, settled: true },
     { kind: "somewhere_else" },
     {},

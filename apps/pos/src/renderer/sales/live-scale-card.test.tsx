@@ -63,22 +63,35 @@ describe("LiveScaleCard", () => {
     await expect.element(screen.getByText("Sin lectura")).toBeVisible();
   });
 
-  it("is not shown when the register has no scale", async () => {
-    const readScale = readingOf({ kind: "not_configured" });
+  it("shows Sin lectura when the core cannot be asked after a reading was shown", async () => {
+    const readScale = vi
+      .fn<() => Promise<LiveScaleReadingOutcome>>()
+      .mockResolvedValueOnce({ kind: "reading", weight_thousandths: 410, settled: true })
+      .mockRejectedValue(new Error("the core is not answering"));
     const screen = await render(
       <LiveScaleCard readScale={readScale} weighingReading={undefined} />,
     );
+    await expect.element(screen.getByText("0,410 kg")).toBeVisible();
 
-    await expect.poll(() => readScale.mock.calls.length).toBeGreaterThan(0);
-    expect(screen.container.textContent).toBe("");
+    await expect.element(screen.getByText("Sin lectura")).toBeVisible();
+    expect(screen.container.textContent).toBe("BalanzaSin lectura");
   });
 
-  it("shows nothing until the first reading arrives", async () => {
+  it("is not shown when the register has no scale", async () => {
+    const screen = await render(
+      <LiveScaleCard readScale={readingOf({ kind: "not_configured" })} weighingReading={undefined} />,
+    );
+
+    await expect.poll(() => screen.container.textContent).toBe("");
+  });
+
+  it("shows a loading placeholder until the first reading arrives", async () => {
     const screen = await render(
       <LiveScaleCard readScale={() => new Promise(() => {})} weighingReading={undefined} />,
     );
 
-    expect(screen.container.textContent).toBe("");
+    await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+    expect(screen.getByText("Balanza").elements()).toHaveLength(0);
   });
 
   it("keeps reading the scale while no weighing is in progress", async () => {
