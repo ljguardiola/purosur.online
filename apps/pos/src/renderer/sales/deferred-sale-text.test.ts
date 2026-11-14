@@ -1,21 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  deferredSaleComprobanteLine,
-  deferredSaleInvoiceNumber,
-  deferredSaleRefusal,
-} from "./deferred-sale-text";
-
-describe("deferredSaleInvoiceNumber", () => {
-  it("shows the point of sale and the number of an issued invoice", () => {
-    expect(deferredSaleInvoiceNumber({ kind: "issued", point_of_sale: 3, number: 1250 })).toBe(
-      "PV 00003\nNº 00001250",
-    );
-  });
-
-  it("says the number is assigned when the invoice is issued, while it is pending", () => {
-    expect(deferredSaleInvoiceNumber({ kind: "pending" })).toBe("Se asigna al emitir");
-  });
-});
+import { deferredSaleComprobanteLine, deferredSaleRefusal } from "./deferred-sale-text";
 
 describe("deferredSaleComprobanteLine", () => {
   it("shows the factura with its point of sale and number once issued", () => {

@@ -1,6 +1,5 @@
 import type { FindDeferredSaleOutcome } from "@purosur/contracts";
 import type { NoticeTone } from "@purosur/ui";
-import { formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
 import { documentNumberText } from "./sale-history-text";
 
 export type FoundDeferredSale = Extract<FindDeferredSaleOutcome, { kind: "found" }>;
@@ -14,12 +13,6 @@ export type DeferredSaleRefusalKind =
   | "not_a_deferred_sale_qr"
   | "lacks_permission"
   | "unavailable";
-
-export function deferredSaleInvoiceNumber(invoice: FoundDeferredSale["invoice"]): string {
-  return invoice.kind === "issued"
-    ? `PV ${formatPointOfSaleNumber(invoice.point_of_sale)}\nNº ${formatInvoiceNumber(invoice.number)}`
-    : "Se asigna al emitir";
-}
 
 export function deferredSaleComprobanteLine(invoice: FoundDeferredSale["invoice"]): string {
   return invoice.kind === "issued"

@@ -34,9 +34,18 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { scannedDeferredSaleReading } from "./deferred-sale-form";
 import { DeferredSaleLines } from "./deferred-sale-lines";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
-import { deferredSaleComprobanteLine, deferredSaleRefusal } from "./deferred-sale-text";
+import {
+  deferredInvoiceNotYetDescription,
+  deferredSaleComprobanteLine,
+  deferredSaleRefusal,
+} from "./deferred-sale-text";
 import { originalPrintNotice } from "./original-print-text";
-import { PrintDeferredInvoiceModal } from "./print-deferred-invoice-modal";
+
+type PrintNotice = ReturnType<typeof originalPrintNotice>;
+
+function pendingLabel(invoice: FoundDeferredSale["invoice"]): string {
+  return invoice.kind === "pending" ? "Emitiendo la factura…" : "Imprimiendo la factura…";
+}
 
 export type DeferredSaleScreenProps = {
   person: SignedInPerson;
@@ -68,7 +77,9 @@ export function DeferredSaleScreen({
   const navigate = useNavigate();
   const [refusal, setRefusal] = useState<DeferredSaleRefusalKind>();
   const [sale, setSale] = useState<FoundDeferredSale>();
-  const [confirming, setConfirming] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [printNotice, setPrintNotice] = useState<PrintNotice>();
+  const printingNow = useRef(false);
   const [printed, setPrinted] = useState(false);
   const lastReading = useRef<DeferredSaleReading>(undefined);
   const [reprinting, setReprinting] = useState(false);
@@ -82,6 +93,7 @@ export function DeferredSaleScreen({
     finding.current = true;
     lastReading.current = next;
     setRefusal(undefined);
+    setPrintNotice(undefined);
     setSale(undefined);
     const outcome = await findDeferredSale(next)
       .catch((): "failed" => "failed")
@@ -127,25 +139,81 @@ export function DeferredSaleScreen({
     }
   }, [reading]);
 
+  async function print(saleToPrint: FoundDeferredSale) {
+    if (printingNow.current) {
+      return;
+    }
+    printingNow.current = true;
+    setPrinting(true);
+    setPrintNotice(undefined);
+    const outcome = await printDeferredSaleInvoice(saleToPrint.sale_id).catch(
+      (): "failed" => "failed",
+    );
+    printingNow.current = false;
+    setPrinting(false);
+    if (outcome === "failed") {
+      setPrintNotice(originalPrintNotice("deferred_invoice", "unavailable"));
+      return;
+    }
+    switch (outcome.kind) {
+      case "started":
+        setSale(undefined);
+        setPrinted(true);
+        break;
+      case "already_printed":
+        if (lastReading.current !== undefined) {
+          void look(lastReading.current);
+        }
+        break;
+      case "voided":
+      case "expired":
+      case "out_of_date_order":
+      case "not_found":
+        setSale(undefined);
+        setRefusal(outcome.kind);
+        break;
+      case "sale_voided":
+        setSale(undefined);
+        setRefusal("voided");
+        break;
+      case "not_yet":
+        setPrintNotice({
+          tone: "warning",
+          title: "Todavía no se puede facturar",
+          description: deferredInvoiceNotYetDescription(outcome.cause),
+        });
+        break;
+      case "not_signed_in":
+        onSessionInvalid();
+        break;
+      case "busy":
+      case "printer_not_configured":
+      case "lacks_permission":
+      case "unavailable":
+        setPrintNotice(originalPrintNotice("deferred_invoice", outcome.kind));
+        break;
+    }
+  }
+
   function goBack() {
     void navigate({ to: sessionOpen ? "/session" : "/" });
   }
 
   const printable = sale !== undefined && !sale.original_printed;
   const reprintable = sale?.original_printed === true && sale.invoice.kind === "issued";
-  const modalOpen = confirming || reprinting;
   useKeys(
     [
       {
         key: "Enter",
-        run: () => (printable ? setConfirming(true) : setReprinting(true)),
+        run: () => (printable ? void print(sale) : setReprinting(true)),
         enabled: printable || reprintable,
       },
     ],
-    { active: !modalOpen },
+    { active: !reprinting },
   );
 
-  const notice = refusal === undefined ? undefined : deferredSaleRefusal(refusal);
+  const shownNotice =
+    printNotice ?? (refusal === undefined ? undefined : deferredSaleRefusal(refusal));
 
   return (
     <RegisterFrame
@@ -170,9 +238,11 @@ export function DeferredSaleScreen({
                 icon={<Printer />}
                 iconPosition="start"
                 keycap="Enter"
-                onPress={() => setConfirming(true)}
+                disabled={printing}
+                dataStatus={printing ? "loading" : "loaded"}
+                onPress={() => void print(sale)}
               >
-                Imprimir factura
+                {printing ? pendingLabel(sale.invoice) : "Imprimir factura"}
               </Button>
             ) : reprintable ? (
               <Button
@@ -205,12 +275,12 @@ export function DeferredSaleScreen({
               />
             </>
           )}
-          {notice === undefined ? null : (
+          {shownNotice === undefined ? null : (
             <InlineNotice
-              tone={notice.tone}
-              icon={notice.tone === "info" ? <Info /> : <TriangleAlert />}
-              title={notice.title}
-              description={notice.description}
+              tone={shownNotice.tone}
+              icon={shownNotice.tone === "info" ? <Info /> : <TriangleAlert />}
+              title={shownNotice.title}
+              description={shownNotice.description}
             />
           )}
         </SidePanel>
@@ -219,28 +289,6 @@ export function DeferredSaleScreen({
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <DeferredSaleLines lines={sale === undefined ? [] : sale.lines} />
       </main>
-      {confirming && printable ? (
-        <PrintDeferredInvoiceModal
-          sale={sale}
-          printInvoice={printDeferredSaleInvoice}
-          onPrinted={() => {
-            setConfirming(false);
-            setSale(undefined);
-            setPrinted(true);
-          }}
-          onRefused={(reason) => {
-            setConfirming(false);
-            if (reason === "already_printed" && lastReading.current !== undefined) {
-              void look(lastReading.current);
-            } else {
-              setSale(undefined);
-              setRefusal(reason);
-            }
-          }}
-          onSessionInvalid={onSessionInvalid}
-          onClose={() => setConfirming(false)}
-        />
-      ) : null}
       {reprinting && sale !== undefined && sale.invoice.kind === "issued" ? (
         <ReprintReceiptModal
           document="deferred_invoice"
