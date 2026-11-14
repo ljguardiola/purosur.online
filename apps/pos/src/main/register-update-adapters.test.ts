@@ -15,6 +15,7 @@ import {
   pendingUpdateFiles,
   sha512Hash,
   spawnDetachedInstaller,
+  startInstallerThroughPowerShell,
   updateFetch,
 } from "./register-update-adapters";
 
@@ -295,5 +296,56 @@ describe("spawnDetachedInstaller", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("startInstallerThroughPowerShell", () => {
+  function launcherAnswering(answer: () => Promise<{ stdout: string; stderr: string }>) {
+    const run = vi.fn(async (_file: string, _args: readonly string[], _options: object) =>
+      answer(),
+    );
+    return { run, launch: startInstallerThroughPowerShell(run) };
+  }
+
+  it("asks PowerShell, without a profile or prompt, in a hidden window and with a timeout", async () => {
+    const { run, launch } = launcherAnswering(async () => ({ stdout: "", stderr: "" }));
+
+    await launch("C:\\pending-update\\update-1.4.2.exe", ["--updated", "/S"]);
+
+    expect(run).toHaveBeenCalledWith(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", expect.any(String)],
+      { timeout: 30_000, windowsHide: true },
+    );
+  });
+
+  it("starts the installer with its arguments, each quoted so an apostrophe stays part of it", async () => {
+    const { run, launch } = launcherAnswering(async () => ({ stdout: "", stderr: "" }));
+
+    await launch("C:\\Users\\O'Neil\\pending-update\\update-1.4.2.exe", ["--updated", "/S"]);
+
+    const script = String(run.mock.calls[0]?.[1]?.[3]);
+    expect(script).toContain(
+      "Start-Process -FilePath 'C:\\Users\\O''Neil\\pending-update\\update-1.4.2.exe' -ArgumentList '--updated','/S'",
+    );
+  });
+
+  it("rejects with Windows' own message when PowerShell can not start the installer", async () => {
+    const refusal = Object.assign(new Error("Command failed: powershell.exe"), {
+      stderr:
+        "Operation did not complete successfully because the file contains a virus or potentially unwanted software.\r\n",
+    });
+    const { launch } = launcherAnswering(async () => {
+      throw refusal;
+    });
+
+    const launched = launch("C:\\pending-update\\update-1.4.2.exe", ["--updated", "/S"]);
+
+    await expect(launched).rejects.toThrow(
+      new Error(
+        "Windows refused to start the installer: Operation did not complete successfully because the file contains a virus or potentially unwanted software.",
+      ),
+    );
+    await expect(launched).rejects.toHaveProperty("cause", refusal);
   });
 });
