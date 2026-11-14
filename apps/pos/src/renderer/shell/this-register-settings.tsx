@@ -21,7 +21,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4">
       <dt className="text-detail text-text-subtle">{label}</dt>
-      <dd className="text-body text-text">{value}</dd>
+      <dd className="text-detail text-text">{value}</dd>
     </div>
   );
 }
@@ -102,7 +102,7 @@ export function ThisRegisterSettings({
             ) : undefined
           }
         >
-          <dl className="flex flex-col gap-3">
+          <dl className="flex flex-col gap-1.5">
             {status === undefined ? null : (
               <Row label="Nube" value={cloudStanding(status.cloud).text} />
             )}
