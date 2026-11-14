@@ -8,6 +8,7 @@ import type {
   ChangeLineQuantityOutcome,
   ChangeLineWeightOutcome,
   FindProductByCodeOutcome,
+  LiveScaleReadingOutcome,
   OpenSale,
   PaymentMethodAvailability,
   PreviewSaleDiscountOutcome,
@@ -180,6 +181,9 @@ export async function renderScreen(overrides: Overrides = {}) {
   const weighProduct =
     overrides.weighProduct ??
     vi.fn(async (): Promise<WeighProductOutcome> => ({ kind: "scale_unavailable" }));
+  const readScale =
+    overrides.readScale ??
+    vi.fn(async (): Promise<LiveScaleReadingOutcome> => ({ kind: "not_configured" }));
   const weighLine =
     overrides.weighLine ??
     vi.fn(async (): Promise<WeighLineOutcome> => ({ kind: "scale_unavailable" }));
@@ -234,6 +238,7 @@ export async function renderScreen(overrides: Overrides = {}) {
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        readScale={readScale}
         weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}

@@ -19,6 +19,7 @@ import type {
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FindProductByCodeOutcome,
+  LiveScaleReadingOutcome,
   ManualAdjustmentRequest,
   NonCashChargeAnswer,
   OpenSale,
@@ -39,6 +40,7 @@ import {
   type ChargeRefusal,
   cashCharge,
   grossSaleSubtotal,
+  liveScaleReading,
   type ManualAdjustmentValue,
   type MercadoPagoChargeInProgress,
   nonCashCharge,
@@ -579,6 +581,26 @@ export async function addWeighedProductFor(
     default:
       return { kind: outcome.kind };
   }
+}
+
+export async function readScaleFor({
+  scale,
+  scaleStanding,
+}: {
+  scale: Scale;
+  scaleStanding: () => { kind: string };
+}): Promise<LiveScaleReadingOutcome> {
+  if (scaleStanding().kind === "not_registered") {
+    return { kind: "not_configured" };
+  }
+  const reading = liveScaleReading(await scale.read());
+  return reading.kind === "reading"
+    ? {
+        kind: "reading",
+        weight_thousandths: reading.weightThousandths,
+        settled: reading.settled,
+      }
+    : reading;
 }
 
 export async function weighProductFor(

@@ -3,14 +3,15 @@ import { Eyebrow } from "../layout/eyebrow";
 
 export type ScaleCardProps = {
   reading?: { value: string; settled: boolean } | undefined;
+  noReading?: boolean;
 };
 
-export function ScaleCard({ reading }: ScaleCardProps) {
+export function ScaleCard({ reading, noReading = false }: ScaleCardProps) {
   return (
     <div
       className={
-        "flex min-w-56 items-center gap-3 rounded-lg border px-4 py-3 " +
-        (reading === undefined
+        "flex h-control-5xl min-w-56 items-center gap-3 rounded-lg border px-4 " +
+        (reading === undefined && !noReading
           ? "border-border bg-surface"
           : "border-warning-soft bg-warning-subtle")
       }
@@ -23,6 +24,7 @@ export function ScaleCard({ reading }: ScaleCardProps) {
       </span>
       <div className="flex min-w-0 flex-col">
         <Eyebrow text="Balanza" tone="warning" />
+        {noReading ? <p className="text-heading text-text">Sin lectura</p> : null}
         {reading === undefined ? null : (
           <p
             className={`text-heading ${reading.settled ? "text-text" : "opacity-disabled-strong text-text"}`}
