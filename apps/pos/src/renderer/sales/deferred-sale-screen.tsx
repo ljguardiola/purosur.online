@@ -20,7 +20,7 @@ import {
   SummaryRowGroup,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { FileText, Info, Printer, TriangleAlert } from "lucide-react";
+import { Info, Printer, Receipt, RefreshCw, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import type { DeferredSaleReading } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
@@ -212,6 +212,11 @@ export function DeferredSaleScreen({
         enabled: printable || reprintable,
       },
       { key: "Escape", run: () => {}, enabled: printing },
+      {
+        key: "R",
+        run: () => (found.status === "failed" ? found.retry() : undefined),
+        enabled: found.status === "failed",
+      },
     ],
     { active: !reprinting },
   );
@@ -236,7 +241,7 @@ export function DeferredSaleScreen({
           header={
             <SidePanelTitle
               title="Venta diferida"
-              icon={<FileText />}
+              icon={<Receipt />}
               onClose={goBack}
               closeDisabled={printing}
             />
@@ -265,6 +270,17 @@ export function DeferredSaleScreen({
                 onPress={() => setReprinting(true)}
               >
                 {receiptCopyPresentation({ kind: "duplicate" }).printButton}
+              </Button>
+            ) : found.status === "failed" ? (
+              <Button
+                size="large"
+                fullWidth
+                icon={<RefreshCw />}
+                iconPosition="start"
+                keycap="R"
+                onPress={found.retry}
+              >
+                Reintentar
               </Button>
             ) : undefined
           }
