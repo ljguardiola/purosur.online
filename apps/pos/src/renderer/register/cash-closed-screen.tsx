@@ -45,9 +45,11 @@ export function CashClosedScreen({ person, summary, lock, onOpenCash }: CashClos
           header={<SidePanelTitle icon={<Check />} title="Caja cerrada" onClose={onOpenCash} />}
           footer={
             <>
-              <Button variant="text" keycap="F12" onPress={onOpenCash}>
-                Abrir caja
-              </Button>
+              <div className="flex">
+                <Button variant="text" keycap="F12" onPress={onOpenCash}>
+                  Abrir caja
+                </Button>
+              </div>
               <Button
                 size="large"
                 fullWidth

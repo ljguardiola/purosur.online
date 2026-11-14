@@ -73,7 +73,7 @@ function Balance({ balance }: { balance: CoreData<CashBalance> }) {
   return (
     <>
       <FigureStat size="hero" label={EXPECTED_CASH} value={formatCents(balance.value.expected)} />
-      <SummaryRowGroup rows={cashBalanceRows(balance.value)} />
+      <SummaryRowGroup variant="plain" rows={cashBalanceRows(balance.value)} />
     </>
   );
 }
@@ -196,7 +196,7 @@ export function CloseCashSessionPanel({
         <InlineNotice
           tone="error"
           icon={notice.icon === "permission" ? <UserX /> : <TriangleAlert />}
-          title={notice.title}
+          description={notice.title}
         />
       )}
     </SidePanel>
