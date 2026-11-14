@@ -56,6 +56,16 @@ describe("CashClosedScreen", () => {
     expect(getComputedStyle(amount).fontWeight).toBe("400");
   });
 
+  it("writes the rows' labels smaller than their values", async () => {
+    const { screen } = await renderClosed();
+
+    const label = screen.getByText("Efectivo esperado", { exact: true }).element();
+    const amount = screen.getByText("$ 144.200,00", { exact: true }).element();
+    expect(Number.parseFloat(getComputedStyle(label).fontSize)).toBeLessThan(
+      Number.parseFloat(getComputedStyle(amount).fontSize),
+    );
+  });
+
   it("lists the expected cash, the difference and when it opened and closed", async () => {
     const { screen } = await renderClosed();
 

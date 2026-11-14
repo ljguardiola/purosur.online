@@ -131,6 +131,16 @@ describe("CloseCashSessionPanel", () => {
     expect(getComputedStyle(amount).fontWeight).toBe("400");
   });
 
+  it("writes the breakdown's labels smaller than their amounts", async () => {
+    const { screen } = await renderPanel();
+
+    const label = screen.getByText("Fondo inicial", { exact: true }).element();
+    const amount = screen.getByText("$ 52.300,00", { exact: true }).element();
+    expect(Number.parseFloat(getComputedStyle(label).fontSize)).toBeLessThan(
+      Number.parseFloat(getComputedStyle(amount).fontSize),
+    );
+  });
+
   it("gives the focus back to Contado after a failed close", async () => {
     const { screen } = await renderPanel({ outcome: { kind: "unavailable" } });
     await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "144.000,00");
