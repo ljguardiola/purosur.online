@@ -379,6 +379,22 @@ describe("ProductConsultationScreen finding the product to consult", () => {
     await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
   });
 
+  it("stops saying no product has the code once the person types again", async () => {
+    const { screen, field, readBarcode } = await renderScreen({
+      productId: undefined,
+      consultProduct: consulting({ kind: "not_found" }),
+    });
+    readBarcode("0000");
+    await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
+
+    await userEvent.fill(field, "alm");
+
+    await expect
+      .element(screen.getByText("No hay ningún producto con ese código"))
+      .not.toBeInTheDocument();
+    await expect.element(field).not.toHaveAttribute("aria-invalid", "true");
+  });
+
   it("says the product chosen is no longer sold when the core no longer finds it", async () => {
     const { screen } = await renderScreen({ consultProduct: consulting({ kind: "not_found" }) });
 
