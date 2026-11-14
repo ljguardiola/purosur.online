@@ -327,13 +327,20 @@ describe("the Esta caja section of Ajustes", () => {
       expect(onDiscardBackupTickets).not.toHaveBeenCalled();
     });
 
-    it("expands the discardable notice with no what-to-do line, as the Supr key says it", async () => {
+    it("expands the focused discardable notice with what it means and what to do", async () => {
       const { screen } = await render({
         backupTickets: loadedBackupTickets({ discardable: 3, may_discard: true }),
       });
 
       await expect.element(screen.getByText("3 tickets guardados")).toBeVisible();
-      await expect.element(screen.getByText("Tiralos y cerrá este aviso.")).not.toBeInTheDocument();
+      await expect
+        .element(
+          screen.getByText(
+            "Esta caja sincronizó con la nube todo lo de la contingencia: los 3 tickets guardados en la caja del local ya no hacen falta.",
+          ),
+        )
+        .toBeVisible();
+      await expect.element(screen.getByText("Tiralos y cerrá este aviso.")).toBeVisible();
     });
   });
 
