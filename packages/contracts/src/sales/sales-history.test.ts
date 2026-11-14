@@ -32,6 +32,7 @@ const detail = {
   next_copy: { kind: "original" },
   deferred_invoice_next_copy: null,
   short_code: null,
+  void_refunds: [],
 };
 
 function outcome(changes: Record<string, unknown>) {
@@ -93,6 +94,56 @@ describe("saleHistoryDetailOutcomeSchema", () => {
         }),
       ).success,
     ).toBe(false);
+  });
+
+  describe("the refunds the void recorded", () => {
+    const voidRefund = { method: "QR", card_type: null, amount: 12300, state: "PENDING" };
+
+    it("accepts the refunds of a voided sale with their planned state", () => {
+      expect(
+        saleHistoryDetailOutcomeSchema.safeParse(
+          outcome({
+            state: "voided",
+            void_refunds: [voidRefund, { ...voidRefund, method: "CASH", state: "APPROVED" }],
+          }),
+        ).success,
+      ).toBe(true);
+    });
+
+    it("accepts a refund of a Point payment with its card type", () => {
+      expect(
+        saleHistoryDetailOutcomeSchema.safeParse(
+          outcome({ void_refunds: [{ ...voidRefund, method: "POINT", card_type: "DEBIT" }] }),
+        ).success,
+      ).toBe(true);
+    });
+
+    it("refuses a detail without its void refunds", () => {
+      const { void_refunds: _omitted, ...withoutVoidRefunds } = detail;
+
+      expect(
+        saleHistoryDetailOutcomeSchema.safeParse({ kind: "found", detail: withoutVoidRefunds })
+          .success,
+      ).toBe(false);
+    });
+
+    it.each([
+      ["a state the void does not plan", { state: "REFUNDED" }],
+      ["a method the register does not take", { method: "BARTER" }],
+      ["a negative amount", { amount: -1 }],
+      ["a fractional amount", { amount: 10.5 }],
+      ["a card type a Point does not charge", { card_type: "PREPAID" }],
+      ["no state", { state: undefined }],
+      ["no card type", { card_type: undefined }],
+      ["no method", { method: undefined }],
+      ["no amount", { amount: undefined }],
+    ])("refuses a refund with %s", (_reason, changes) => {
+      expect(
+        saleHistoryDetailOutcomeSchema.safeParse(
+          outcome({ void_refunds: [{ ...voidRefund, ...changes }] }),
+        ).success,
+      ).toBe(false);
+    });
   });
 
   describe("the lines and the cash rounding of the sale", () => {
