@@ -28,7 +28,7 @@ export function CancelLockedSaleModal({
       tone="error"
       icon={<CircleX />}
       context="Venta abierta · Sin pagos"
-      title="¿Vaciar el carrito?"
+      title="¿Vaciar la venta?"
       closable
       footer={
         <>
@@ -57,7 +57,7 @@ export function CancelLockedSaleModal({
       <div className="flex flex-col gap-4">
         <SummaryRowGroup rows={[{ label: "Total", value: formatCents(total), strong: true }]} />
         <p className="text-body text-text">
-          Se vacía el carrito y no se cobra nada. La mercadería no sale del stock.
+          Se vacía la venta y no se cobra nada. La mercadería no sale del stock.
         </p>
       </div>
     </Modal>
