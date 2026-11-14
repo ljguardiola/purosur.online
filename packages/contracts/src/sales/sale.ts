@@ -463,7 +463,7 @@ export const liveScaleReadingOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("settling") }),
   z.object({
     kind: z.literal("reading"),
-    weight_thousandths: z.number().int().nonnegative(),
+    weight_thousandths: z.number().int(),
     settled: z.boolean(),
   }),
 ]);

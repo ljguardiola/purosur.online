@@ -255,7 +255,7 @@ export function useLiveScaleReadingQuery({
 }): CoreData<LiveScaleReadingOutcome> {
   return useCoreQuery({
     queryKey: salesKeys.liveScaleReading,
-    read,
+    read: () => read().catch((): LiveScaleReadingOutcome => ({ kind: "no_reading" })),
     enabled,
     refetchInterval: () => LIVE_SCALE_READING_POLL_MILLISECONDS,
   });

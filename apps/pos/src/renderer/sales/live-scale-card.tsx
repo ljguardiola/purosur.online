@@ -1,5 +1,5 @@
 import type { LiveScaleReadingOutcome } from "@purosur/contracts";
-import { formatWeight, ScaleCard } from "@purosur/ui";
+import { formatWeight, LoadingPlaceholder, ScaleCard } from "@purosur/ui";
 import { useLiveScaleReadingQuery } from "./sales-queries";
 import type { ScaleReading } from "./weighing-card";
 
@@ -24,7 +24,7 @@ export function LiveScaleCard({ readScale, weighingReading }: LiveScaleCardProps
     );
   }
   if (live.status === "loading") {
-    return null;
+    return <LoadingPlaceholder variant="card" lines={1} />;
   }
   if (live.status === "failed") {
     return <ScaleCard noReading />;
