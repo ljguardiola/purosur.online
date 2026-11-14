@@ -21,10 +21,12 @@ export function OpenSessionRail({
   lock,
   current,
   abilities,
+  sessionClosed = false,
 }: {
   lock: () => void;
   current: keyof typeof SCREEN_ROUTES;
   abilities: readonly RegisterAbility[];
+  sessionClosed?: boolean;
 }) {
   const navigate = useNavigate();
   const atHome = useLocation({ select: ({ pathname }) => pathname === "/session" });
@@ -38,18 +40,25 @@ export function OpenSessionRail({
       .filter(({ to }) => routes.includes(to))
       .map(({ label, icon, to }) => ({ label, icon, to, current: to === SCREEN_ROUTES[current] }));
 
+  const sessionRoute = (route: "/session" | "/return" | "/cash") => (sessionClosed ? "/" : route);
+
   return (
     <NavigationRail
       entries={[]}
       home={
         current === "sale"
           ? { label: "Venta", icon: ShoppingCart }
-          : { label: "Venta", icon: ShoppingCart, to: "/session" }
+          : { label: "Venta", icon: ShoppingCart, to: sessionRoute("/session") }
       }
       links={[
         ...linksTo(["/history", "/deferred-sale"]),
-        { label: "Devolver", icon: Undo2, to: "/return", current: current === "return" },
-        { label: "Caja", icon: Wallet, to: "/cash", current: current === "cash" },
+        {
+          label: "Devolver",
+          icon: Undo2,
+          to: sessionRoute("/return"),
+          current: current === "return",
+        },
+        { label: "Caja", icon: Wallet, to: sessionRoute("/cash"), current: current === "cash" },
         ...linksTo(["/receipt-printer", "/serial-devices"]),
       ]}
       onSignOut={lock}

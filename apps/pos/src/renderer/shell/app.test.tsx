@@ -3230,6 +3230,7 @@ describe("App", () => {
         cashSession?: CoreClient["cashSession"];
         cashBalance?: CoreClient["cashBalance"];
         cashMovements?: CoreClient["cashMovements"];
+        sessionOpenSale?: CoreClient["sessionOpenSale"];
         openOutcome?: OpenCashSessionOutcome;
       } = {},
       sales: { scanProduct?: CoreClient["scanProduct"] } = {},
@@ -3258,8 +3259,8 @@ describe("App", () => {
     async function startClosing(screen: Awaited<ReturnType<typeof render>>) {
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+      await userEvent.keyboard("{F12}");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
     }
 
     it("opens the cash screen from the rail and keeps the person there", async () => {
@@ -3323,7 +3324,10 @@ describe("App", () => {
               expected_cash: 4_620_000,
               counted_cash: 4_580_000,
               difference: -40_000,
+              opened_at: "2026-09-30T09:02:00.000-03:00",
+              closed_at: "2026-09-30T20:14:00.000-03:00",
             },
+            movements: [],
           }),
         },
         { scanProduct: async () => ({ kind: "no_open_session" }) },
@@ -3333,6 +3337,8 @@ describe("App", () => {
       await expect.poll(() => reads).toBe(2);
       await startClosing(screen);
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+      await userEvent.keyboard("{F12}");
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
 
       answerLate(GRACE_SESSION);
@@ -3356,7 +3362,10 @@ describe("App", () => {
             expected_cash: 4_620_000,
             counted_cash: 4_580_000,
             difference: -40_000,
+            opened_at: "2026-09-30T09:02:00.000-03:00",
+            closed_at: "2026-09-30T20:14:00.000-03:00",
           },
+          movements: [],
         }),
         openOutcome: {
           kind: "opened",
@@ -3365,6 +3374,8 @@ describe("App", () => {
       });
       await startClosing(screen);
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+      await userEvent.keyboard("{F12}");
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
       await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
       await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
@@ -3378,7 +3389,7 @@ describe("App", () => {
         .not.toBeInTheDocument();
     });
 
-    it("lands on the no-session screen, still signed in, once the session is closed", async () => {
+    it("shows the closed cash session with its counted cash and times once it is closed, still signed in", async () => {
       const closeOutcome: CloseCashSessionOutcome = {
         kind: "closed",
         session: {
@@ -3386,25 +3397,150 @@ describe("App", () => {
           expected_cash: 4_620_000,
           counted_cash: 4_580_000,
           difference: -40_000,
+          opened_at: "2026-09-30T09:02:00.000-03:00",
+          closed_at: "2026-09-30T20:14:00.000-03:00",
         },
+        movements: [],
       };
       const { screen, closed, asked } = await resumeGracesSession({
         closeCashSession: async () => closeOutcome,
+        cashMovements: async () => [],
       });
       await startClosing(screen);
 
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+      await expect.element(screen.getByText("$ 45.800,00", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("30/09 · 09:02", { exact: true })).toBeVisible();
+      await expect.element(screen.getByText("30/09 · 20:14", { exact: true })).toBeVisible();
+      expect(closed).toEqual([["s1", 4_580_000]]);
+      expect(asked).not.toContain("sign-out");
+    });
+
+    it("shows on the closed cash screen the session's movements the core answered with the close", async () => {
+      const { screen } = await resumeGracesSession({
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+            opened_at: "2026-09-30T09:02:00.000-03:00",
+            closed_at: "2026-09-30T20:14:00.000-03:00",
+          },
+          movements: [
+            {
+              id: "m1",
+              type: "CASH_OUT",
+              amount: 50_000,
+              reason: "Flete",
+              direction: "out",
+              occurred_at: "2026-09-30T10:30:00.000-03:00",
+              actor: { user_id: "u2", first_name: "Grace" },
+              authorized_by: null,
+            },
+          ],
+        }),
+        cashMovements: async () => "unavailable",
+      });
+      await startClosing(screen);
+
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+      await expect.element(screen.getByText("Flete", { exact: true })).toBeVisible();
+    });
+
+    it.each(["Venta", "Caja", "Devolver"])(
+      "lands on the no-session screen, still signed in, when the closed cash screen is left through the rail's %s",
+      async (entry) => {
+        const { screen, asked } = await resumeGracesSession({
+          closeCashSession: async () => ({
+            kind: "closed",
+            session: {
+              id: "s1",
+              expected_cash: 4_620_000,
+              counted_cash: 4_580_000,
+              difference: -40_000,
+              opened_at: "2026-09-30T09:02:00.000-03:00",
+              closed_at: "2026-09-30T20:14:00.000-03:00",
+            },
+            movements: [],
+          }),
+        });
+        await startClosing(screen);
+        await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+        await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+        await userEvent.click(
+          screen.getByRole("navigation", { name: "Menú de la caja" }).getByText(entry, {
+            exact: true,
+          }),
+        );
+
+        await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
+        await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
+        expect(asked).not.toContain("sign-out");
+      },
+    );
+
+    it("lands on the no-session screen, still signed in, when the closed cash screen is left with F12", async () => {
+      const { screen, asked } = await resumeGracesSession({
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+            opened_at: "2026-09-30T09:02:00.000-03:00",
+            closed_at: "2026-09-30T20:14:00.000-03:00",
+          },
+          movements: [],
+        }),
+      });
+      await startClosing(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+      await userEvent.keyboard("{F12}");
+
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
       await expect
         .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
         .toBeVisible();
-      await expect
-        .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
-        .not.toBeInTheDocument();
       await expect.element(screen.getByText("Sin sesión abierta")).toBeVisible();
-      expect(closed).toEqual([["s1", 4_580_000]]);
       expect(asked).not.toContain("sign-out");
+    });
+
+    it("signs out from the closed cash screen with Enter, and does not show it again when the person signs back in", async () => {
+      const { screen, asked } = await resumeGracesSession({
+        closeCashSession: async () => ({
+          kind: "closed",
+          session: {
+            id: "s1",
+            expected_cash: 4_620_000,
+            counted_cash: 4_580_000,
+            difference: -40_000,
+            opened_at: "2026-09-30T09:02:00.000-03:00",
+            closed_at: "2026-09-30T20:14:00.000-03:00",
+          },
+          movements: [],
+        }),
+      });
+      await startClosing(screen);
+      await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+      await userEvent.keyboard("{Enter}");
+
+      await expect.element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT })).toBeVisible();
+      expect(asked).toContain("sign-out");
+      await expect
+        .element(screen.getByRole("heading", { name: "Caja cerrada" }))
+        .not.toBeInTheDocument();
     });
 
     it("locks the register in the opener's name from Salir, with no dialog, resumed with the opener's PIN", async () => {
@@ -3421,9 +3557,22 @@ describe("App", () => {
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
-    it("stays on the cash count and offers the sale when it is still open", async () => {
+    it("stays on the close panel and offers the sale when it is still open", async () => {
+      let sale: Awaited<ReturnType<CoreClient["sessionOpenSale"]>> = null;
       const { screen } = await resumeGracesSession({
-        closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
+        closeCashSession: async () => {
+          sale = {
+            id: "sale-1",
+            total: 3_434_000,
+            paid: 0,
+            has_approved_payment: false,
+            cancellable: true,
+            cancel_refusal: null,
+            refunds_on_cancel: [],
+          };
+          return { kind: "open_sale", total: 3_434_000 };
+        },
+        sessionOpenSale: async () => sale,
       });
       await startClosing(screen);
 
@@ -3434,7 +3583,7 @@ describe("App", () => {
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
-    it("stays on the cash count when the core says another session is now open", async () => {
+    it("stays on the close panel when the core says another session is now open", async () => {
       const other: OpenCashSession = { ...GRACE_SESSION, id: "s2" };
       let asks = 0;
       const { screen } = await resumeGracesSession({
@@ -3520,6 +3669,8 @@ describe("App", () => {
             expected_cash: 4_620_000,
             counted_cash: 4_580_000,
             difference: -40_000,
+            opened_at: "2026-09-30T09:02:00.000-03:00",
+            closed_at: "2026-09-30T20:14:00.000-03:00",
           },
         }),
       });

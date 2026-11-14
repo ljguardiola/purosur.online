@@ -48,7 +48,12 @@ import { readOpenSale } from "../sales/sqlite-open-sale";
 import type { ActionGate } from "../sessions/action-gate";
 import { authorizersOf } from "../sessions/authorizers";
 import { type ActivePerson, SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { readOpenSession, readSessionMovements, SqliteCashLedger } from "./sqlite-cash-ledger";
+import {
+  readListedSessionMovements,
+  readOpenSession,
+  readSessionMovements,
+  SqliteCashLedger,
+} from "./sqlite-cash-ledger";
 import { SqliteRegisterCloses } from "./sqlite-register-closes";
 
 export interface CashSessionRequestDeps {
@@ -131,7 +136,7 @@ type ClosingRefusal = Extract<
 >;
 
 export async function closeCashSessionFor(
-  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { database, gate, readOutboxChainKey, now, ids, zoneRules }: CashSessionRequestDeps,
   { sessionId, countedCash }: CloseCashSessionRequest,
 ): Promise<CloseCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -161,7 +166,18 @@ export async function closeCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed" ? closedAnswer(outcome.session) : outcome;
+  if (outcome.kind !== "closed") {
+    return outcome;
+  }
+  const rules = zoneRules.zoneRules();
+  return {
+    kind: "closed",
+    session: closedSessionAnswer(outcome.session, rules),
+    movements: readListedSessionMovements(database, outcome.session.id).map((movement) => ({
+      ...movement,
+      occurred_at: inArgentinaTime(new Date(movement.occurred_at), rules),
+    })),
+  };
 }
 
 export interface CloseLockedCashSessionRequest {
@@ -176,7 +192,7 @@ type LockedClosingRefusal = Extract<
 >;
 
 export async function closeLockedCashSessionFor(
-  { database, gate, readOutboxChainKey, now, ids }: CashSessionRequestDeps,
+  { database, gate, readOutboxChainKey, now, ids, zoneRules }: CashSessionRequestDeps,
   { sessionId, countedCash, closer }: CloseLockedCashSessionRequest,
 ): Promise<CloseLockedCashSessionOutcome> {
   const outboxChainKey = await readOutboxChainKey();
@@ -209,7 +225,9 @@ export async function closeLockedCashSessionFor(
     },
     { sessionId, countedCash },
   );
-  return outcome.kind === "closed" ? closedAnswer(outcome.session) : outcome;
+  return outcome.kind === "closed"
+    ? { kind: "closed", session: closedSessionAnswer(outcome.session, zoneRules.zoneRules()) }
+    : outcome;
 }
 
 export async function identifyLockedCloserFor(
@@ -233,17 +251,17 @@ export function lockedClosersFor(database: LocalDatabase): SignInUser[] {
   });
 }
 
-function closedAnswer(
+function closedSessionAnswer(
   session: ClosedCashSession,
-): Extract<CloseCashSessionOutcome, { kind: "closed" }> {
+  rules: ZoneRules,
+): Extract<CloseCashSessionOutcome, { kind: "closed" }>["session"] {
   return {
-    kind: "closed",
-    session: {
-      id: session.id,
-      expected_cash: session.expectedCash,
-      counted_cash: session.countedCash,
-      difference: session.difference,
-    },
+    id: session.id,
+    expected_cash: session.expectedCash,
+    counted_cash: session.countedCash,
+    difference: session.difference,
+    opened_at: inArgentinaTime(session.openedAt, rules),
+    closed_at: inArgentinaTime(session.closedAt, rules),
   };
 }
 

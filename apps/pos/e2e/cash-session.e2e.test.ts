@@ -87,37 +87,36 @@ describe("the register's cash session", () => {
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
   });
 
-  it("closes with a cash count and leaves the person signed in without a session", async () => {
+  it("closes with F12 and a cash count, shows the closed session and opens a new one from F12", async () => {
     const { page } = register;
     await page.getByRole("link", { name: "Caja" }).click();
-    await page.getByRole("button", { name: "Cerrar caja" }).click();
-    await page.getByLabel("Efectivo contado").fill("19.600,00");
-    await page.getByText("Faltan $ 400,00.", { exact: false }).first().waitFor();
-    await page.getByRole("button", { name: "Cerrar caja" }).click();
+    await page.keyboard.press("F12");
+    await page.getByLabel("Contado").fill("19.600,00");
+    await page.getByText("FALTA", { exact: true }).waitFor();
+    await page.getByText("$ 400,00", { exact: true }).waitFor();
+    await page.keyboard.press("Enter");
 
+    await page.getByRole("heading", { name: "Caja cerrada" }).waitFor();
+    await page.keyboard.press("F12");
     await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
     await page.getByRole("button", { name: "Abrir caja" }).waitFor();
   });
 
-  it("leaves from Salir once the session is closed and ends at the entry screen", async () => {
+  it("leaves from Salir with Enter once the session is closed and ends at the entry screen", async () => {
     const { page } = register;
     await page.getByLabel("Fondo inicial").fill("20.000,00");
     await page.getByRole("button", { name: "Abrir caja" }).click();
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await page.getByRole("link", { name: "Caja" }).click();
-    await page.getByRole("button", { name: "Cerrar caja" }).click();
-    await page.getByLabel("Efectivo contado").fill("20.000,00");
-    await page.getByRole("button", { name: "Cerrar caja" }).click();
-    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor();
+    await page.keyboard.press("F12");
+    await page.getByLabel("Contado").fill("20.000,00");
+    await page.keyboard.press("Enter");
+    await page.getByRole("heading", { name: "Caja cerrada" }).waitFor();
 
-    await page.getByRole("button", { name: "Salir" }).click();
-    await page
-      .getByRole("complementary", { name: "¿Salir de la caja?" })
-      .getByRole("button", { name: "Salir" })
-      .click();
+    await page.keyboard.press("Enter");
 
     await page.getByRole("button", { name: /USUARIO/ }).waitFor();
-    await page.getByRole("heading", { name: "¿Qué querés hacer?" }).waitFor({ state: "detached" });
+    await page.getByRole("heading", { name: "Caja cerrada" }).waitFor({ state: "detached" });
   });
 
   it("is closed from the lock screen by another person with permission, who is left signed out", async () => {

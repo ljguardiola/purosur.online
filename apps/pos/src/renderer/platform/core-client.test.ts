@@ -1901,7 +1901,15 @@ describe("createCoreClient", () => {
     client.connect(port);
     const closed = {
       kind: "closed",
-      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+      session: {
+        id: "s1",
+        expected_cash: 5000,
+        counted_cash: 4800,
+        difference: -200,
+        opened_at: "2026-09-30T09:00:00.000-03:00",
+        closed_at: "2026-09-30T20:14:00.000-03:00",
+      },
+      movements: [],
     };
 
     const outcome = client.closeCashSession("s1", 4800);
