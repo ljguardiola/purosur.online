@@ -9,19 +9,21 @@ import type {
 import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
-  Card,
-  EmptyState,
-  Eyebrow,
+  FigureStat,
   FloatingNotification,
+  formatCents,
+  formatDayMonthAndTime,
+  formatNumber,
   InlineNotice,
-  ScreenHeader,
   SidePanel,
-  useRequestForm,
+  SidePanelTitle,
+  SummaryRowGroup,
 } from "@purosur/ui";
-import { Info, Printer, ScanBarcode, TriangleAlert } from "lucide-react";
-import type { FormEvent } from "react";
-import { useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { FileText, Info, Printer, TriangleAlert } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { DeferredSaleReading } from "../platform/core-client";
+import { useKeys } from "../platform/key-layer";
 import { useBarcodeReadings } from "../shell/barcode-readings";
 import { NoSessionRail } from "../shell/no-session-rail";
 import { OpenSessionRail } from "../shell/open-session-rail";
@@ -29,20 +31,16 @@ import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import {
-  deferredSaleFormRequestSchema,
-  deferredSaleRequestFrom,
-  EMPTY_DEFERRED_SALE_FORM,
-  INVALID_SHORT_CODE_MESSAGE,
-  scannedDeferredSaleReading,
-} from "./deferred-sale-form";
+import { scannedDeferredSaleReading } from "./deferred-sale-form";
+import { DeferredSaleLines } from "./deferred-sale-lines";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
-import { deferredSaleRefusal } from "./deferred-sale-text";
+import { deferredSaleComprobanteLine, deferredSaleRefusal } from "./deferred-sale-text";
 import { originalPrintNotice } from "./original-print-text";
 import { PrintDeferredInvoiceModal } from "./print-deferred-invoice-modal";
 
 export type DeferredSaleScreenProps = {
   person: SignedInPerson;
+  reading: string | undefined;
   sessionOpen: boolean;
   lock: () => void;
   findDeferredSale: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
@@ -58,6 +56,7 @@ export type DeferredSaleScreenProps = {
 
 export function DeferredSaleScreen({
   person,
+  reading,
   sessionOpen,
   lock,
   findDeferredSale,
@@ -66,24 +65,25 @@ export function DeferredSaleScreen({
   loadAuthorizers,
   onSessionInvalid,
 }: DeferredSaleScreenProps) {
+  const navigate = useNavigate();
   const [refusal, setRefusal] = useState<DeferredSaleRefusalKind>();
-  const [found, setFound] = useState<FoundDeferredSale>();
+  const [sale, setSale] = useState<FoundDeferredSale>();
+  const [confirming, setConfirming] = useState(false);
   const [printed, setPrinted] = useState(false);
   const lastReading = useRef<DeferredSaleReading>(undefined);
-  const [printedSale, setPrintedSale] = useState<FoundDeferredSale>();
   const [reprinting, setReprinting] = useState(false);
   const [reprinted, setReprinted] = useState<ReceiptCopyShown>();
   const finding = useRef(false);
 
-  async function look(reading: DeferredSaleReading) {
+  async function look(next: DeferredSaleReading) {
     if (finding.current) {
       return;
     }
     finding.current = true;
-    lastReading.current = reading;
+    lastReading.current = next;
     setRefusal(undefined);
-    setPrintedSale(undefined);
-    const outcome = await findDeferredSale(reading)
+    setSale(undefined);
+    const outcome = await findDeferredSale(next)
       .catch((): "failed" => "failed")
       .finally(() => {
         finding.current = false;
@@ -94,11 +94,9 @@ export function DeferredSaleScreen({
     }
     switch (outcome.kind) {
       case "found":
+        setSale(outcome);
         if (outcome.original_printed) {
           setRefusal("already_printed");
-          setPrintedSale(outcome);
-        } else {
-          setFound(outcome);
         }
         break;
       case "not_signed_in":
@@ -109,30 +107,43 @@ export function DeferredSaleScreen({
     }
   }
 
-  const { form, submit, submitting } = useRequestForm({
-    defaultValues: EMPTY_DEFERRED_SALE_FORM,
-    request: { schema: deferredSaleFormRequestSchema, from: deferredSaleRequestFrom },
-    fields: { reading: "code" },
-    messages: { code: INVALID_SHORT_CODE_MESSAGE },
-    onSubmit: ({ reading }) => look(reading),
-  });
-
   function takeScan(text: string) {
-    const reading = scannedDeferredSaleReading(text);
-    if (reading === undefined) {
+    const scanned = scannedDeferredSaleReading(text);
+    if (scanned === undefined) {
       setRefusal("not_a_deferred_sale_qr");
     } else {
-      void look(reading);
+      void look(scanned);
     }
   }
   useBarcodeReadings(takeScan);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!submitting) {
-      void submit();
+  const latestTakeScan = useRef(takeScan);
+  useEffect(() => {
+    latestTakeScan.current = takeScan;
+  });
+  useEffect(() => {
+    if (reading !== undefined) {
+      latestTakeScan.current(reading);
     }
+  }, [reading]);
+
+  function goBack() {
+    void navigate({ to: sessionOpen ? "/session" : "/" });
   }
+
+  const printable = sale !== undefined && !sale.original_printed;
+  const reprintable = sale?.original_printed === true && sale.invoice.kind === "issued";
+  const modalOpen = confirming || reprinting;
+  useKeys(
+    [
+      {
+        key: "Enter",
+        run: () => (printable ? setConfirming(true) : setReprinting(true)),
+        enabled: printable || reprintable,
+      },
+    ],
+    { active: !modalOpen },
+  );
 
   const notice = refusal === undefined ? undefined : deferredSaleRefusal(refusal);
 
@@ -141,43 +152,59 @@ export function DeferredSaleScreen({
       background="subtle"
       rail={
         sessionOpen ? (
-          <OpenSessionRail lock={lock} current="deferred_sale" abilities={person.abilities} />
+          <OpenSessionRail lock={lock} current="sale" abilities={person.abilities} />
         ) : (
-          <NoSessionRail person={person} current="/deferred-sale" signOut={lock} />
+          <NoSessionRail person={person} signOut={lock} />
         )
       }
       aside={
         <SidePanel
           label="Venta diferida"
+          width="wide"
+          header={<SidePanelTitle title="Venta diferida" icon={<FileText />} onClose={goBack} />}
           footer={
-            <p className="text-detail text-text-subtle">
-              La factura sale como original, con la fecha de la venta.
-            </p>
+            printable ? (
+              <Button
+                size="large"
+                fullWidth
+                icon={<Printer />}
+                iconPosition="start"
+                keycap="Enter"
+                onPress={() => setConfirming(true)}
+              >
+                Imprimir factura
+              </Button>
+            ) : reprintable ? (
+              <Button
+                variant="secondary"
+                size="large"
+                fullWidth
+                icon={<Printer />}
+                keycap="Enter"
+                onPress={() => setReprinting(true)}
+              >
+                {receiptCopyPresentation({ kind: "duplicate" }).printButton}
+              </Button>
+            ) : undefined
           }
         >
-          <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
-          <p className="text-title text-text-accent">
-            Tipeá el código de consulta impreso en el documento
-          </p>
-          <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
-            <form.AppField name="code" listeners={{ onChange: () => setRefusal(undefined) }}>
-              {(field) => (
-                <field.TextField
-                  kind="plain-text"
-                  label="Código de consulta"
-                  disabled={submitting}
-                />
-              )}
-            </form.AppField>
-            <Button
-              type="submit"
-              size="large"
-              fullWidth
-              dataStatus={submitting ? "loading" : "loaded"}
-            >
-              Buscar venta
-            </Button>
-          </form>
+          {sale === undefined ? null : (
+            <>
+              <FigureStat
+                size="hero"
+                variant="plain"
+                label="TOTAL"
+                value={formatCents(sale.total)}
+              />
+              <SummaryRowGroup
+                rows={[
+                  { label: "Venta del", value: formatDayMonthAndTime(sale.occurred_at) },
+                  { label: "Comprobante", value: deferredSaleComprobanteLine(sale.invoice) },
+                  { label: "Artículos", value: formatNumber(sale.item_count) },
+                ]}
+              />
+            </>
+          )}
           {notice === undefined ? null : (
             <InlineNotice
               tone={notice.tone}
@@ -186,68 +213,46 @@ export function DeferredSaleScreen({
               description={notice.description}
             />
           )}
-          {refusal === "already_printed" && printedSale !== undefined ? (
-            <Button
-              variant="secondary"
-              size="large"
-              fullWidth
-              icon={<Printer />}
-              onPress={() => setReprinting(true)}
-            >
-              {receiptCopyPresentation({ kind: "duplicate" }).printButton}
-            </Button>
-          ) : null}
         </SidePanel>
       }
     >
-      <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
-        <ScreenHeader
-          eyebrow="VENTA DIFERIDA · EL CLIENTE VOLVIÓ POR SU FACTURA"
-          title="Escaneá el documento del cliente"
-        />
-        <div className="flex flex-1 flex-col justify-center">
-          <Card>
-            <EmptyState
-              variant="blank"
-              icon={<ScanBarcode />}
-              title="Acercá el QR del documento al lector"
-              description="Sirve el QR del documento no fiscal de una venta diferida."
-            />
-          </Card>
-        </div>
+      <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
+        <DeferredSaleLines lines={sale === undefined ? [] : sale.lines} />
       </main>
-      {found === undefined ? null : (
+      {confirming && printable ? (
         <PrintDeferredInvoiceModal
-          sale={found}
+          sale={sale}
           printInvoice={printDeferredSaleInvoice}
           onPrinted={() => {
-            setFound(undefined);
+            setConfirming(false);
+            setSale(undefined);
             setPrinted(true);
           }}
           onRefused={(reason) => {
-            setFound(undefined);
+            setConfirming(false);
             if (reason === "already_printed" && lastReading.current !== undefined) {
               void look(lastReading.current);
             } else {
+              setSale(undefined);
               setRefusal(reason);
             }
           }}
           onSessionInvalid={onSessionInvalid}
-          onClose={() => setFound(undefined)}
+          onClose={() => setConfirming(false)}
         />
-      )}
-      {reprinting && printedSale !== undefined && printedSale.invoice.kind === "issued" ? (
+      ) : null}
+      {reprinting && sale !== undefined && sale.invoice.kind === "issued" ? (
         <ReprintReceiptModal
           document="deferred_invoice"
           sale={{
-            sale_id: printedSale.sale_id,
-            occurred_at: printedSale.occurred_at,
+            sale_id: sale.sale_id,
+            occurred_at: sale.occurred_at,
             comprobante: {
               kind: "fiscal",
               document_type: "factura_c",
               authorization: "real_time",
-              point_of_sale: printedSale.invoice.point_of_sale,
-              number: printedSale.invoice.number,
+              point_of_sale: sale.invoice.point_of_sale,
+              number: sale.invoice.number,
             },
             next_copy: { kind: "duplicate" },
           }}
@@ -256,13 +261,13 @@ export function DeferredSaleScreen({
           reprint={reprintDeferredSaleInvoice}
           onReprinted={(copy) => {
             setReprinting(false);
-            setPrintedSale(undefined);
+            setSale(undefined);
             setRefusal(undefined);
             setReprinted(copy);
           }}
           onSaleGone={() => {
             setReprinting(false);
-            setPrintedSale(undefined);
+            setSale(undefined);
             setRefusal("not_found");
           }}
           onSessionInvalid={onSessionInvalid}

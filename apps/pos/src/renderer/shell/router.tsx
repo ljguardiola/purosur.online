@@ -1005,9 +1005,11 @@ const deferredSaleRoute = createRoute({
       authorizers,
       refreshCashSession,
     } = deferredSaleRoute.useRouteContext();
+    const { reading } = deferredSaleRoute.useSearch();
     return (
       <DeferredSaleScreen
         person={person}
+        reading={reading}
         sessionOpen={sessionOpen}
         lock={signOut}
         findDeferredSale={findDeferredSale}

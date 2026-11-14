@@ -2155,7 +2155,9 @@ describe("the register's router", () => {
   });
 
   it("looks up the deferred sale of the reading the route carries", async () => {
-    const findDeferredSale = vi.fn(async (): Promise<FindDeferredSaleOutcome> => ({ kind: "voided" }));
+    const findDeferredSale = vi.fn(
+      async (): Promise<FindDeferredSaleOutcome> => ({ kind: "voided" }),
+    );
     const reading = "purosur-deferred-sale:0198-abc:7KQ4M2P9";
     const router = createRegisterRouter(
       routeTree,

@@ -64,9 +64,7 @@ describe("DeferredSaleScreen waiting for the customer's document", () => {
     readBarcode("7790001");
 
     await expect.element(screen.getByText("Ese QR no es de una venta diferida")).toBeVisible();
-    await expect
-      .element(screen.getByText("Escaneá el QR del documento no fiscal."))
-      .toBeVisible();
+    await expect.element(screen.getByText("Escaneá el QR del documento no fiscal.")).toBeVisible();
     expect(findDeferredSale).not.toHaveBeenCalled();
   });
 
@@ -150,7 +148,7 @@ describe("DeferredSaleScreen showing the sale it found", () => {
     const { screen } = await shown();
 
     const table = screen.getByRole("table", { name: "Líneas de la venta" });
-    for (const header of ["PRODUCTO", "PRECIO", "CANTIDAD", "IMPORTE"]) {
+    for (const header of ["Producto", "Precio", "Cantidad", "Importe"]) {
       await expect.element(table.getByText(header, { exact: true })).toBeVisible();
     }
     await expect.element(table.getByRole("img", { name: "Líneas bloqueadas" })).toBeVisible();
@@ -175,7 +173,9 @@ describe("DeferredSaleScreen showing the sale it found", () => {
   });
 
   it("shows the total, the sale's time, the comprobante and the item count the core answered", async () => {
-    const { screen } = await shown({ findDeferredSale: async () => ({ ...FOUND_ISSUED, item_count: 3 }) });
+    const { screen } = await shown({
+      findDeferredSale: async () => ({ ...FOUND_ISSUED, item_count: 3 }),
+    });
 
     const panel = screen.getByRole("complementary", { name: "Venta diferida" });
     await expect.element(panel.getByText("TOTAL")).toBeVisible();
@@ -183,7 +183,7 @@ describe("DeferredSaleScreen showing the sale it found", () => {
     await expect.element(panel.getByText("Venta del")).toBeVisible();
     await expect.element(panel.getByText("04/11 · 14:02")).toBeVisible();
     await expect.element(panel.getByText("Comprobante")).toBeVisible();
-    await expect.element(panel.getByText("Factura C · 0003-00000187")).toBeVisible();
+    await expect.element(panel.getByText("Factura C · 00003-00000187")).toBeVisible();
     await expect.element(panel.getByText("Artículos")).toBeVisible();
     await expect.element(panel.getByText("3", { exact: true })).toBeVisible();
   });
@@ -191,9 +191,7 @@ describe("DeferredSaleScreen showing the sale it found", () => {
   it("says the invoice is assigned on issuing when it is not issued yet", async () => {
     const { screen } = await shown({ findDeferredSale: async () => FOUND_PENDING });
 
-    await expect
-      .element(screen.getByText("Factura C · Se asigna al emitir"))
-      .toBeVisible();
+    await expect.element(screen.getByText("Factura C · Se asigna al emitir")).toBeVisible();
   });
 
   it("has Imprimir factura with the Enter key and the Esc key at the top right, and no Tab or F1", async () => {
@@ -229,9 +227,7 @@ describe("DeferredSaleScreen showing the sale it found", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
-    await expect
-      .element(screen.getByRole("dialog").getByText("Se asigna al emitir"))
-      .toBeVisible();
+    await expect.element(screen.getByRole("dialog").getByText("Se asigna al emitir")).toBeVisible();
   });
 
   it("prints the found sale's invoice, closes the window and says it comes out once the printer is ready", async () => {
