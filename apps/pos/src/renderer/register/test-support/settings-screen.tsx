@@ -36,19 +36,19 @@ export const BOTH_CONFIGURER: SignedInPerson = {
 };
 export const NO_CONFIGURER: SignedInPerson = { user_id: "u1", first_name: "Linus", abilities: [] };
 
-export const NOT_CONFIGURED: ReadReceiptPrinterOutcome = { kind: "not_configured" };
+const NOT_CONFIGURED: ReadReceiptPrinterOutcome = { kind: "not_configured" };
 export const CONFIGURED: ReadReceiptPrinterOutcome = {
   kind: "configured",
   address: { host: "10.10.10.2", port: 9100 },
 };
-export const SAVED: SetReceiptPrinterOutcome = {
+const SAVED: SetReceiptPrinterOutcome = {
   kind: "saved",
   address: { host: "10.10.10.9", port: 9101 },
 };
 
 export const SCALE_IDENTITY = { vendor_id: "0403", product_id: "6001" };
 export const READER_IDENTITY = { vendor_id: "05e0", product_id: "1200" };
-export const DETECTED = [
+const DETECTED = [
   { path: "COM3", ...SCALE_IDENTITY },
   { path: "COM4", ...READER_IDENTITY },
 ];
@@ -67,7 +67,7 @@ export const BOTH_REGISTERED: ReadSerialDevicesOutcome = {
     reader: { kind: "matching", path: "COM4" },
   },
 };
-export const REGISTERED: RegisterSerialDevicesOutcome = {
+const REGISTERED: RegisterSerialDevicesOutcome = {
   kind: "registered",
   devices: { scale: SCALE_IDENTITY },
 };

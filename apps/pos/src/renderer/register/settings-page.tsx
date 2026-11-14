@@ -19,7 +19,7 @@ export type SettingsChrome = {
   moveSection: (pressed: string) => void;
 };
 
-export const SECTIONS_KEY_LABEL = "Apartados";
+const SECTIONS_KEY_LABEL = "Apartados";
 
 export function sectionArrows(
   moveSection: (pressed: string) => void,
