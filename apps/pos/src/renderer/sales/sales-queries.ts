@@ -576,6 +576,7 @@ export function useConsultedProductQuery(
         return;
       }
       if (event.action.type === "success") {
+        setFailedAgain(undefined);
         askAfterPause();
       } else if (event.action.type === "error") {
         setFailedAgain(queryHash);
@@ -585,6 +586,7 @@ export function useConsultedProductQuery(
     return () => {
       stopFollowing();
       clearTimeout(pause);
+      setFailedAgain(undefined);
     };
   }, [weighed, queryClient, product]);
   const queryKey = salesKeys.consultation(product);
