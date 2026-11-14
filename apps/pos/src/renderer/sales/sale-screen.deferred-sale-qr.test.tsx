@@ -16,7 +16,7 @@ describe("SaleScreen reading a deferred sale's QR", () => {
   });
 
   it("scans a code that is not a deferred sale's QR as a product", async () => {
-    const scanProduct = vi.fn(async () => ({ kind: "not_found" as const }));
+    const scanProduct = vi.fn(async () => ({ kind: "unknown_code" as const }));
     const { readBarcode } = await renderScreen({ scanProduct });
 
     readBarcode("7790001");
