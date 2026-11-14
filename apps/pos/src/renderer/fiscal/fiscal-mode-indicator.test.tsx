@@ -6,7 +6,7 @@ import { FiscalModeIndicator } from "./fiscal-mode-indicator";
 describe("FiscalModeIndicator", () => {
   it("shows the contingency mode in the warning tone while the contingency is the offline code", async () => {
     const screen = await render(
-      <FiscalModeIndicator contingency={{ kind: "offline_code", notice: true }} />,
+      <FiscalModeIndicator contingency={{ kind: "offline_code", notice: true, since: null }} />,
     );
 
     const indicator = screen.getByText("Contingencia CAEA").element();
@@ -17,7 +17,7 @@ describe("FiscalModeIndicator", () => {
     "shows the deferred sale mode in the warning tone while the contingency is deferring and its notice is %s",
     async (notice) => {
       const screen = await render(
-        <FiscalModeIndicator contingency={{ kind: "deferring", notice }} />,
+        <FiscalModeIndicator contingency={{ kind: "deferring", notice, since: null }} />,
       );
 
       const indicator = screen.getByText("Venta diferida").element();

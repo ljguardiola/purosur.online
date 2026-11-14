@@ -9,7 +9,7 @@ import {
   renderSettings,
 } from "./test-support/settings-screen";
 
-const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
+const OFFLINE_CODE = { kind: "offline_code", notice: true, since: null } as const;
 
 function render(options: Parameters<typeof renderSettings>[0] = {}) {
   return renderSettings({ section: "register", ...options });
