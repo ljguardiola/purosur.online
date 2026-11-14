@@ -1209,6 +1209,7 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toEqual({
       id: "sale-1",
       total: 3500,
+      line_count: 1,
       paid: 2500,
       has_approved_payment: true,
       cancellable: false,
