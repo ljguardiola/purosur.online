@@ -324,6 +324,10 @@ export function ReturnBuildStep({
     setMode({ kind: "list" });
   }
 
+  function changeRefundAmount(paymentId: string, amount: string) {
+    setRefundEdits((current) => ({ ...current, [paymentId]: amount }));
+  }
+
   function moveRefund(pressed: string) {
     const last = eligiblePayments.length - 1;
     setSelectedRefund(
@@ -469,7 +473,7 @@ export function ReturnBuildStep({
             legend={refundLegend}
             notice={notice}
             onSelect={setSelectedRefund}
-            onAmountChange={(id, amount) => setRefundEdits({ ...refundEdits, [id]: amount })}
+            onAmountChange={changeRefundAmount}
           />
         ) : (
           <ReturnLinesTable
