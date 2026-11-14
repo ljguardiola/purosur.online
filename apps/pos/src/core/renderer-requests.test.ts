@@ -2694,7 +2694,15 @@ describe("answerRendererRequest", () => {
   it("closes a cash session with the session and the count as sent, and answers the outcome", async () => {
     const closed: CloseCashSessionOutcome = {
       kind: "closed",
-      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+      session: {
+        id: "s1",
+        expected_cash: 5000,
+        counted_cash: 4800,
+        difference: -200,
+        opened_at: "2026-09-30T09:00:00.000-03:00",
+        closed_at: "2026-09-30T20:14:00.000-03:00",
+      },
+      movements: [],
     };
     const closing = deps(true);
     const { deps: withClosing } = deps(true, { closeCashSession: async () => closed });
@@ -2761,7 +2769,14 @@ describe("answerRendererRequest", () => {
   it("closes a locked register's cash session with the session, the count and the closer as sent, and answers the outcome", async () => {
     const closed: CloseLockedCashSessionOutcome = {
       kind: "closed",
-      session: { id: "s1", expected_cash: 5000, counted_cash: 4800, difference: -200 },
+      session: {
+        id: "s1",
+        expected_cash: 5000,
+        counted_cash: 4800,
+        difference: -200,
+        opened_at: "2026-09-30T09:00:00.000-03:00",
+        closed_at: "2026-09-30T20:14:00.000-03:00",
+      },
     };
     const closer = { user_id: "u2", pin: "1234" };
     const received: unknown[] = [];

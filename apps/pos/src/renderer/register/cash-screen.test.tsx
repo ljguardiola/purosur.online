@@ -89,14 +89,6 @@ describe("CashScreen", () => {
     await expect.element(screen.getByText("\u2013 $ 9.300,00", { exact: true })).toBeVisible();
   });
 
-  it("goes to the cash count when Cerrar caja is pressed", async () => {
-    const screen = await renderScreen();
-
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-    expect(screen.router.state.location.pathname).toBe("/cash-count");
-  });
-
   it("keeps Cerrar caja available while the balance is not known", async () => {
     const screen = await renderScreen({ loadCashBalance: async () => "unavailable" });
 

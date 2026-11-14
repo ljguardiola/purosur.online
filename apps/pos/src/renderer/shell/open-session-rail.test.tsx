@@ -52,6 +52,19 @@ describe("OpenSessionRail", () => {
     expect(venta.element().getAttribute("href")).toBe("/session");
   });
 
+  it("sends Venta, Devolver and Caja to the no-session screen once the session is closed, keeping Caja current", async () => {
+    const screen = await render(
+      <OpenSessionRail abilities={[]} lock={() => {}} current="cash" sessionClosed />,
+    );
+
+    for (const entry of ["Venta", "Devolver", "Caja"]) {
+      expect(screen.getByRole("link", { name: entry }).element().getAttribute("href")).toBe("/");
+    }
+    await expect
+      .element(screen.getByRole("link", { name: "Caja" }))
+      .toHaveAttribute("aria-current", "page");
+  });
+
   it("goes back to the sale on Escape from another screen", async () => {
     const screen = await render(<OpenSessionRail abilities={[]} lock={() => {}} current="cash" />);
     await screen.router.navigate({ to: "/cash" });

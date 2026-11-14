@@ -30,7 +30,14 @@ const BALANCE: CashBalance = {
 };
 const CLOSED: CloseLockedCashSessionOutcome = {
   kind: "closed",
-  session: { id: "s1", expected_cash: 4_620_000, counted_cash: 4_580_000, difference: -40_000 },
+  session: {
+    id: "s1",
+    expected_cash: 4_620_000,
+    counted_cash: 4_580_000,
+    difference: -40_000,
+    opened_at: "2026-09-30T09:02:00.000-03:00",
+    closed_at: "2026-09-30T20:14:00.000-03:00",
+  },
 };
 const SHORT_NOTICE =
   "Faltan $ 400,00. La diferencia se registra con la sesión y no impide cerrarla.";

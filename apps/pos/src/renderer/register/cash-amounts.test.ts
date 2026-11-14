@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { differenceNotice, differenceText, directedAmount, signedAmount } from "./cash-amounts";
+import {
+  closedDifferenceText,
+  countDifferenceFigure,
+  differenceNotice,
+  differenceText,
+  directedAmount,
+  signedAmount,
+} from "./cash-amounts";
 
 describe("signedAmount", () => {
   it("puts the direction before the amount, with a proper minus sign", () => {
@@ -44,5 +51,30 @@ describe("differenceNotice", () => {
 
   it("has nothing to say when the count matches", () => {
     expect(differenceNotice(0)).toBeUndefined();
+  });
+});
+
+describe("countDifferenceFigure", () => {
+  it("labels missing cash FALTA with the amount missing", () => {
+    expect(countDifferenceFigure(-20_000)).toEqual({ label: "FALTA", value: "$ 200,00" });
+  });
+
+  it("labels surplus cash SOBRAN with the amount left over", () => {
+    expect(countDifferenceFigure(20_000)).toEqual({ label: "SOBRAN", value: "$ 200,00" });
+  });
+
+  it("gives no figure when the count matches", () => {
+    expect(countDifferenceFigure(0)).toBeUndefined();
+  });
+});
+
+describe("closedDifferenceText", () => {
+  it("puts an en dash before missing cash and a plus before surplus cash", () => {
+    expect(closedDifferenceText(-20_000)).toBe("\u2013 $ 200,00");
+    expect(closedDifferenceText(20_000)).toBe("+ $ 200,00");
+  });
+
+  it("leaves a zero difference plain", () => {
+    expect(closedDifferenceText(0)).toBe("$ 0,00");
   });
 });

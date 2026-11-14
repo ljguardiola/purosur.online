@@ -28,3 +28,22 @@ export function differenceNotice(difference: number): string | undefined {
   const verb = difference < 0 ? "Faltan" : "Sobran";
   return `${verb} ${formatCents(Math.abs(difference))}. La diferencia se registra con la sesión y no impide cerrarla.`;
 }
+
+export function countDifferenceFigure(
+  difference: number,
+): { label: "FALTA" | "SOBRAN"; value: string } | undefined {
+  if (difference === 0) {
+    return undefined;
+  }
+  return {
+    label: difference < 0 ? "FALTA" : "SOBRAN",
+    value: formatCents(Math.abs(difference)),
+  };
+}
+
+export function closedDifferenceText(difference: number): string {
+  if (difference === 0) {
+    return formatCents(0);
+  }
+  return difference < 0 ? `– ${formatCents(-difference)}` : signedAmount("+", difference);
+}

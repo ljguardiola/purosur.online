@@ -62,9 +62,13 @@ export function readOpenSessionMovements(
   database: LocalDatabase,
 ): ListedCashMovement[] | undefined {
   const session = readOpenSession(database);
-  if (session === undefined) {
-    return undefined;
-  }
+  return session === undefined ? undefined : readListedSessionMovements(database, session.id);
+}
+
+export function readListedSessionMovements(
+  database: LocalDatabase,
+  sessionId: string,
+): ListedCashMovement[] {
   return database
     .prepare<[string], ListedMovementRow>(
       `SELECT cash_movements.id AS id, cash_movements.type AS type,
@@ -79,7 +83,7 @@ export function readOpenSessionMovements(
        WHERE cash_movements.session_id = ?
        ORDER BY cash_movements.occurred_at, cash_movements.rowid`,
     )
-    .all(session.id)
+    .all(sessionId)
     .map((row) => ({
       id: row.id,
       type: row.type,
