@@ -25,7 +25,7 @@ import type {
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { hashKey, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
@@ -535,6 +535,7 @@ export function useConsultedProductQuery(
   product: ProductToConsult | undefined,
 ): CoreData<ConsultationAnswer> {
   const queryClient = useQueryClient();
+  const [failedAgain, setFailedAgain] = useState<string>();
   const consultation = useCoreQuery({
     queryKey: salesKeys.consultation(product),
     read: async () => {
@@ -565,12 +566,13 @@ export function useConsultedProductQuery(
       );
     }
     const stopFollowing = queryClient.getQueryCache().subscribe((event) => {
-      if (
-        event.type === "updated" &&
-        event.action.type === "success" &&
-        event.query.queryHash === queryHash
-      ) {
+      if (event.type !== "updated" || event.query.queryHash !== queryHash) {
+        return;
+      }
+      if (event.action.type === "success") {
         askAfterPause();
+      } else if (event.action.type === "error") {
+        setFailedAgain(queryHash);
       }
     });
     askAfterPause();
@@ -579,5 +581,15 @@ export function useConsultedProductQuery(
       clearTimeout(pause);
     };
   }, [weighed, queryClient, product]);
+  const queryKey = salesKeys.consultation(product);
+  if (consultation.status === "loaded" && failedAgain === hashKey(queryKey)) {
+    return {
+      status: "failed",
+      retry: () => {
+        setFailedAgain(undefined);
+        void queryClient.resetQueries({ queryKey, exact: true });
+      },
+    };
+  }
   return consultation;
 }
