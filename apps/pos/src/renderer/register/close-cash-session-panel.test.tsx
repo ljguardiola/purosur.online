@@ -92,6 +92,18 @@ describe("CloseCashSessionPanel", () => {
     await expect.element(screen.getByRole("textbox", { name: "Contado" })).toHaveFocus();
   });
 
+  it("draws the breakdown as bare rows, with no line above or below them", async () => {
+    const { screen } = await renderPanel();
+
+    const label = screen.getByText("Fondo inicial", { exact: true }).element();
+    const breakdown = label.parentElement?.parentElement as HTMLElement;
+    const style = getComputedStyle(breakdown);
+
+    expect(breakdown.textContent).toContain("Retiros");
+    expect(style.borderTopWidth).toBe("0px");
+    expect(style.borderBottomWidth).toBe("0px");
+  });
+
   it("shows FALTA with the missing amount in a neutral box, without the old notice or strip", async () => {
     const { screen } = await renderPanel();
 
