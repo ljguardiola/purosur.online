@@ -16,7 +16,7 @@ import {
   renderSettings,
 } from "./test-support/settings-screen";
 
-const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
+const OFFLINE_CODE = { kind: "offline_code", notice: true, since: null } as const;
 
 function render(options: Parameters<typeof renderSettings>[0] = {}) {
   return renderSettings({ section: "register", ...options });
@@ -77,7 +77,9 @@ describe("the Esta caja section of Ajustes", () => {
       ["offline_code", "Contingencia CAEA"],
       ["deferring", "Venta diferida"],
     ] as const)("tells the invoicing during a %s contingency", async (kind, text) => {
-      const { screen } = await render({ status: { contingency: { kind, notice: false } } });
+      const { screen } = await render({
+        status: { contingency: { kind, notice: false, since: null } },
+      });
 
       const panel = panelOf(screen, "Esta caja");
       await expect.element(panel.getByText("Facturación", { exact: true })).toBeVisible();
@@ -120,6 +122,23 @@ describe("the Esta caja section of Ajustes", () => {
       },
       backupTickets: loadedBackupTickets({ to_print: 3, discardable: 3, may_discard: true }),
     };
+
+    it("tells since when the register is in contingency", async () => {
+      const { screen } = await render({
+        status: { contingency: { ...OFFLINE_CODE, since: "2026-11-04T13:05:00.000-03:00" } },
+      });
+
+      await expect.element(noticesList(screen).getByText("Desde 04/11 · 13:05")).toBeVisible();
+    });
+
+    it("tells no start for a contingency without an open interval", async () => {
+      const { screen } = await render({ status: { contingency: OFFLINE_CODE } });
+
+      await expect
+        .element(noticesList(screen).getByText("Facturación en modo de respaldo"))
+        .toBeVisible();
+      await expect.element(noticesList(screen).getByText(/Desde/)).not.toBeInTheDocument();
+    });
 
     function titlesOf(screen: Awaited<ReturnType<typeof render>>["screen"]): string[] {
       return noticesList(screen)

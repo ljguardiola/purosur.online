@@ -85,16 +85,16 @@ export function createContingencyRecordingWiring({
   const check = async () => recording?.check();
   const checkAfter = async <Answer>(request: Promise<Answer>): Promise<Answer> => {
     const answer = await request;
-    void check();
+    await check();
     return answer;
   };
   const followers = {
     startHealthChecks: (healthChecks: RegisterHealthChecksDeps) =>
       startRegisterHealthChecks({
         ...healthChecks,
-        afterCheck: () => {
-          healthChecks.afterCheck?.();
-          void check();
+        afterCheck: async () => {
+          await check();
+          await healthChecks.afterCheck?.();
         },
       }),
     authorizeSale: (saleId: string) => checkAfter(authorizeSale(saleId)),

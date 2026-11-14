@@ -98,6 +98,9 @@ export function registerNotices({
             tone: "warning" as const,
             icon: <Receipt />,
             title: text.title,
+            ...(contingency?.since == null
+              ? {}
+              : { subtitle: `Desde ${formatDayMonthAndTime(contingency.since)}` }),
             description: text.description,
             whatToDo: text.whatToDo,
             discardable: false,

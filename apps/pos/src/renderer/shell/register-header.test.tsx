@@ -26,9 +26,9 @@ const LOCKED_SESSION: CashSessionState = { ...OPEN_SESSION, locked: true };
 
 const SINCE = "2026-10-29T09:30:00.000-03:00";
 const SALES_DENIED_TITLE = "La caja no puede vender";
-const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
-const SOLD_LATER = { kind: "deferring", notice: true } as const;
-const SOLD_LATER_WITHOUT_NOTICE = { kind: "deferring", notice: false } as const;
+const OFFLINE_CODE = { kind: "offline_code", notice: true, since: null } as const;
+const SOLD_LATER = { kind: "deferring", notice: true, since: null } as const;
+const SOLD_LATER_WITHOUT_NOTICE = { kind: "deferring", notice: false, since: null } as const;
 
 function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> {
   return {

@@ -10,7 +10,7 @@ type Input = Parameters<typeof registerNotices>[0];
 const SINCE = "2026-11-04T14:20:00.000-03:00";
 const CLOCK_DRIFT: Condition = { kind: "clock_drift", level: "warning", since: SINCE };
 const SILENT: Condition = { kind: "register_silent", level: "critical", since: SINCE };
-const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
+const OFFLINE_CODE = { kind: "offline_code", notice: true, since: null } as const;
 
 function input(overrides: Partial<Input> = {}): Input {
   return { conditions: [], contingency: null, backupTickets: undefined, ...overrides };
@@ -31,7 +31,10 @@ describe("registerNoticeSummary", () => {
 
   it("does not count a contingency without a notice nor tickets still being read", () => {
     const summary = registerNoticeSummary(
-      input({ contingency: { kind: "deferring", notice: false }, backupTickets: undefined }),
+      input({
+        contingency: { kind: "deferring", notice: false, since: null },
+        backupTickets: undefined,
+      }),
     );
 
     expect(summary.count).toBe(0);
@@ -67,10 +70,18 @@ describe("registerNotices", () => {
     expect(notice).not.toHaveProperty("subtitle");
   });
 
-  it("tells no contingency while its notice is off", () => {
-    expect(registerNotices(input({ contingency: { kind: "deferring", notice: false } }))).toEqual(
-      [],
+  it("tells since when the contingency holds", () => {
+    const [notice] = registerNotices(
+      input({ contingency: { ...OFFLINE_CODE, since: "2026-11-04T13:05:00.000-03:00" } }),
     );
+
+    expect(notice).toMatchObject({ subtitle: "Desde 04/11 · 13:05" });
+  });
+
+  it("tells no contingency while its notice is off", () => {
+    expect(
+      registerNotices(input({ contingency: { kind: "deferring", notice: false, since: null } })),
+    ).toEqual([]);
   });
 
   it("puts the critical conditions first, then the contingency, then the backup tickets, then the other conditions", () => {

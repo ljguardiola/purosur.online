@@ -391,7 +391,13 @@ const registerStatusSchema = z.object({
     reader: z.enum(SERIAL_DEVICE_STANDING_KINDS),
   }),
   serial_devices_setup_offered: z.boolean(),
-  contingency: z.object({ kind: z.enum(CONTINGENCY_KINDS), notice: z.boolean() }).nullable(),
+  contingency: z
+    .object({
+      kind: z.enum(CONTINGENCY_KINDS),
+      notice: z.boolean(),
+      since: conditionSinceSchema.nullable(),
+    })
+    .nullable(),
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 

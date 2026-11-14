@@ -1501,10 +1501,16 @@ describe("register status messages", () => {
 
   it.each([
     ["no contingency", null],
-    ["an offline code contingency with a notice", { kind: "offline_code", notice: true }],
-    ["an offline code contingency without a notice", { kind: "offline_code", notice: false }],
-    ["a deferring contingency with a notice", { kind: "deferring", notice: true }],
-    ["a deferring contingency without a notice", { kind: "deferring", notice: false }],
+    [
+      "an offline code contingency with a notice",
+      { kind: "offline_code", notice: true, since: SINCE },
+    ],
+    [
+      "an offline code contingency without a notice",
+      { kind: "offline_code", notice: false, since: null },
+    ],
+    ["a deferring contingency with a notice", { kind: "deferring", notice: true, since: SINCE }],
+    ["a deferring contingency without a notice", { kind: "deferring", notice: false, since: null }],
   ])("accepts a status with %s", (_name, contingency) => {
     const message = {
       type: "register-status",
@@ -1522,9 +1528,14 @@ describe("register status messages", () => {
   });
 
   it.each([
-    ["real time as a contingency kind", { kind: "real_time", notice: true }],
-    ["a contingency without a notice flag", { kind: "deferring" }],
-    ["a contingency without a kind", { notice: true }],
+    ["real time as a contingency kind", { kind: "real_time", notice: true, since: null }],
+    ["a contingency without a notice flag", { kind: "deferring", since: null }],
+    ["a contingency without a kind", { notice: true, since: null }],
+    ["a contingency without a start", { kind: "deferring", notice: true }],
+    [
+      "a contingency start without an offset",
+      { kind: "deferring", notice: true, since: "2026-10-29T09:30:00" },
+    ],
     ["a missing contingency", undefined],
   ])("rejects a status with %s", (_name, contingency) => {
     const message = {

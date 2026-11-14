@@ -113,6 +113,10 @@ function readOpenInterval(database: LocalDatabase): OpenContingencyInterval | un
   return row === undefined ? undefined : openIntervalOf(row);
 }
 
+export function readOpenContingencyIntervalStart(database: LocalDatabase): Date | undefined {
+  return readOpenInterval(database)?.startedAt;
+}
+
 function openIntervalOf(row: OpenIntervalRow): OpenContingencyInterval {
   return {
     id: row.interval_id,

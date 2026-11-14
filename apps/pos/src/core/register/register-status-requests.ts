@@ -27,6 +27,7 @@ import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { readStanding, type SerialDeviceReading } from "./serial-device-watch";
+import { readOpenContingencyIntervalStart } from "./sqlite-contingency-ledger";
 import { SqliteRegisterConditionStartStore } from "./sqlite-register-condition-start-store";
 
 export interface RegisterStatusDeps {
@@ -108,6 +109,11 @@ export async function registerStatusFor(deps: RegisterStatusDeps): Promise<Regis
   const storageStanding = storage();
   const damaged = deps.localDatabaseDamaged();
   const stoppedByBattery = deps.newSalesStoppedByBattery();
+  const contingency = contingencyOf(
+    readFiscalEmissionModeIn(database, now(), zoneRules),
+    areNewSalesStopped(salesStop, storageSalesStopOf(storageStanding), damaged, stoppedByBattery),
+  );
+  const contingencyStart = readOpenContingencyIntervalStart(database);
   return {
     conditions: observedOwnConditionsOf(deps),
     cloud: cloud(),
@@ -119,10 +125,16 @@ export async function registerStatusFor(deps: RegisterStatusDeps): Promise<Regis
       mayConfigure: mayConfigureSerialDevices(database, signedInPerson),
       standings,
     }),
-    contingency: contingencyOf(
-      readFiscalEmissionModeIn(database, now(), zoneRules),
-      areNewSalesStopped(salesStop, storageSalesStopOf(storageStanding), damaged, stoppedByBattery),
-    ),
+    contingency:
+      contingency === null
+        ? null
+        : {
+            ...contingency,
+            since:
+              contingencyStart === undefined
+                ? null
+                : inArgentinaTime(contingencyStart, zoneRules.zoneRules()),
+          },
   };
 }
 

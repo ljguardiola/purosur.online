@@ -193,7 +193,7 @@ export function startRegisterHealthChecks({
 }: RealTimeAuthorizationWiringDeps &
   DeferralIdentities & {
     scheduleNext: (run: () => void, delayMs: number) => () => void;
-    afterCheck?: () => void;
+    afterCheck?: () => void | Promise<void>;
     serialize?: DeferredBacklogSerializer;
   }): (() => void) | undefined {
   if (database === undefined || cloudClient === undefined) {
@@ -260,7 +260,7 @@ export function startRegisterHealthChecks({
           clock: { now },
         }).catch(reportFailure);
       }
-      afterCheck?.();
+      await afterCheck?.();
     },
     scheduleNext,
     onFailure: reportFailure,
