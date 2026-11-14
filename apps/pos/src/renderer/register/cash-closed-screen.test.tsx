@@ -59,11 +59,19 @@ describe("CashClosedScreen", () => {
   it("writes the rows' labels smaller than their values", async () => {
     const { screen } = await renderClosed();
 
-    const label = screen.getByText("Efectivo esperado", { exact: true }).element();
-    const amount = screen.getByText("$ 144.200,00", { exact: true }).element();
-    expect(Number.parseFloat(getComputedStyle(label).fontSize)).toBeLessThan(
-      Number.parseFloat(getComputedStyle(amount).fontSize),
-    );
+    const rows = [
+      ["Efectivo esperado", "$ 144.200,00"],
+      ["Diferencia", "– $ 200,00"],
+      ["Abierta", "04/11 · 08:02"],
+      ["Cerrada", "04/11 · 20:14"],
+    ] as const;
+    for (const [labelText, valueText] of rows) {
+      const label = screen.getByText(labelText, { exact: true }).element();
+      const value = screen.getByText(valueText, { exact: true }).element();
+      expect(Number.parseFloat(getComputedStyle(label).fontSize), labelText).toBeLessThan(
+        Number.parseFloat(getComputedStyle(value).fontSize),
+      );
+    }
   });
 
   it("lists the expected cash, the difference and when it opened and closed", async () => {
