@@ -226,6 +226,29 @@ describe("the Esta caja section of Ajustes", () => {
       expect(onSelectSection).toHaveBeenCalledExactlyOnceWith("devices");
     });
 
+    it("keeps the arrows on the apartados when notices come back after the focused ones were gone", async () => {
+      const { screen, onSelectSection, showRegisterStatus } = await render({
+        person: BOTH_CONFIGURER,
+        status: { conditions: [CLOCK_DRIFT] },
+      });
+      await userEvent.keyboard("{ArrowRight}");
+      await showRegisterStatus({ status: {}, backupTickets: { status: "loading" } });
+      await expect
+        .element(panelOf(screen, "Esta caja").getByText("AVISOS DE ESTA CAJA"))
+        .not.toBeInTheDocument();
+
+      await showRegisterStatus({
+        status: { conditions: [CLOCK_DRIFT] },
+        backupTickets: { status: "loading" },
+      });
+      await expect
+        .element(panelOf(screen, "Esta caja").getByText("AVISOS DE ESTA CAJA"))
+        .toBeVisible();
+      await userEvent.keyboard("{ArrowUp}");
+
+      expect(onSelectSection).toHaveBeenCalledExactlyOnceWith("devices");
+    });
+
     it("expands the focused condition with what it means and what to do", async () => {
       const { screen } = await render({ status: { conditions: [CLOCK_DRIFT] } });
 
