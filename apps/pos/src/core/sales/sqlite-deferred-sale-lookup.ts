@@ -1,5 +1,9 @@
 import { type DeferredSaleFacts, latestIssuedOn } from "@purosur/domain";
-import type { DeferredSaleLookup, DeferredSaleSearch } from "@purosur/domain/sales/use-cases";
+import type {
+  DeferredSaleLine,
+  DeferredSaleLookup,
+  DeferredSaleSearch,
+} from "@purosur/domain/sales/use-cases";
 import { readRealTimeSeries } from "../fiscal/sqlite-fiscal-series";
 import type { LocalDatabase } from "../platform/local-database";
 
@@ -14,6 +18,14 @@ interface DeferredSaleFactsRow {
   point_of_sale: number | null;
   number: number | null;
   original_print_attempted: 0 | 1;
+}
+
+interface DeferredSaleLineRow {
+  product_name: string;
+  sale_unit: DeferredSaleLine["saleUnit"];
+  quantity: number;
+  list_unit_price: number;
+  line_total: number;
 }
 
 const FACTS_SELECT = `SELECT deferred_sales.id AS deferred_sale_id, deferred_sales.sale_id,
@@ -58,6 +70,22 @@ export class SqliteDeferredSaleLookup implements DeferredSaleLookup {
         series.localLastAuthorizedIssuedOn,
       ),
     };
+  }
+
+  linesOf(saleId: string): DeferredSaleLine[] {
+    return this.database
+      .prepare<[string], DeferredSaleLineRow>(
+        `SELECT product_name, sale_unit, quantity, list_unit_price, line_total FROM sale_lines
+         WHERE sale_id = ? ORDER BY position`,
+      )
+      .all(saleId)
+      .map((row) => ({
+        productName: row.product_name,
+        saleUnit: row.sale_unit,
+        quantity: row.quantity,
+        listUnitPrice: row.list_unit_price,
+        lineTotal: row.line_total,
+      }));
   }
 
   private rowOf(search: DeferredSaleSearch): DeferredSaleFactsRow | undefined {
