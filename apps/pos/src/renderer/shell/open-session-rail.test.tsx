@@ -111,7 +111,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Devolver", "Caja"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Ajustes"]);
   });
 
   it("offers the return to everyone, since someone with permission can authorize it", async () => {
@@ -161,7 +161,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Devolver", "Caja"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Ajustes"]);
   });
 
   it("offers no sales history to a person who may not view it", async () => {

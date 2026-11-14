@@ -106,7 +106,10 @@ describe("the scale and reader's section of Ajustes", () => {
     });
 
     await expect
-      .element(panel(screen).getByText("No se detecta ningún dispositivo serie conectado."))
+      .element(panel(screen).getByText("No se detecta ningún dispositivo serie conectado.").first())
+      .toBeVisible();
+    await expect
+      .element(panel(screen).getByText("DISPOSITIVOS SERIE DETECTADOS", { exact: true }))
       .toBeVisible();
     for (const role of ["Balanza", "Lector"] as const) {
       await expect.element(select(screen, role)).toBeDisabled();
@@ -137,7 +140,8 @@ describe("the scale and reader's section of Ajustes", () => {
     const { screen } = await renderDevices();
 
     const item = panel(screen).getByRole("listitem").filter({ hasText: "0403:6001" });
-    await expect.element(item).toHaveTextContent(/^0403:6001 · COM3$/);
+    await expect.element(item).toBeVisible();
+    expect(item.element().textContent).toBe("0403:6001 · COM3");
   });
 
   it("shows the standing of the scale and the reader as chips", async () => {
@@ -257,7 +261,9 @@ describe("the scale and reader's section of Ajustes", () => {
     await userEvent.click(screen.getByRole("button", { name: GUARDAR }));
 
     await expect
-      .element(screen.getByText("Ya no tenés permiso para configurar la balanza y el lector."))
+      .element(
+        screen.getByText("Ya no tenés permiso para configurar la balanza y el lector.").first(),
+      )
       .toBeVisible();
   });
 
@@ -288,7 +294,7 @@ describe("the scale and reader's section of Ajustes", () => {
     await userEvent.click(screen.getByRole("button", { name: GUARDAR }));
 
     await expect
-      .element(screen.getByText("No se pudieron guardar los dispositivos. Probá de nuevo."))
+      .element(screen.getByText("No se pudieron guardar los dispositivos. Probá de nuevo.").first())
       .toBeVisible();
   });
 
@@ -352,7 +358,7 @@ describe("the scale and reader's section of Ajustes", () => {
       const { screen } = await renderDevices({ offered: true });
 
       await expect.element(panel(screen).getByRole("button", { name: "Ahora no" })).toBeVisible();
-      expect(legendOf(screen)).toEqual(["↑↓Apartados", "TabCampo"]);
+      await expect.poll(() => legendOf(screen)).toEqual(["↑↓Apartados", "TabCampo"]);
     });
   });
 });

@@ -79,7 +79,9 @@ describe("the printer's section of Ajustes", () => {
     const { screen } = await renderPrinter();
 
     const panel = panelOf(screen, "Impresora de tickets");
-    await expect.element(panel.getByText("La impresora no está configurada.")).toBeVisible();
+    await expect
+      .element(panel.getByText("La impresora no está configurada.").first())
+      .toBeVisible();
     await expect.element(addressField(screen)).toHaveValue("");
     await expect
       .element(addressField(screen))
@@ -195,7 +197,7 @@ describe("the printer's section of Ajustes", () => {
 
     const panel = panelOf(screen, "Impresora de tickets");
     await expect
-      .element(panel.getByText("No tenés permiso para configurar la impresora."))
+      .element(panel.getByText("No tenés permiso para configurar la impresora.").first())
       .toBeVisible();
     await expect.element(addressField(screen)).toBeDisabled();
     await expect.element(panel.getByRole("button", { name: "Guardar" })).toBeDisabled();
@@ -230,9 +232,9 @@ describe("the printer's section of Ajustes", () => {
 
     await expect
       .element(
-        panelOf(screen, "Impresora de tickets").getByText(
-          "No se pudo guardar la dirección. Probá de nuevo.",
-        ),
+        panelOf(screen, "Impresora de tickets")
+          .getByText("No se pudo guardar la dirección. Probá de nuevo.")
+          .first(),
       )
       .toBeVisible();
     expect(legendOf(screen)).toEqual(["↑↓Apartados"]);
@@ -242,7 +244,7 @@ describe("the printer's section of Ajustes", () => {
     const { screen } = await renderPrinter({ setPrinter: async () => ({ kind: "unavailable" }) });
     await save(screen, "10.10.10.9");
     await expect
-      .element(screen.getByText("No se pudo guardar la dirección. Probá de nuevo."))
+      .element(screen.getByText("No se pudo guardar la dirección. Probá de nuevo.").first())
       .toBeVisible();
 
     await type(screen, "10.10.10.8");

@@ -758,7 +758,7 @@ test("a reset without values goes back to the values the form started with", asy
   await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin cambios");
 });
 
-function FailingProbe() {
+function ErrorShownProbe() {
   const { form, submit, failing } = useRequestForm({
     defaultValues: { name: "" },
     request: { schema: z.object({ name: z.string().min(1) }), from: (values) => values },
@@ -780,7 +780,7 @@ function FailingProbe() {
 }
 
 test("the form is failing while a field shows an error, and not once the error is gone", async () => {
-  const screen = await render(<FailingProbe />);
+  const screen = await render(<ErrorShownProbe />);
   await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin error");
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sectionToShow, shownSections } from "./settings-sections";
+import { isSettingsSection, sectionToShow, shownSections } from "./settings-sections";
 
 describe("shownSections", () => {
   it("shows the printer and then the scale and reader to a person who may configure both", () => {
@@ -33,5 +33,15 @@ describe("sectionToShow", () => {
 
   it("shows nothing when no section is shown", () => {
     expect(sectionToShow([], "printer")).toBeUndefined();
+  });
+});
+
+describe("isSettingsSection", () => {
+  it.each(["printer", "devices"])("knows %s as a section", (value) => {
+    expect(isSettingsSection(value)).toBe(true);
+  });
+
+  it.each(["register", "", 3, undefined])("does not know %s as a section", (value) => {
+    expect(isSettingsSection(value)).toBe(false);
   });
 });
