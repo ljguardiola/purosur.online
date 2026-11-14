@@ -56,8 +56,9 @@ describe("the register's serial devices", () => {
       await page.getByLabel("PIN").fill("4821");
       await page.getByRole("button", { name: "Entrar" }).click();
 
-      await page.getByRole("heading", { level: 1, name: "Balanza y lector" }).waitFor();
-      const devices = page.getByRole("main");
+      await page.getByRole("heading", { level: 1, name: "Configuración" }).waitFor();
+      await page.getByRole("complementary", { name: "Balanza y lector" }).waitFor();
+      const devices = page.getByRole("region", { name: "APARTADOS" });
       await devices.getByText("Balanza sin registrar", { exact: true }).waitFor();
       await devices.getByText("Lector sin registrar", { exact: true }).waitFor();
     } finally {

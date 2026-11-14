@@ -13,14 +13,14 @@ describe("OpenSessionRail", () => {
     }>().not.toExtend<ComponentProps<typeof OpenSessionRail>>();
   });
 
-  it("shows Venta, Historial, Devolver and Caja, and Salir last", async () => {
+  it("shows Venta, Historial, Devolver and Caja, then Ajustes just above Salir", async () => {
     const screen = await render(
       <OpenSessionRail lock={() => {}} current="sale" abilities={["view_sales_history"]} />,
     );
 
     const rail = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
     const items = Array.from(rail.querySelectorAll("button, a")).map((item) => item.textContent);
-    expect(items).toEqual(["Venta", "Historial", "Devolver", "Caja", "Salir"]);
+    expect(items).toEqual(["Venta", "Historial", "Devolver", "Caja", "Ajustes", "Salir"]);
   });
 
   it("draws Venta with a shopping cart", async () => {
@@ -111,7 +111,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Devolver", "Caja"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Ajustes"]);
   });
 
   it("offers the return to everyone, since someone with permission can authorize it", async () => {
@@ -161,7 +161,7 @@ describe("OpenSessionRail", () => {
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Devolver", "Caja"]);
+    expect(links).toEqual(["Historial", "Devolver", "Caja", "Ajustes"]);
   });
 
   it("offers no sales history to a person who may not view it", async () => {
@@ -173,88 +173,56 @@ describe("OpenSessionRail", () => {
     await expect.element(screen.getByRole("link", { name: "Historial" })).not.toBeInTheDocument();
   });
 
-  it("offers the printer and the scale and reader, after Caja, to a person who may configure them", async () => {
+  it.each([
+    { name: "a person with no ability", abilities: [] as const },
+    {
+      name: "a person who may configure the printer and the scale and reader",
+      abilities: ["configure_receipt_printer", "configure_serial_devices"] as const,
+    },
+  ])("offers Ajustes, after Caja and linking to the settings, to $name", async ({ abilities }) => {
     const screen = await render(
-      <OpenSessionRail
-        lock={() => {}}
-        current="sale"
-        abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
-      />,
+      <OpenSessionRail lock={() => {}} current="sale" abilities={[...abilities]} />,
     );
 
     const links = screen
       .getByRole("link")
       .elements()
       .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Devolver", "Caja", "Impresora", "Balanza y lector"]);
-    expect(screen.getByRole("link", { name: "Impresora" }).element().getAttribute("href")).toBe(
-      "/receipt-printer",
+    expect(links.slice(-2)).toEqual(["Caja", "Ajustes"]);
+    expect(screen.getByRole("link", { name: "Ajustes" }).element().getAttribute("href")).toBe(
+      "/settings",
     );
-    expect(
-      screen.getByRole("link", { name: "Balanza y lector" }).element().getAttribute("href"),
-    ).toBe("/serial-devices");
   });
 
-  it("offers each device screen only to a person who may configure it", async () => {
-    const screen = await render(
-      <OpenSessionRail lock={() => {}} current="sale" abilities={["configure_serial_devices"]} />,
-    );
-
-    await expect.element(screen.getByRole("link", { name: "Balanza y lector" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
-  });
-
-  it("marks Impresora as current on the printer screen", async () => {
+  it("no longer offers the printer or the scale and reader as entries of their own", async () => {
     const screen = await render(
       <OpenSessionRail
         lock={() => {}}
-        current="receipt_printer"
+        current="sale"
         abilities={["configure_receipt_printer", "configure_serial_devices"]}
       />,
     );
 
-    await expect
-      .element(screen.getByRole("link", { name: "Impresora" }))
-      .toHaveAttribute("aria-current", "page");
+    await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("link", { name: "Balanza y lector" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("marks Ajustes as current on the settings screen, and no other item", async () => {
+    const screen = await render(
+      <OpenSessionRail lock={() => {}} current="settings" abilities={["view_sales_history"]} />,
+    );
+
+    await expect
+      .element(screen.getByRole("link", { name: "Ajustes" }))
+      .toHaveAttribute("aria-current", "page");
+    await expect
+      .element(screen.getByRole("link", { name: "Caja" }))
       .not.toHaveAttribute("aria-current");
     expect(screen.getByRole("link", { name: "Venta" }).element().getAttribute("href")).toBe(
       "/session",
     );
-  });
-
-  it("marks Balanza y lector as current on the serial devices screen", async () => {
-    const screen = await render(
-      <OpenSessionRail
-        lock={() => {}}
-        current="serial_devices"
-        abilities={["configure_receipt_printer", "configure_serial_devices"]}
-      />,
-    );
-
-    await expect
-      .element(screen.getByRole("link", { name: "Balanza y lector" }))
-      .toHaveAttribute("aria-current", "page");
-    await expect
-      .element(screen.getByRole("link", { name: "Impresora" }))
-      .not.toHaveAttribute("aria-current");
-  });
-
-  it("ends with the scale and reader, with no help entry", async () => {
-    const screen = await render(
-      <OpenSessionRail
-        lock={() => {}}
-        current="sale"
-        abilities={["view_sales_history", "configure_receipt_printer", "configure_serial_devices"]}
-      />,
-    );
-
-    const links = screen
-      .getByRole("link")
-      .elements()
-      .map((item) => item.textContent);
-    expect(links).toEqual(["Historial", "Devolver", "Caja", "Impresora", "Balanza y lector"]);
   });
 
   describe("Salir", () => {

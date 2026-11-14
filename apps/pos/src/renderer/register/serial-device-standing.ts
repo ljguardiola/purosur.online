@@ -26,7 +26,7 @@ const ROLE_TEXTS: Record<SerialDeviceRole, Record<SerialDeviceStandingKind, stri
 
 const TONES: Record<SerialDeviceStandingKind, Tone> = {
   matching: "success",
-  not_detected: "error",
+  not_detected: "warning",
   mismatched: "error",
   not_registered: "neutral",
   unknown: "neutral",

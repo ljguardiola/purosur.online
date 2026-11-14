@@ -21,6 +21,7 @@ export type ConfirmationPanelProps = {
   details?: readonly [ConfirmationDetail, ...ConfirmationDetail[]];
   notice?: string;
   busy?: boolean;
+  actionDisabled?: boolean;
   onClose: () => void;
   onConfirm: () => void;
 };
@@ -37,6 +38,7 @@ export function ConfirmationPanel({
   details,
   notice,
   busy = false,
+  actionDisabled = false,
   onClose,
   onConfirm,
 }: ConfirmationPanelProps) {
@@ -61,7 +63,7 @@ export function ConfirmationPanel({
           iconPosition="start"
           keycap="Enter"
           destructive={tone === "error"}
-          disabled={busy}
+          disabled={busy || actionDisabled}
           onPress={onConfirm}
         >
           {actionLabel}

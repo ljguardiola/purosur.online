@@ -67,7 +67,7 @@ export function savedSerialDevicesDescription({
   reader,
 }: Read["registered"]): string | undefined {
   if (scale !== undefined && reader !== undefined) {
-    return "La caja reconoce la balanza y el lector elegidos.";
+    return "La balanza y el lector quedaron registrados.";
   }
   if (scale !== undefined) {
     return "La caja reconoce la balanza elegida.";

@@ -5,6 +5,7 @@ import type {
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
   SessionOpenSale,
+  SignInUser,
 } from "@purosur/contracts";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -41,6 +42,7 @@ async function renderScreen(
     close?: Close;
     cancelSale?: CancelSale;
     loadOpenSale?: () => Promise<SessionOpenSale | null | "unavailable">;
+    loadClosers?: () => Promise<SignInUser[]>;
   } = {},
 ) {
   await page.viewport(1280, 720);
@@ -52,12 +54,12 @@ async function renderScreen(
     <LockedCloseScreen
       sessionId="s1"
       opener={GRACE}
-      registerName="Caja 1"
       version="1.4.212"
       loadCashBalance={loadCashBalance}
       loadCashCountPreview={loadCashCountPreview}
       loadOpenSale={options.loadOpenSale ?? (async () => null)}
-      loadClosers={async () => [{ id: "u3", first_name: "Sofía" }]}
+      loadCashMovements={async () => []}
+      loadClosers={options.loadClosers ?? (async () => [{ id: "u3", first_name: "Sofía" }])}
       identifyLockedCloser={options.identify ?? (async () => IDENTIFIED)}
       closeLockedCashSession={close}
       cancelLockedSale={options.cancelSale ?? (async () => ({ kind: "cancelled", refunds: [] }))}
@@ -69,7 +71,6 @@ async function renderScreen(
 type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];
 
 async function identifySofia(screen: Screen) {
-  await userEvent.click(screen.getByText("Sofía", { exact: true }));
   await userEvent.type(screen.getByLabelText("PIN"), "1234");
   await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
 }
@@ -78,7 +79,7 @@ async function closeWith(screen: Screen, typed: string) {
   await expect
     .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
     .toBeVisible();
-  await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), typed);
+  await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), typed);
   await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 }
 
@@ -89,11 +90,11 @@ describe("LockedCloseScreen", () => {
       <LockedCloseScreen
         sessionId="s1"
         opener={GRACE}
-        registerName="Caja 1"
         version="1.4.212"
         loadCashBalance={async () => BALANCE}
         loadCashCountPreview={async () => null}
         loadOpenSale={async () => null}
+        loadCashMovements={async () => []}
         loadClosers={loadClosers}
         identifyLockedCloser={async () => IDENTIFIED}
         closeLockedCashSession={async () => ({ kind: "unavailable" })}
@@ -101,11 +102,12 @@ describe("LockedCloseScreen", () => {
       />
     );
     const screen = await render(element());
-    await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
+    const chosen = screen.getByRole("button", { name: /USUARIO/ }).getByText("Sofía");
+    await expect.element(chosen).toBeVisible();
 
     await screen.rerender(element());
 
-    await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
+    await expect.element(chosen).toBeVisible();
     expect(loadClosers).toHaveBeenCalledOnce();
   });
 
@@ -137,7 +139,7 @@ describe("LockedCloseScreen", () => {
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
 
     await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
   });
@@ -147,7 +149,7 @@ describe("LockedCloseScreen", () => {
     const { screen } = await renderScreen({ close });
 
     await identifySofia(screen);
-    await expect.element(screen.getByText("Cierra Sofía. La sesión es de Grace.")).toBeVisible();
+    await expect.element(screen.getByRole("complementary", { name: "Cerrar caja" })).toBeVisible();
     await closeWith(screen, "45800,00");
 
     await expect
@@ -168,12 +170,33 @@ describe("LockedCloseScreen", () => {
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).not.toBeInTheDocument();
   });
 
+  it("goes back to who closes the register with the refused closer chosen", async () => {
+    const { screen } = await renderScreen({
+      loadClosers: async () => [
+        { id: "u1", first_name: "Ana" },
+        { id: "u3", first_name: "Sofía" },
+      ],
+      close: async () => ({ kind: "lacks_permission" }),
+    });
+    const userSelect = screen.getByRole("button", { name: /USUARIO/ });
+    await expect.element(userSelect.getByText("Ana", { exact: true })).toBeVisible();
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.element(userSelect.getByText("Sofía", { exact: true })).toBeVisible();
+
+    await identifySofia(screen);
+    await closeWith(screen, "45800,00");
+
+    await expect.element(screen.getByText("Sofía no puede cerrar la caja")).toBeVisible();
+    await expect.element(userSelect.getByText("Sofía", { exact: true })).toBeVisible();
+  });
+
   it("shows the open sale once the person who closes is identified and cancels it with their PIN", async () => {
     const cancelSale = vi.fn<CancelSale>(async () => ({ kind: "cancelled", refunds: [] }));
     const { screen } = await renderScreen({
       loadOpenSale: async () => ({
         id: "sale-1",
         total: 3_434_000,
+        line_count: 1,
         paid: 0,
         has_approved_payment: false,
         cancellable: true,
@@ -184,9 +207,9 @@ describe("LockedCloseScreen", () => {
     });
     await identifySofia(screen);
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
-    await screen.getByRole("button", { name: "Vaciar venta" }).click();
+    await userEvent.keyboard("v");
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }).click();
+    await userEvent.keyboard("{Enter}");
 
     await expect
       .poll(() => cancelSale.mock.calls)

@@ -26,7 +26,7 @@ import { App } from "./app";
 
 const SIGN_IN_USER_SELECT = /USUARIO/;
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
-const LOCKED_TITLE = "Caja bloqueada";
+const LOCKED_TITLE = /Grace$/;
 const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
@@ -86,7 +86,7 @@ const ADA_SIGNED_IN: SignInOutcome = {
 
 async function resumeLockedRegister(screen: Awaited<ReturnType<typeof render>>) {
   await userEvent.type(screen.getByLabelText("PIN"), "1234");
-  await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 }
 
 function coreAnswering(
@@ -102,6 +102,7 @@ function coreAnswering(
     identifyLockedCloser?: CoreClient["identifyLockedCloser"];
     authorizers?: CoreClient["authorizers"];
     lockedClosers?: CoreClient["lockedClosers"];
+    signInUsers?: CoreClient["signInUsers"];
     cashBalance?: CoreClient["cashBalance"];
     sessionOpenSale?: CoreClient["sessionOpenSale"];
     startupPending?: CoreClient["startupPending"];
@@ -196,6 +197,9 @@ function coreAnswering(
     },
     async signInUsers() {
       usersLoads += 1;
+      if (cashDrawer.signInUsers !== undefined) {
+        return cashDrawer.signInUsers();
+      }
       return { users: [{ id: "u1", first_name: "Ada" }], last_active_user_id: null };
     },
     async lockedClosers() {
@@ -1115,7 +1119,10 @@ describe("App", () => {
       const screen = await signInAsConfigurer(core);
 
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
       await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
     });
@@ -1147,7 +1154,10 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Guardar el PIN nuevo" }));
 
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
     });
 
@@ -1184,9 +1194,12 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("button", { name: "Ahora no" }));
 
       await expect.element(screen.getByRole("heading", { name: SIGNED_IN_TITLE })).toBeVisible();
-      await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
+      await userEvent.click(screen.getByRole("link", { name: "Ajustes" }));
       await expect
-        .element(screen.getByRole("heading", { level: 1, name: "Balanza y lector" }))
+        .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
+        .toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
         .toBeVisible();
       await expect
         .element(screen.getByRole("button", { name: "Ahora no" }))
@@ -1456,7 +1469,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
   });
@@ -1651,8 +1664,12 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Ada", { exact: true }))
+      .not.toBeInTheDocument();
   });
 
   it("still says the cash session is open when the core cannot tell which one after refusing a sign-in", async () => {
@@ -1792,12 +1809,32 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Primer ingreso" }))
       .not.toBeInTheDocument();
-    await expect.element(screen.getByText("Ada")).not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("lists again who may resume the locked register once a pull happens", async () => {
+    let users = [{ id: "u1", first_name: "Ada" }];
+    const { core, finishPull } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+      cashSession: async () => GRACE_SESSION_LOCKED,
+      signInUsers: async () => ({ users, last_active_user_id: null }),
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
+    users = [...users, { id: "u5", first_name: "Tomás" }];
+
+    finishPull(null);
+
+    await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
+    await expect.element(screen.getByRole("option", { name: "Tomás" })).toBeVisible();
   });
 
   it("resumes the open cash session with the opener's PIN", async () => {
@@ -1809,7 +1846,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
@@ -1828,9 +1865,7 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(
-        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-      );
+      await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
@@ -2303,7 +2338,7 @@ describe("App", () => {
       .toBeVisible();
   });
 
-  it("shows the contingency backup tickets notice the core reports in the register header, and discards them when it is closed", async () => {
+  it("counts the contingency backup tickets notice in the header, shows it in Esta caja and discards the tickets on Supr", async () => {
     const discard = vi.fn(
       async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
     );
@@ -2337,9 +2372,13 @@ describe("App", () => {
         .getByRole("button", { name: "1 aviso" }),
     );
     await expect
-      .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
+      .element(
+        screen
+          .getByRole("list", { name: "Avisos de esta caja" })
+          .getByText("Ya podés descartar los tickets de respaldo"),
+      )
       .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+    await userEvent.keyboard("{Delete}");
 
     await expect.poll(() => discard.mock.calls.length).toBe(1);
   });
@@ -3117,7 +3156,7 @@ describe("App", () => {
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
+      .element(screen.getByRole("link", { name: "Primer ingreso" }))
       .not.toBeInTheDocument();
   });
 
@@ -3175,7 +3214,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
   });
 
   it("signs the person out in the core when the session already open is another person's", async () => {
@@ -3286,7 +3327,7 @@ describe("App", () => {
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
-      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
       return { screen, ...fake };
     }
@@ -3585,10 +3626,14 @@ describe("App", () => {
 
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-      await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+      await expect
+        .element(
+          screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }),
+        )
+        .toBeVisible();
       expect(asked).toContain("sign-out");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
-      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
@@ -3599,6 +3644,7 @@ describe("App", () => {
           sale = {
             id: "sale-1",
             total: 3_434_000,
+            line_count: 1,
             paid: 0,
             has_approved_payment: false,
             cancellable: true,
@@ -3658,8 +3704,7 @@ describe("App", () => {
       });
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
-      await userEvent.click(screen.getByText("Sofía", { exact: true }));
+      await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
       return { screen, ...fake };
@@ -3671,7 +3716,7 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
         .toBeVisible();
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
       return identified;
     }
@@ -3686,13 +3731,16 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
-      await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
+      await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
+      await expect
+        .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Sofía"))
+        .toBeVisible();
       closers = [...closers, { id: "u4", first_name: "Tomás" }];
 
       finishPull(null);
 
-      await expect.element(screen.getByText("Tomás", { exact: true })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
+      await expect.element(screen.getByRole("option", { name: "Tomás" })).toBeVisible();
     });
 
     it("lands on the sign-in screen with nobody signed in once the session is closed", async () => {
@@ -3743,6 +3791,7 @@ describe("App", () => {
           sessionOpenSale: async () => ({
             id: "sale-1",
             total: 3_434_000,
+            line_count: 1,
             paid: 0,
             has_approved_payment: false,
             cancellable: true,
@@ -3753,7 +3802,7 @@ describe("App", () => {
         });
         await userEvent.click(identified.screen.getByRole("button", { name: action }));
         await userEvent.click(
-          identified.screen.getByRole("dialog").getByRole("button", { name: action }),
+          identified.screen.getByRole("complementary").getByRole("button", { name: action }),
         );
         return identified;
       }
@@ -3767,7 +3816,9 @@ describe("App", () => {
         await expect
           .element(screen.getByText("Hay una venta abierta de $ 34.340,00"))
           .not.toBeInTheDocument();
-        await expect.element(screen.getByRole("heading", { name: "Cerrar caja" })).toBeVisible();
+        await expect
+          .element(screen.getByRole("complementary", { name: "Cerrar caja" }))
+          .toBeVisible();
       });
 
       it("reads the expected cash again once a part-paid sale is cancelled", async () => {
@@ -3784,6 +3835,7 @@ describe("App", () => {
             sessionOpenSale: async () => ({
               id: "sale-1",
               total: 3_434_000,
+              line_count: 1,
               paid: 100_000,
               has_approved_payment: true,
               cancellable: false,

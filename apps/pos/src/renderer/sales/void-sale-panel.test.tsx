@@ -39,6 +39,7 @@ const SALE: SaleDetail = {
   credit_notes: [],
   deferred_invoice_next_copy: null,
   short_code: null,
+  void_refunds: [],
 };
 const INVOICED_SALE: SaleDetail = {
   ...SALE,

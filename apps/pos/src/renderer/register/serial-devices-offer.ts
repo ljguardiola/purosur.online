@@ -1,10 +1,5 @@
 import type { OpenCashSession, RegisterStatus } from "@purosur/contracts";
 import { useState } from "react";
-import type { SignedInPerson } from "../shell/signed-in-person";
-
-export function mayConfigureSerialDevices(person: SignedInPerson): boolean {
-  return person.abilities.includes("configure_serial_devices");
-}
 
 export async function landsOnSerialDevicesAfterSignIn({
   offerPending,

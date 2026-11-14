@@ -49,6 +49,7 @@ export const CLOSED: CloseCashSessionOutcome = {
 export const OPEN_SALE: SessionOpenSale = {
   id: "sale-1",
   total: 2_519_250,
+  line_count: 1,
   paid: 0,
   has_approved_payment: false,
   cancellable: true,

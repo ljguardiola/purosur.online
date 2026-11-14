@@ -24,6 +24,7 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { CASH_MOVEMENT_ICONS } from "./cash-movement-icons";
 import { CashMovementsTable } from "./cash-movements-table";
 import { CloseCashSessionPanel } from "./close-cash-session-panel";
+import { countedCashRequestSchema } from "./counted-cash-form";
 import { ExpectedCashPanel } from "./expected-cash-panel";
 import { OpenSaleBlock } from "./open-sale-block";
 import { RecordCashMovementPanel } from "./record-cash-movement-panel";
@@ -106,6 +107,7 @@ export function CashScreen({
         closing ? (
           <CloseCashSessionPanel
             sessionId={sessionId}
+            countedCashSchema={countedCashRequestSchema}
             balance={balance}
             openSale={openSale.status !== "loaded" || openSale.value !== null}
             loadCashCountPreview={loadCashCountPreview}

@@ -1,4 +1,9 @@
-import type { CashBalance, CashCountPreview, CloseCashSessionOutcome } from "@purosur/contracts";
+import type {
+  CashBalance,
+  CashCountPreview,
+  CloseCashSessionOutcome,
+  CloseLockedCashSessionOutcome,
+} from "@purosur/contracts";
 import {
   Button,
   Eyebrow,
@@ -18,16 +23,21 @@ import { useEffect, useRef, useState } from "react";
 import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
 import { countDifferenceFigure } from "./cash-amounts";
+import type { CountedCashRequestSchema } from "./counted-cash-form";
 import {
   countedCashMessage,
   countedCashOf,
   countedCashRequestFrom,
-  countedCashRequestSchema,
   EMPTY_COUNTED_CASH_FORM,
   INVALID_COUNTED_CASH_MESSAGE,
 } from "./counted-cash-form";
 import { cashBalanceRows } from "./expected-cash-panel";
 import { useCashCountPreviewQuery, useRefreshSessionOpenSale } from "./register-queries";
+
+export type RefusedClose = Extract<
+  CloseLockedCashSessionOutcome,
+  { kind: "wrong_pin" | "rate_limited" | "locked" | "lacks_permission" | "not_locked" }
+>;
 
 type Notice = { title: string; icon: "permission" | "failure" };
 
@@ -38,14 +48,21 @@ const NOT_PERMITTED: Notice = {
 const FAILED: Notice = { title: "No se pudo cerrar la caja. Probá de nuevo.", icon: "failure" };
 const EXPECTED_CASH = "EFECTIVO ESPERADO";
 
+type CountedCashDraft = { typed: string; onType: (typed: string) => void };
+
 export type CloseCashSessionPanelProps = {
   sessionId: string;
+  countedCashSchema: CountedCashRequestSchema;
+  countedCashDraft?: CountedCashDraft;
   balance: CoreData<CashBalance>;
   openSale: boolean;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
-  closeCashSession: (countedCash: number) => Promise<CloseCashSessionOutcome>;
+  closeCashSession: (
+    countedCash: number,
+  ) => Promise<CloseCashSessionOutcome | CloseLockedCashSessionOutcome>;
   onClose: () => void;
   onClosed: () => void;
+  onRefused?: (refusal: RefusedClose) => void;
 };
 
 function Balance({ balance }: { balance: CoreData<CashBalance> }) {
@@ -85,19 +102,25 @@ function Balance({ balance }: { balance: CoreData<CashBalance> }) {
 
 export function CloseCashSessionPanel({
   sessionId,
+  countedCashSchema,
+  countedCashDraft,
   balance,
   openSale,
   loadCashCountPreview,
   closeCashSession,
   onClose,
   onClosed,
+  onRefused,
 }: CloseCashSessionPanelProps) {
   const field = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<Notice>();
   const refreshOpenSale = useRefreshSessionOpenSale(sessionId);
   const { form, submit, submitting, values } = useRequestForm({
-    defaultValues: EMPTY_COUNTED_CASH_FORM,
-    request: { schema: countedCashRequestSchema, from: countedCashRequestFrom },
+    defaultValues:
+      countedCashDraft === undefined
+        ? EMPTY_COUNTED_CASH_FORM
+        : { countedCash: countedCashDraft.typed },
+    request: { schema: countedCashSchema, from: countedCashRequestFrom },
     fields: { counted_cash: "countedCash" },
     messages: { countedCash: countedCashMessage },
     onSubmit: async (request, { showFieldError }) => {
@@ -115,7 +138,11 @@ export function CloseCashSessionPanel({
           await refreshOpenSale();
           break;
         case "lacks_permission":
-          setNotice(NOT_PERMITTED);
+          if (onRefused === undefined) {
+            setNotice(NOT_PERMITTED);
+          } else {
+            onRefused(outcome);
+          }
           break;
         case "unavailable":
         case "not_signed_in":
@@ -123,6 +150,8 @@ export function CloseCashSessionPanel({
           break;
         case "no_open_session":
           break;
+        default:
+          onRefused?.(outcome);
       }
     },
   });
@@ -133,7 +162,7 @@ export function CloseCashSessionPanel({
     }
   }, [submitting]);
 
-  const counted = countedCashOf(countedCashRequestSchema, values);
+  const counted = countedCashOf(countedCashSchema, values);
   const difference = useCashCountPreviewQuery(sessionId, counted, loadCashCountPreview);
   const figure = difference === undefined ? undefined : countDifferenceFigure(difference);
   const blocked = submitting || openSale || balance.status !== "loaded";
@@ -185,7 +214,15 @@ export function CloseCashSessionPanel({
       <Balance balance={balance} />
       <div ref={field} className="flex flex-col gap-1.5">
         <Eyebrow text="Contado" />
-        <form.AppField name="countedCash" listeners={{ onChange: () => setNotice(undefined) }}>
+        <form.AppField
+          name="countedCash"
+          listeners={{
+            onChange: ({ value }) => {
+              setNotice(undefined);
+              countedCashDraft?.onType(value);
+            },
+          }}
+        >
           {(countedCash) => (
             <countedCash.TextField
               kind="counted-cash"

@@ -68,21 +68,24 @@ describe("the register's cash session", () => {
     await register.restart();
 
     const restarted = register.page;
-    await restarted.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
-    await restarted.getByRole("radio", { name: "Ana" }).waitFor();
+    await restarted.getByRole("heading", { name: /Ana$/ }).waitFor();
+    await restarted
+      .getByRole("button", { name: /USUARIO/ })
+      .getByText("Ana", { exact: true })
+      .waitFor();
     await restarted.getByRole("link", { name: "Primer ingreso" }).waitFor({ state: "detached" });
     await restarted.getByLabel("PIN").fill("4821");
-    await restarted.getByRole("button", { name: "Retomar" }).click();
+    await restarted.getByRole("button", { name: "Desbloquear" }).click();
     await restarted.getByRole("combobox", { name: "Producto" }).waitFor();
   });
 
   it("leaves the register locked from Salir and resumes it with the opener's PIN", async () => {
     const { page } = register;
     await page.getByRole("button", { name: "Salir" }).click();
-    await page.getByRole("heading", { name: "Caja bloqueada" }).waitFor();
+    await page.getByRole("heading", { name: /Ana$/ }).waitFor();
 
     await page.getByLabel("PIN").fill("4821");
-    await page.getByRole("button", { name: "Retomar" }).click();
+    await page.getByRole("button", { name: "Desbloquear" }).click();
 
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
   });
@@ -147,20 +150,21 @@ describe("the register's cash session", () => {
     await page.getByRole("combobox", { name: "Producto" }).waitFor();
     await page.getByRole("button", { name: "Salir" }).click();
 
-    await page.getByRole("link", { name: "Otra persona cierra la caja" }).click();
+    await page.getByRole("link", { name: "Cerrar con otro usuario" }).click();
     await page.getByRole("heading", { name: "¿Quién cierra la caja?" }).waitFor();
-    await page.getByRole("radio", { name: "Bruno" }).waitFor({ state: "attached" });
-    await page.getByRole("radio", { name: "Carla" }).waitFor({ state: "detached" });
-    await page.getByText("Efectivo contado").waitFor({ state: "detached" });
-    await page.getByText("Bruno", { exact: true }).click();
+    await page.getByRole("button", { name: /USUARIO/ }).click();
+    await page.getByRole("option", { name: "Bruno" }).waitFor({ state: "attached" });
+    await page.getByRole("option", { name: "Carla" }).waitFor({ state: "detached" });
+    await page.getByRole("option", { name: "Bruno" }).click();
+    await page.getByLabel("Contado").waitFor({ state: "detached" });
     await page.getByLabel("PIN").fill("7314");
     await page.getByRole("button", { name: "Continuar" }).click();
 
-    await page.getByText("Cierra Bruno. La sesión es de Ana.").waitFor();
-    await page.getByLabel("Efectivo contado").fill("20.000,00");
+    await page.getByText("Cierra Bruno · sesión de Ana").waitFor();
+    await page.getByLabel("Contado").fill("20.000,00");
     await page.getByRole("button", { name: "Cerrar caja" }).click();
 
     await page.getByRole("button", { name: /USUARIO/ }).waitFor();
-    await page.getByRole("heading", { name: "Caja bloqueada" }).waitFor({ state: "detached" });
+    await page.getByRole("heading", { name: /Ana$/ }).waitFor({ state: "detached" });
   });
 });

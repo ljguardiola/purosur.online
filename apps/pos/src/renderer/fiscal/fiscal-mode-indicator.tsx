@@ -1,5 +1,6 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import { StatusPill } from "@purosur/ui";
+import { fiscalModeText } from "../shell/fiscal-mode-text";
 
 export function FiscalModeIndicator({
   contingency,
@@ -7,9 +8,5 @@ export function FiscalModeIndicator({
   contingency: RegisterStatus["contingency"];
 }) {
   if (contingency === null) return null;
-  return (
-    <StatusPill tone="warning">
-      {contingency.kind === "offline_code" ? "Contingencia CAEA" : "Venta diferida"}
-    </StatusPill>
-  );
+  return <StatusPill tone="warning">{fiscalModeText(contingency.kind)}</StatusPill>;
 }

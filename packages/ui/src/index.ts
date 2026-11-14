@@ -104,10 +104,10 @@ export type { LocalAlertExplanationProps } from "./components/feedback/local-ale
 export { LocalAlertExplanation } from "./components/feedback/local-alert-explanation";
 export type { ModePillProps } from "./components/feedback/mode-pill";
 export { ModePill } from "./components/feedback/mode-pill";
+export type { NoticeTileProps } from "./components/feedback/notice-tile";
+export { NoticeTile } from "./components/feedback/notice-tile";
 export type { NotificationCardProps } from "./components/feedback/notification-card";
 export { NotificationCard } from "./components/feedback/notification-card";
-export type { NotificationPanelProps } from "./components/feedback/notification-panel";
-export { NotificationPanel } from "./components/feedback/notification-panel";
 export type { PersistentNotificationProps } from "./components/feedback/persistent-notification";
 export { PersistentNotification } from "./components/feedback/persistent-notification";
 export type { PillProps, PillTone } from "./components/feedback/pill";
@@ -259,6 +259,12 @@ export type { LinkListCardProps, LinkListRowProps } from "./components/navigatio
 export { LinkListCard, LinkListRow } from "./components/navigation/link-list-card";
 export type { PaginationProps } from "./components/navigation/pagination";
 export { Pagination } from "./components/navigation/pagination";
+export type {
+  SectionListCardProps,
+  SectionListItem,
+  SectionListStatus,
+} from "./components/navigation/section-list-card";
+export { SectionListCard } from "./components/navigation/section-list-card";
 export type { SectionNavButtonProps } from "./components/navigation/section-nav-button";
 export { SectionNavButton } from "./components/navigation/section-nav-button";
 export type { SectionNavItemProps } from "./components/navigation/section-nav-item";

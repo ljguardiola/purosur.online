@@ -680,7 +680,7 @@ describe("StartupPendingScreen", () => {
       [
         { kind: "printer_not_configured" },
         "La impresora no está configurada",
-        "Cargá su dirección en Impresora y después imprimí el ticket de nuevo.",
+        "Cargá su dirección en Ajustes y después imprimí el ticket de nuevo.",
       ],
       [
         { kind: "lacks_permission" },

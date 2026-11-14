@@ -57,8 +57,7 @@ describe("NoSessionRail", () => {
   it.each([
     [undefined, "Inicio"],
     ["/history", "Historial"],
-    ["/receipt-printer", "Impresora"],
-    ["/serial-devices", "Balanza y lector"],
+    ["/settings", "Ajustes"],
   ] as const)(
     "lists every entry the person may use on %s, with %s as the current one",
     async (current, open) => {
@@ -66,13 +65,7 @@ describe("NoSessionRail", () => {
         <NoSessionRail person={personWith(EVERY_ENTRY)} current={current} signOut={vi.fn()} />,
       );
 
-      expect(railItems(screen)).toEqual([
-        "Inicio",
-        "Historial",
-        "Impresora",
-        "Balanza y lector",
-        "Salir",
-      ]);
+      expect(railItems(screen)).toEqual(["Inicio", "Historial", "Ajustes", "Salir"]);
       const currentItems = Array.from(
         screen.container.querySelectorAll("[aria-current='page']"),
       ).map((item) => item.textContent);
@@ -80,12 +73,21 @@ describe("NoSessionRail", () => {
     },
   );
 
-  it("leaves out the entries the person may not use", async () => {
+  it("leaves out the entries the person may not use, and still offers Ajustes", async () => {
     const screen = await render(
       <NoSessionRail person={personWith(["view_sales_history"])} signOut={vi.fn()} />,
     );
 
-    expect(railItems(screen)).toEqual(["Inicio", "Historial", "Salir"]);
+    expect(railItems(screen)).toEqual(["Inicio", "Historial", "Ajustes", "Salir"]);
+  });
+
+  it("offers Ajustes to a person with no ability, linking to the settings", async () => {
+    const screen = await render(<NoSessionRail person={personWith([])} signOut={vi.fn()} />);
+
+    expect(railItems(screen)).toEqual(["Inicio", "Ajustes", "Salir"]);
+    expect(screen.getByRole("link", { name: "Ajustes" }).element().getAttribute("href")).toBe(
+      "/settings",
+    );
   });
 
   it("sends Inicio home from any other screen", async () => {

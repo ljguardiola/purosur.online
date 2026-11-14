@@ -56,8 +56,7 @@ type RoutePath =
   | "/history"
   | "/deferred-sale"
   | "/return"
-  | "/receipt-printer"
-  | "/serial-devices"
+  | "/settings"
   | "/initial-count"
   | "/startup-pending"
   | "/locked"
@@ -127,6 +126,11 @@ const PRINTER_CONFIGURER: SignedInPerson = {
   first_name: "Linus",
   abilities: ["configure_receipt_printer"],
 };
+const BOTH_CONFIGURER: SignedInPerson = {
+  user_id: "u7",
+  first_name: "Linus",
+  abilities: ["configure_receipt_printer", "configure_serial_devices"],
+};
 const DEVICES_CONFIGURER: SignedInPerson = {
   user_id: "u5",
   first_name: "Linus",
@@ -185,7 +189,7 @@ const screenFor: Record<
   (screen: RenderedScreen) => ReturnType<RenderedScreen["getByText"]>
 > = {
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
-  "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
+  "/sign-in": (screen) => screen.getByRole("link", { name: "Primer ingreso" }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/consult": (screen) => screen.getByRole("button", { name: "Consulta" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
@@ -196,14 +200,11 @@ const screenFor: Record<
   "/deferred-sale": (screen) => screen.getByText("Acercá el QR del documento al lector"),
   "/return": (screen) =>
     screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }),
-  "/receipt-printer": (screen) =>
-    screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
-  "/serial-devices": (screen) =>
-    screen.getByRole("heading", { level: 1, name: "Balanza y lector" }),
+  "/settings": (screen) => screen.getByRole("heading", { level: 1, name: "Configuración" }),
   "/initial-count": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
   "/startup-pending": (screen) => screen.getByRole("table", { name: "Pendientes" }),
-  "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
+  "/locked": (screen) => screen.getByRole("heading", { name: /Grace$/ }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
@@ -953,16 +954,8 @@ describe("the register's router", () => {
     { path: "/return", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash-closed", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/charge", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
-    { path: "/receipt-printer", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
-      path: "/receipt-printer",
-      coreStatus: "up",
-      enrollment: "enrolled",
-      cashSession: OPEN_SESSION,
-      redirectedTo: "/session",
-    },
-    {
-      path: "/receipt-printer",
+      path: "/settings",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -978,21 +971,6 @@ describe("the register's router", () => {
     },
     {
       path: "/initial-count",
-      coreStatus: "up",
-      enrollment: "enrolled",
-      person: null,
-      redirectedTo: "/sign-in",
-    },
-    { path: "/serial-devices", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
-    {
-      path: "/serial-devices",
-      coreStatus: "up",
-      enrollment: "enrolled",
-      cashSession: OPEN_SESSION,
-      redirectedTo: "/session",
-    },
-    {
-      path: "/serial-devices",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -1287,8 +1265,10 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
   });
 
   it("renders the out-of-service notice while the register is out of service", async () => {
@@ -1552,53 +1532,87 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("Not Found")).toBeVisible();
   });
 
-  it("renders the receipt printer screen for a person who may configure it", async () => {
-    const router = routerAt("/receipt-printer", "up", "enrolled", PRINTER_CONFIGURER);
+  it("renders Ajustes for a person who may configure nothing, with no session open", async () => {
+    const router = routerAt("/settings", "up", "enrolled");
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
+    await expect.element(screenFor["/settings"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/settings");
   });
 
-  it("renders the receipt printer screen with a session open, with the open-session menu, for a person who may configure it", async () => {
-    const router = routerAt("/receipt-printer", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
+  it("renders Ajustes with a session open, with the open-session menu and Ajustes current", async () => {
+    const router = routerAt("/settings", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
-    expect(router.state.location.pathname).toBe("/receipt-printer");
+    await expect.element(screenFor["/settings"](screen)).toBeVisible();
+    expect(router.state.location.pathname).toBe("/settings");
     await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
     await expect
-      .element(screen.getByRole("link", { name: "Impresora" }))
+      .element(screen.getByRole("link", { name: "Ajustes" }))
       .toHaveAttribute("aria-current", "page");
   });
 
-  it("sends a person who may not configure the receipt printer to the sale while a session is open", async () => {
-    const router = routerAt("/receipt-printer", "up", "enrolled", DEVICES_CONFIGURER, OPEN_SESSION);
+  it("opens on the printer, and on the devices when the route asks for them", async () => {
+    const printer = routerAt("/settings", "up", "enrolled", BOTH_CONFIGURER);
+    const first = await render(<RouterProvider router={printer} />);
+    await expect
+      .element(first.getByRole("complementary", { name: "Impresora de tickets" }))
+      .toBeVisible();
+    await first.unmount();
 
-    await render(<RouterProvider router={router} />);
+    const devices = createRegisterRouter(
+      routeTree,
+      contextWith("up", "enrolled", BOTH_CONFIGURER),
+      "/settings?section=devices",
+    );
+    const screen = await render(<RouterProvider router={devices} />);
 
-    await expect.poll(() => router.state.location.pathname).toBe("/session");
+    await expect
+      .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
+      .toBeVisible();
   });
 
-  it("sends a person who may not configure the receipt printer home when no session is open", async () => {
-    const router = routerAt("/receipt-printer", "up", "enrolled", DEVICES_CONFIGURER);
+  it("shows a person only the sections they may configure, whatever the route asks for", async () => {
+    const router = createRegisterRouter(
+      routeTree,
+      contextWith("up", "enrolled", PRINTER_CONFIGURER),
+      "/settings?section=devices",
+    );
 
-    await render(<RouterProvider router={router} />);
-
-    await expect.poll(() => router.state.location.pathname).toBe("/");
-  });
-
-  it("opens the receipt printer from the no-session screen for a person who may configure it", async () => {
-    const router = routerAt("/", "up", "enrolled", PRINTER_CONFIGURER);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("link", { name: "Impresora" }));
-
-    await expect.element(screenFor["/receipt-printer"](screen)).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Impresora de tickets" }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /^Balanza y lector/ }))
+      .not.toBeInTheDocument();
   });
 
-  it("offers a person who may only configure the receipt printer nothing else, and no way to open the cash drawer", async () => {
+  it("changes the section in the route when another row is pressed", async () => {
+    const router = routerAt("/settings", "up", "enrolled", BOTH_CONFIGURER);
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /^Balanza y lector/ }));
+
+    await expect
+      .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
+      .toBeVisible();
+    expect(router.state.location.search).toMatchObject({ section: "devices" });
+  });
+
+  it("opens Ajustes from the no-session screen for a person who may configure nothing", async () => {
+    const router = routerAt("/", "up", "enrolled");
+    const screen = await render(<RouterProvider router={router} />);
+
+    await userEvent.click(screen.getByRole("link", { name: "Ajustes" }));
+
+    await expect.element(screenFor["/settings"](screen)).toBeVisible();
+  });
+
+  it("offers a person who may only configure the receipt printer Ajustes and nothing else, and no way to open the cash drawer", async () => {
     const router = routerAt("/", "up", "enrolled", PRINTER_CONFIGURER);
 
     const screen = await render(<RouterProvider router={router} />);
@@ -1606,19 +1620,10 @@ describe("the register's router", () => {
     await expect.element(screenFor["/"](screen)).toBeVisible();
     const menu = screen.getByRole("navigation", { name: "Menú de la caja" });
     await expect.element(menu.getByRole("link")).toHaveLength(1);
-    await expect.element(menu.getByRole("link", { name: "Impresora" })).toBeVisible();
+    await expect.element(menu.getByRole("link", { name: "Ajustes" })).toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Abrir caja" }))
       .not.toBeInTheDocument();
-  });
-
-  it("offers no receipt printer on the no-session screen to a person who may not configure it", async () => {
-    const router = routerAt("/", "up");
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screenFor["/"](screen)).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Impresora" })).not.toBeInTheDocument();
   });
 
   it("renders the initial count screen for a person who may load it while the count is offered", async () => {
@@ -1729,63 +1734,6 @@ describe("the register's router", () => {
 
     await expect.element(screenFor["/"](screen)).toBeVisible();
     await expect.element(screen.getByText("Inventario inicial")).not.toBeInTheDocument();
-  });
-
-  it("renders the serial devices screen for a person who may configure them", async () => {
-    const router = routerAt("/serial-devices", "up", "enrolled", DEVICES_CONFIGURER);
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
-  });
-
-  it("renders the serial devices screen with a session open, with the open-session menu, for a person who may configure them", async () => {
-    const router = routerAt("/serial-devices", "up", "enrolled", DEVICES_CONFIGURER, OPEN_SESSION);
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
-    expect(router.state.location.pathname).toBe("/serial-devices");
-    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: "Balanza y lector" }))
-      .toHaveAttribute("aria-current", "page");
-  });
-
-  it("sends a person who may not configure the serial devices to the sale while a session is open", async () => {
-    const router = routerAt("/serial-devices", "up", "enrolled", PRINTER_CONFIGURER, OPEN_SESSION);
-
-    await render(<RouterProvider router={router} />);
-
-    await expect.poll(() => router.state.location.pathname).toBe("/session");
-  });
-
-  it("sends a person who may not configure the serial devices home when no session is open", async () => {
-    const router = routerAt("/serial-devices", "up", "enrolled", PRINTER_CONFIGURER);
-
-    await render(<RouterProvider router={router} />);
-
-    await expect.poll(() => router.state.location.pathname).toBe("/");
-  });
-
-  it("opens the serial devices from the no-session screen for a person who may configure them", async () => {
-    const router = routerAt("/", "up", "enrolled", DEVICES_CONFIGURER);
-    const screen = await render(<RouterProvider router={router} />);
-
-    await userEvent.click(screen.getByRole("link", { name: "Balanza y lector" }));
-
-    await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
-  });
-
-  it("offers no serial devices on the no-session screen to a person who may not configure them", async () => {
-    const router = routerAt("/", "up");
-
-    const screen = await render(<RouterProvider router={router} />);
-
-    await expect.element(screenFor["/"](screen)).toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: "Balanza y lector" }))
-      .not.toBeInTheDocument();
   });
 
   describe("the clock guard", () => {
@@ -2163,8 +2111,15 @@ describe("the register's router", () => {
 
       const screen = await render(<RouterProvider router={router} />);
 
-      await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
-      await expect.element(screen.getByRole("button", { name: "Ahora no" })).toBeVisible();
+      await expect.element(screenFor["/settings"](screen)).toBeVisible();
+      await expect
+        .element(
+          screen.getByRole("complementary", { name: "Balanza y lector" }).getByRole("button", {
+            name: "Ahora no",
+          }),
+        )
+        .toBeVisible();
+      expect(router.state.location.search).toEqual({ section: "devices", offered: true });
       expect(takeSerialDevicesOffer).toHaveBeenCalledWith(expect.any(Function));
     });
 
@@ -2197,14 +2152,17 @@ describe("the register's router", () => {
 
       const screen = await render(<RouterProvider router={router} />);
 
-      await expect.element(screenFor["/serial-devices"](screen)).toBeVisible();
+      await expect.element(screenFor["/settings"](screen)).toBeVisible();
+      await expect
+        .element(screen.getByRole("complementary", { name: "Balanza y lector" }))
+        .toBeVisible();
     });
 
     it("goes on to the main screen on Ahora no", async () => {
       const router = createRegisterRouter(
         routeTree,
         contextWith("up", "enrolled", DEVICES_CONFIGURER),
-        "/serial-devices?offered=true",
+        "/settings?section=devices&offered=true",
       );
       const screen = await render(<RouterProvider router={router} />);
 
@@ -2588,8 +2546,7 @@ describe("the register's router", () => {
 
   it.each([
     ["Historial", "/history"],
-    ["Impresora", "/receipt-printer"],
-    ["Balanza y lector", "/serial-devices"],
+    ["Ajustes", "/settings"],
     ["Venta", "/"],
     ["Devolver", "/"],
     ["Caja", "/"],
@@ -2843,26 +2800,24 @@ describe("the register's router", () => {
     const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(
-      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
     await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
   });
 
   it("reaches who closes the locked register from the locked register and comes back", async () => {
     const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+    await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
       .toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
   });
 
   it("identifies and closes the locked register's session through the router context with the session it is showing", async () => {
@@ -2874,6 +2829,7 @@ describe("the register's router", () => {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
         lockedClosers: async () => [{ id: "u3", first_name: "Sofía" }],
         cashBalance: async () => BALANCE,
+        sessionOpenSale: async () => null,
         identifyLockedCloser: async (closer) => {
           identified.push(closer);
           return { kind: "identified", person: { user_id: "u3", first_name: "Sofía" } };
@@ -2886,14 +2842,13 @@ describe("the register's router", () => {
       "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     expect(identified).toEqual([{ user_id: "u3", pin: "1234" }]);
@@ -2915,6 +2870,7 @@ describe("the register's router", () => {
         sessionOpenSale: async () => ({
           id: "sale-1",
           total: 3_434_000,
+          line_count: 1,
           paid: 0,
           has_approved_payment: false,
           cancellable: true,
@@ -2929,12 +2885,13 @@ describe("the register's router", () => {
       "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
 
-    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }));
+    await userEvent.click(
+      screen.getByRole("complementary").getByRole("button", { name: "Vaciar venta" }),
+    );
 
     await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);
   });
@@ -2950,7 +2907,7 @@ describe("the register's router", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Tengo un código" }));
 

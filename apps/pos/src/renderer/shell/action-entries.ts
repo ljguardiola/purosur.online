@@ -1,7 +1,7 @@
 import type { RegisterAbility } from "@purosur/domain";
 import type { RegisteredRouter } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import { History, Printer, Usb } from "lucide-react";
+import { History } from "lucide-react";
 
 export type ActionEntry = {
   label: string;
@@ -12,18 +12,6 @@ export type ActionEntry = {
 
 export const ACTION_ENTRIES: readonly ActionEntry[] = [
   { label: "Historial", icon: History, ability: "view_sales_history", to: "/history" },
-  {
-    label: "Impresora",
-    icon: Printer,
-    ability: "configure_receipt_printer",
-    to: "/receipt-printer",
-  },
-  {
-    label: "Balanza y lector",
-    icon: Usb,
-    ability: "configure_serial_devices",
-    to: "/serial-devices",
-  },
 ];
 
 export function entriesFor(

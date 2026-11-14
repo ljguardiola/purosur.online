@@ -51,6 +51,7 @@ export function NoSessionRail({
         {...(current === undefined
           ? {}
           : { current, home: { label: "Inicio", icon: House, to: "/" as const } })}
+        settings={{ current: current === "/settings" }}
         onSignOut={() => setLeaving(true)}
         signOutActive={leaving}
       />
