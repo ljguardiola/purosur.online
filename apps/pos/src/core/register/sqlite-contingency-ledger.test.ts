@@ -12,7 +12,7 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { SqliteContingencyLedger } from "./sqlite-contingency-ledger";
+import { readOpenContingencyIntervalStart, SqliteContingencyLedger } from "./sqlite-contingency-ledger";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
@@ -283,5 +283,39 @@ describe("SqliteContingencyLedger", () => {
     openSession();
 
     expect(change(OFFLINE, T1)).toEqual({ kind: "unavailable" });
+  });
+
+  describe("the start of the open interval", () => {
+    it("is the start of the register's own open interval", () => {
+      openSession();
+      change(OFFLINE, T1);
+      change(OFFLINE, T2);
+
+      expect(readOpenContingencyIntervalStart(database)).toEqual(T1);
+    });
+
+    it("is none once the interval is closed", () => {
+      openSession();
+      change(OFFLINE, T1);
+      closeSession();
+      change(OFFLINE, T2);
+
+      expect(readOpenContingencyIntervalStart(database)).toBeUndefined();
+    });
+
+    it("is none while only an interval the replaced register left open exists", () => {
+      database
+        .prepare(
+          `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+           VALUES ('interval-replaced', '2026-10-12T11:00:00.000Z', NULL, '2026-10-12T11:10:00.000Z', 1)`,
+        )
+        .run();
+
+      expect(readOpenContingencyIntervalStart(database)).toBeUndefined();
+    });
+
+    it("is none with no interval", () => {
+      expect(readOpenContingencyIntervalStart(database)).toBeUndefined();
+    });
   });
 });
