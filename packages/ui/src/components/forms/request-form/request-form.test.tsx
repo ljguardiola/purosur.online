@@ -791,6 +791,39 @@ test("the form is failing while a field shows an error, and not once the error i
   await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin error");
 });
 
+function UnmessagedErrorProbe() {
+  const { form, submit, failing } = useRequestForm({
+    defaultValues: { name: "Ana", note: "" },
+    request: { schema: z.object({ name: z.string().min(1) }), from: ({ name }) => ({ name }) },
+    fields: { name: "name" },
+    messages: { name: "Escribí el nombre." },
+    onSubmit: (_request, submission) => {
+      submission.showFieldError("note", "Revisá la nota.");
+      return Promise.resolve();
+    },
+  });
+  return (
+    <>
+      <form.AppField name="note">
+        {(field) => <field.TextField kind="plain-text" label="Nota" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+      <output aria-label="Estado">{failing ? "con error" : "sin error"}</output>
+    </>
+  );
+}
+
+test("the form is not failing for an error on a field it has no message for", async () => {
+  const screen = await render(<UnmessagedErrorProbe />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Revisá la nota.")).toBeVisible();
+  await expect.element(screen.getByLabelText("Estado")).toHaveTextContent("sin error");
+});
+
 function DateProbe({ onSubmit }: { onSubmit: (date: string) => Promise<void> }) {
   const { form, submit } = useRequestForm({
     defaultValues: { day: null as CalendarDate | null },

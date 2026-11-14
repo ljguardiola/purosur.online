@@ -6,6 +6,7 @@ import { SAME_SERIAL_DEVICE_MESSAGE } from "./serial-devices-form";
 import type { RenderedSettings, SettingsOptions } from "./test-support/settings-screen";
 import {
   BOTH_REGISTERED,
+  iconBeside,
   legendOf,
   NOTHING_REGISTERED,
   panelOf,
@@ -127,19 +128,17 @@ describe("the scale and reader's section of Ajustes", () => {
       standings: { scale: "matching", reader: "matching" },
     });
 
-    const list = panel(screen).getByRole("list", { name: "Dispositivos serie detectados" });
+    const table = panel(screen).getByRole("table", { name: "Dispositivos serie detectados" });
     await expect
-      .element(list.getByRole("listitem").first())
+      .element(table.getByRole("row").nth(1))
       .toHaveTextContent("0403:6001 · COM3Balanza");
-    await expect
-      .element(list.getByRole("listitem").last())
-      .toHaveTextContent("05e0:1200 · COM4Lector");
+    await expect.element(table.getByRole("row").nth(2)).toHaveTextContent("05e0:1200 · COM4Lector");
   });
 
   it("leaves the registered role empty for a device registered as neither", async () => {
     const { screen } = await renderDevices();
 
-    const item = panel(screen).getByRole("listitem").filter({ hasText: "0403:6001" });
+    const item = panel(screen).getByRole("row").filter({ hasText: "0403:6001" });
     await expect.element(item).toBeVisible();
     expect(item.element().textContent).toBe("0403:6001 · COM3");
   });
@@ -204,6 +203,18 @@ describe("the scale and reader's section of Ajustes", () => {
     await vi.waitFor(() => expect(readSerialDevices).toHaveBeenCalledTimes(2));
   });
 
+  it("draws the saved toast with a check", async () => {
+    const { screen } = await renderDevices();
+
+    await choose(screen, "Balanza", "0403:6001 (COM3)");
+    await userEvent.click(screen.getByRole("button", { name: GUARDAR }));
+
+    await expect.element(screen.getByText("Dispositivos guardados")).toBeVisible();
+    expect(iconBeside(screen.getByText("Dispositivos guardados").element())).toContain(
+      "lucide-check",
+    );
+  });
+
   it("tells the scale and the reader were registered when both were assigned", async () => {
     const { screen, registerSerialDevices } = await renderDevices({
       registerDevices: async () => ({
@@ -260,11 +271,11 @@ describe("the scale and reader's section of Ajustes", () => {
 
     await userEvent.click(screen.getByRole("button", { name: GUARDAR }));
 
-    await expect
-      .element(
-        screen.getByText("Ya no tenés permiso para configurar la balanza y el lector.").first(),
-      )
-      .toBeVisible();
+    const notice = screen
+      .getByText("Ya no tenés permiso para configurar la balanza y el lector.")
+      .first();
+    await expect.element(notice).toBeVisible();
+    expect(iconBeside(notice.element())).toContain("lucide-triangle-alert");
   });
 
   it("tells the register that the session ended when the core says nobody is signed in", async () => {

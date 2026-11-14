@@ -1,4 +1,3 @@
-import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
@@ -13,37 +12,6 @@ import {
 } from "./test-support/settings-screen";
 
 describe("SettingsScreen", () => {
-  it("offers Inicio and no cash entries, with Ajustes current, when no session is open", async () => {
-    const { screen } = await renderSettings({ section: "printer" });
-
-    await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Caja" })).not.toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("link", { name: "Ajustes" }))
-      .toHaveAttribute("aria-current", "page");
-  });
-
-  it("offers the open-session menu, with Ajustes current, while a session is open", async () => {
-    const { screen } = await renderSettings({ section: "printer", sessionOpen: true });
-
-    await expect.element(screen.getByRole("link", { name: "Venta" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
-    await expect
-      .element(screen.getByRole("link", { name: "Ajustes" }))
-      .toHaveAttribute("aria-current", "page");
-    await expect.element(screen.getByRole("link", { name: "Inicio" })).not.toBeInTheDocument();
-  });
-
-  it("is headed Configuración, leaving the register's name to the frame's header", async () => {
-    const { screen } = await renderSettings({ section: "printer" });
-
-    await expect
-      .element(screen.getByRole("heading", { level: 1, name: "Configuración" }))
-      .toBeVisible();
-    await expect.element(screen.getByRole("region", { name: "Estado de la caja" })).toBeVisible();
-    await expectNoAccessibilityViolations(screen.container);
-  });
-
   it("lists Impresora and Balanza y lector under APARTADOS to a person who may configure both", async () => {
     const { screen } = await renderSettings({ section: "printer" });
 

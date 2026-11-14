@@ -177,15 +177,14 @@ export async function renderSettings({
   const onSessionInvalid = vi.fn();
   const onSelectSection = vi.fn();
   const onDiscardBackupTickets = vi.fn();
-  const screen = await render(
+  const settings = (shown: Pick<RegisterStatusOptions, "status" | "backupTickets">) => (
     <RegisterStatusProvider
       value={registerStatus({
         person,
         standings,
-        status,
         cashSession,
-        backupTickets,
         onDiscardBackupTickets,
+        ...shown,
       })}
     >
       <SettingsScreen
@@ -202,10 +201,13 @@ export async function renderSettings({
         readRegisterVersion={async () => version}
         onSessionInvalid={onSessionInvalid}
       />
-    </RegisterStatusProvider>,
+    </RegisterStatusProvider>
   );
+  const screen = await render(settings({ status, backupTickets }));
   return {
     screen,
+    showRegisterStatus: (shown: Pick<RegisterStatusOptions, "status" | "backupTickets">) =>
+      screen.rerender(settings(shown)),
     readReceiptPrinter,
     setReceiptPrinter,
     readSerialDevices,
@@ -245,4 +247,12 @@ export function panelLegendOf(screen: Screen): string[] {
     .elements()
     .filter((item) => item.querySelector("kbd") !== null)
     .map((item) => item.textContent.trim());
+}
+
+export function iconBeside(text: Element): string {
+  let around: Element | null = text;
+  while (around !== null && around.querySelector("svg") === null) {
+    around = around.parentElement;
+  }
+  return around?.querySelector("svg")?.getAttribute("class") ?? "";
 }

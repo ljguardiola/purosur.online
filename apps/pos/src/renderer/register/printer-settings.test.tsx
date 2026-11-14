@@ -4,7 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { INVALID_RECEIPT_PRINTER_ADDRESS_MESSAGE } from "./receipt-printer-form";
 import type { RenderedSettings, SettingsOptions } from "./test-support/settings-screen";
-import { CONFIGURED, legendOf, panelOf, renderSettings } from "./test-support/settings-screen";
+import {
+  CONFIGURED,
+  iconBeside,
+  legendOf,
+  panelOf,
+  renderSettings,
+} from "./test-support/settings-screen";
 
 async function renderPrinter(options: SettingsOptions = {}) {
   return renderSettings({ section: "printer", ...options });
@@ -144,6 +150,15 @@ describe("the printer's section of Ajustes", () => {
     await vi.waitFor(() => expect(readReceiptPrinter).toHaveBeenCalledTimes(2));
   });
 
+  it("draws the saved toast with a check", async () => {
+    const { screen } = await renderPrinter();
+
+    await save(screen, "10.10.10.9");
+
+    await expect.element(screen.getByText("Dirección guardada")).toBeVisible();
+    expect(iconBeside(screen.getByText("Dirección guardada").element())).toContain("lucide-check");
+  });
+
   it("offers no Enter once the address is saved", async () => {
     const { screen } = await renderPrinter();
 
@@ -202,6 +217,11 @@ describe("the printer's section of Ajustes", () => {
     await expect.element(addressField(screen)).toBeDisabled();
     await expect.element(panel.getByRole("button", { name: "Guardar" })).toBeDisabled();
     expect(legendOf(screen)).toEqual(["↑↓Apartados"]);
+    expect(
+      iconBeside(
+        panel.getByText("No tenés permiso para configurar la impresora.").first().element(),
+      ),
+    ).toContain("lucide-triangle-alert");
   });
 
   it("tells the register that the session ended when the core says nobody is signed in", async () => {
