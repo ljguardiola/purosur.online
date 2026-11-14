@@ -4,7 +4,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
-import { tokenStyle } from "../../test/token-styles";
+import { tokenStyle } from "../../test-support/token-styles";
 import { SidePanel } from "./side-panel";
 import { SidePanelTitle, type SidePanelTitleProps } from "./side-panel-title";
 

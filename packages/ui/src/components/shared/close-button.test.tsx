@@ -1,7 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { tokenStyle } from "../../test/token-styles";
+import { tokenStyle } from "../../test-support/token-styles";
 import { HOVER_DELAY_MS } from "../overlays/tooltip";
 import { CloseButton } from "./close-button";
 
