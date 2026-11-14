@@ -65,3 +65,12 @@ export const FocusedWithDetails: Story = {
     whatToDo: "Ajustá la hora del sistema.",
   },
 };
+
+export const WithoutSubtitle: Story = {
+  args: {
+    tone: "warning",
+    icon: <ReceiptText />,
+    title: "Facturación en modo de respaldo",
+    subtitle: undefined,
+  },
+};

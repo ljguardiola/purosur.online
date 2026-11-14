@@ -15,7 +15,7 @@ const WHAT_TO_DO: Record<BackupPrinterFailure, string> = {
   cover_open: "Cerrá la tapa de la impresora. Salen solos cuando se cierre.",
   not_responding:
     "Revisá que esté encendida y con el cable conectado. Salen solos cuando vuelva a responder.",
-  printer_not_configured: "Cargá la dirección de la impresora en Impresora. Salen solos después.",
+  printer_not_configured: "Cargá la dirección de la impresora en Ajustes. Salen solos después.",
   failed: "Salen solos en el próximo intento.",
 };
 

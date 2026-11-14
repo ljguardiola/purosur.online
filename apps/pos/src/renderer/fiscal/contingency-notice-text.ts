@@ -1,6 +1,4 @@
 import type { RegisterStatus } from "@purosur/contracts";
-import { NotificationCard } from "@purosur/ui";
-import { Receipt } from "lucide-react";
 
 type ContingencyKind = NonNullable<RegisterStatus["contingency"]>["kind"];
 
@@ -20,15 +18,6 @@ const TEXTS: Record<ContingencyKind, { title: string; description: string; whatT
   },
 };
 
-export function ContingencyNoticeCard({ kind }: { kind: ContingencyKind }) {
-  const text = TEXTS[kind];
-  return (
-    <NotificationCard
-      tone="warning"
-      icon={<Receipt />}
-      title={text.title}
-      description={text.description}
-      whatToDo={text.whatToDo}
-    />
-  );
+export function contingencyNoticeText(kind: ContingencyKind) {
+  return TEXTS[kind];
 }

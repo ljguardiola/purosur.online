@@ -5,20 +5,23 @@ import type {
   SetReceiptPrinterOutcome,
 } from "@purosur/contracts";
 import type { SectionListItem } from "@purosur/ui";
+import { plural } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Printer, Usb } from "lucide-react";
+import { Laptop, Printer, Usb } from "lucide-react";
 import type { SerialDevicesToRegister } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
+import { cloudStanding } from "../shell/cloud-standing";
+import { registerNoticeSummary } from "../shell/register-notices";
 import { useRegisterStatusData } from "../shell/register-status-context";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { ThisRegisterSettings } from "../shell/this-register-settings";
 import { DevicesSettings } from "./devices-settings";
 import { PrinterSettings } from "./printer-settings";
 import { receiptPrinterAddressText } from "./receipt-printer-form";
 import type { ShownReceiptPrinter } from "./register-queries";
-import { useReceiptPrinterQuery } from "./register-queries";
+import { useReceiptPrinterQuery, useRegisterVersionQuery } from "./register-queries";
 import { serialDeviceStandingIndicator } from "./serial-device-standing";
-import { SettingsPage } from "./settings-page";
 import type { SettingsSection } from "./settings-sections";
 import { sectionToShow, shownSections } from "./settings-sections";
 
@@ -35,8 +38,29 @@ export type SettingsScreenProps = {
   registerSerialDevices: (
     devices: SerialDevicesToRegister,
   ) => Promise<RegisterSerialDevicesOutcome>;
+  readRegisterVersion: () => Promise<string | null>;
   onSessionInvalid: () => void;
 };
+
+function registerStatuses(
+  data: ReturnType<typeof useRegisterStatusData>,
+): SectionListItem["statuses"] {
+  if (data?.status.status !== "loaded") {
+    return [];
+  }
+  const { conditions, contingency, cloud } = data.status.value;
+  const { count, tone } = registerNoticeSummary({
+    conditions,
+    contingency,
+    backupTickets: data.backupTickets.status === "loaded" ? data.backupTickets.value : undefined,
+  });
+  return [
+    cloudStanding(cloud),
+    ...(count > 0
+      ? [{ tone, text: `${count} ${plural(count, { one: "aviso", other: "avisos" })}` }]
+      : []),
+  ];
+}
 
 function printerStatuses(printer: CoreData<ShownReceiptPrinter>): SectionListItem["statuses"] {
   if (printer.status !== "loaded") {
@@ -61,10 +85,13 @@ export function SettingsScreen({
   setReceiptPrinter,
   readSerialDevices,
   registerSerialDevices,
+  readRegisterVersion,
   onSessionInvalid,
 }: SettingsScreenProps) {
   const navigate = useNavigate();
-  const registerStatus = useRegisterStatusData()?.status;
+  const registerData = useRegisterStatusData();
+  const registerStatus = registerData?.status;
+  const version = useRegisterVersionQuery(readRegisterVersion);
   const printer = useReceiptPrinterQuery(readReceiptPrinter);
   const shown = shownSections(person.abilities);
   const selected = sectionToShow(shown, section);
@@ -97,6 +124,12 @@ export function SettingsScreen({
               serialDeviceStandingIndicator(role, registerStatus.value.serial_devices[role]),
             )
           : [],
+    },
+    register: {
+      id: "register",
+      icon: <Laptop />,
+      title: "Esta caja",
+      statuses: registerStatuses(registerData),
     },
   };
 
@@ -148,5 +181,5 @@ export function SettingsScreen({
       />
     );
   }
-  return <SettingsPage chrome={chrome} bindings={[]} />;
+  return <ThisRegisterSettings chrome={chrome} onClose={leave} version={version} />;
 }

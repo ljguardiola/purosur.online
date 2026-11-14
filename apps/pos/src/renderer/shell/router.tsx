@@ -665,6 +665,7 @@ const settingsRoute = createRoute({
       setReceiptPrinter,
       readSerialDevices,
       registerSerialDevices,
+      registerVersion,
       refreshCashSession,
     } = settingsRoute.useRouteContext();
     const { section, offered } = settingsRoute.useSearch();
@@ -683,6 +684,7 @@ const settingsRoute = createRoute({
         setReceiptPrinter={setReceiptPrinter}
         readSerialDevices={readSerialDevices}
         registerSerialDevices={registerSerialDevices}
+        readRegisterVersion={registerVersion}
         onSessionInvalid={() => void refreshCashSession()}
       />
     );
