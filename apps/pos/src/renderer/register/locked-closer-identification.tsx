@@ -6,33 +6,35 @@ import type {
 } from "@purosur/contracts";
 import {
   EmptyState,
-  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
-  ScreenHeader,
+  sortedItems,
+  textOrder,
+  UserSelect,
 } from "@purosur/ui";
-import { ArrowLeft, Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
-import { useId, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { Lock, ShieldX, TriangleAlert, UsersRound, UserX } from "lucide-react";
+import { useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import { PinAttemptControls } from "../platform/pin-attempt-controls";
 import { waitDescription } from "../platform/pin-attempt-text";
 import type { PinNotice } from "../platform/pin-refusal";
 import { SignInLockout } from "../platform/sign-in-lockout";
 import { usePinAttempt } from "../platform/use-pin-attempt";
-import { UserPicker } from "../platform/user-picker";
+import { BrandPanelCard } from "../shell/brand-panel-card";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
-import { ScreenLink } from "../shell/screen-link";
 import { useLockedClosersQuery } from "./register-queries";
 
 export type IdentifiedCloser = { authorization: Authorization; first_name: string };
 
 export type ReturnedCloser = {
   refusal: Exclude<AuthorizationRefusal, { kind: "unavailable" }> | { kind: "not_locked" };
+  userId: string;
   firstName: string;
 };
 
 export type LockedCloserIdentificationProps = {
   sessionId: string;
-  registerName: string | null;
   version: string | null;
   loadClosers: () => Promise<SignInUser[]>;
   identify: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
@@ -79,17 +81,26 @@ function returnedNotice({ refusal, firstName }: ReturnedCloser): PinNotice {
   }
 }
 
+function alphabetically(users: readonly SignInUser[]): SignInUser[] {
+  return sortedItems(users, {
+    order: textOrder((user: SignInUser) => user.first_name),
+    direction: "ascending",
+  });
+}
+
 function IdentificationPanel({
   sessionId,
-  registerName,
   loadClosers,
   identify,
   returned,
   onIdentified,
 }: LockedCloserIdentificationProps) {
-  const headingId = useId();
+  const navigate = useNavigate();
   const closers = useLockedClosersQuery(sessionId, loadClosers);
-  const [chosen, setChosen] = useState<SignInUser | null>(null);
+  const [chosenId, setChosenId] = useState<string | null>(returned?.userId ?? null);
+  const [returnedShown, setReturnedShown] = useState(true);
+  const people = closers.status === "loaded" ? alphabetically(closers.value) : [];
+  const chosen = people.find((person) => person.id === chosenId) ?? people[0] ?? null;
   const attempt = usePinAttempt(
     chosen === null
       ? null
@@ -97,6 +108,7 @@ function IdentificationPanel({
           id: chosen.id,
           firstName: chosen.first_name,
           attempt: async (pin) => {
+            setReturnedShown(false);
             const outcome = await identify({ user_id: chosen.id, pin });
             if (outcome.kind === "identified") {
               onIdentified({
@@ -109,7 +121,6 @@ function IdentificationPanel({
         },
   );
   const { refusal, locked, submitting, heading } = attempt;
-  const [returnedShown, setReturnedShown] = useState(true);
   let notice: PinNotice | undefined;
   if (refusal?.kind === "lacks_permission") {
     notice = lacksPermissionNotice(refusal.firstName);
@@ -117,78 +128,104 @@ function IdentificationPanel({
     notice = returnedNotice(returned);
   }
 
-  function reset(user: SignInUser | null) {
-    if (user !== null) {
-      setReturnedShown(false);
-    }
-    setChosen(user);
+  function choose(id: string) {
+    setReturnedShown(false);
+    setChosenId(id);
     attempt.reset();
   }
 
-  return (
-    <main className="flex w-full max-w-110 flex-col gap-6">
-      <ScreenHeader
-        eyebrow={registerName ?? undefined}
-        titleId={headingId}
-        titleRef={heading}
-        title={
-          refusal?.kind === "locked"
-            ? `${refusal.firstName} está bloqueado`
-            : "¿Quién cierra la caja?"
+  function move(step: 1 | -1) {
+    const current = people.findIndex((person) => person.id === chosen?.id);
+    const next = people[Math.min(people.length - 1, Math.max(0, current + step))];
+    if (next !== undefined && next.id !== chosen?.id) {
+      choose(next.id);
+    }
+  }
+
+  useKeys([
+    {
+      key: "ArrowUpDown",
+      run: (pressed) => move(pressed === "ArrowDown" ? 1 : -1),
+      enabled: people.length > 0 && !submitting && !locked,
+    },
+    {
+      key: "Escape",
+      run: () => {
+        if (locked) {
+          attempt.reset();
+        } else if (!submitting) {
+          void navigate({ to: "/locked" });
         }
-      />
-      {refusal?.kind === "locked" ? (
-        <SignInLockout
-          consecutiveFailures={refusal.consecutiveFailures}
-          backLabel="Volver a la lista"
-          onBack={() => reset(null)}
-        />
-      ) : null}
-      {notice === undefined ? null : (
-        <InlineNotice
-          tone="error"
-          icon={notice.icon}
-          title={notice.title}
-          description={notice.description}
-        />
-      )}
-      {!locked && closers.status === "loading" ? (
-        <LoadingPlaceholder variant="list" items={3} />
-      ) : null}
-      {!locked && closers.status === "failed" ? (
+      },
+    },
+    { key: "F3", run: () => void navigate({ to: "/pin-code-redemption" }), enabled: locked },
+    {
+      key: "R",
+      run: () => {
+        if (closers.status === "failed") {
+          closers.retry();
+        }
+      },
+      enabled: closers.status === "failed",
+    },
+  ]);
+
+  const [firstOption, ...otherOptions] = people.map((person) => ({
+    value: person.id,
+    label: person.first_name,
+  }));
+
+  if (refusal?.kind === "locked") {
+    return (
+      <BrandPanelCard
+        icon={<Lock />}
+        title={`${refusal.firstName} está bloqueado`}
+        titleRef={heading}
+        escapeKeycap
+      >
+        <SignInLockout consecutiveFailures={refusal.consecutiveFailures} />
+      </BrandPanelCard>
+    );
+  }
+
+  return (
+    <BrandPanelCard icon={<Lock />} title="¿Quién cierra la caja?" escapeKeycap>
+      {closers.status === "loading" ? <LoadingPlaceholder variant="list" items={3} /> : null}
+      {closers.status === "failed" ? (
         <LoadFailure
+          variant="keyboard"
+          keycap="R"
           icon={<TriangleAlert />}
           title="No se pudieron cargar las personas con permiso"
           description="Volvé a intentarlo en unos segundos."
           onRetry={closers.retry}
         />
       ) : null}
-      {!locked && closers.status === "loaded" && closers.value.length === 0 ? (
+      {closers.status === "loaded" && people.length === 0 ? (
         <EmptyState
           variant="blank"
           icon={<UsersRound />}
           title="Nadie en esta caja tiene permiso para cerrar la sesión de otra persona."
         />
       ) : null}
-      {!locked && closers.status === "loaded" && closers.value.length > 0 ? (
+      {firstOption === undefined ? null : (
         <form className="flex flex-col gap-4" noValidate onSubmit={attempt.submit}>
-          <UserPicker
-            users={closers.value}
+          <UserSelect
+            label="USUARIO"
+            options={[firstOption, ...otherOptions]}
             value={chosen?.id ?? null}
-            onChange={reset}
-            labelledBy={headingId}
+            onChange={choose}
             disabled={submitting}
           />
           <PinAttemptControls
             attempt={attempt}
             pinInput={attempt.pinInput}
-            disabled={chosen === null}
             submitLabel="Continuar"
+            notice={notice}
           />
         </form>
-      ) : null}
-      {locked ? null : <ScreenLink to="/locked" icon={<ArrowLeft />} label="Volver" />}
-    </main>
+      )}
+    </BrandPanelCard>
   );
 }
 

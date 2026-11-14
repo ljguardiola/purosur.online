@@ -326,6 +326,7 @@ export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionO
   return {
     id: sale.id,
     total,
+    line_count: sale.lines.length,
     paid: standing.balance.paid,
     has_approved_payment: standing.linesLock === "approved_payment",
     cancellable: standing.cancellable,

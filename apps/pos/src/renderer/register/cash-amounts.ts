@@ -21,14 +21,6 @@ export function differenceText(difference: number): string {
   return signedAmount(difference < 0 ? "−" : "+", Math.abs(difference));
 }
 
-export function differenceNotice(difference: number): string | undefined {
-  if (difference === 0) {
-    return undefined;
-  }
-  const verb = difference < 0 ? "Faltan" : "Sobran";
-  return `${verb} ${formatCents(Math.abs(difference))}. La diferencia se registra con la sesión y no impide cerrarla.`;
-}
-
 export function countDifferenceFigure(
   difference: number,
 ): { label: "FALTA" | "SOBRAN"; value: string } | undefined {

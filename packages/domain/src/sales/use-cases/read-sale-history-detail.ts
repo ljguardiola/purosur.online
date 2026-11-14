@@ -26,11 +26,13 @@ import type {
   SaleHistoryCreditNote,
   SaleHistoryRecord,
 } from "./register-sales-history.js";
+import type { SaleVoidRefund, SaleVoidRefunds } from "./sale-void-refunds.js";
 
 export interface ReadSaleHistoryDetailPorts {
   history: RegisterSalesHistory;
   ledger: ReceiptLedger;
   cashSession: RegisterCashSession;
+  voidRefunds: SaleVoidRefunds;
 }
 
 export interface ReadSaleHistoryDetailInput {
@@ -72,6 +74,7 @@ export interface SaleHistoryDetail {
   nextCopy: ReceiptCopy;
   deferredInvoiceNextCopy: ReceiptCopy | null;
   shortCode: string | null;
+  voidRefunds: SaleVoidRefund[];
 }
 
 export type ReadSaleHistoryDetailOutcome =
@@ -79,7 +82,7 @@ export type ReadSaleHistoryDetailOutcome =
   | { kind: "found"; detail: SaleHistoryDetail };
 
 export function readSaleHistoryDetail(
-  { history, ledger, cashSession }: ReadSaleHistoryDetailPorts,
+  { history, ledger, cashSession, voidRefunds }: ReadSaleHistoryDetailPorts,
   { saleId }: ReadSaleHistoryDetailInput,
 ): ReadSaleHistoryDetailOutcome {
   const record = history.saleOfRegister(saleId);
@@ -124,6 +127,7 @@ export function readSaleHistoryDetail(
       deferredInvoiceNextCopy:
         deferredInvoiceDelivery?.kind === "found" ? deferredInvoiceDelivery.nextCopy : null,
       shortCode: deferredShortCode,
+      voidRefunds: voided ? voidRefunds.refundsOfVoid(saleId) : [],
     },
   };
 }

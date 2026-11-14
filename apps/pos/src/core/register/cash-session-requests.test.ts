@@ -1028,12 +1028,24 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toEqual({
       id: "sale-1",
       total: 3500,
+      line_count: 1,
       paid: 0,
       has_approved_payment: false,
       cancellable: true,
       cancel_refusal: null,
       refunds_on_cancel: [],
     });
+  });
+
+  it("tells how many lines the sale holds", async () => {
+    addOpenSale(await openAs("u1", 5000), 3500);
+    database
+      .prepare(
+        "INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total) VALUES ('line-2', 'sale-1', 2, 'p2', 'Mate', 3, 1000, 'pl-1', 3000)",
+      )
+      .run();
+
+    expect(sessionOpenSaleFor(database, NOW)).toMatchObject({ line_count: 2 });
   });
 
   it("tells the total to charge after a discount on the sale's total", async () => {
@@ -1092,6 +1104,7 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toEqual({
       id: "sale-1",
       total: 3500,
+      line_count: 1,
       paid: 0,
       has_approved_payment: false,
       cancellable: false,
@@ -1196,6 +1209,7 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toEqual({
       id: "sale-1",
       total: 3500,
+      line_count: 1,
       paid: 2500,
       has_approved_payment: true,
       cancellable: false,

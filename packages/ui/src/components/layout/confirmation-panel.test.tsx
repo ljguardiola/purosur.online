@@ -190,3 +190,16 @@ test("shows no lock unless it is locked", async () => {
 
   expect(screen.container.textContent).not.toContain("Pide autorización");
 });
+
+test("disables only the action while it is told the action cannot be taken, leaving the panel closable", async () => {
+  const onConfirm = vi.fn();
+  const onClose = vi.fn();
+  const screen = await render(panel({ actionDisabled: true, onConfirm, onClose }));
+
+  await expect.element(screen.getByRole("button", { name: "Salir" })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Cerrar con Esc" })).toBeEnabled();
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar con Esc" }));
+
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(onConfirm).not.toHaveBeenCalled();
+});

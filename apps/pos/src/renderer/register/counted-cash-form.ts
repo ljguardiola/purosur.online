@@ -9,7 +9,7 @@ export const lockedCountedCashRequestSchema = closeLockedCashSessionMessageSchem
   counted_cash: true,
 });
 
-type CountedCashRequestSchema =
+export type CountedCashRequestSchema =
   | typeof countedCashRequestSchema
   | typeof lockedCountedCashRequestSchema;
 

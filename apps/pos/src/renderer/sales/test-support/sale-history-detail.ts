@@ -39,4 +39,5 @@ export const DETAIL: SaleDetail = {
   credit_notes: [],
   deferred_invoice_next_copy: null,
   short_code: null,
+  void_refunds: [],
 };

@@ -1,11 +1,13 @@
+import type { Icon } from "@purosur/ui";
 import { expectNoAccessibilityViolations, insetBoundary } from "@purosur/ui/test";
+import { Check } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { PinAttemptControls } from "./pin-attempt-controls";
 import { usePinAttempt } from "./use-pin-attempt";
 
-function Controls({ submitLabel }: { submitLabel?: string }) {
+function Controls({ submitLabel, submitIcon }: { submitLabel?: string; submitIcon?: Icon }) {
   const attempt = usePinAttempt({
     id: "u1",
     firstName: "Ada",
@@ -17,6 +19,7 @@ function Controls({ submitLabel }: { submitLabel?: string }) {
         attempt={attempt}
         pinInput={attempt.pinInput}
         {...(submitLabel === undefined ? {} : { submitLabel })}
+        {...(submitIcon === undefined ? {} : { submitIcon })}
       />
     </form>
   );
@@ -39,6 +42,20 @@ describe("PinAttemptControls", () => {
 
     await expect.element(screen.getByRole("button", { name: "Retomar" })).toBeVisible();
     await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
+  });
+
+  it("draws the submit button with the icon the screen says, an arrow when it says none", async () => {
+    const plain = await render(<Controls />);
+    expect(
+      plain.getByRole("button", { name: "Entrar" }).element().querySelector(".lucide-arrow-right"),
+    ).not.toBeNull();
+    await plain.unmount();
+
+    const checked = await render(<Controls submitLabel="Desbloquear" submitIcon={<Check />} />);
+
+    const button = checked.getByRole("button", { name: "Desbloquear" }).element();
+    expect(button.querySelector(".lucide-check")).not.toBeNull();
+    expect(button.querySelector(".lucide-arrow-right")).toBeNull();
   });
 
   it("marks the PIN as refused and shows the two-line notice after a wrong PIN", async () => {

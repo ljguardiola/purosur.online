@@ -5,6 +5,7 @@ import type {
   CashCountPreview,
   CloseLockedCashSessionOutcome,
   IdentifyLockedCloserOutcome,
+  ListedCashMovement,
   SessionOpenSale,
   SignInUser,
 } from "@purosur/contracts";
@@ -21,11 +22,11 @@ type Step =
 export type LockedCloseScreenProps = {
   sessionId: string;
   opener: SignedInPerson;
-  registerName: string | null;
   version: string | null;
   loadCashBalance: () => Promise<CashBalance | null | "unavailable">;
   loadCashCountPreview: (countedCash: number) => Promise<CashCountPreview | null | "unavailable">;
   loadOpenSale: () => Promise<SessionOpenSale | null | "unavailable">;
+  loadCashMovements: () => Promise<ListedCashMovement[] | null | "unavailable">;
   loadClosers: () => Promise<SignInUser[]>;
   identifyLockedCloser: (closer: Authorization) => Promise<IdentifyLockedCloserOutcome>;
   closeLockedCashSession: (
@@ -38,11 +39,11 @@ export type LockedCloseScreenProps = {
 export function LockedCloseScreen({
   sessionId,
   opener,
-  registerName,
   version,
   loadCashBalance,
   loadCashCountPreview,
   loadOpenSale,
+  loadCashMovements,
   loadClosers,
   identifyLockedCloser,
   closeLockedCashSession,
@@ -57,16 +58,20 @@ export function LockedCloseScreen({
         sessionId={sessionId}
         opener={opener}
         closerName={closer.first_name}
-        registerName={registerName}
         loadCashBalance={loadCashBalance}
         loadCashCountPreview={loadCashCountPreview}
         loadOpenSale={loadOpenSale}
+        loadCashMovements={loadCashMovements}
         close={(countedCash) => closeLockedCashSession(countedCash, closer.authorization)}
         cancelSale={(saleId) => cancelLockedSale(saleId, closer.authorization)}
         onRefused={(refusal) =>
           setStep({
             kind: "identifying",
-            returned: { refusal, firstName: closer.first_name },
+            returned: {
+              refusal,
+              userId: closer.authorization.user_id,
+              firstName: closer.first_name,
+            },
           })
         }
       />
@@ -76,7 +81,6 @@ export function LockedCloseScreen({
   return (
     <LockedCloserIdentification
       sessionId={sessionId}
-      registerName={registerName}
       version={version}
       loadClosers={loadClosers}
       identify={identifyLockedCloser}

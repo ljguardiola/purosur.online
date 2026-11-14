@@ -189,7 +189,7 @@ const screenFor: Record<
   (screen: RenderedScreen) => ReturnType<RenderedScreen["getByText"]>
 > = {
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
-  "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
+  "/sign-in": (screen) => screen.getByRole("link", { name: "Primer ingreso" }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/consult": (screen) => screen.getByRole("button", { name: "Consulta" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
@@ -204,7 +204,7 @@ const screenFor: Record<
   "/initial-count": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
   "/startup-pending": (screen) => screen.getByRole("table", { name: "Pendientes" }),
-  "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
+  "/locked": (screen) => screen.getByRole("heading", { name: /Grace$/ }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
@@ -1265,8 +1265,10 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
   });
 
   it("renders the out-of-service notice while the register is out of service", async () => {
@@ -2798,26 +2800,24 @@ describe("the register's router", () => {
     const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(
-      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
     await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
   });
 
   it("reaches who closes the locked register from the locked register and comes back", async () => {
     const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+    await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
       .toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
   });
 
   it("identifies and closes the locked register's session through the router context with the session it is showing", async () => {
@@ -2829,6 +2829,7 @@ describe("the register's router", () => {
         ...contextWith("up", "enrolled", null, undefined, OPEN_SESSION),
         lockedClosers: async () => [{ id: "u3", first_name: "Sofía" }],
         cashBalance: async () => BALANCE,
+        sessionOpenSale: async () => null,
         identifyLockedCloser: async (closer) => {
           identified.push(closer);
           return { kind: "identified", person: { user_id: "u3", first_name: "Sofía" } };
@@ -2841,14 +2842,13 @@ describe("the register's router", () => {
       "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     expect(identified).toEqual([{ user_id: "u3", pin: "1234" }]);
@@ -2870,6 +2870,7 @@ describe("the register's router", () => {
         sessionOpenSale: async () => ({
           id: "sale-1",
           total: 3_434_000,
+          line_count: 1,
           paid: 0,
           has_approved_payment: false,
           cancellable: true,
@@ -2884,12 +2885,13 @@ describe("the register's router", () => {
       "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
 
-    await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Vaciar venta" }));
+    await userEvent.click(
+      screen.getByRole("complementary").getByRole("button", { name: "Vaciar venta" }),
+    );
 
     await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);
   });
@@ -2905,7 +2907,7 @@ describe("the register's router", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Tengo un código" }));
 

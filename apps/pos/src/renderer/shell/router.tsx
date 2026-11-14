@@ -1189,7 +1189,7 @@ const lockedRoute = createRoute({
     return { openedBy };
   },
   component: function LockedRoute() {
-    const { openedBy, signIn } = lockedRoute.useRouteContext();
+    const { openedBy, signIn, signInUsers } = lockedRoute.useRouteContext();
     const registerName = useRegisterName();
     const version = useRegisterVersion();
     return (
@@ -1197,6 +1197,7 @@ const lockedRoute = createRoute({
         opener={openedBy}
         registerName={registerName}
         version={version}
+        loadUsers={signInUsers}
         signIn={signIn}
       />
     );
@@ -1217,22 +1218,22 @@ const lockedCloseRoute = createRoute({
       cashBalance,
       cashCountPreview,
       sessionOpenSale,
+      cashMovements,
       lockedClosers,
       identifyLockedCloser,
       closeLockedCashSession,
       cancelLockedSale,
     } = lockedCloseRoute.useRouteContext();
-    const registerName = useRegisterName();
     const version = useRegisterVersion();
     return (
       <LockedCloseScreen
         sessionId={id}
         opener={openedBy}
-        registerName={registerName}
         version={version}
         loadCashBalance={cashBalance}
         loadCashCountPreview={cashCountPreview}
         loadOpenSale={sessionOpenSale}
+        loadCashMovements={cashMovements}
         loadClosers={lockedClosers}
         identifyLockedCloser={identifyLockedCloser}
         closeLockedCashSession={(countedCash, closer) =>
