@@ -43,8 +43,11 @@ const columns = [
     id: "quantity",
     header: "Cantidad",
     width: 110,
-    render: (line: Line) =>
-      line.sale_unit === "KG" ? formatWeight(line.quantity) : `${formatNumber(line.quantity)} u`,
+    render: (line: Line) => (
+      <span className="text-subheading font-semibold text-text">
+        {line.sale_unit === "KG" ? formatWeight(line.quantity) : `${formatNumber(line.quantity)} u`}
+      </span>
+    ),
   }),
   dataColumn({
     id: "amount",
