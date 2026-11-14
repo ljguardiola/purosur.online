@@ -543,6 +543,7 @@ export function useDeferredSaleQuery({
   return useCoreQuery({
     queryKey: [...salesKey, "deferred-sale", lookup?.reading.text ?? null, lookup?.scan ?? null],
     enabled: lookup !== undefined,
+    gcTime: 0,
     read: async () => {
       if (lookup === undefined) {
         return "unavailable";
