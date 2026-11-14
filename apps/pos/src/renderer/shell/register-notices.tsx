@@ -11,9 +11,9 @@ import {
   HardDrive,
   Power,
   Receipt,
-  ScanBarcode,
   ShieldOff,
   Unplug,
+  Usb,
 } from "lucide-react";
 import { contingencyBackupTicketsNoticeCount } from "../backups/contingency-backup-tickets-notice-count";
 import { contingencyBackupTicketsNotices } from "../backups/contingency-backup-tickets-notices";
@@ -27,7 +27,7 @@ const CONDITION_ICONS: Record<Condition["kind"], Icon> = {
   fiscal_emission_stopped: <Receipt />,
   clock_drift: <Clock />,
   register_silent: <CloudOff />,
-  serial_device_missing: <ScanBarcode />,
+  serial_device_missing: <Usb />,
   disk_space_low: <HardDrive />,
   wal_oversized: <Database />,
   battery_low: <BatteryLow />,

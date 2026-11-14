@@ -40,7 +40,7 @@ export function SettingsPage({ chrome, bindings, aside, toasts = [] }: SettingsP
   const { person, sessionOpen, signOut, items, selected, onSelect } = chrome;
   return (
     <RegisterFrame
-      background="surface"
+      background="subtle"
       rail={
         sessionOpen ? (
           <OpenSessionRail lock={signOut} current="settings" abilities={person.abilities} />
