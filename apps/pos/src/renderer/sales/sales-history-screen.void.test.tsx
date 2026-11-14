@@ -176,7 +176,11 @@ describe("SalesHistoryScreen voiding a sale", () => {
       saleHistoryDetail: async () => ({
         kind: "found",
         detail: refused
-          ? { ...DETAIL, voidability: { kind: "not_voidable", refusal: "session_closed" } }
+          ? {
+              ...DETAIL,
+              voidability: { kind: "not_voidable", refusal: "session_closed" },
+              returnable: false,
+            }
           : DETAIL,
       }),
     });
