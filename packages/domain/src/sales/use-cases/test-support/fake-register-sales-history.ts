@@ -77,7 +77,6 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
     return (
       this.sales.find(({ entry }) => entry.saleId === saleId)?.entry.fiscal ?? {
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: null,
       }
     );

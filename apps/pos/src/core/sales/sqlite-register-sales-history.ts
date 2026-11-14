@@ -4,8 +4,6 @@ import {
   type FiscalAuthorization,
   type FiscalDocumentState,
   isDeferralPending,
-  isDeferredInvoicePending,
-  type ReceiptDelivery,
   type SaleDocumentNumber,
   type SaleFiscalDocument,
   type SaleFiscalFacts,
@@ -25,7 +23,6 @@ import { readCreditNotesOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { saleTotalOf } from "./sqlite-sale-total";
 
 interface SaleRow {
@@ -247,14 +244,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
     return saleTotalOf(this.database, saleId);
   }
 
-  private deferredInvoiceDelivery(saleId: string): ReceiptDelivery | null {
-    return (
-      new SqliteReceiptLedger(this.database).transaction((tx) =>
-        tx.receiptDelivery({ document: "deferred_invoice", saleId }),
-      ) ?? null
-    );
-  }
-
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts {
     const attempts = this.database
       .prepare<[{ sale_id: string }], FiscalDocumentRow>(
@@ -283,10 +272,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
       deferredRecord === undefined ? null : { satisfied: deferredRecord.satisfied === 1 };
     return {
       deferred: isDeferralPending(record),
-      deferredInvoicePending: isDeferredInvoicePending(
-        record,
-        this.deferredInvoiceDelivery(saleId),
-      ),
       fiscalDocument: saleFiscalDocumentAmong(attempts),
     };
   }

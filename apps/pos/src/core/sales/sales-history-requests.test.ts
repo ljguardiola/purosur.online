@@ -952,14 +952,14 @@ describe("the detail of a sale of the history", () => {
       });
     });
 
-    it("answers its factura and its original as the next printing once invoiced and never printed", async () => {
+    it("answers it as completed with its factura, and its original as the next printing, once invoiced and never printed", async () => {
       addDeferredSale({ satisfied: true });
 
       const answer = await saleHistoryDetailFor(deps(), "late");
 
       expect(answer.kind === "found" && answer.detail).toMatchObject({
         comprobante: { kind: "fiscal", point_of_sale: 3, number: 1205 },
-        state: "deferred",
+        state: "completed",
         deferred_invoice_next_copy: { kind: "original" },
       });
     });

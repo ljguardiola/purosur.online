@@ -28,6 +28,12 @@ export interface WindowsCriticalBatteryActionReaderDeps {
 
 const UNREADABLE: CriticalBatteryAction = { kind: "unreadable" };
 
+const POWER_QUERY_REFUSED_IN_REMOTE_SESSION = "0x80070668";
+
+function isPowerQueryRefusedInRemoteSession(error: unknown): boolean {
+  return error instanceof Error && error.message.includes(POWER_QUERY_REFUSED_IN_REMOTE_SESSION);
+}
+
 function actionOf(values: (number | null)[]): CriticalBatteryAction {
   const distinct = new Set(values);
   if (distinct.size !== 1) {
@@ -56,7 +62,9 @@ export function windowsCriticalBatteryActionReader({
         );
         return actionOf(powershellOutputSchema.parse(JSON.parse(stdout)).values);
       } catch (error) {
-        onFailure?.(error);
+        if (!isPowerQueryRefusedInRemoteSession(error)) {
+          onFailure?.(error);
+        }
         return UNREADABLE;
       }
     },
