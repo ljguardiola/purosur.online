@@ -2,12 +2,12 @@ import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/co
 import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "vitest-browser-react";
 import type { CoreData } from "../platform/use-core-query";
 import type { CashSessionState } from "../register/cash-session-state";
 import { RegisterHeader } from "./register-header";
 import type { SignedInPerson } from "./signed-in-person";
 import { backupTickets } from "./test-support/contingency-backup-tickets";
+import { render } from "./test-support/render-with-router";
 
 const PERSON: SignedInPerson = {
   user_id: "u1",
@@ -31,8 +31,6 @@ const SALES_DENIED_TITLE = "La caja no puede vender";
 const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
 const SOLD_LATER = { kind: "deferring", notice: true } as const;
 const SOLD_LATER_WITHOUT_NOTICE = { kind: "deferring", notice: false } as const;
-
-const SILENT_TITLE = "La caja no está sincronizando";
 
 function loaded(status: Partial<RegisterStatus> = {}): CoreData<RegisterStatus> {
   return {
@@ -192,7 +190,20 @@ describe("RegisterHeader", () => {
     await expect.element(screen.getByText(SALES_DENIED_TITLE)).not.toBeInTheDocument();
   });
 
-  it("shows no condition's text until the notices pill is pressed", async () => {
+  it("takes the person to Esta caja in Ajustes when the notices pill is pressed", async () => {
+    const screen = await renderHeader({
+      status: loaded({
+        conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
+
+    await expect.poll(() => screen.router.state.location.pathname).toBe("/settings");
+    expect(screen.router.state.location.search).toEqual({ section: "register" });
+  });
+
+  it("shows no condition's text, only the notices pill", async () => {
     const screen = await renderHeader({
       status: loaded({
         conditions: [
@@ -216,137 +227,6 @@ describe("RegisterHeader", () => {
     });
 
     await expect.element(screen.getByRole("button", { name: "2 avisos" })).toBeVisible();
-  });
-
-  it("opens a panel of notices with each condition's title, what it means and what to do", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [
-          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
-        ],
-      }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByRole("dialog", { name: "Avisos de esta caja" })).toBeVisible();
-    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
-    await expect
-      .element(screen.getByText(/dejó de abrir ventas nuevas porque encontró un problema/).first())
-      .toBeVisible();
-    await expect
-      .element(screen.getByText(/Avisar al Administrador de inmediato/).first())
-      .toBeVisible();
-  });
-
-  it("tells why the register can't sell with the reason the core answers", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [
-          {
-            kind: "sales_denied",
-            reason: "local_database_damaged",
-            level: "critical",
-            since: SINCE,
-          },
-        ],
-      }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByText(/su base de datos está dañada/).first()).toBeVisible();
-    await expect
-      .element(
-        screen
-          .getByText(/Restaurar la base de datos de la caja desde su copia de respaldo/)
-          .first(),
-      )
-      .toBeVisible();
-  });
-
-  it("tells a clock that is off in the panel, and that selling goes on", async () => {
-    const screen = await renderHeader({
-      status: loaded({ conditions: [{ kind: "clock_drift", level: "critical", since: SINCE }] }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByText("Reloj de la caja desajustado").first()).toBeVisible();
-    await expect.element(screen.getByText(/está corrida más de un minuto/).first()).toBeVisible();
-    await expect.element(screen.getByText(/Seguir vendiendo con normalidad/).first()).toBeVisible();
-  });
-
-  it("lists every condition in the panel, in the order the core gave them", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [
-          { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
-          { kind: "register_silent", level: "critical", since: SINCE },
-        ],
-      }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
-
-    await expect.element(screen.getByText(SALES_DENIED_TITLE)).toBeVisible();
-    await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
-    const text = screen.getByRole("dialog").element().textContent;
-    expect(text.indexOf(SALES_DENIED_TITLE)).toBeLessThan(text.indexOf(SILENT_TITLE));
-  });
-
-  it("tells since when each condition holds, in the day and time it started", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [
-          { kind: "clock_drift", level: "critical", since: SINCE },
-          { kind: "wal_oversized", level: "warning", since: "2026-10-28T18:05:00.000-03:00" },
-        ],
-      }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
-
-    const text = screen.getByRole("dialog").element().textContent;
-    expect(text).toContain("Desde 29/10/2026 · 09:30");
-    expect(text).toContain("Desde 28/10/2026 · 18:05");
-  });
-
-  it("tells no start for the contingency and backup ticket notices", async () => {
-    const screen = await renderHeader({
-      status: loaded({ contingency: OFFLINE_CODE }),
-      backupTickets: loadedTickets({ missing_key: 1 }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: /avisos?$/ }));
-
-    expect(screen.getByRole("dialog").element().textContent).not.toContain("Desde");
-  });
-
-  it("closes the panel with its close button", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
-      }),
-    });
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("closes the panel with Escape", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [{ kind: "register_silent", level: "critical", since: SINCE }],
-      }),
-    });
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await userEvent.keyboard("{Escape}");
-
-    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows the pill in the error tone when a condition is critical", async () => {
@@ -452,9 +332,7 @@ describe("RegisterHeader", () => {
       }),
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByText(SILENT_TITLE)).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
     expect(headerText(screen)).toContain("Sin conexión con la nube");
   });
 
@@ -471,45 +349,6 @@ describe("RegisterHeader", () => {
     const screen = await renderHeader({ status: { status: "loading" } });
 
     expect(headerText(screen)).not.toMatch(/Balanza|Lector/);
-  });
-
-  it("shows the missing scale or reader notice with what to do", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [{ kind: "serial_device_missing", level: "warning", since: SINCE }],
-        serial_devices: { scale: "not_detected", reader: "matching" },
-      }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    const panel = screen.getByRole("dialog", { name: "Avisos de esta caja" });
-    await expect.element(panel.getByText("Revisar la balanza o el lector")).toBeVisible();
-    await expect
-      .element(
-        panel.getByText(
-          "Revisar que esté conectado y encendido. Mientras tanto, tipear el peso a mano y buscar los productos por nombre. Si el problema sigue, avisar al Administrador.",
-          { exact: true },
-        ),
-      )
-      .toBeVisible();
-  });
-
-  it("shows the stopped fiscal emission notice with its title, what it means and what to do, with no connection to the cloud", async () => {
-    const screen = await renderHeader({
-      status: loaded({
-        conditions: [{ kind: "fiscal_emission_stopped", level: "critical", since: SINCE }],
-        cloud: "unreachable",
-      }),
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByText("Emisión de facturas detenida")).toBeVisible();
-    await expect
-      .element(screen.getByText(/no puede emitir ningún comprobante fiscal por ahora/).first())
-      .toBeVisible();
-    await expect.element(screen.getByText(/Seguir vendiendo igual/).first()).toBeVisible();
   });
 
   it("has no accessibility violations with a device not detected", async () => {
@@ -547,8 +386,6 @@ describe("RegisterHeader", () => {
         cloud: "unreachable",
       }),
     });
-    await expectNoAccessibilityViolations(withConditions.container);
-    await userEvent.click(withConditions.getByRole("button", { name: "2 avisos" }));
     await expectNoAccessibilityViolations(withConditions.container);
     await withConditions.unmount();
 
@@ -591,30 +428,19 @@ describe("RegisterHeader", () => {
       }),
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "2 avisos" }));
-
-    await expect.element(screen.getByText("Facturación en modo de respaldo")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "2 avisos" })).toBeVisible();
   });
 
   it("shows the notices pill for the contingency alone", async () => {
     const screen = await renderHeader({ status: loaded({ contingency: OFFLINE_CODE }) });
 
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByText("Facturación en modo de respaldo")).toBeVisible();
-    const card = noticeCard(screen.getByRole("dialog", { name: "Avisos de esta caja" }).element());
-    expect(getComputedStyle(card).borderLeftColor).toBe(tokenRgb("warning-soft"));
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
   });
 
   it("counts a deferring contingency with a notice as one notice, with its own explanation", async () => {
     const screen = await renderHeader({ status: loaded({ contingency: SOLD_LATER }) });
 
-    await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-    await expect.element(screen.getByText("Ventas sin factura en el momento")).toBeVisible();
-    await expect
-      .element(screen.getByText("Facturación en modo de respaldo"))
-      .not.toBeInTheDocument();
+    await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
   });
 
   it("shows the pill but no notice for a deferring contingency without a notice", async () => {
@@ -637,9 +463,7 @@ describe("RegisterHeader", () => {
         backupTickets: loadedTickets({ to_print: 2 }),
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-      await expect.element(screen.getByText("Tickets de respaldo sin imprimir")).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "1 aviso" })).toBeVisible();
     });
 
     it("counts them beside the conditions and the contingency", async () => {
@@ -651,13 +475,7 @@ describe("RegisterHeader", () => {
         backupTickets: loadedTickets({ to_print: 1, missing_key: 1 }),
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "4 avisos" }));
-
-      await expect.element(screen.getByText("Tickets de respaldo sin imprimir")).toBeVisible();
-      await expect
-        .element(screen.getByText("No se pudo armar el ticket de respaldo"))
-        .toBeVisible();
-      await expect.element(screen.getByText("Facturación en modo de respaldo")).toBeVisible();
+      await expect.element(screen.getByRole("button", { name: "4 avisos" })).toBeVisible();
     });
 
     it("discards the tickets when the person closes the discard notice", async () => {
