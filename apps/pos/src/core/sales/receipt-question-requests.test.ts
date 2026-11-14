@@ -19,7 +19,7 @@ import { type ReceiptRequestDeps, receiptPrintStatusFor } from "./receipt-reques
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
-const OFFER_DEADLINE = new Date(NOW.getTime() + 3000);
+const OFFER_DEADLINE = new Date(NOW.getTime() + 10_000);
 const COMPLETED_AT = "2026-10-08T11:59:00.000Z";
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
@@ -276,7 +276,7 @@ describe("the print offer lapsing", () => {
 
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       standing: "awaiting_answer",
-      offer: { remaining_ms: 3000, length_ms: 3000 },
+      offer: { remaining_ms: 10_000, length_ms: 10_000 },
     });
   });
 
@@ -286,7 +286,7 @@ describe("the print offer lapsing", () => {
 
     expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
       standing: "awaiting_answer",
-      offer: { remaining_ms: 1800, length_ms: 3000 },
+      offer: { remaining_ms: 8800, length_ms: 10_000 },
     });
   });
 
