@@ -264,12 +264,8 @@ describe("readSaleHistoryDetail", () => {
       expect(returnable({ voided: true })).toBe(false);
     });
 
-    it("says a completed sale whose invoice is still to print may be returned", () => {
-      expect(
-        returnable({
-          fiscal: { deferred: false, deferredInvoicePending: true, fiscalDocument: null },
-        }),
-      ).toBe(true);
+    it("says a deferred sale may be returned", () => {
+      expect(returnable({ fiscal: { deferred: true, fiscalDocument: null } })).toBe(true);
     });
 
     it("says a sale that cannot be voided any longer may still be returned", () => {
