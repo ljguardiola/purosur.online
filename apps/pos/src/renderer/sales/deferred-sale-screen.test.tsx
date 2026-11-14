@@ -135,6 +135,55 @@ describe("DeferredSaleScreen waiting for the customer's document", () => {
     await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
   });
 
+  it("offers Reintentar with the R key on the failed lookup, and looks the same QR up again from loading", async () => {
+    const second = deferred<FindDeferredSaleOutcome>();
+    const findDeferredSale = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("core down"))
+      .mockReturnValueOnce(second.promise);
+    const { screen } = await renderScreen({ reading: QR_TEXT, findDeferredSale });
+    await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
+    const retry = screen.getByRole("button", { name: "Reintentar" });
+    expect(keycapOf(retry)).toBe("R");
+
+    await userEvent.click(retry);
+
+    await expect
+      .element(screen.getByRole("table", { name: "Líneas de la venta" }))
+      .toHaveAttribute("aria-busy", "true");
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+    expect(findDeferredSale).toHaveBeenCalledTimes(2);
+    expect(findDeferredSale).toHaveBeenLastCalledWith({ kind: "scanned", text: QR_TEXT });
+    second.resolve(FOUND_ISSUED);
+    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  });
+
+  it("looks the QR up again when R is pressed on the failed lookup", async () => {
+    const findDeferredSale = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("core down"))
+      .mockResolvedValueOnce(FOUND_ISSUED);
+    const { screen } = await renderScreen({ reading: QR_TEXT, findDeferredSale });
+    await expect.element(screen.getByText("No se pudo buscar la venta")).toBeVisible();
+
+    await userEvent.keyboard("r");
+
+    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+    expect(findDeferredSale).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers no Reintentar for a refusal the core answered", async () => {
+    const { screen } = await renderScreen({
+      reading: QR_TEXT,
+      findDeferredSale: async () => ({ kind: "voided" }),
+    });
+
+    await expect.element(screen.getByText("Esa venta se anuló")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar" }))
+      .not.toBeInTheDocument();
+  });
+
   it("tells the app the session ended when the core says nobody is signed in", async () => {
     const { onSessionInvalid } = await renderScreen({
       reading: QR_TEXT,
@@ -409,6 +458,14 @@ describe("DeferredSaleScreen showing the sale it found", () => {
     await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
     await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
+  });
+
+  it("titles the panel with the receipt icon", async () => {
+    const { screen } = await shown();
+
+    const panel = screen.getByRole("complementary", { name: "Venta diferida" }).element();
+    expect(panel.querySelector("svg.lucide-receipt")).not.toBeNull();
+    expect(panel.querySelector("svg.lucide-file-text")).toBeNull();
   });
 
   it("goes back to the sale screen on Esc", async () => {

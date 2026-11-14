@@ -33,6 +33,16 @@ describe("DeferredSaleLines", () => {
     await expect.element(lines.getByText("$ 6.950,00", { exact: true }).last()).toBeVisible();
   });
 
+  it("shows the quantity bold like the amount and the price regular", async () => {
+    const screen = await render(<DeferredSaleLines lines={FOUND_PENDING.lines} loading={false} />);
+
+    const weightOf = (text: string) =>
+      Number(getComputedStyle(table(screen).getByText(text, { exact: true }).element()).fontWeight);
+    expect(weightOf("0,500 kg")).toBeGreaterThanOrEqual(600);
+    expect(weightOf("1 u")).toBeGreaterThanOrEqual(600);
+    expect(weightOf("$ 18.900,00 / kg")).toBeLessThan(600);
+  });
+
   it("marks the lines as locked in its header", async () => {
     const screen = await render(<DeferredSaleLines lines={FOUND_PENDING.lines} loading={false} />);
 
