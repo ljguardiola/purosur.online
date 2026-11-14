@@ -103,14 +103,26 @@ describe("contingencyBackupTicketsNotices", () => {
         subtitle: "3 tickets guardados",
         discardable: true,
       });
-      expect(notice).not.toHaveProperty("description");
-      expect(notice).not.toHaveProperty("whatToDo");
+    });
+
+    it("tells why the stored tickets are no longer needed and to throw them away", () => {
+      const [notice] = noticesOf({ discardable: 3, may_discard: true });
+
+      expect(notice).toMatchObject({
+        description:
+          "Esta caja sincronizó con la nube todo lo de la contingencia: los 3 tickets guardados en la caja del local ya no hacen falta.",
+        whatToDo: "Tiralos y cerrá este aviso.",
+      });
     });
 
     it("speaks in the singular for one ticket", () => {
       const [notice] = noticesOf({ discardable: 1, may_discard: true });
 
-      expect(notice?.subtitle).toBe("1 ticket guardado");
+      expect(notice).toMatchObject({
+        subtitle: "1 ticket guardado",
+        description:
+          "Esta caja sincronizó con la nube todo lo de la contingencia: el ticket guardado en la caja del local ya no hace falta.",
+      });
     });
 
     it("tells a person the core would not let discard them that whoever sells here closes the notice", () => {
