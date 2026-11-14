@@ -1,6 +1,6 @@
 import type { ContingencyBackupTicketsAnswer, RegisterStatus } from "@purosur/contracts";
 import type { Icon, NoticeTileProps } from "@purosur/ui";
-import { formatDayAndTime, localAlertText } from "@purosur/ui";
+import { formatDayMonthAndTime, localAlertText } from "@purosur/ui";
 import {
   Ban,
   BatteryLow,
@@ -75,7 +75,7 @@ function conditionNotice(condition: Condition): RegisterNotice {
     tone: isCritical(condition) ? "error" : "warning",
     icon: CONDITION_ICONS[condition.kind],
     title: text.title,
-    subtitle: `Desde ${formatDayAndTime(condition.since)}`,
+    subtitle: `Desde ${formatDayMonthAndTime(condition.since)}`,
     description: text.meaning,
     whatToDo: text.whatToDo,
     discardable: false,
