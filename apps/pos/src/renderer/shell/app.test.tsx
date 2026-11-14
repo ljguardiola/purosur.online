@@ -102,6 +102,7 @@ function coreAnswering(
     identifyLockedCloser?: CoreClient["identifyLockedCloser"];
     authorizers?: CoreClient["authorizers"];
     lockedClosers?: CoreClient["lockedClosers"];
+    signInUsers?: CoreClient["signInUsers"];
     cashBalance?: CoreClient["cashBalance"];
     sessionOpenSale?: CoreClient["sessionOpenSale"];
     startupPending?: CoreClient["startupPending"];
@@ -196,6 +197,9 @@ function coreAnswering(
     },
     async signInUsers() {
       usersLoads += 1;
+      if (cashDrawer.signInUsers !== undefined) {
+        return cashDrawer.signInUsers();
+      }
       return { users: [{ id: "u1", first_name: "Ada" }], last_active_user_id: null };
     },
     async lockedClosers() {
@@ -1803,6 +1807,25 @@ describe("App", () => {
       .element(screen.getByRole("link", { name: "Primer ingreso" }))
       .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("lists again who may resume the locked register once a pull happens", async () => {
+    let users = [{ id: "u1", first_name: "Ada" }];
+    const { core, finishPull } = coreAnswering(true, { kind: "enrolled" }, GRACE_SIGNED_IN, {
+      cashSession: async () => GRACE_SESSION_LOCKED,
+      signInUsers: async () => ({ users, last_active_user_id: null }),
+    });
+    const screen = await render(<App core={core} />);
+    postCoreStatus("up");
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
+    users = [...users, { id: "u5", first_name: "Tomás" }];
+
+    finishPull(null);
+
+    await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
+    await expect.element(screen.getByRole("option", { name: "Tomás" })).toBeVisible();
   });
 
   it("resumes the open cash session with the opener's PIN", async () => {
