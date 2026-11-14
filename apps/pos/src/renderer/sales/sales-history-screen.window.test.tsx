@@ -37,7 +37,7 @@ describe("SalesHistoryScreen in the store notebook's window", () => {
 
     await expect.element(lastSale).toBeInViewport();
     await expect
-      .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
+      .element(screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }))
       .toBeInViewport();
     await expect.element(screen.getByText("Todas", { exact: true }).last()).toBeInViewport();
     expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });

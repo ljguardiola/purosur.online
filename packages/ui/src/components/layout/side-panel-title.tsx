@@ -18,7 +18,7 @@ export type SidePanelTitleProps = {
 };
 
 const badgeToneClassName = {
-  neutral: "bg-surface-soft text-text",
+  neutral: toneClassName.info.surface,
   warning: toneClassName.warning.surface,
   error: toneClassName.error.surface,
 } satisfies Record<SidePanelTitleTone, string>;
@@ -38,11 +38,11 @@ export function SidePanelTitle({
     <div className={`flex items-center gap-3 pt-6 ${horizontalInset}`}>
       <span
         aria-hidden="true"
-        className={`flex size-10 shrink-0 items-center justify-center rounded-full ${badgeToneClassName[tone]}`}
+        className={`flex size-control-sm shrink-0 items-center justify-center rounded-full ${badgeToneClassName[tone]}`}
       >
         <span className={iconSlotClassName.lg}>{icon}</span>
       </span>
-      <h2 className="flex flex-1 items-center gap-2 text-subheading font-bold text-text">
+      <h2 className="flex flex-1 items-center gap-2 text-body font-semibold text-text">
         {title}
         {locked ? (
           <>

@@ -168,7 +168,7 @@ describe("SalesHistoryScreen", () => {
         expect(salesHistory).toHaveBeenCalledWith({
           session: "open",
           page: 1,
-          document: undefined,
+          search: undefined,
         }),
       );
     });
@@ -240,7 +240,7 @@ describe("SalesHistoryScreen", () => {
         expect(salesHistory).toHaveBeenLastCalledWith({
           session: "open",
           page: 1,
-          document: { pointOfSale: 3, number: 187 },
+          search: { kind: "typed", pointOfSale: 3, number: 187 },
         }),
       );
     });
@@ -252,7 +252,7 @@ describe("SalesHistoryScreen", () => {
 
       await vi.waitFor(() =>
         expect(salesHistory).toHaveBeenLastCalledWith(
-          expect.objectContaining({ document: { pointOfSale: null, number: 187 } }),
+          expect.objectContaining({ search: { kind: "typed", pointOfSale: null, number: 187 } }),
         ),
       );
     });
@@ -264,15 +264,15 @@ describe("SalesHistoryScreen", () => {
 
       await vi.waitFor(() =>
         expect(salesHistory).toHaveBeenLastCalledWith(
-          expect.objectContaining({ document: undefined }),
+          expect.objectContaining({ search: undefined }),
         ),
       );
     });
 
     it("selects the first of the sales found, with its detail", async () => {
       const { screen } = await renderScreen({
-        salesHistory: async ({ document }) =>
-          pageOf(document === undefined ? [FISCAL_ROW, DEFERRED_ROW] : [DEFERRED_ROW]),
+        salesHistory: async ({ search }) =>
+          pageOf(search === undefined ? [FISCAL_ROW, DEFERRED_ROW] : [DEFERRED_ROW]),
       });
       await userEvent.type(searchField(screen), "187");
 
@@ -284,7 +284,7 @@ describe("SalesHistoryScreen", () => {
 
     it("says no sale has that number when nothing matches", async () => {
       const { screen } = await renderScreen({
-        salesHistory: async ({ document }) => pageOf(document === undefined ? [FISCAL_ROW] : []),
+        salesHistory: async ({ search }) => pageOf(search === undefined ? [FISCAL_ROW] : []),
       });
       await userEvent.type(searchField(screen), "187");
 
@@ -338,7 +338,7 @@ describe("SalesHistoryScreen", () => {
 
     it("draws the receipt with a dollar sign when no sale has that number", async () => {
       const { screen } = await renderScreen({
-        salesHistory: async ({ document }) => pageOf(document === undefined ? [FISCAL_ROW] : []),
+        salesHistory: async ({ search }) => pageOf(search === undefined ? [FISCAL_ROW] : []),
       });
       await userEvent.type(searchField(screen), "187");
 

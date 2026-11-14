@@ -188,7 +188,7 @@ const screenFor: Record<
   "/cash-closed": (screen) => screen.getByRole("heading", { name: "Caja cerrada" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Otros medios" }),
   "/history": (screen) =>
-    screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }),
+    screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }),
   "/deferred-sale": (screen) =>
     screen.getByRole("heading", { name: "Escaneá el documento del cliente" }),
   "/return": (screen) => screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }),

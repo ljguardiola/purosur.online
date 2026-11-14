@@ -325,7 +325,7 @@ describe("SqliteRegisterSalesHistory", () => {
           occurredAt: new Date("2026-10-08T12:34:00.000Z"),
           paymentMethods: ["CASH", "TRANSFER"],
           total: 4000,
-          fiscal: { deferred: false, deferredInvoicePending: false, fiscalDocument: null },
+          fiscal: { deferred: false, fiscalDocument: null },
           voided: false,
         },
       ]);
@@ -378,7 +378,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(all().entries[0]?.fiscal).toEqual({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -394,7 +393,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(all().entries[0]?.fiscal).toEqual({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -412,7 +410,6 @@ describe("SqliteRegisterSalesHistory", () => {
       const history = new SqliteRegisterSalesHistory(database);
       expect(history.fiscalFactsOfSale("sale-1")).toEqual({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -423,7 +420,6 @@ describe("SqliteRegisterSalesHistory", () => {
       });
       expect(history.fiscalFactsOfSale("deferred")).toEqual({
         deferred: true,
-        deferredInvoicePending: false,
         fiscalDocument: null,
       });
     });
@@ -435,7 +431,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(new SqliteRegisterSalesHistory(database).fiscalFactsOfSale("sale-1")).toEqual({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -457,7 +452,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(all().entries[0]?.fiscal).toEqual({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: null,
       });
     });
@@ -467,7 +461,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(all().entries[0]?.fiscal).toEqual({
         deferred: true,
-        deferredInvoicePending: false,
         fiscalDocument: null,
       });
     });
@@ -500,7 +493,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       expect(adopted?.fiscal).toEqual({
         deferred: false,
-        deferredInvoicePending: true,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -516,15 +508,15 @@ describe("SqliteRegisterSalesHistory", () => {
       return entry && saleStandingOf({ ...entry.fiscal, voided: entry.voided });
     };
 
-    it("stays deferred until its deferred invoice's original copy is printed, like a sale whose document was released or conflicting", () => {
+    it("is completed without its deferred invoice being printed, unlike a sale whose document was released or conflicting", () => {
       expect(["adopted", "conflicting", "released"].map(standingOf)).toEqual([
-        "deferred",
+        "completed",
         "deferred",
         "deferred",
       ]);
     });
 
-    it("is completed once the print of its deferred invoice was attempted", () => {
+    it("stays completed once the print of its deferred invoice was attempted", () => {
       markPrintAttempted(
         database,
         { document: "deferred_invoice", saleId: "adopted" },
@@ -534,24 +526,13 @@ describe("SqliteRegisterSalesHistory", () => {
       expect(standingOf("adopted")).toBe("completed");
       expect(all().entries.find(({ saleId }) => saleId === "adopted")?.fiscal).toMatchObject({
         deferred: false,
-        deferredInvoicePending: false,
       });
     });
 
-    it("is listed by its invoice number as deferred, and as completed once the print was attempted", () => {
-      const found = () => history.salesOfRegisterWithDocument({ pointOfSale: 7, number: 1204 });
+    it("is listed by its invoice number as completed without its deferred invoice being printed", () => {
+      const found = history.salesOfRegisterWithDocument({ pointOfSale: 7, number: 1204 });
 
-      expect(found().map(({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }))).toEqual([
-        "deferred",
-      ]);
-
-      markPrintAttempted(
-        database,
-        { document: "deferred_invoice", saleId: "adopted" },
-        new Date("2026-10-08T12:20:00.000Z"),
-      );
-
-      expect(found().map(({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }))).toEqual([
+      expect(found.map(({ fiscal, voided }) => saleStandingOf({ ...fiscal, voided }))).toEqual([
         "completed",
       ]);
     });
@@ -618,7 +599,6 @@ describe("SqliteRegisterSalesHistory", () => {
         saleId: "late",
         fiscal: {
           deferred: false,
-          deferredInvoicePending: true,
           fiscalDocument: { state: "AUTHORIZED", number: 187 },
         },
       });
@@ -723,7 +703,6 @@ describe("SqliteRegisterSalesHistory", () => {
           total: 4000,
           fiscal: {
             deferred: false,
-            deferredInvoicePending: false,
             fiscalDocument: {
               state: "AUTHORIZED",
               documentType: "factura_c",
@@ -735,6 +714,77 @@ describe("SqliteRegisterSalesHistory", () => {
           voided: true,
         },
       ]);
+    });
+  });
+
+  describe("the candidates for a deferred sale's reference", () => {
+    const ids = (entries: { saleId: string }[]) => entries.map(({ saleId }) => saleId);
+    const referenceOf = (saleId: string) => {
+      const row = database
+        .prepare<[string], { id: string; short_code: string }>(
+          "SELECT id, short_code FROM deferred_sales WHERE sale_id = ?",
+        )
+        .get(saleId);
+      return { id: row?.id ?? "", shortCode: row?.short_code ?? "" };
+    };
+
+    it("finds the sale of the deferred sale with that id and short code", () => {
+      addSale({ id: "wanted", deferred: true });
+      addSale({ id: "other", deferred: true });
+      addSale({ id: "ordinary" });
+
+      const found = history.salesOfRegisterOfDeferredSale(referenceOf("wanted"));
+
+      expect(ids(found)).toEqual(["wanted"]);
+      expect(found[0]?.fiscal).toMatchObject({ deferred: true });
+    });
+
+    it("finds nothing when the short code is not the one of that id", () => {
+      addSale({ id: "wanted", deferred: true });
+      addSale({ id: "other", deferred: true });
+
+      expect(
+        history.salesOfRegisterOfDeferredSale({
+          id: referenceOf("wanted").id,
+          shortCode: referenceOf("other").shortCode,
+        }),
+      ).toEqual([]);
+    });
+
+    it("finds a deferred sale an authorization already satisfied", () => {
+      addSale({
+        id: "adopted",
+        fiscal: { state: "AUTHORIZED", pointOfSale: 7, number: 1204 },
+        deferred: "satisfied",
+      });
+
+      expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("adopted")))).toEqual([
+        "adopted",
+      ]);
+    });
+
+    it("finds only the sale of the open session when asked for that session", () => {
+      addSale({ id: "today", session: "open-session", deferred: true });
+      addSale({ id: "yesterday", session: "old-session", deferred: true });
+
+      expect(ids(history.salesOfOpenSessionOfDeferredSale(referenceOf("today")))).toEqual([
+        "today",
+      ]);
+      expect(history.salesOfOpenSessionOfDeferredSale(referenceOf("yesterday"))).toEqual([]);
+      expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("yesterday")))).toEqual([
+        "yesterday",
+      ]);
+    });
+
+    it("lists only completed and voided sales of this register", () => {
+      openSession("other-session", "r2");
+      addSale({ id: "voided", state: "VOIDED", deferred: true });
+      addSale({ id: "cancelled", state: "CANCELLED", deferred: true });
+      addSale({ id: "elsewhere", session: "other-session", register: "r2", deferred: true });
+
+      expect(ids(history.salesOfRegisterOfDeferredSale(referenceOf("voided")))).toEqual(["voided"]);
+      expect(history.salesOfRegisterOfDeferredSale(referenceOf("cancelled"))).toEqual([]);
+      expect(history.salesOfRegisterOfDeferredSale(referenceOf("elsewhere"))).toEqual([]);
     });
   });
 
@@ -842,7 +892,6 @@ describe("SqliteRegisterSalesHistory", () => {
         ],
         fiscal: {
           deferred: false,
-          deferredInvoicePending: false,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -1050,7 +1099,6 @@ describe("SqliteRegisterSalesHistory", () => {
 
       const invoiced = {
         deferred: false,
-        deferredInvoicePending: true,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",

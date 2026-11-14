@@ -166,8 +166,8 @@ describe("SalesHistoryScreen invoice of a deferred sale", () => {
 
     await userEvent.type(searchField(screen), "0003-00001248");
     await expect
-      .poll(() => salesHistory.mock.calls.at(-1)?.[0].document)
-      .toEqual({ pointOfSale: 3, number: 1248 });
+      .poll(() => salesHistory.mock.calls.at(-1)?.[0].search)
+      .toEqual({ kind: "typed", pointOfSale: 3, number: 1248 });
     await expect
       .element(detailPanel(screen).getByRole("button", { name: "Imprimir factura" }))
       .toBeVisible();
