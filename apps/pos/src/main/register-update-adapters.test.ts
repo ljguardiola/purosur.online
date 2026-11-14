@@ -319,16 +319,38 @@ describe("startInstallerThroughPowerShell", () => {
     );
   });
 
-  it("starts the installer with its arguments, each quoted so an apostrophe stays part of it", async () => {
+  it("starts the installer and, when Windows refuses, writes Windows' own message to stderr as UTF-8 and exits 1", async () => {
     const { run, launch } = launcherAnswering(async () => ({ stdout: "", stderr: "" }));
 
-    await launch("C:\\Users\\O'Neil\\pending-update\\update-1.4.2.exe", ["--updated", "/S"]);
+    await launch("C:\\pending-update\\update-1.4.2.exe", ["--updated", "/S"]);
 
-    const script = String(run.mock.calls[0]?.[1]?.[3]);
-    expect(script).toContain(
-      "Start-Process -FilePath 'C:\\Users\\O''Neil\\pending-update\\update-1.4.2.exe' -ArgumentList '--updated','/S'",
+    expect(run.mock.calls[0]?.[1]?.[3]).toBe(
+      "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $ErrorActionPreference = 'Stop'; try { Start-Process -FilePath 'C:\\pending-update\\update-1.4.2.exe' -ArgumentList '--updated','/S' } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }",
     );
   });
+
+  it.each([
+    ["an apostrophe", "'"],
+    ["a left single quotation mark", "\u2018"],
+    ["a right single quotation mark", "\u2019"],
+    ["a single low-9 quotation mark", "\u201A"],
+    ["a single high-reversed-9 quotation mark", "\u201B"],
+  ])(
+    "starts the installer with its arguments, each quoted so %s stays part of it",
+    async (_name, quote) => {
+      const { run, launch } = launcherAnswering(async () => ({ stdout: "", stderr: "" }));
+
+      await launch(`C:\\Users\\O${quote}Neil\\pending-update\\update-1.4.2.exe`, [
+        "--updated",
+        "/S",
+      ]);
+
+      const script = String(run.mock.calls[0]?.[1]?.[3]);
+      expect(script).toContain(
+        `Start-Process -FilePath 'C:\\Users\\O${quote}${quote}Neil\\pending-update\\update-1.4.2.exe' -ArgumentList '--updated','/S'`,
+      );
+    },
+  );
 
   it("rejects with Windows' own message when PowerShell can not start the installer", async () => {
     const refusal = Object.assign(new Error("Command failed: powershell.exe"), {
