@@ -231,7 +231,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      contingency: { kind: "deferring", notice: true },
+      contingency: { kind: "deferring", notice: true, since: null },
     });
   });
 
@@ -351,7 +351,7 @@ describe("the register's status", () => {
       cloud: "unreachable",
       serial_devices: { scale: "not_registered", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      contingency: { kind: "deferring", notice: false },
+      contingency: { kind: "deferring", notice: false, since: null },
     });
   });
 
@@ -460,7 +460,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      contingency: { kind: "deferring", notice: false },
+      contingency: { kind: "deferring", notice: false, since: null },
     });
   });
 
@@ -483,7 +483,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "not_registered" },
       serial_devices_setup_offered: false,
-      contingency: { kind: "deferring", notice: false },
+      contingency: { kind: "deferring", notice: false, since: null },
     });
   });
 
@@ -511,7 +511,7 @@ describe("the register's status", () => {
       cloud: "unknown",
       serial_devices: { scale: "unknown", reader: "unknown" },
       serial_devices_setup_offered: false,
-      contingency: { kind: "deferring", notice: false },
+      contingency: { kind: "deferring", notice: false, since: null },
     });
   });
 });
@@ -586,6 +586,15 @@ describe("the register's fiscal mode on its status", () => {
     insertPointOfSale(database, 40);
   }
 
+  function insertContingencyInterval(startedAt: string, endedAt: string | null): void {
+    database
+      .prepare(
+        `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
+         VALUES ('interval-1', ?, ?, ?)`,
+      )
+      .run(startedAt, endedAt, endedAt ?? startedAt);
+  }
+
   function holdTheOfflineCode(): void {
     insertOfflinePointOfSale(database, 31, 0);
     insertOfflineNumberBlock(database, "block-1", 1, 1000, 31);
@@ -606,13 +615,13 @@ describe("the register's fiscal mode on its status", () => {
     holdRealTimeSeries();
     holdTheOfflineCode();
 
-    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: true });
+    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: true, since: null });
   });
 
   it("is a deferring contingency with a notice while the register is offline and holds no code", async () => {
     holdRealTimeSeries();
 
-    expect((await status()).contingency).toEqual({ kind: "deferring", notice: true });
+    expect((await status()).contingency).toEqual({ kind: "deferring", notice: true, since: null });
   });
 
   it("is a deferring contingency without a notice while the register's latest sale failed the pre-emission check", async () => {
@@ -620,7 +629,31 @@ describe("the register's fiscal mode on its status", () => {
     holdTheOfflineCode();
     recordGateOutcome("sale-1", 10, false);
 
-    expect((await status()).contingency).toEqual({ kind: "deferring", notice: false });
+    expect((await status()).contingency).toEqual({ kind: "deferring", notice: false, since: null });
+  });
+
+  it("is a contingency since the start of the register's open interval", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+    insertContingencyInterval("2026-10-05T14:30:00.000Z", null);
+
+    expect((await status()).contingency).toEqual({
+      kind: "offline_code",
+      notice: true,
+      since: "2026-10-05T11:30:00.000-03:00",
+    });
+  });
+
+  it("is a contingency since no start while its only interval is closed", async () => {
+    holdRealTimeSeries();
+    holdTheOfflineCode();
+    insertContingencyInterval("2026-10-05T14:30:00.000Z", "2026-10-05T15:00:00.000Z");
+
+    expect((await status()).contingency).toEqual({
+      kind: "offline_code",
+      notice: true,
+      since: null,
+    });
   });
 
   it("is a contingency without a notice while the register stopped opening new sales", async () => {
@@ -628,7 +661,7 @@ describe("the register's fiscal mode on its status", () => {
     holdTheOfflineCode();
     stopOpeningNewSales(database, "event_history_broken", NOW);
 
-    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: false });
+    expect((await status()).contingency).toEqual({ kind: "offline_code", notice: false, since: null });
   });
 
   it("is a contingency without a notice while its storage stops new sales", async () => {
@@ -637,7 +670,7 @@ describe("the register's fiscal mode on its status", () => {
 
     expect(
       (await status("unknown", NO_DEVICES, { ...ROOMY_STORAGE, diskStanding: "full" })).contingency,
-    ).toEqual({ kind: "offline_code", notice: false });
+    ).toEqual({ kind: "offline_code", notice: false, since: null });
   });
 
   it("is a contingency without a notice while its local database is damaged", async () => {
@@ -647,6 +680,7 @@ describe("the register's fiscal mode on its status", () => {
     expect((await status("unknown", NO_DEVICES, ROOMY_STORAGE, true)).contingency).toEqual({
       kind: "offline_code",
       notice: false,
+      since: null,
     });
   });
 
@@ -666,7 +700,7 @@ describe("the register's fiscal mode on its status", () => {
           true,
         )
       ).contingency,
-    ).toEqual({ kind: "offline_code", notice: false });
+    ).toEqual({ kind: "offline_code", notice: false, since: null });
   });
 });
 
