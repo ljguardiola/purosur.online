@@ -10,11 +10,14 @@ const payment = {
   remaining: 5000,
   eligible: true,
   ineligible_reason: null,
+  refund_state: "PENDING",
 };
 
 function found(paymentBody: Record<string, unknown>) {
   return {
     kind: "found",
+    ticket_source: "TYPED",
+    ticket_verification_required: true,
     sale: {
       sale_id: "sale-1",
       occurred_at: "2026-09-12T11:42:00.000-03:00",
@@ -52,6 +55,18 @@ describe("findSaleForReturnOutcomeSchema", () => {
 
   it("accepts a payment that is not cash as one that can be chosen", () => {
     expect(findSaleForReturnOutcomeSchema.safeParse(found(payment)).success).toBe(true);
+  });
+
+  it("refuses a refund state that is not one a refund is planned in", () => {
+    expect(
+      findSaleForReturnOutcomeSchema.safeParse(found({ ...payment, refund_state: "DISCARDED" }))
+        .success,
+    ).toBe(false);
+  });
+
+  it("refuses a payment without the state its refund would be in", () => {
+    const { refund_state: _left, ...withoutState } = payment;
+    expect(findSaleForReturnOutcomeSchema.safeParse(found(withoutState)).success).toBe(false);
   });
 
   it("refuses the reason a payment that is not cash used to be left out for", () => {

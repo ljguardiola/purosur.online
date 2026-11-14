@@ -2,6 +2,7 @@ import type {
   CashBalance,
   EnrollmentOutcome,
   FindDeferredSaleOutcome,
+  FindSaleForReturnOutcome,
   ListedCashMovement,
   PaymentMethodAvailability,
   ReadClockGuardOutcome,
@@ -193,7 +194,8 @@ const screenFor: Record<
   "/history": (screen) =>
     screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }),
   "/deferred-sale": (screen) => screen.getByText("Acercá el QR del documento al lector"),
-  "/return": (screen) => screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }),
+  "/return": (screen) =>
+    screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }),
   "/receipt-printer": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
   "/serial-devices": (screen) =>
@@ -3539,6 +3541,57 @@ describe("the charge route's Mercado Pago QR", () => {
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
 
     await expect.poll(() => started).toEqual([["sale-1", { method: "QR" }, 238_000]]);
+  });
+
+  describe("the return route", () => {
+    it("looks the sale carried by the route up by its id, without asking for the ticket", async () => {
+      const findSaleForReturn = vi.fn(
+        async (): Promise<FindSaleForReturnOutcome> => ({ kind: "voided" }),
+      );
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+          findSaleForReturn,
+        },
+        "/return?saleId=sale-9",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect
+        .element(
+          screen
+            .getByRole("alert")
+            .filter({ hasText: "Esa venta está anulada: no se puede devolver." }),
+        )
+        .toBeVisible();
+      expect(findSaleForReturn).toHaveBeenCalledExactlyOnceWith(
+        { kind: "sale", sale_id: "sale-9" },
+        undefined,
+      );
+    });
+
+    it("asks for the ticket when the route carries no sale", async () => {
+      const findSaleForReturn = vi.fn(
+        async (): Promise<FindSaleForReturnOutcome> => ({ kind: "not_found" }),
+      );
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
+          findSaleForReturn,
+        },
+        "/return",
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect
+        .element(screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }))
+        .toBeVisible();
+      expect(findSaleForReturn).not.toHaveBeenCalled();
+    });
   });
 });
 

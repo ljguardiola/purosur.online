@@ -145,6 +145,11 @@ export function returnsReportSpreadsheet(
         header: HEADER,
         rows: shown.scanned.rows.flatMap(returnRows),
       },
+      {
+        name: "Iniciadas desde el historial",
+        header: HEADER,
+        rows: shown.history.rows.flatMap(returnRows),
+      },
     ],
   };
 }

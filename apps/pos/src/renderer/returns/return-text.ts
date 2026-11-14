@@ -3,9 +3,10 @@ import type {
   ReturnDraftLineBody,
   ReturnLineRefusalBody,
 } from "@purosur/contracts";
-import type { NoticeTone } from "@purosur/ui";
 import { formatCalendarDayNumeric, formatCents, formatWeight } from "@purosur/ui";
-import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
+import type { PaymentForReturn, SaleForReturn, SaleLineForReturn } from "./return-sale";
+
+type PlannedRefundState = PaymentForReturn["refund_state"];
 
 export type ReturnReasonValue = NonNullable<ReturnDraftLineBody["reason"]>;
 export type ReturnDispositionValue = NonNullable<ReturnDraftLineBody["disposition"]>;
@@ -16,6 +17,17 @@ export const REASON_OPTIONS = [
   { value: "defective", label: "Defecto" },
 ] as const satisfies readonly { value: ReturnReasonValue; label: string }[];
 
+type ReasonOption = { value: ReturnReasonValue; label: string; status?: string };
+
+export function reasonOptions(
+  windows: SaleForReturn["windows"],
+): readonly [ReasonOption, ...ReasonOption[]] {
+  const [changeOfMind, defective] = REASON_OPTIONS;
+  const marked = (option: ReasonOption): ReasonOption =>
+    windows[option.value].open ? option : { ...option, status: "Vencido" };
+  return [marked(changeOfMind), marked(defective)];
+}
+
 export const DISPOSITION_OPTIONS = [
   { value: "restock", label: "A la venta" },
   { value: "discard", label: "Descarte" },
@@ -23,7 +35,7 @@ export const DISPOSITION_OPTIONS = [
 
 export const RESOLUTION_LABELS: Record<ReturnResolutionValue, string> = {
   refund: "Reintegro",
-  exchange: "Cambio por otra igual",
+  exchange: "Cambio",
 };
 
 const REASON_WINDOW_NAMES: Record<ReturnReasonValue, string> = {
@@ -45,29 +57,25 @@ export type FindRefusalKind =
   | "needs_connection"
   | "lookup_failed"
   | "not_a_ticket_qr"
+  | "not_a_ticket_number"
   | "unavailable";
 
-export function findRefusalText(kind: FindRefusalKind): { title: string; description?: string } {
+export function findRefusalText(kind: FindRefusalKind): string {
   switch (kind) {
     case "not_found":
-      return { title: "No encontramos esa venta en esta sucursal." };
+      return "No encontramos esa venta en esta sucursal.";
     case "voided":
-      return { title: "Esa venta está anulada: no se puede devolver." };
+      return "Esa venta está anulada: no se puede devolver.";
     case "needs_connection":
-      return { title: "Se necesita conexión a internet para buscar una venta de otra caja." };
+      return "Se necesita conexión a internet para buscar una venta de otra caja.";
     case "lookup_failed":
-      return {
-        title: "No se pudo buscar la venta en las otras cajas",
-        description: "Probá de nuevo.",
-      };
+      return "No se pudo buscar la venta en las otras cajas. Probá de nuevo.";
     case "not_a_ticket_qr":
-      return {
-        title: "Ese QR no es de un ticket",
-        description:
-          "Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
-      };
+      return "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.";
+    case "not_a_ticket_number":
+      return "Tipeá el número impreso del ticket, como 00003-00001192.";
     case "unavailable":
-      return { title: "No se pudo buscar la venta", description: "Probá de nuevo." };
+      return "No se pudo buscar la venta. Probá de nuevo.";
   }
 }
 
@@ -115,17 +123,12 @@ export function refundRefusalText(refusal: RefundAllocationRefusalBody): string 
   }
 }
 
-export const PAYMENT_NOTHING_LEFT_TEXT = "Este pago ya se reintegró completo";
+export const REFUND_WHEN_IN_TABLE = {
+  APPROVED: "En el acto",
+  PENDING: "Reembolso pendiente",
+} as const satisfies Record<PlannedRefundState, string>;
 
-export function windowTags(
-  windows: SaleForReturn["windows"],
-): { label: string; tone: Extract<NoticeTone, "success" | "warning"> }[] {
-  const tag = (
-    name: string,
-    { open, last_allowed_day: day }: SaleForReturn["windows"]["defective"],
-  ) =>
-    open
-      ? { label: `${name} hasta ${formatCalendarDayNumeric(day)}`, tone: "success" as const }
-      : { label: `${name} vencido`, tone: "warning" as const };
-  return [tag("Arrepentimiento", windows.change_of_mind), tag("Defecto", windows.defective)];
-}
+export const REFUND_WHEN_IN_ROW = {
+  APPROVED: "en el acto",
+  PENDING: "reembolso pendiente",
+} as const satisfies Record<PlannedRefundState, string>;

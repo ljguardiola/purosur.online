@@ -112,6 +112,8 @@ function entriesOf(sale: SaleDetail): SaleActionEntry[] {
 export function saleActionsOf(sale: SaleDetail): {
   entries: SaleActionEntry[];
   canVoid: boolean;
+  canReturn: boolean;
 } {
-  return { entries: entriesOf(sale), canVoid: sale.voidability.kind === "voidable" };
+  const canVoid = sale.voidability.kind === "voidable";
+  return { entries: entriesOf(sale), canVoid, canReturn: sale.returnable && !canVoid };
 }

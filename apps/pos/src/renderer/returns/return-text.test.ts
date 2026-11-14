@@ -6,9 +6,11 @@ import {
   lineRefusalNotice,
   quantityText,
   REASON_OPTIONS,
+  REFUND_WHEN_IN_ROW,
+  REFUND_WHEN_IN_TABLE,
   RESOLUTION_LABELS,
+  reasonOptions,
   refundRefusalText,
-  windowTags,
 } from "./return-text";
 import { NIBS, PASTA, SALE } from "./test-support/sale-for-return";
 
@@ -16,6 +18,19 @@ describe("the options of a return line", () => {
   it("offer the two reasons, in the words of a customer", () => {
     expect(REASON_OPTIONS).toEqual([
       { value: "change_of_mind", label: "Arrepentimiento" },
+      { value: "defective", label: "Defecto" },
+    ]);
+  });
+
+  it("mark Vencido the reason whose return window is over, and no other", () => {
+    const windows = {
+      ...SALE.windows,
+      change_of_mind: { ...SALE.windows.change_of_mind, open: false },
+      defective: { ...SALE.windows.defective, open: true },
+    };
+
+    expect(reasonOptions(windows)).toEqual([
+      { value: "change_of_mind", label: "Arrepentimiento", status: "Vencido" },
       { value: "defective", label: "Defecto" },
     ]);
   });
@@ -28,12 +43,25 @@ describe("the options of a return line", () => {
   });
 
   it("name the two ways a line is resolved", () => {
-    expect(RESOLUTION_LABELS).toEqual({ refund: "Reintegro", exchange: "Cambio por otra igual" });
+    expect(RESOLUTION_LABELS).toEqual({ refund: "Reintegro", exchange: "Cambio" });
   });
 
   it("say what happens to the merchandise of each destination", () => {
     expect(dispositionOutcomeText("restock")).toBe("vuelve a la venta");
     expect(dispositionOutcomeText("discard")).toBe("se descarta");
+  });
+});
+
+describe("when a payment is refunded", () => {
+  it("says in the table that cash is given on the spot and the rest is a pending refund", () => {
+    expect(REFUND_WHEN_IN_TABLE).toEqual({
+      APPROVED: "En el acto",
+      PENDING: "Reembolso pendiente",
+    });
+  });
+
+  it("says the same in a row beside the payment's name", () => {
+    expect(REFUND_WHEN_IN_ROW).toEqual({ APPROVED: "en el acto", PENDING: "reembolso pendiente" });
   });
 });
 
@@ -48,44 +76,19 @@ describe("the quantity of a line", () => {
 });
 
 describe("the refusal of finding the sale", () => {
-  it("says the sale is not in this branch", () => {
-    expect(findRefusalText("not_found")).toEqual({
-      title: "No encontramos esa venta en esta sucursal.",
-    });
-  });
-
-  it("says a connection is needed to look for a sale of another register", () => {
-    expect(findRefusalText("needs_connection")).toEqual({
-      title: "Se necesita conexión a internet para buscar una venta de otra caja.",
-    });
-  });
-
-  it("says looking for a sale of another register failed", () => {
-    expect(findRefusalText("lookup_failed")).toEqual({
-      title: "No se pudo buscar la venta en las otras cajas",
-      description: "Probá de nuevo.",
-    });
-  });
-
-  it("says a voided sale cannot be returned", () => {
-    expect(findRefusalText("voided")).toEqual({
-      title: "Esa venta está anulada: no se puede devolver.",
-    });
-  });
-
-  it("says a scanned code is not a ticket's QR", () => {
-    expect(findRefusalText("not_a_ticket_qr")).toEqual({
-      title: "Ese QR no es de un ticket",
-      description:
-        "Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
-    });
-  });
-
-  it("says the search could not be made", () => {
-    expect(findRefusalText("unavailable")).toEqual({
-      title: "No se pudo buscar la venta",
-      description: "Probá de nuevo.",
-    });
+  it.each([
+    ["not_found", "No encontramos esa venta en esta sucursal."],
+    ["needs_connection", "Se necesita conexión a internet para buscar una venta de otra caja."],
+    ["lookup_failed", "No se pudo buscar la venta en las otras cajas. Probá de nuevo."],
+    ["voided", "Esa venta está anulada: no se puede devolver."],
+    [
+      "not_a_ticket_qr",
+      "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
+    ],
+    ["not_a_ticket_number", "Tipeá el número impreso del ticket, como 00003-00001192."],
+    ["unavailable", "No se pudo buscar la venta. Probá de nuevo."],
+  ] as const)("says %s in one sentence", (kind, text) => {
+    expect(findRefusalText(kind)).toBe(text);
   });
 });
 
@@ -167,38 +170,5 @@ describe("the refusal of a refund", () => {
     ],
   ] as const)("is told as %j", (refusal, text) => {
     expect(refundRefusalText(refusal)).toBe(text);
-  });
-});
-
-describe("the windows of a sale", () => {
-  it("tell until when each reason can be returned", () => {
-    expect(windowTags(SALE.windows)).toEqual([
-      { label: "Arrepentimiento hasta 27/09/2026", tone: "success" },
-      { label: "Defecto hasta 12/03/2027", tone: "success" },
-    ]);
-  });
-
-  it("say a reason's window is over", () => {
-    expect(
-      windowTags({
-        change_of_mind: { last_allowed_day: "2026-09-27", open: false },
-        defective: { last_allowed_day: "2027-03-12", open: true },
-      }),
-    ).toEqual([
-      { label: "Arrepentimiento vencido", tone: "warning" },
-      { label: "Defecto hasta 12/03/2027", tone: "success" },
-    ]);
-  });
-
-  it("say both windows are over", () => {
-    expect(
-      windowTags({
-        change_of_mind: { last_allowed_day: "2026-09-27", open: false },
-        defective: { last_allowed_day: "2027-03-12", open: false },
-      }),
-    ).toEqual([
-      { label: "Arrepentimiento vencido", tone: "warning" },
-      { label: "Defecto vencido", tone: "warning" },
-    ]);
   });
 });

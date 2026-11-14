@@ -136,6 +136,21 @@ describe("returnsReportGroups", () => {
     expect(groups.scanned.rows.map((row) => row.returnId)).toEqual(["q2", "q1"]);
   });
 
+  it("keeps the returns started from the sales history in a group of their own", () => {
+    const fromHistory = record({
+      returnId: "h1",
+      ticketSource: "HISTORY",
+      lines: [line({ refunded: 120 })],
+    });
+
+    const groups = returnsReportGroups([scanned, typed, fromHistory]);
+
+    expect(groups.history.rows.map((row) => row.returnId)).toEqual(["h1"]);
+    expect(groups.history.totals).toEqual({ returns: 1, refunded: 120 });
+    expect(groups.scanned.rows.map((row) => row.returnId)).toEqual(["q1"]);
+    expect(groups.typed.rows.map((row) => row.returnId)).toEqual(["t1"]);
+  });
+
   it("totals the returns and the refunded amount of each group on its own", () => {
     const groups = returnsReportGroups([scanned, typed, otherScanned]);
 
@@ -148,6 +163,7 @@ describe("returnsReportGroups", () => {
 
     expect(groups.typed).toEqual({ rows: [], totals: { returns: 0, refunded: 0 } });
     expect(groups.scanned).toEqual({ rows: [], totals: { returns: 0, refunded: 0 } });
+    expect(groups.history).toEqual({ rows: [], totals: { returns: 0, refunded: 0 } });
   });
 });
 

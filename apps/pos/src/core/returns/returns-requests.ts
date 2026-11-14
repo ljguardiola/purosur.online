@@ -12,6 +12,7 @@ import {
   type RefundAllocation,
   type ReturnDraftLine,
   type TicketSource,
+  ticketVerificationRequired,
 } from "@purosur/domain";
 import {
   type CloudCreditNotes,
@@ -97,6 +98,7 @@ async function settleCreditNote(
 export type FindSaleForReturnDeps = ReturnRequestDeps & { branchSales: BranchSaleLookup };
 
 export interface FindSaleForReturnRequest {
+  ticketSource: TicketSource;
   ticket: SaleReturnSearch;
   authorization?: Authorization | undefined;
 }
@@ -109,6 +111,7 @@ export interface PreviewReturnRequest {
 export interface CompleteReturnRequest {
   saleId: string;
   ticketSource: TicketSource;
+  ticketVerified: boolean;
   lines: readonly ReturnDraftLine[];
   refunds: readonly RefundAllocation[];
   authorization?: Authorization | undefined;
@@ -125,7 +128,7 @@ interface ReturnRequestGrant extends CompleteReturnGrant {
 
 export async function findSaleForReturnFor(
   { database, gate, now, zoneRules, branchSales }: FindSaleForReturnDeps,
-  { ticket, authorization }: FindSaleForReturnRequest,
+  { ticketSource, ticket, authorization }: FindSaleForReturnRequest,
 ): Promise<FindSaleForReturnOutcome> {
   const guarded = await gate.runAuthorized({ kind: "process_return" }, authorization, async () =>
     findBranchSaleForReturn(
@@ -145,7 +148,12 @@ export async function findSaleForReturnFor(
   }
   const { result } = guarded;
   return result.kind === "found"
-    ? { kind: "found", sale: toWireSaleForReturn(result.sale, zoneRules.zoneRules()) }
+    ? {
+        kind: "found",
+        sale: toWireSaleForReturn(result.sale, zoneRules.zoneRules()),
+        ticket_source: ticketSource,
+        ticket_verification_required: ticketVerificationRequired(ticketSource),
+      }
     : result;
 }
 
@@ -174,7 +182,7 @@ export async function previewReturnFor(
 
 export async function completeReturnFor(
   deps: ReturnRequestDeps,
-  { saleId, ticketSource, lines, refunds, authorization }: CompleteReturnRequest,
+  { saleId, ticketSource, ticketVerified, lines, refunds, authorization }: CompleteReturnRequest,
 ): Promise<CompleteReturnOutcome> {
   const { database, gate, now, zoneRules, ids, readOutboxChainKey } = deps;
   const outboxChainKey = await readOutboxChainKey();
@@ -204,7 +212,7 @@ export async function completeReturnFor(
         },
       },
     },
-    { saleId, ticketSource, lines, refunds },
+    { saleId, ticketSource, ticketVerified, lines, refunds },
   );
   if (outcome.kind === "completed" && outcome.creditNote.kind !== "none") {
     await settleCreditNote(deps, saleId, outcome.creditNote);

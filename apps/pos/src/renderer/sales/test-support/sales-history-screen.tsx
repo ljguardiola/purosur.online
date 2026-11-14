@@ -163,6 +163,7 @@ export async function renderScreen({
   );
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
+  const onReturnSale = vi.fn();
   const readers = new Set<(code: string) => void>();
   const screen = await render(
     <BarcodeReadings
@@ -189,6 +190,7 @@ export async function renderScreen({
           printDeferredSaleInvoice={printDeferredSaleInvoice}
           loadAuthorizers={async () => AUTHORIZERS}
           onSessionInvalid={onSessionInvalid}
+          onReturnSale={onReturnSale}
         />
       </RegisterWindow>
     </BarcodeReadings>,
@@ -209,6 +211,7 @@ export async function renderScreen({
     printDeferredSaleInvoice,
     lock,
     onSessionInvalid,
+    onReturnSale,
   };
 }
 

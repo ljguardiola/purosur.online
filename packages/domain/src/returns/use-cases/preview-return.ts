@@ -1,3 +1,4 @@
+import { saleMayBeReturned } from "../../sales/index.js";
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import {
   assessReturnDraft,
@@ -32,7 +33,7 @@ export function previewReturn(
   if (facts === undefined) {
     return { kind: "not_found" };
   }
-  if (facts.sale.state !== "COMPLETED") {
+  if (!saleMayBeReturned(facts.sale.state)) {
     return { kind: "sale_not_returnable" };
   }
   const assessed = assessReturnDraft(

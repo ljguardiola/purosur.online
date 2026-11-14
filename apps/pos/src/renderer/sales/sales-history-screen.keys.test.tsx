@@ -29,6 +29,7 @@ const CREDIT_NOTE = {
 const VOIDED: SaleDetail = {
   ...DETAIL,
   state: "voided",
+  returnable: false,
   voidability: { kind: "not_voidable", refusal: "not_completed" },
   credit_notes: [CREDIT_NOTE],
 };
@@ -54,12 +55,14 @@ describe("SalesHistoryScreen footer keys", () => {
       .toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir", "SuprAnular"]);
   });
 
-  it("offers no void for a sale of another session", async () => {
+  it("offers the return, and no void, for a sale of another session", async () => {
     const { screen } = await renderScreen(
       showing({ ...DETAIL, voidability: { kind: "not_voidable", refusal: "session_closed" } }),
     );
 
-    await expect.poll(() => legendOf(screen)).toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir"]);
+    await expect
+      .poll(() => legendOf(screen))
+      .toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir", "SuprDevolver"]);
   });
 
   it("offers the credit note with F5 and the factura with F6 for a voided sale", async () => {
@@ -83,7 +86,7 @@ describe("SalesHistoryScreen footer keys", () => {
 
     await expect
       .poll(() => legendOf(screen))
-      .toEqual(["↑↓Ventas", "F2Buscar", "EnterImprimir factura"]);
+      .toEqual(["↑↓Ventas", "F2Buscar", "EnterImprimir factura", "SuprDevolver"]);
   });
 
   it("offers printing the original with F5 for a sale never printed", async () => {
@@ -128,5 +131,64 @@ describe("SalesHistoryScreen footer keys", () => {
 
     await expect.element(table(screen).getByText("11:42", { exact: true })).toBeVisible();
     await expect.poll(() => legendOf(screen)).toContain("F5Reimprimir");
+  });
+
+  it("offers Supr Devolver, and returns the selected sale, when it cannot be voided but the core says it is returnable", async () => {
+    const { screen, onReturnSale } = await renderScreen(
+      showing({
+        ...DETAIL,
+        voidability: { kind: "not_voidable", refusal: "session_closed" },
+        returnable: true,
+      }),
+    );
+
+    await expect
+      .poll(() => legendOf(screen))
+      .toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir", "SuprDevolver"]);
+    await userEvent.keyboard("{Delete}");
+
+    expect(onReturnSale).toHaveBeenCalledExactlyOnceWith("sale-1");
+  });
+
+  it("offers Anular, not Devolver, with Supr when the sale can be voided and returned", async () => {
+    const { screen, onReturnSale } = await renderScreen();
+
+    await expect.poll(() => legendOf(screen)).toContain("SuprAnular");
+    expect(legendOf(screen)).not.toContain("SuprDevolver");
+    await userEvent.keyboard("{Delete}");
+
+    expect(onReturnSale).not.toHaveBeenCalled();
+  });
+
+  it("offers neither Anular nor Devolver when the sale can be neither voided nor returned", async () => {
+    const { screen, onReturnSale } = await renderScreen(
+      showing({
+        ...DETAIL,
+        voidability: { kind: "not_voidable", refusal: "session_closed" },
+        returnable: false,
+      }),
+    );
+
+    await expect.poll(() => legendOf(screen)).toEqual(["↑↓Ventas", "F2Buscar", "F5Reimprimir"]);
+    await userEvent.keyboard("{Delete}");
+
+    expect(onReturnSale).not.toHaveBeenCalled();
+  });
+
+  it("does not return the sale with Supr while the search field is focused", async () => {
+    const { screen, onReturnSale } = await renderScreen(
+      showing({
+        ...DETAIL,
+        voidability: { kind: "not_voidable", refusal: "session_closed" },
+        returnable: true,
+      }),
+    );
+    await expect.poll(() => legendOf(screen)).toContain("SuprDevolver");
+
+    await userEvent.keyboard("{F2}");
+    await userEvent.type(searchField(screen), "187");
+    await userEvent.keyboard("{Delete}");
+
+    expect(onReturnSale).not.toHaveBeenCalled();
   });
 });
