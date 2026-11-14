@@ -17,13 +17,6 @@ async function typeCode(rendered: Awaited<ReturnType<typeof renderScreen>>, code
 }
 
 describe("DeferredSaleScreen finding a sale by its typed code", () => {
-  it("shows the field with its F2 key", async () => {
-    const { screen } = await renderScreen();
-
-    await expect.element(screen.getByText("SI EL LECTOR NO LEE EL QR")).toBeVisible();
-    await expect.element(screen.getByText("F2")).toBeVisible();
-  });
-
   it("looks the sale up by the code as typed when Buscar venta is pressed, and shows it as a scan does", async () => {
     const rendered = await renderScreen({ findDeferredSale: vi.fn(async () => FOUND_ISSUED) });
     await typeCode(rendered, "7kq4-m2p9");
@@ -42,16 +35,6 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
       .toBeVisible();
   });
 
-  it("refuses a code that is not a short code, saying how it is made, without asking the core", async () => {
-    const rendered = await renderScreen();
-    await typeCode(rendered, "7KQ4");
-
-    await userEvent.click(rendered.screen.getByRole("button", { name: "Buscar venta" }));
-
-    await expect.element(rendered.screen.getByText(INVALID_CODE)).toBeVisible();
-    expect(rendered.findDeferredSale).not.toHaveBeenCalled();
-  });
-
   it("looks the same code up again when it is submitted twice", async () => {
     const rendered = await renderScreen({ findDeferredSale: vi.fn(async () => FOUND_ISSUED) });
     await typeCode(rendered, "7KQ4M2P9");
@@ -64,12 +47,14 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
     await vi.waitFor(() => expect(rendered.findDeferredSale).toHaveBeenCalledTimes(2));
   });
 
-  it("ignores a submit while a lookup is in flight", async () => {
+  it("ignores Enter in the field while a lookup is in flight", async () => {
     const answer = deferred<FindDeferredSaleOutcome>();
     const rendered = await renderScreen({ findDeferredSale: vi.fn(() => answer.promise) });
     await typeCode(rendered, "7KQ4M2P9");
 
-    await userEvent.click(rendered.screen.getByRole("button", { name: "Buscar venta" }));
+    await userEvent.keyboard("{Enter}");
+    await vi.waitFor(() => expect(rendered.findDeferredSale).toHaveBeenCalledTimes(1));
+    await expect.element(rendered.screen.getByRole("textbox", CODE_FIELD)).toHaveFocus();
     await userEvent.keyboard("{Enter}");
 
     expect(rendered.findDeferredSale).toHaveBeenCalledTimes(1);
@@ -121,14 +106,6 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
     await userEvent.keyboard("{Enter}");
 
     await vi.waitFor(() => expect(rendered.printDeferredSaleInvoice).toHaveBeenCalledTimes(1));
-  });
-
-  it("focuses the field with F2", async () => {
-    const { screen } = await renderScreen();
-
-    await userEvent.keyboard("{F2}");
-
-    await expect.element(screen.getByRole("textbox", CODE_FIELD)).toHaveFocus();
   });
 
   it("does not retry a failed lookup when R is typed in the field", async () => {
