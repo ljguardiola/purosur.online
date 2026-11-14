@@ -138,6 +138,31 @@ describe("ProductConsultationScreen showing a consulted product", () => {
     await expect.poll(() => consultProduct.mock.calls.length).toBeGreaterThanOrEqual(3);
   });
 
+  it.each([
+    ["fails", () => Promise.reject(new Error("core gone"))],
+    ["cannot answer", async (): Promise<ConsultProductOutcome> => ({ kind: "unavailable" })],
+  ])(
+    "stops showing a weighed product's figures when the core %s on asking again, and follows the scale again on Reintentar",
+    async (_, failing) => {
+      const consultProduct = vi
+        .fn<() => Promise<ConsultProductOutcome>>()
+        .mockResolvedValueOnce(ALMENDRAS)
+        .mockImplementationOnce(failing)
+        .mockResolvedValue({ ...ALMENDRAS, weight_thousandths: 500 });
+      const { screen } = await renderScreen({ consultProduct });
+
+      await expect
+        .element(screen.getByRole("alert"))
+        .toHaveTextContent("No se pudo consultar el producto");
+      await expect.element(screen.getByRole("region", CARD)).not.toBeInTheDocument();
+      await expect.element(screen.getByText("0,410 kg")).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+      await expect.element(screen.getByRole("region", CARD).getByText("0,500 kg")).toBeVisible();
+      await expect.poll(() => consultProduct.mock.calls.length).toBeGreaterThanOrEqual(5);
+    },
+  );
+
   it("does not ask the core again while it shows a product sold by unit", async () => {
     vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
     onTestFinished(() => void vi.useRealTimers());
@@ -169,7 +194,8 @@ describe("ProductConsultationScreen showing a consulted product", () => {
     const consultProduct = vi
       .fn<() => Promise<ConsultProductOutcome>>()
       .mockRejectedValueOnce(new Error("core gone"))
-      .mockReturnValueOnce(again.promise);
+      .mockReturnValueOnce(again.promise)
+      .mockResolvedValue(ALMENDRAS);
     const { screen } = await renderScreen({ consultProduct });
 
     await expect.element(screen.getByText("No se pudo consultar el producto")).toBeVisible();
