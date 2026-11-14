@@ -132,12 +132,6 @@ export function DeferredSaleScreen({
     setLookup((previous) => ({ reading: next, scan: (previous?.scan ?? 0) + 1 }));
   }
 
-  function takeTyped(typed: DeferredSaleReading) {
-    if (!printingNow.current && !lookingUp) {
-      look(typed);
-    }
-  }
-
   function takeScan(text: string) {
     if (printingNow.current || lookingUp) {
       return;
@@ -321,7 +315,7 @@ export function DeferredSaleScreen({
             disabled={printing}
             lookingUp={lookingUp}
             keysActive={!reprinting}
-            onLook={takeTyped}
+            onLook={look}
           />
         </SidePanel>
       }
