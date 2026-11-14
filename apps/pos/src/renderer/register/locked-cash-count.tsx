@@ -46,11 +46,11 @@ import {
 } from "./register-queries";
 
 const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
-const EMPTY_FAILED = "No se pudo vaciar el carrito. Probá de nuevo.";
+const EMPTY_FAILED = "No se pudo vaciar la venta. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
 const EMPTY_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
   mercado_pago_charge_in_progress:
-    "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.",
+    "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar la venta.",
 };
 const CANCEL_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
   mercado_pago_charge_in_progress:
@@ -230,7 +230,7 @@ export function LockedCashCount({
             description={
               openSale.has_approved_payment
                 ? "Cancelala para cerrar la caja."
-                : "Vaciá el carrito para cerrar la caja."
+                : "Vaciá la venta para cerrar la caja."
             }
             actions={
               <Button

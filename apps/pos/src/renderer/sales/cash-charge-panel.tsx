@@ -50,7 +50,7 @@ import { useCashChargeAmountsQuery, useCashChargeQuery } from "./sales-queries";
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
 
 const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total de la venta.";
-const AUTHORIZING = "descontar sobre el total";
+const AUTHORIZING = "descontar al total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
 const QUICK_AMOUNT_KEYS = ["F6", "F7", "F8", "F9"] as const;
