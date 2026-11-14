@@ -123,6 +123,7 @@ export function DeferredSaleScreen({
     : ended === undefined
       ? lookupRefusal
       : ended.refusal;
+  const retryable = found.status === "failed" && refusal === "unavailable";
 
   function look(next: ScannedDeferredSaleReading) {
     setNotAQr(false);
@@ -215,7 +216,7 @@ export function DeferredSaleScreen({
       {
         key: "R",
         run: () => (found.status === "failed" ? found.retry() : undefined),
-        enabled: found.status === "failed",
+        enabled: retryable,
       },
     ],
     { active: !reprinting },
@@ -271,7 +272,7 @@ export function DeferredSaleScreen({
               >
                 {receiptCopyPresentation({ kind: "duplicate" }).printButton}
               </Button>
-            ) : found.status === "failed" ? (
+            ) : retryable && found.status === "failed" ? (
               <Button
                 size="large"
                 fullWidth
