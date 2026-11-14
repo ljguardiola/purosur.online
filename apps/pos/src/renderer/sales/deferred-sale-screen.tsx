@@ -31,8 +31,8 @@ import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import { DeferredSaleCodeForm } from "./deferred-sale-code-form";
 import { DeferredSaleLines } from "./deferred-sale-lines";
-import type { ScannedDeferredSaleReading } from "./deferred-sale-qr";
 import { scannedDeferredSaleReading } from "./deferred-sale-qr";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
 import {
@@ -125,11 +125,17 @@ export function DeferredSaleScreen({
       : ended.refusal;
   const retryable = found.status === "failed" && refusal === "unavailable";
 
-  function look(next: ScannedDeferredSaleReading) {
+  function look(next: DeferredSaleReading) {
     setNotAQr(false);
     setEnded(undefined);
     setPrintNotice(undefined);
     setLookup((previous) => ({ reading: next, scan: (previous?.scan ?? 0) + 1 }));
+  }
+
+  function takeTyped(typed: DeferredSaleReading) {
+    if (!printingNow.current && !lookingUp) {
+      look(typed);
+    }
   }
 
   function takeScan(text: string) {
@@ -311,6 +317,12 @@ export function DeferredSaleScreen({
               description={shownNotice.description}
             />
           )}
+          <DeferredSaleCodeForm
+            disabled={printing}
+            lookingUp={lookingUp}
+            keysActive={!reprinting}
+            onLook={takeTyped}
+          />
         </SidePanel>
       }
     >

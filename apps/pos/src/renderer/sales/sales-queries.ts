@@ -33,7 +33,6 @@ import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
 import { PAUSE_BETWEEN_ANSWERS_MS } from "../platform/use-scale-weighing";
-import type { ScannedDeferredSaleReading } from "./deferred-sale-qr";
 
 const salesKey = ["sales"] as const;
 
@@ -554,7 +553,7 @@ export function useFindProductByCode(
       .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
 }
 
-export type DeferredSaleLookup = { reading: ScannedDeferredSaleReading; scan: number };
+export type DeferredSaleLookup = { reading: DeferredSaleReading; scan: number };
 
 export type ShownDeferredSale = Exclude<FindDeferredSaleOutcome, { kind: "unavailable" }>;
 
@@ -566,7 +565,7 @@ export function useDeferredSaleQuery({
   read: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
 }): CoreData<ShownDeferredSale> {
   return useCoreQuery({
-    queryKey: [...salesKey, "deferred-sale", lookup?.reading.text ?? null, lookup?.scan ?? null],
+    queryKey: [...salesKey, "deferred-sale", lookup?.reading ?? null, lookup?.scan ?? null],
     enabled: lookup !== undefined,
     gcTime: 0,
     read: async () => {

@@ -25,7 +25,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
   });
 
   it("looks the sale up by the code as typed when Buscar venta is pressed, and shows it as a scan does", async () => {
-    const rendered = await renderScreen({ findDeferredSale: async () => FOUND_ISSUED });
+    const rendered = await renderScreen({ findDeferredSale: vi.fn(async () => FOUND_ISSUED) });
     await typeCode(rendered, "7kq4-m2p9");
 
     await userEvent.click(rendered.screen.getByRole("button", { name: "Buscar venta" }));
@@ -53,7 +53,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
   });
 
   it("looks the same code up again when it is submitted twice", async () => {
-    const rendered = await renderScreen({ findDeferredSale: async () => FOUND_ISSUED });
+    const rendered = await renderScreen({ findDeferredSale: vi.fn(async () => FOUND_ISSUED) });
     await typeCode(rendered, "7KQ4M2P9");
     const search = rendered.screen.getByRole("button", { name: "Buscar venta" });
 
@@ -79,7 +79,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
   it("submits the form on Enter in the field without printing the invoice of the sale shown", async () => {
     const rendered = await renderScreen({
       reading: QR_TEXT,
-      findDeferredSale: async () => FOUND_PENDING,
+      findDeferredSale: vi.fn(async () => FOUND_PENDING),
     });
     await expect.element(rendered.screen.getByText("Almendras peladas")).toBeVisible();
     await typeCode(rendered, "7KQ4M2P9");
@@ -98,7 +98,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
   it("does not print the invoice on Enter in the field when the code is refused", async () => {
     const rendered = await renderScreen({
       reading: QR_TEXT,
-      findDeferredSale: async () => FOUND_PENDING,
+      findDeferredSale: vi.fn(async () => FOUND_PENDING),
     });
     await expect.element(rendered.screen.getByText("Almendras peladas")).toBeVisible();
     await typeCode(rendered, "7KQ4");
@@ -112,7 +112,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
   it("prints with Enter once focus is out of the field", async () => {
     const rendered = await renderScreen({
       reading: QR_TEXT,
-      findDeferredSale: async () => FOUND_PENDING,
+      findDeferredSale: vi.fn(async () => FOUND_PENDING),
     });
     await expect.element(rendered.screen.getByText("Almendras peladas")).toBeVisible();
     await userEvent.click(rendered.screen.getByRole("textbox", CODE_FIELD));
@@ -144,7 +144,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
   });
 
   it("still opens the sale of a QR read while the field has focus", async () => {
-    const rendered = await renderScreen({ findDeferredSale: async () => FOUND_ISSUED });
+    const rendered = await renderScreen({ findDeferredSale: vi.fn(async () => FOUND_ISSUED) });
     await userEvent.click(rendered.screen.getByRole("textbox", CODE_FIELD));
     await userEvent.keyboard("7KQ4");
 
@@ -163,7 +163,7 @@ describe("DeferredSaleScreen finding a sale by its typed code", () => {
     const printing = deferred<never>();
     const rendered = await renderScreen({
       reading: QR_TEXT,
-      findDeferredSale: async () => FOUND_PENDING,
+      findDeferredSale: vi.fn(async () => FOUND_PENDING),
       printDeferredSaleInvoice: vi.fn(() => printing.promise),
     });
     await userEvent.click(await rendered.screen.getByRole("button", { name: "Imprimir factura" }));
