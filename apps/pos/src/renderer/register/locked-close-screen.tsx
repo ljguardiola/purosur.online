@@ -76,7 +76,6 @@ export function LockedCloseScreen({
   return (
     <LockedCloserIdentification
       sessionId={sessionId}
-      registerName={registerName}
       version={version}
       loadClosers={loadClosers}
       identify={identifyLockedCloser}
