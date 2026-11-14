@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -10,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   pendingUpdateFiles,
@@ -18,6 +17,28 @@ import {
   spawnDetachedInstaller,
   updateFetch,
 } from "./register-update-adapters";
+
+const lockedFiles = vi.hoisted(() => new Set<string>());
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  const holdsLockedFile = (path: string) =>
+    [...lockedFiles].some((locked) => {
+      const fromPath = relative(path, locked);
+      return !fromPath.startsWith("..") && !isAbsolute(fromPath);
+    });
+  return {
+    ...actual,
+    rmSync: (...args: Parameters<typeof actual.rmSync>) => {
+      if (holdsLockedFile(String(args[0]))) {
+        throw Object.assign(new Error(`EPERM: operation not permitted, rm '${args[0]}'`), {
+          code: "EPERM",
+        });
+      }
+      actual.rmSync(...args);
+    },
+  };
+});
 
 const encoder = new TextEncoder();
 
@@ -134,25 +155,22 @@ describe("pendingUpdateFiles", () => {
   });
 
   describe("when an entry of the folder can not be removed", () => {
-    let held: string;
-
     beforeEach(() => {
       mkdirSync(folder);
       writeFileSync(join(folder, "a-old-installer.exe"), "old");
-      held = join(folder, "held");
-      mkdirSync(held);
-      writeFileSync(join(held, "in-use.exe"), "in use");
+      mkdirSync(join(folder, "held"));
+      writeFileSync(join(folder, "held", "in-use.exe"), "in use");
       writeFileSync(join(folder, "z-old-installer.exe"), "old");
-      chmodSync(held, 0o555);
+      lockedFiles.add(join(folder, "held", "in-use.exe"));
     });
 
     afterEach(() => {
-      chmodSync(held, 0o755);
+      lockedFiles.clear();
     });
 
     it("removes every other entry and rejects with the failure", async () => {
       await expect(pendingUpdateFiles(folder).clearPending()).rejects.toMatchObject({
-        code: "EACCES",
+        code: "EPERM",
       });
 
       expect(readdirSync(folder)).toEqual(["held"]);
