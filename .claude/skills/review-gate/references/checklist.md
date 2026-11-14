@@ -155,9 +155,13 @@ how a new one is judged.
   invalidates); a key invalidated again beside one that already contains
   it, so it is read twice; or a re-read that calls the loader and writes the
   cache, so a failed read shows no failure.
-- A modal handling an answer that arrives after it closed: a stale notice on
-  its next opening, a late success whose list refresh is dropped, or a late
-  callback resetting a later opening.
+- A modal or side panel out of step with its own opening and closing: an
+  answer that arrives after it closed (a stale notice on its next opening, a
+  late success whose list refresh is dropped, a late callback resetting a
+  later opening), or a draft the person typed dropped because the part
+  holding it is unmounted while another panel opens in its place (a counted
+  cash amount gone after the cancel-sale panel opens and Esc returns to the
+  close panel).
 - A guard or a navigation out of step with where the person is: every route
   to a screen refused while the core refuses only one action, a person sent
   back to the screen they are leaving, an action left pressable while its
