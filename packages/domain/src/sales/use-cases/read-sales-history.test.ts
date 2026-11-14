@@ -9,7 +9,6 @@ import {
 
 const NO_DOCUMENT: SaleFiscalFacts = {
   deferred: false,
-  deferredInvoicePending: false,
   fiscalDocument: null,
 };
 
@@ -61,7 +60,6 @@ describe("readSalesHistory", () => {
       sale(1, {
         fiscal: {
           deferred: false,
-          deferredInvoicePending: false,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -87,11 +85,10 @@ describe("readSalesHistory", () => {
 
   it("shows a deferred sale with its non-fiscal comprobante and a sale being requested as in progress", () => {
     const history = new FakeRegisterSalesHistory([
-      sale(1, { fiscal: { deferred: true, deferredInvoicePending: false, fiscalDocument: null } }),
+      sale(1, { fiscal: { deferred: true, fiscalDocument: null } }),
       sale(2, {
         fiscal: {
           deferred: false,
-          deferredInvoicePending: false,
           fiscalDocument: {
             state: "REQUESTING",
             documentType: "factura_c",
@@ -111,12 +108,11 @@ describe("readSalesHistory", () => {
     ]);
   });
 
-  it("shows a sale whose deferred invoice is still to print as deferred, with its invoice number", () => {
+  it("shows a sale whose deferred invoice was issued but not printed as completed, with its invoice number", () => {
     const history = new FakeRegisterSalesHistory([
       sale(1, {
         fiscal: {
           deferred: false,
-          deferredInvoicePending: true,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -131,7 +127,7 @@ describe("readSalesHistory", () => {
     const { rows } = readSalesHistory({ history }, { session: "all", page: 1 });
 
     expect(rows.map(({ comprobante, standing }) => [comprobante.kind, standing])).toEqual([
-      ["fiscal", "deferred"],
+      ["fiscal", "completed"],
     ]);
   });
 
@@ -182,7 +178,6 @@ describe("readSalesHistory searching by document number", () => {
   ): SaleFiscalFacts {
     return {
       deferred: false,
-      deferredInvoicePending: false,
       fiscalDocument: {
         state: "AUTHORIZED",
         documentType: "factura_c",
@@ -197,7 +192,7 @@ describe("readSalesHistory searching by document number", () => {
   const search = (document: { pointOfSale: number | null; number: number }, session = "all") => ({
     session: session as "open" | "all",
     page: 1,
-    document,
+    search: { kind: "invoice" as const, ...document },
   });
 
   it("lists the sales whose invoice has the typed number in any point of sale", () => {
@@ -299,5 +294,66 @@ describe("readSalesHistory searching by document number", () => {
     const page = readSalesHistory({ history }, search({ pointOfSale: null, number: 9 }));
 
     expect(page).toEqual({ rows: [], total: 0, pageSize: 50 });
+  });
+});
+
+describe("readSalesHistory searching by a deferred sale's reference", () => {
+  const reference = { id: "deferred-1", shortCode: "ABCD1234" };
+  const search = (session: "open" | "all" = "all", page = 1) => ({
+    session,
+    page,
+    search: { kind: "deferred" as const, ...reference },
+  });
+
+  it("lists the sale the reference points at", () => {
+    const history = new FakeRegisterSalesHistory([
+      sale(1),
+      { ...sale(2), deferredReference: reference },
+      { ...sale(3), deferredReference: { id: "deferred-2", shortCode: "ZZZZ0000" } },
+    ]);
+
+    const page = readSalesHistory({ history }, search());
+
+    expect(page.rows.map(({ saleId }) => saleId)).toEqual(["sale-2"]);
+    expect(page.total).toBe(1);
+    expect(page.pageSize).toBe(50);
+  });
+
+  it("asks for the open session or the register as the session says", () => {
+    const history = new FakeRegisterSalesHistory([
+      { ...sale(1, {}, false), deferredReference: reference },
+    ]);
+
+    const open = readSalesHistory({ history }, search("open"));
+    const everyone = readSalesHistory({ history }, search("all"));
+
+    expect(open.rows).toEqual([]);
+    expect(everyone.rows.map(({ saleId }) => saleId)).toEqual(["sale-1"]);
+    expect(history.deferredSearches).toEqual([
+      { scope: "open_session", reference },
+      { scope: "register", reference },
+    ]);
+    expect(history.filters).toEqual([]);
+    expect(history.documentSearches).toEqual([]);
+  });
+
+  it("lists nothing past the first page", () => {
+    const history = new FakeRegisterSalesHistory([{ ...sale(1), deferredReference: reference }]);
+
+    expect(readSalesHistory({ history }, search("all", 2))).toEqual({
+      rows: [],
+      total: 1,
+      pageSize: 50,
+    });
+  });
+
+  it("shows the sale as any other row", () => {
+    const history = new FakeRegisterSalesHistory([
+      { ...sale(4, { total: 3200, voided: true }), deferredReference: reference },
+    ]);
+
+    const [row] = readSalesHistory({ history }, search()).rows;
+
+    expect(row).toMatchObject({ saleId: "sale-4", total: 3200, standing: "voided" });
   });
 });

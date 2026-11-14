@@ -3726,7 +3726,7 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Historial" }));
 
       await expect
-        .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
+        .element(screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }))
         .toBeVisible();
       await expect
         .element(screen.getByRole("table", { name: "Ventas" }).getByText("$ 50.700,00"))
@@ -3744,7 +3744,7 @@ describe("App", () => {
 
       await userEvent.click(screen.getByRole("link", { name: "Historial" }));
       await expect
-        .element(screen.getByRole("searchbox", { name: "Escribí el número del comprobante" }))
+        .element(screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }))
         .toBeVisible();
       await userEvent.click(screen.getByRole("link", { name: "Venta" }));
 

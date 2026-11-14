@@ -877,6 +877,7 @@ export {
   reprintCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
   salesCoreToRendererMessageSchema,
+  salesHistoryMessageSchema,
   salesRendererToCoreMessageSchema,
 } from "./sales/core-messages.js";
 export type {
@@ -1005,6 +1006,7 @@ export {
   reportGroupSchema,
   reportQuerySchema,
   reportsFailedQuery,
+  scannedTicketTextSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,

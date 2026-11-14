@@ -1,5 +1,10 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import type { CreditNoteOrigin, SaleInvoice, VoidCreditNoteStanding } from "../../fiscal/index.js";
+import type {
+  CreditNoteOrigin,
+  DeferredSaleReference,
+  SaleInvoice,
+  VoidCreditNoteStanding,
+} from "../../fiscal/index.js";
 import type { PointCardType } from "../../payments/index.js";
 import type { CompletedSalePayment } from "../model/completed-sale.js";
 import type { SaleDocumentNumber, SaleFiscalFacts } from "../model/sale-history.js";
@@ -62,6 +67,8 @@ export interface RegisterSalesHistory {
   salesOfRegister(filter: SalesHistoryFilter): SalesHistoryPage;
   salesOfOpenSessionWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[];
   salesOfRegisterWithDocument(document: SaleDocumentNumber): SalesHistoryEntry[];
+  salesOfOpenSessionOfDeferredSale(reference: DeferredSaleReference): SalesHistoryEntry[];
+  salesOfRegisterOfDeferredSale(reference: DeferredSaleReference): SalesHistoryEntry[];
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined;
   fiscalFactsOfSale(saleId: string): SaleFiscalFacts;
 }

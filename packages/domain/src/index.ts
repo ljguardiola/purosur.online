@@ -983,7 +983,6 @@ export {
   customerReceiptSettled,
   grossSaleSubtotal,
   isDeferralPending,
-  isDeferredInvoicePending,
   liveScaleReading,
   manualAdjustmentReason,
   mayBeCashRounding,

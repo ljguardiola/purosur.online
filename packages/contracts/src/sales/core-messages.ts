@@ -6,6 +6,7 @@ import {
   plannedRefundSchema,
   requestIdSchema,
   restorationInProgressOutcomeSchema,
+  scannedTicketTextSchema,
 } from "../shared/index.js";
 import {
   findDeferredSaleMessageSchema,
@@ -232,14 +233,30 @@ export const reprintSaleReceiptMessageSchema = z.object({
   authorization: authorizationSchema.optional(),
 });
 
-const salesHistoryMessageSchema = z.object({
+const typedSalesSearchSchema = z
+  .object({
+    kind: z.literal("typed"),
+    point_of_sale: z.int().positive().nullable(),
+    number: z.int().positive(),
+  })
+  .transform(({ point_of_sale: pointOfSale, number }) => ({
+    kind: "invoice" as const,
+    pointOfSale,
+    number,
+  }));
+
+const scannedSalesSearchSchema = z
+  .object({ kind: z.literal("scanned"), text: scannedTicketTextSchema })
+  .transform(({ text }) => text);
+
+const salesHistorySearchSchema = z.union([typedSalesSearchSchema, scannedSalesSearchSchema]);
+
+export const salesHistoryMessageSchema = z.object({
   type: z.literal("sales-history"),
   request_id: requestId,
   session: salesHistorySessionSchema,
   page: z.int().positive(),
-  document: z
-    .object({ point_of_sale: z.int().positive().nullable(), number: z.int().positive() })
-    .nullable(),
+  search: salesHistorySearchSchema.nullable(),
 });
 
 const saleHistoryDetailMessageSchema = z.object({

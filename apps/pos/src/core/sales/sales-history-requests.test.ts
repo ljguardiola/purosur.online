@@ -17,7 +17,7 @@ import {
 
 const NOW = new Date("2026-10-08T12:00:00.000Z");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
-const ASK = { session: "all", page: 1, document: null } as const;
+const ASK = { session: "all", page: 1, search: null } as const;
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -290,7 +290,7 @@ describe("searching the sales history by document number", () => {
 
     const answer = await salesHistoryFor(deps(), {
       ...ASK,
-      document: { pointOfSale: null, number: 187 },
+      search: { kind: "invoice", pointOfSale: null, number: 187 },
     });
 
     expect(answer).toMatchObject({ kind: "found", total: 1, page_size: 50 });
@@ -309,7 +309,7 @@ describe("searching the sales history by document number", () => {
 
     const answer = await salesHistoryFor(deps(), {
       ...ASK,
-      document: { pointOfSale: 4, number: 187 },
+      search: { kind: "invoice", pointOfSale: 4, number: 187 },
     });
 
     expect(answer).toEqual({ kind: "found", rows: [], total: 0, page_size: 50 });
@@ -338,17 +338,49 @@ describe("searching the sales history by document number", () => {
     const open = await salesHistoryFor(deps(), {
       ...ASK,
       session: "open",
-      document: { pointOfSale: null, number: 187 },
+      search: { kind: "invoice", pointOfSale: null, number: 187 },
     });
 
     expect(open.kind === "found" && open.rows.map(({ sale_id }) => sale_id)).toEqual(["today"]);
+  });
+
+  it("answers the sale of a deferred sale found by its reference", async () => {
+    addSale({
+      id: "wanted",
+      occurredAt: "2026-10-08T09:00:00.000Z",
+      operationNumber: 1,
+      deferred: true,
+    });
+    addSale({
+      id: "other",
+      occurredAt: "2026-10-08T10:00:00.000Z",
+      operationNumber: 2,
+      deferred: true,
+    });
+    const reference = database
+      .prepare<[], { id: string; shortCode: string }>(
+        "SELECT id, short_code AS shortCode FROM deferred_sales WHERE sale_id = 'wanted'",
+      )
+      .get();
+
+    const answer = await salesHistoryFor(deps(), {
+      ...ASK,
+      search: { kind: "deferred", id: reference?.id ?? "", shortCode: reference?.shortCode ?? "" },
+    });
+
+    expect(answer.kind === "found" && answer.rows.map(({ sale_id }) => sale_id)).toEqual([
+      "wanted",
+    ]);
   });
 
   it("still requires the permission to view the sales history", async () => {
     signedInPerson.set("cashier");
 
     expect(
-      await salesHistoryFor(deps(), { ...ASK, document: { pointOfSale: null, number: 187 } }),
+      await salesHistoryFor(deps(), {
+        ...ASK,
+        search: { kind: "invoice", pointOfSale: null, number: 187 },
+      }),
     ).toEqual({ kind: "lacks_permission" });
   });
 });
@@ -920,14 +952,14 @@ describe("the detail of a sale of the history", () => {
       });
     });
 
-    it("answers its factura and its original as the next printing once invoiced and never printed", async () => {
+    it("answers it as completed with its factura, and its original as the next printing, once invoiced and never printed", async () => {
       addDeferredSale({ satisfied: true });
 
       const answer = await saleHistoryDetailFor(deps(), "late");
 
       expect(answer.kind === "found" && answer.detail).toMatchObject({
         comprobante: { kind: "fiscal", point_of_sale: 3, number: 1205 },
-        state: "deferred",
+        state: "completed",
         deferred_invoice_next_copy: { kind: "original" },
       });
     });

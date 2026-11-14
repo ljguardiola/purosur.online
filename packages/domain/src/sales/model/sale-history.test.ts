@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { FiscalDocumentState } from "../../fiscal/index.js";
 import {
   isDeferralPending,
-  isDeferredInvoicePending,
   SALE_STANDINGS,
   SALES_HISTORY_PAGE_SIZE,
   type SaleFiscalDocument,
@@ -25,7 +24,6 @@ function document(state: FiscalDocumentState): SaleFiscalDocument {
 
 const NO_DOCUMENT: SaleFiscalFacts = {
   deferred: false,
-  deferredInvoicePending: false,
   fiscalDocument: null,
 };
 
@@ -45,7 +43,6 @@ describe("saleStandingOf", () => {
       saleStandingOf({
         voided: true,
         deferred: true,
-        deferredInvoicePending: false,
         fiscalDocument: null,
       }),
     ).toBe("voided");
@@ -53,7 +50,6 @@ describe("saleStandingOf", () => {
       saleStandingOf({
         voided: true,
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: document("REQUESTING"),
       }),
     ).toBe("voided");
@@ -68,7 +64,6 @@ describe("saleStandingOf", () => {
       saleStandingOf({
         voided: false,
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: document("AUTHORIZED"),
       }),
     ).toBe("completed");
@@ -79,7 +74,6 @@ describe("saleStandingOf", () => {
       saleStandingOf({
         voided: false,
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: document("REQUESTING"),
       }),
     ).toBe("in_progress");
@@ -90,7 +84,6 @@ describe("saleStandingOf", () => {
       saleStandingOf({
         voided: false,
         deferred: true,
-        deferredInvoicePending: false,
         fiscalDocument: null,
       }),
     ).toBe("deferred");
@@ -103,41 +96,17 @@ describe("saleStandingOf", () => {
         saleStandingOf({
           voided: false,
           deferred: true,
-          deferredInvoicePending: false,
           fiscalDocument: document(state),
         }),
       ).toBe("deferred");
     },
   );
 
-  it("is deferred when its deferred invoice was issued and its original copy is still to print", () => {
-    expect(
-      saleStandingOf({
-        voided: false,
-        deferred: false,
-        deferredInvoicePending: true,
-        fiscalDocument: document("AUTHORIZED"),
-      }),
-    ).toBe("deferred");
-  });
-
-  it("is completed once the print of its deferred invoice was attempted", () => {
-    expect(
-      saleStandingOf({
-        voided: false,
-        deferred: false,
-        deferredInvoicePending: false,
-        fiscalDocument: document("AUTHORIZED"),
-      }),
-    ).toBe("completed");
-  });
-
-  it("is voided before its deferred invoice is to print", () => {
+  it("is voided even with its fiscal document authorized", () => {
     expect(
       saleStandingOf({
         voided: true,
         deferred: false,
-        deferredInvoicePending: true,
         fiscalDocument: document("AUTHORIZED"),
       }),
     ).toBe("voided");
@@ -148,7 +117,6 @@ describe("saleStandingOf", () => {
       saleStandingOf({
         voided: false,
         deferred: true,
-        deferredInvoicePending: false,
         fiscalDocument: document("REQUESTING"),
       }),
     ).toBe("deferred");
@@ -160,7 +128,6 @@ describe("saleComprobanteOf", () => {
     expect(
       saleComprobanteOf({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: document("AUTHORIZED"),
       }),
     ).toEqual({
@@ -176,16 +143,13 @@ describe("saleComprobanteOf", () => {
     expect(
       saleComprobanteOf({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: { ...document("AUTHORIZED"), authorization: "offline_code" },
       }),
     ).toMatchObject({ kind: "fiscal", authorization: "offline_code" });
   });
 
   it("is a non-fiscal document when the sale is deferred", () => {
-    expect(
-      saleComprobanteOf({ deferred: true, deferredInvoicePending: false, fiscalDocument: null }),
-    ).toEqual({
+    expect(saleComprobanteOf({ deferred: true, fiscalDocument: null })).toEqual({
       kind: "deferred_non_fiscal",
     });
   });
@@ -196,7 +160,6 @@ describe("saleComprobanteOf", () => {
       expect(
         saleComprobanteOf({
           deferred: true,
-          deferredInvoicePending: false,
           fiscalDocument: document(state),
         }),
       ).toEqual({
@@ -209,7 +172,6 @@ describe("saleComprobanteOf", () => {
     expect(
       saleComprobanteOf({
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: document("REQUESTING"),
       }),
     ).toEqual({
@@ -279,35 +241,9 @@ describe("isDeferralPending", () => {
   });
 });
 
-describe("isDeferredInvoicePending", () => {
-  const ORIGINAL_NOT_PRINTED = { printAttemptedAt: null, reprintCount: 0 };
-  const ORIGINAL_PRINTED = { printAttemptedAt: new Date("2026-03-02T10:00:00Z"), reprintCount: 0 };
-
-  it("is pending while the deferred invoice's original copy is not printed", () => {
-    expect(isDeferredInvoicePending({ satisfied: true }, ORIGINAL_NOT_PRINTED)).toBe(true);
-  });
-
-  it("is not pending once the deferred invoice's original copy was printed", () => {
-    expect(isDeferredInvoicePending({ satisfied: true }, ORIGINAL_PRINTED)).toBe(false);
-  });
-
-  it("is not pending while no authorization satisfied the deferred record", () => {
-    expect(isDeferredInvoicePending({ satisfied: false }, ORIGINAL_NOT_PRINTED)).toBe(false);
-  });
-
-  it("is not pending for a sale that was never deferred", () => {
-    expect(isDeferredInvoicePending(null, ORIGINAL_NOT_PRINTED)).toBe(false);
-  });
-
-  it("is not pending when the deferred invoice has no receipt to print", () => {
-    expect(isDeferredInvoicePending({ satisfied: true }, null)).toBe(false);
-  });
-});
-
 describe("saleHasDocumentNumber", () => {
   const authorized = (overrides: Partial<SaleFiscalDocument> = {}): SaleFiscalFacts => ({
     deferred: false,
-    deferredInvoicePending: false,
     fiscalDocument: { ...document("AUTHORIZED"), ...overrides },
   });
 
@@ -339,7 +275,7 @@ describe("saleHasDocumentNumber", () => {
     (state) => {
       expect(
         saleHasDocumentNumber(
-          { deferred: false, deferredInvoicePending: false, fiscalDocument: document(state) },
+          { deferred: false, fiscalDocument: document(state) },
           { pointOfSale: 3, number: 1204 },
         ),
       ).toBe(false);
@@ -350,7 +286,7 @@ describe("saleHasDocumentNumber", () => {
     expect(saleHasDocumentNumber(NO_DOCUMENT, { pointOfSale: null, number: 1204 })).toBe(false);
     expect(
       saleHasDocumentNumber(
-        { deferred: true, deferredInvoicePending: false, fiscalDocument: null },
+        { deferred: true, fiscalDocument: null },
         { pointOfSale: null, number: 1204 },
       ),
     ).toBe(false);
