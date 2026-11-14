@@ -6,6 +6,7 @@ import type {
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
   CurrentSaleAnswer,
+  FindDeferredSaleOutcome,
   FindProductByCodeOutcome,
   FollowMercadoPagoChargeOutcome,
   ManualAdjustmentRequest,
@@ -23,7 +24,7 @@ import type {
   SearchProductsOutcome,
 } from "@purosur/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SalesHistoryQuery } from "../platform/core-client";
+import type { DeferredSaleReading, SalesHistoryQuery } from "../platform/core-client";
 import { setQueryAnswer } from "../platform/set-query-answer";
 import type { CoreData } from "../platform/use-core-query";
 import { coreQueryOptions, useCoreQuery } from "../platform/use-core-query";
@@ -520,4 +521,28 @@ export function useFindProductByCode(
         gcTime: 0,
       })
       .catch((): FindProductByCodeOutcome => ({ kind: "unavailable" }));
+}
+
+export type DeferredSaleLookup = { reading: DeferredSaleReading; scan: number };
+
+export type ShownDeferredSale = Exclude<FindDeferredSaleOutcome, { kind: "unavailable" }>;
+
+export function useDeferredSaleQuery({
+  lookup,
+  read,
+}: {
+  lookup: DeferredSaleLookup | undefined;
+  read: (reading: DeferredSaleReading) => Promise<FindDeferredSaleOutcome>;
+}): CoreData<ShownDeferredSale> {
+  return useCoreQuery({
+    queryKey: [...salesKey, "deferred-sale", lookup?.reading.text ?? null, lookup?.scan ?? null],
+    enabled: lookup !== undefined,
+    read: async () => {
+      if (lookup === undefined) {
+        return "unavailable";
+      }
+      const outcome = await read(lookup.reading);
+      return outcome.kind === "unavailable" ? "unavailable" : outcome;
+    },
+  });
 }

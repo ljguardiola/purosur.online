@@ -21,7 +21,7 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { FileText, Info, Printer, TriangleAlert } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { DeferredSaleReading } from "../platform/core-client";
 import { useKeys } from "../platform/key-layer";
 import { useBarcodeReadings } from "../shell/barcode-readings";
@@ -31,8 +31,8 @@ import { RegisterFrame } from "../shell/register-frame";
 import { ReprintReceiptModal } from "../shell/reprint-receipt-modal";
 import { receiptCopyPresentation } from "../shell/sale-receipt-text";
 import type { SignedInPerson } from "../shell/signed-in-person";
-import { scannedDeferredSaleReading } from "./deferred-sale-form";
 import { DeferredSaleLines } from "./deferred-sale-lines";
+import { scannedDeferredSaleReading } from "./deferred-sale-qr";
 import type { DeferredSaleRefusalKind, FoundDeferredSale } from "./deferred-sale-text";
 import {
   deferredInvoiceNotYetDescription,
@@ -40,8 +40,15 @@ import {
   deferredSaleRefusal,
 } from "./deferred-sale-text";
 import { originalPrintNotice } from "./original-print-text";
+import type { DeferredSaleLookup } from "./sales-queries";
+import { useDeferredSaleQuery } from "./sales-queries";
 
 type PrintNotice = ReturnType<typeof originalPrintNotice>;
+
+function lookupOf(reading: string | undefined): DeferredSaleLookup | undefined {
+  const scanned = reading === undefined ? undefined : scannedDeferredSaleReading(reading);
+  return scanned === undefined ? undefined : { reading: scanned, scan: 0 };
+}
 
 function pendingLabel(invoice: FoundDeferredSale["invoice"]): string {
   return invoice.kind === "pending" ? "Emitiendo la factura…" : "Imprimiendo la factura…";
@@ -75,69 +82,66 @@ export function DeferredSaleScreen({
   onSessionInvalid,
 }: DeferredSaleScreenProps) {
   const navigate = useNavigate();
-  const [refusal, setRefusal] = useState<DeferredSaleRefusalKind>();
-  const [sale, setSale] = useState<FoundDeferredSale>();
+  const [lookup, setLookup] = useState(() => lookupOf(reading));
+  const [notAQr, setNotAQr] = useState(
+    () => reading !== undefined && lookupOf(reading) === undefined,
+  );
+  const [ended, setEnded] = useState<{ refusal: DeferredSaleRefusalKind | undefined }>();
   const [printing, setPrinting] = useState(false);
   const [printNotice, setPrintNotice] = useState<PrintNotice>();
   const printingNow = useRef(false);
   const [printed, setPrinted] = useState(false);
-  const lastReading = useRef<DeferredSaleReading>(undefined);
   const [reprinting, setReprinting] = useState(false);
   const [reprinted, setReprinted] = useState<ReceiptCopyShown>();
-  const finding = useRef(false);
 
-  async function look(next: DeferredSaleReading) {
-    if (finding.current) {
-      return;
-    }
-    finding.current = true;
-    lastReading.current = next;
-    setRefusal(undefined);
-    setPrintNotice(undefined);
-    setSale(undefined);
-    const outcome = await findDeferredSale(next)
-      .catch((): "failed" => "failed")
-      .finally(() => {
-        finding.current = false;
-      });
-    if (outcome === "failed") {
-      setRefusal("unavailable");
-      return;
-    }
-    switch (outcome.kind) {
-      case "found":
-        setSale(outcome);
-        if (outcome.original_printed) {
-          setRefusal("already_printed");
-        }
-        break;
-      case "not_signed_in":
+  const found = useDeferredSaleQuery({
+    lookup,
+    read: async (next) => {
+      const outcome = await findDeferredSale(next);
+      if (outcome.kind === "not_signed_in") {
         onSessionInvalid();
-        break;
-      default:
-        setRefusal(outcome.kind);
-    }
+      }
+      return outcome;
+    },
+  });
+  const answer = found.status === "loaded" ? found.value : undefined;
+  const lookingUp = lookup !== undefined && found.status === "loading";
+  const sale = ended === undefined && answer?.kind === "found" ? answer : undefined;
+  const lookupRefusal: DeferredSaleRefusalKind | undefined =
+    found.status === "failed"
+      ? "unavailable"
+      : answer === undefined || answer.kind === "not_signed_in"
+        ? undefined
+        : answer.kind === "found"
+          ? answer.original_printed
+            ? "already_printed"
+            : undefined
+          : answer.kind;
+  const refusal = notAQr
+    ? "not_a_deferred_sale_qr"
+    : ended === undefined
+      ? lookupRefusal
+      : ended.refusal;
+
+  function look(next: DeferredSaleReading) {
+    setNotAQr(false);
+    setEnded(undefined);
+    setPrintNotice(undefined);
+    setLookup((previous) => ({ reading: next, scan: (previous?.scan ?? 0) + 1 }));
   }
 
   function takeScan(text: string) {
+    if (printingNow.current || lookingUp) {
+      return;
+    }
     const scanned = scannedDeferredSaleReading(text);
     if (scanned === undefined) {
-      setRefusal("not_a_deferred_sale_qr");
+      setNotAQr(true);
     } else {
-      void look(scanned);
+      look(scanned);
     }
   }
   useBarcodeReadings(takeScan);
-
-  const latestTakeScan = useRef(takeScan);
-  useEffect(() => {
-    latestTakeScan.current = takeScan;
-  });
-  useEffect(() => {
-    if (reading !== undefined) {
-      latestTakeScan.current(reading);
-    }
-  }, [reading]);
 
   async function print(saleToPrint: FoundDeferredSale) {
     if (printingNow.current) {
@@ -157,24 +161,22 @@ export function DeferredSaleScreen({
     }
     switch (outcome.kind) {
       case "started":
-        setSale(undefined);
+        setEnded({ refusal: undefined });
         setPrinted(true);
         break;
       case "already_printed":
-        if (lastReading.current !== undefined) {
-          void look(lastReading.current);
+        if (lookup !== undefined) {
+          look(lookup.reading);
         }
         break;
       case "voided":
       case "expired":
       case "out_of_date_order":
       case "not_found":
-        setSale(undefined);
-        setRefusal(outcome.kind);
+        setEnded({ refusal: outcome.kind });
         break;
       case "sale_voided":
-        setSale(undefined);
-        setRefusal("voided");
+        setEnded({ refusal: "voided" });
         break;
       case "not_yet":
         setPrintNotice({
@@ -208,6 +210,7 @@ export function DeferredSaleScreen({
         run: () => (printable ? void print(sale) : setReprinting(true)),
         enabled: printable || reprintable,
       },
+      { key: "Escape", run: () => {}, enabled: printing },
     ],
     { active: !reprinting },
   );
@@ -229,7 +232,14 @@ export function DeferredSaleScreen({
         <SidePanel
           label="Venta diferida"
           width="wide"
-          header={<SidePanelTitle title="Venta diferida" icon={<FileText />} onClose={goBack} />}
+          header={
+            <SidePanelTitle
+              title="Venta diferida"
+              icon={<FileText />}
+              onClose={goBack}
+              closeDisabled={printing}
+            />
+          }
           footer={
             printable ? (
               <Button
@@ -287,7 +297,7 @@ export function DeferredSaleScreen({
       }
     >
       <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
-        <DeferredSaleLines lines={sale === undefined ? [] : sale.lines} />
+        <DeferredSaleLines lines={sale === undefined ? [] : sale.lines} loading={lookingUp} />
       </main>
       {reprinting && sale !== undefined && sale.invoice.kind === "issued" ? (
         <ReprintReceiptModal
@@ -309,14 +319,12 @@ export function DeferredSaleScreen({
           reprint={reprintDeferredSaleInvoice}
           onReprinted={(copy) => {
             setReprinting(false);
-            setSale(undefined);
-            setRefusal(undefined);
+            setEnded({ refusal: undefined });
             setReprinted(copy);
           }}
           onSaleGone={() => {
             setReprinting(false);
-            setSale(undefined);
-            setRefusal("not_found");
+            setEnded({ refusal: "not_found" });
           }}
           onSessionInvalid={onSessionInvalid}
           onClose={() => setReprinting(false)}

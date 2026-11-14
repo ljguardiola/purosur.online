@@ -6,7 +6,6 @@ export interface DeferredSaleLine extends SaleHistoryLine {
 }
 
 export type DeferredSaleSearch =
-  | { kind: "short_code"; shortCode: string }
   | { kind: "reference"; id: string; shortCode: string }
   | { kind: "sale"; saleId: string };
 

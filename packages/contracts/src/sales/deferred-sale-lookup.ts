@@ -1,21 +1,10 @@
-import { deferredSaleReferenceFromQrText, isShortCode, SALE_UNITS } from "@purosur/domain";
+import { deferredSaleReferenceFromQrText, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
 import { requestIdSchema } from "../shared/index.js";
 import { shownLineQuantitySchema } from "./sale.js";
 import { receiptCopySchema } from "./sales-history.js";
 
-const SHORT_CODE_MESSAGE = "code must be a deferred sale's short code";
 const QR_MESSAGE = "text must be a deferred sale's QR";
-
-const typedReadingSchema = z
-  .object({
-    kind: z.literal("typed"),
-    code: z
-      .string({ error: SHORT_CODE_MESSAGE })
-      .transform((code) => code.replace(/[\s-]/g, "").toUpperCase())
-      .refine(isShortCode, SHORT_CODE_MESSAGE),
-  })
-  .transform(({ code }) => ({ kind: "short_code" as const, shortCode: code }));
 
 const scannedReadingSchema = z
   .object({
@@ -34,7 +23,7 @@ const scannedReadingSchema = z
 export const findDeferredSaleMessageSchema = z.object({
   type: z.literal("find-deferred-sale"),
   request_id: requestIdSchema,
-  reading: z.union([typedReadingSchema, scannedReadingSchema]),
+  reading: scannedReadingSchema,
 });
 
 export const printDeferredSaleInvoiceMessageSchema = z.object({

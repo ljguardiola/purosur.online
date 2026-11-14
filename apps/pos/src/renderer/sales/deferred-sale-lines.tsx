@@ -57,7 +57,13 @@ const columns = [
   }),
 ] as const;
 
-export function DeferredSaleLines({ lines }: { lines: FoundDeferredSale["lines"] }) {
+export function DeferredSaleLines({
+  lines,
+  loading,
+}: {
+  lines: FoundDeferredSale["lines"];
+  loading: boolean;
+}) {
   const table = useTableModel({
     items: lines.map((line, position) => ({ ...line, id: `${position}` })),
     id: (line) => line.id,
@@ -68,6 +74,7 @@ export function DeferredSaleLines({ lines }: { lines: FoundDeferredSale["lines"]
       table={table}
       aria-label="Líneas de la venta"
       fill
+      loading={loading ? "initial" : false}
       locked={{ label: "Líneas bloqueadas" }}
       empty={{
         variant: "blank",

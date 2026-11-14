@@ -90,12 +90,6 @@ export class SqliteDeferredSaleLookup implements DeferredSaleLookup {
 
   private rowOf(search: DeferredSaleSearch): DeferredSaleFactsRow | undefined {
     switch (search.kind) {
-      case "short_code":
-        return this.database
-          .prepare<[string], DeferredSaleFactsRow>(
-            `${FACTS_SELECT} WHERE deferred_sales.short_code = ?`,
-          )
-          .get(search.shortCode);
       case "reference":
         return this.database
           .prepare<[string, string], DeferredSaleFactsRow>(

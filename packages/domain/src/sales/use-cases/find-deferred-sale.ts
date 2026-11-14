@@ -5,9 +5,7 @@ import {
 } from "../model/deferred-sale-lookup.js";
 import type { DeferredSaleLine, DeferredSaleLookup } from "./deferred-sale-lookup-ports.js";
 
-export type FindDeferredSaleInput =
-  | { kind: "short_code"; shortCode: string }
-  | { kind: "reference"; id: string; shortCode: string };
+export type FindDeferredSaleInput = { kind: "reference"; id: string; shortCode: string };
 
 export interface FindDeferredSalePorts {
   lookup: DeferredSaleLookup;
