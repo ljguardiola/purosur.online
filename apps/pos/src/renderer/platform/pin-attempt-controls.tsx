@@ -9,7 +9,7 @@ export function PinAttemptControls({
   pinInput,
   disabled = false,
   submitLabel = "Entrar",
-  submitIcon = <ArrowRight />,
+  submitIcon,
 }: {
   attempt: Omit<PinAttempt, "pinInput" | "heading">;
   pinInput: Ref<HTMLInputElement>;
@@ -46,7 +46,7 @@ export function PinAttemptControls({
       <Button
         type="submit"
         fullWidth
-        icon={submitIcon}
+        icon={submitIcon ?? <ArrowRight />}
         iconPosition="start"
         keycap="Enter"
         disabled={!attempt.canSubmit}
