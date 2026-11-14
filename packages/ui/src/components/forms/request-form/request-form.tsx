@@ -279,6 +279,9 @@ export function useRequestForm<
   });
   const currentValues = useStore(form.store, (state) => state.values);
   const tanStackSubmitting = useStore(form.store, (state) => state.isSubmitting);
+  const failing = useStore(form.store, (state) =>
+    Object.values(state.fieldMeta).some((meta) => meta.errors.length > 0),
+  );
 
   return {
     form,
@@ -287,6 +290,7 @@ export function useRequestForm<
     submitting: tanStackSubmitting || unsettled > 0,
     values: currentValues,
     dirty: !evaluate(currentValues, loaded),
+    failing,
     reset,
   };
 }
