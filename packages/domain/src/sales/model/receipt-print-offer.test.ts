@@ -13,8 +13,8 @@ function after(milliseconds: number): Date {
 }
 
 describe("RECEIPT_PRINT_OFFER_MS", () => {
-  it("offers to print the ticket for three seconds", () => {
-    expect(RECEIPT_PRINT_OFFER_MS).toBe(3000);
+  it("offers to print the ticket for ten seconds", () => {
+    expect(RECEIPT_PRINT_OFFER_MS).toBe(10_000);
   });
 });
 
