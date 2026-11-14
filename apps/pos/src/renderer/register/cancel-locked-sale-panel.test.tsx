@@ -5,7 +5,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { CancelLockedSalePanel } from "./cancel-locked-sale-panel";
 
 const QR_WAIT =
-  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.";
+  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar la venta.";
 
 async function renderPanel(options: { busy?: boolean; refusal?: string } = {}) {
   await page.viewport(1366, 768);
@@ -28,11 +28,11 @@ describe("CancelLockedSalePanel", () => {
     const { screen } = await renderPanel();
 
     await expect
-      .element(screen.getByRole("complementary", { name: "¿Vaciar el carrito?" }))
+      .element(screen.getByRole("complementary", { name: "¿Vaciar la venta?" }))
       .toBeVisible();
     await expect.element(screen.getByText("VENTA ABIERTA · SIN PAGOS")).toBeVisible();
     await expect.element(screen.getByText("$ 25.192,50", { exact: true })).toBeVisible();
-    await expect.element(screen.getByText("Líneas en el carrito")).toBeVisible();
+    await expect.element(screen.getByText("Líneas en la venta")).toBeVisible();
     await expect.element(screen.getByText("4", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Esc", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Enter", { exact: true })).toBeVisible();
@@ -42,7 +42,7 @@ describe("CancelLockedSalePanel", () => {
   it("empties the cart with the button and with Enter", async () => {
     const { screen, onEmpty } = await renderPanel();
 
-    await userEvent.click(screen.getByRole("button", { name: "Vaciar carrito" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
     await userEvent.keyboard("{Enter}");
 
     expect(onEmpty).toHaveBeenCalledTimes(2);
@@ -65,14 +65,14 @@ describe("CancelLockedSalePanel", () => {
 
     expect(onClose).not.toHaveBeenCalled();
     expect(onEmpty).not.toHaveBeenCalled();
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeDisabled();
   });
 
   it("says why it cannot empty the cart while a charge is in progress, keeping only Esc", async () => {
     const { screen, onClose, onEmpty } = await renderPanel({ refusal: QR_WAIT });
 
     await expect.element(screen.getByRole("alert")).toHaveTextContent(QR_WAIT);
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeDisabled();
     await userEvent.keyboard("{Enter}");
     expect(onEmpty).not.toHaveBeenCalled();
     await userEvent.keyboard("{Escape}");

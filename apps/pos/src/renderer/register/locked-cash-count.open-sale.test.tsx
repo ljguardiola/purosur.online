@@ -13,10 +13,10 @@ import {
   withOpenSale,
 } from "./test-support/locked-cash-count";
 
-const EMPTY_FAILED_NOTICE = "No se pudo vaciar el carrito. Probá de nuevo.";
+const EMPTY_FAILED_NOTICE = "No se pudo vaciar la venta. Probá de nuevo.";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
 const QR_WAIT_BEFORE_EMPTYING =
-  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.";
+  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar la venta.";
 const QR_WAIT_BEFORE_CANCELLING =
   "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
 const SALE_IN_A_QR_WAIT: SessionOpenSale = {
@@ -30,15 +30,15 @@ const PAID_SALE_IN_A_QR_WAIT: SessionOpenSale = {
 };
 
 const emptyCart = (screen: Awaited<ReturnType<typeof renderStep>>["screen"]) =>
-  screen.getByRole("button", { name: "Vaciar carrito" });
+  screen.getByRole("button", { name: "Vaciar venta" });
 
 describe("LockedCashCount banner of the open sale", () => {
   it("offers to empty the cart of a sale with no payments, with V, keeping Cerrar caja disabled", async () => {
     const { screen, close } = await withOpenSale();
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
-    await expect.element(screen.getByText("Vaciá el carrito para cerrar la caja.")).toBeVisible();
-    await expect.element(emptyCart(screen).first()).toHaveTextContent("Vaciar carritoV");
+    await expect.element(screen.getByText("Vaciá la venta para cerrar la caja.")).toBeVisible();
+    await expect.element(emptyCart(screen).first()).toHaveTextContent("Vaciar ventaV");
     await expect.element(screen.getByRole("button", { name: "Cerrar caja" })).toBeDisabled();
     expect(close).not.toHaveBeenCalled();
   });
@@ -78,7 +78,7 @@ describe("LockedCashCount banner of the open sale", () => {
   );
 
   it.each<[string, SessionOpenSale, string]>([
-    ["emptying the cart", CANCELLABLE_SALE, "¿Vaciar el carrito?"],
+    ["emptying the cart", CANCELLABLE_SALE, "¿Vaciar la venta?"],
     ["cancelling the sale", PART_PAID_SALE, "¿Cancelar la venta?"],
   ])(
     "keeps the typed count once the panel for %s goes back with Esc",
@@ -110,11 +110,11 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await userEvent.keyboard("v");
 
-    const panel = screen.getByRole("complementary", { name: "¿Vaciar el carrito?" });
+    const panel = screen.getByRole("complementary", { name: "¿Vaciar la venta?" });
     await expect.element(panel).toBeVisible();
     await expect.element(panel.getByText("VENTA ABIERTA · SIN PAGOS")).toBeVisible();
     await expect.element(panel.getByText("$ 25.192,50", { exact: true })).toBeVisible();
-    await expect.element(panel.getByText("Líneas en el carrito")).toBeVisible();
+    await expect.element(panel.getByText("Líneas en la venta")).toBeVisible();
     await expect.element(panel.getByText("4", { exact: true })).toBeVisible();
     await expect.element(screen.getByRole("navigation")).not.toBeInTheDocument();
     expect(cancelSale).not.toHaveBeenCalled();
@@ -241,9 +241,9 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await userEvent.keyboard("v");
 
-    const panel = screen.getByRole("complementary", { name: "¿Vaciar el carrito?" });
+    const panel = screen.getByRole("complementary", { name: "¿Vaciar la venta?" });
     await expect.element(panel.getByRole("alert")).toHaveTextContent(QR_WAIT_BEFORE_EMPTYING);
-    await expect.element(panel.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
+    await expect.element(panel.getByRole("button", { name: "Vaciar venta" })).toBeDisabled();
     await userEvent.keyboard("{Enter}");
     expect(cancelSale).not.toHaveBeenCalled();
     expect(loadOpenSale).toHaveBeenCalledTimes(2);
@@ -259,8 +259,8 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await userEvent.keyboard("v");
 
-    const panel = screen.getByRole("complementary", { name: "¿Vaciar el carrito?" });
-    await expect.element(panel.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
+    const panel = screen.getByRole("complementary", { name: "¿Vaciar la venta?" });
+    await expect.element(panel.getByRole("button", { name: "Vaciar venta" })).toBeEnabled();
     await expect.element(panel.getByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -276,7 +276,7 @@ describe("LockedCashCount emptying the cart of a sale with no payments", () => {
 
     await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
     await expect
-      .element(screen.getByRole("complementary", { name: "¿Vaciar el carrito?" }))
+      .element(screen.getByRole("complementary", { name: "¿Vaciar la venta?" }))
       .not.toBeInTheDocument();
     expect(cancelSale).not.toHaveBeenCalled();
   });

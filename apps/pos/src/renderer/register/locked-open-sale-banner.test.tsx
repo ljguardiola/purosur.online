@@ -22,10 +22,10 @@ describe("LockedOpenSaleBanner", () => {
     const { screen } = await renderBanner();
 
     await expect.element(screen.getByText("Hay una venta abierta de $ 25.192,50")).toBeVisible();
-    await expect.element(screen.getByText("Vaciá el carrito para cerrar la caja.")).toBeVisible();
+    await expect.element(screen.getByText("Vaciá la venta para cerrar la caja.")).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
-      .toHaveTextContent("Vaciar carritoV");
+      .element(screen.getByRole("button", { name: "Vaciar venta" }))
+      .toHaveTextContent("Vaciar ventaV");
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -41,7 +41,7 @@ describe("LockedOpenSaleBanner", () => {
   it("asks to cancel with the action and with V", async () => {
     const { screen, onCancel } = await renderBanner();
 
-    await userEvent.click(screen.getByRole("button", { name: "Vaciar carrito" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
     await userEvent.keyboard("v");
 
     expect(onCancel).toHaveBeenCalledTimes(2);
@@ -52,7 +52,7 @@ describe("LockedOpenSaleBanner", () => {
 
     await userEvent.keyboard("v");
 
-    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar venta" })).toBeDisabled();
     expect(onCancel).not.toHaveBeenCalled();
   });
 });
