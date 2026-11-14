@@ -179,11 +179,11 @@ describe("CashScreen", () => {
     expect(legend).toEqual(["1Ingreso", "2Gasto", "3Retiro", "F12Cerrar caja"]);
   });
 
-  it("offers the type filter and the movement count, and no Registrar movimiento button", async () => {
+  it("offers the movement count with no filter by type, and no Registrar movimiento button", async () => {
     const screen = await renderScreen();
 
     await expect.element(screen.getByText("2 movimientos")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: /Tipo/ })).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Registrar movimiento" }))
       .not.toBeInTheDocument();

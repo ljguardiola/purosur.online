@@ -168,60 +168,18 @@ describe("CashMovementsTable", () => {
     await expect.element(screen.getByText("1.998 movimientos")).toBeVisible();
   });
 
-  it("filters by movement type, starting with every type", async () => {
+  it("lists every movement of the session with no filter by type", async () => {
     const screen = await renderTable([
-      movement({ id: "a", type: "CASH_IN", reason: "Cambio" }),
-      movement({ id: "b", type: "CASH_OUT", reason: "Flete" }),
-      movement({ id: "c", type: "CASH_OUT", reason: "Luz" }),
+      movement({ id: "a", type: "OPENING", direction: "in" }),
+      movement({ id: "b", type: "CASH_IN", reason: "Cambio" }),
+      movement({ id: "c", type: "CASH_OUT", reason: "Flete", direction: "out" }),
+      movement({ id: "d", type: "WITHDRAWAL", reason: "Caja fuerte", direction: "out" }),
     ]);
-    expect(rowsOf(screen)).toHaveLength(3);
-    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeVisible();
 
-    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
-
-    expect(rowsOf(screen)).toHaveLength(2);
-    await expect.element(screen.getByText("2 movimientos")).toBeVisible();
-  });
-
-  it("offers every type an open session can hold in the filter", async () => {
-    const screen = await renderTable([movement()]);
-
-    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-
-    const options = Array.from(document.querySelectorAll("[role=option]")).map(
-      (option) => option.textContent,
-    );
-    expect(options).toEqual([
-      "Todos",
-      "Apertura",
-      "Venta",
-      "Vuelto",
-      "Devolución en efectivo",
-      "Ingreso",
-      "Gasto",
-      "Retiro",
-    ]);
-  });
-
-  it("says so when no movement is of the chosen type and keeps the filter to change it", async () => {
-    const screen = await renderTable([movement()]);
-
-    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
-
-    await expect.element(screen.getByText("No hay movimientos de este tipo")).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Tipo: Gasto" })).toBeVisible();
-  });
-
-  it("draws the empty state as filtered when the chosen type hides every movement", async () => {
-    const screen = await renderTable([movement()]);
-
-    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
-
-    const title = screen.getByText("No hay movimientos de este tipo").element();
-    expect(emptyStateIconColor(title)).toBe(tokenRgb("text-subtle"));
+    expect(rowsOf(screen)).toHaveLength(4);
+    await expect.element(screen.getByText("4 movimientos")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: /Tipo/ })).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
   });
 
   it("lists the newest 25 movements and counts all of them", async () => {
@@ -241,35 +199,6 @@ describe("CashMovementsTable", () => {
 
     expect(timesOf(screen)).toEqual(["09:04", "09:03", "09:02", "09:01", "09:00"]);
     await expect.element(screen.getByText("30 movimientos")).toBeVisible();
-  });
-
-  it("goes back to the first page when a type is chosen", async () => {
-    const screen = await renderTable([
-      ...movementsEveryMinute(30),
-      movement({ id: "x", type: "CASH_OUT", reason: "Flete" }),
-    ]);
-    await userEvent.click(screen.getByRole("button", { name: "Página 2" }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-    await userEvent.click(screen.getByRole("option", { name: "Ingreso" }));
-
-    expect(timesOf(screen)[0]).toBe("09:29");
-    expect(rowsOf(screen)).toHaveLength(25);
-  });
-
-  it("shows no pager and no count once no movement is of the chosen type", async () => {
-    const screen = await renderTable(movementsEveryMinute(30));
-    await expect
-      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
-      .toBeVisible();
-
-    await userEvent.click(screen.getByRole("button", { name: "Tipo: Todos" }));
-    await userEvent.click(screen.getByRole("option", { name: "Gasto" }));
-
-    await expect
-      .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
-      .not.toBeInTheDocument();
-    await expect.element(screen.getByText("0 movimientos")).not.toBeInTheDocument();
   });
 
   it("has no accessibility violations with the pager", async () => {
@@ -302,14 +231,13 @@ describe("CashMovementsTable", () => {
     expect(rowsOf(screen)).toHaveLength(1);
   });
 
-  it("shows the type filter, the count and the pager in the key legend's strip, beside the keys", async () => {
+  it("shows the count and the pager in the key legend's strip, beside the keys", async () => {
     const screen = await renderTable(movementsEveryMinute(30));
 
     const legend = screen.container.querySelector("ul") as HTMLElement;
     const strip = legend.parentElement as HTMLElement;
     const legendBox = legend.getBoundingClientRect();
     for (const element of [
-      screen.getByRole("button", { name: "Tipo: Todos" }).element(),
       screen.getByText("30 movimientos").element(),
       screen.getByRole("navigation", { name: "Páginas de movimientos" }).element(),
     ]) {
@@ -321,11 +249,10 @@ describe("CashMovementsTable", () => {
     }
   });
 
-  it("offers no filter, count or pager while the screen is locked by a panel", async () => {
+  it("offers no count or pager while the screen is locked by a panel", async () => {
     const screen = await renderTable(movementsEveryMinute(30), { locked: true });
 
     await expect.element(screen.getByRole("img", { name: "Movimientos bloqueados" })).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: /Tipo/ })).not.toBeInTheDocument();
     await expect.element(screen.getByText("30 movimientos")).not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("navigation", { name: "Páginas de movimientos" }))
