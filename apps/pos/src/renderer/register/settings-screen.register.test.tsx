@@ -50,8 +50,7 @@ describe("Esta caja", () => {
     it("shows the cloud as connected, with no notice count while there is no notice", async () => {
       const { screen } = await render();
 
-      await expect.element(rowOf(screen)).toHaveTextContent("Nube conectada");
-      expect(rowOf(screen).element().textContent).not.toMatch(/aviso/);
+      expect(rowOf(screen).element().textContent).toBe("Esta cajaNube conectada");
       const dot = statusDotColor(screen.getByText("Nube conectada").first().element());
       expect(dot).toBe(tokenRgb("success-soft"));
     });

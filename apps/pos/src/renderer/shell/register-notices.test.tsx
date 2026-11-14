@@ -48,7 +48,7 @@ describe("registerNoticeSummary", () => {
 
 describe("registerNotices", () => {
   it("tells each condition by its title, since when it holds and its level's tone", () => {
-    const [drift, silent] = registerNotices(input({ conditions: [CLOCK_DRIFT, SILENT] }));
+    const [silent, drift] = registerNotices(input({ conditions: [CLOCK_DRIFT, SILENT] }));
 
     expect(drift).toMatchObject({
       tone: "warning",

@@ -24,8 +24,6 @@ const OPEN_SESSION: CashSessionState = {
 };
 const LOCKED_SESSION: CashSessionState = { ...OPEN_SESSION, locked: true };
 
-type Condition = RegisterStatus["conditions"][number];
-
 const SINCE = "2026-10-29T09:30:00.000-03:00";
 const SALES_DENIED_TITLE = "La caja no puede vender";
 const OFFLINE_CODE = { kind: "offline_code", notice: true } as const;
@@ -75,14 +73,6 @@ function loadedTickets(
   tickets: Partial<ContingencyBackupTicketsAnswer> = {},
 ): CoreData<ContingencyBackupTicketsAnswer> {
   return { status: "loaded", value: backupTickets(tickets), refreshing: false };
-}
-
-function noticeCard(panel: Element): HTMLElement {
-  const cards = [...panel.querySelectorAll<HTMLElement>("div")].filter(
-    (element) => getComputedStyle(element).borderLeftWidth === "4px",
-  );
-  expect(cards).toHaveLength(1);
-  return cards[0] as HTMLElement;
 }
 
 function headerText(screen: Awaited<ReturnType<typeof renderHeader>>): string {
@@ -254,76 +244,6 @@ describe("RegisterHeader", () => {
     expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("warning-subtle"));
   });
 
-  it.each<[Condition, "error-soft" | "warning-soft", string]>([
-    [
-      { kind: "sales_denied", reason: "event_history_broken", level: "critical", since: SINCE },
-      "error-soft",
-      "lucide-ban",
-    ],
-    [
-      { kind: "installation_revoked", level: "critical", since: SINCE },
-      "error-soft",
-      "lucide-shield-off",
-    ],
-    [
-      { kind: "fiscal_emission_stopped", level: "critical", since: SINCE },
-      "error-soft",
-      "lucide-receipt",
-    ],
-    [{ kind: "clock_drift", level: "critical", since: SINCE }, "error-soft", "lucide-clock"],
-    [
-      { kind: "register_silent", level: "critical", since: SINCE },
-      "error-soft",
-      "lucide-cloud-off",
-    ],
-    [
-      { kind: "serial_device_missing", level: "warning", since: SINCE },
-      "warning-soft",
-      "lucide-scan-barcode",
-    ],
-    [
-      { kind: "disk_space_low", level: "warning", since: SINCE },
-      "warning-soft",
-      "lucide-hard-drive",
-    ],
-    [{ kind: "wal_oversized", level: "warning", since: SINCE }, "warning-soft", "lucide-database"],
-    [
-      {
-        kind: "sales_denied",
-        reason: "disk_full",
-        disk_free_ratio: 0.03,
-        level: "critical",
-        since: SINCE,
-      },
-      "error-soft",
-      "lucide-ban",
-    ],
-    [
-      {
-        kind: "sales_denied",
-        reason: "disk_space_short_at_startup",
-        required_free_bytes: 3_000_000_000,
-        level: "critical",
-        since: SINCE,
-      },
-      "error-soft",
-      "lucide-ban",
-    ],
-  ])(
-    "shows the notice of %j with the %s border of its level and the %s icon",
-    async (condition, border, icon) => {
-      const screen = await renderHeader({ status: loaded({ conditions: [condition] }) });
-
-      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-
-      const card = noticeCard(
-        screen.getByRole("dialog", { name: "Avisos de esta caja" }).element(),
-      );
-      expect(getComputedStyle(card).borderLeftColor).toBe(tokenRgb(border));
-      expect(card.querySelector(`svg.${icon}`)).not.toBeNull();
-    },
-  );
-
   it("shows a notice even when the cloud can't be reached", async () => {
     const screen = await renderHeader({
       status: loaded({
@@ -476,19 +396,6 @@ describe("RegisterHeader", () => {
       });
 
       await expect.element(screen.getByRole("button", { name: "4 avisos" })).toBeVisible();
-    });
-
-    it("discards the tickets when the person closes the discard notice", async () => {
-      const onDiscardBackupTickets = vi.fn();
-      const screen = await renderHeader({
-        backupTickets: loadedTickets({ discardable: 2, may_discard: true }),
-        onDiscardBackupTickets,
-      });
-
-      await userEvent.click(screen.getByRole("button", { name: "1 aviso" }));
-      await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
-
-      expect(onDiscardBackupTickets).toHaveBeenCalledOnce();
     });
 
     it.each([

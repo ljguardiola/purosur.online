@@ -115,11 +115,11 @@ describe("SettingsScreen", () => {
     expect(first.onSelectSection).toHaveBeenCalledExactlyOnceWith("devices");
     await first.screen.unmount();
 
-    const last = await renderSettings({ section: "devices" });
+    const last = await renderSettings({ section: "register" });
     await userEvent.keyboard("{ArrowDown}");
     expect(last.onSelectSection).not.toHaveBeenCalled();
     await userEvent.keyboard("{ArrowUp}");
-    expect(last.onSelectSection).toHaveBeenCalledExactlyOnceWith("printer");
+    expect(last.onSelectSection).toHaveBeenCalledExactlyOnceWith("devices");
   });
 
   it("shows the printer's address in its row, and Sin configurar when it has none", async () => {

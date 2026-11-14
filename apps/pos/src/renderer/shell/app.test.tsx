@@ -2312,7 +2312,7 @@ describe("App", () => {
       .toBeVisible();
   });
 
-  it("shows the contingency backup tickets notice the core reports in the register header, and discards them when it is closed", async () => {
+  it("counts the contingency backup tickets notice in the header, shows it in Esta caja and discards the tickets on Supr", async () => {
     const discard = vi.fn(
       async (): Promise<DiscardContingencyBackupTicketsAnswer> => ({ kind: "discarded", count: 2 }),
     );
@@ -2346,9 +2346,13 @@ describe("App", () => {
         .getByRole("button", { name: "1 aviso" }),
     );
     await expect
-      .element(screen.getByText("Ya podés descartar los tickets de respaldo"))
+      .element(
+        screen
+          .getByRole("list", { name: "Avisos de esta caja" })
+          .getByText("Ya podés descartar los tickets de respaldo"),
+      )
       .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+    await userEvent.keyboard("{Delete}");
 
     await expect.poll(() => discard.mock.calls.length).toBe(1);
   });
