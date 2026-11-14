@@ -1,4 +1,4 @@
-export const RECEIPT_PRINT_OFFER_MS = 3000;
+export const RECEIPT_PRINT_OFFER_MS = 10_000;
 
 export function receiptPrintOfferDeadline(offeredAt: Date): Date {
   return new Date(offeredAt.getTime() + RECEIPT_PRINT_OFFER_MS);
