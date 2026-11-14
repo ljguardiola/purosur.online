@@ -8,6 +8,7 @@ import {
   legendOf,
   lineRow,
   linesTable,
+  lookUp,
   markLine,
   openReturn,
   renderScreen,
@@ -277,6 +278,25 @@ describe("ReturnScreen showing a sale chosen from Historial", () => {
     await expect
       .element(alertText(screen, "Esa venta está anulada: no se puede devolver."))
       .toBeVisible();
+  });
+
+  it("replaces the failure to look the sale up with the answer to a ticket the cashier types", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async (reading) =>
+        reading.kind === "sale" ? { kind: "unavailable" } : { kind: "not_found" },
+    });
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+    await lookUp(screen, "0003-00009999");
+
+    await expect
+      .element(alertText(screen, "No encontramos esa venta en esta sucursal."))
+      .toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar" }))
+      .not.toBeInTheDocument();
   });
 });
 

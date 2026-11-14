@@ -275,6 +275,35 @@ describe("ReturnScreen completing the return", () => {
     await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
   });
 
+  it("keeps the return being completed when the cashier types in the search, and tells to hand over the money", async () => {
+    const answer = deferred<CompleteReturnOutcome>();
+    const { screen } = await renderScreen({ completeReturn: vi.fn(() => answer.promise) });
+    await decideOnePasta(screen);
+    await complete();
+
+    searchBox(screen).element().focus();
+    await userEvent.keyboard("5");
+    answer.resolve({
+      kind: "completed",
+      return_id: "return-1",
+      refunded_in_cash: 970_000,
+      refunds: [
+        {
+          payment_id: "pay-cash",
+          method: "CASH",
+          amount: 970_000,
+          state: "APPROVED",
+          sent_by_cloud: false,
+        },
+      ],
+      authorized_by: null,
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Entregá el dinero al cliente" }))
+      .toBeVisible();
+  });
+
   it.each([
     [{ kind: "not_found" }, "Esa venta ya no se puede devolver."],
     [{ kind: "sale_not_returnable" }, "Esa venta ya no se puede devolver."],
