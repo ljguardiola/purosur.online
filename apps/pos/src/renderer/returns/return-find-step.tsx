@@ -175,11 +175,13 @@ export function ReturnFindStep({
 
   function submitSearch() {
     if (typed) {
+      setSearched(true);
       void submit();
     }
   }
 
   function takeScan(text: string) {
+    setSearched(true);
     const reading = scannedReturnReading(text);
     if (reading === undefined) {
       setRefusal("not_a_ticket_qr");
