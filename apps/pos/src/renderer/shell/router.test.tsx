@@ -22,6 +22,7 @@ import { render as renderInPage } from "vitest-browser-react";
 import { KeyLayerProvider } from "../platform/key-layer";
 import { createQueryClient } from "../platform/query-client";
 import type { CashSessionState } from "../register/cash-session-state";
+import type { ClosedCashSummary } from "../register/closed-cash-summary";
 import { registerStatusQueryOptions } from "../register/register-queries";
 import { serialDevicesOffer } from "../register/serial-devices-offer";
 import type {
@@ -47,7 +48,7 @@ type RoutePath =
   | "/sign-in"
   | "/session"
   | "/cash"
-  | "/cash-count"
+  | "/cash-closed"
   | "/charge"
   | "/history"
   | "/deferred-sale"
@@ -157,6 +158,18 @@ const BALANCE: CashBalance = {
   expected: 4_620_000,
 };
 const BRAND_LOGO_ALT = "Puro Sur";
+const CLOSED_CASH: ClosedCashSummary = {
+  session: {
+    id: "s1",
+    expected_cash: 14_420_000,
+    counted_cash: 14_400_000,
+    difference: -20_000,
+    opened_at: "2026-11-04T08:02:00.000-03:00",
+    closed_at: "2026-11-04T20:14:00.000-03:00",
+  },
+  movements: [],
+};
+
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
 const RE_ENROLLMENT_TITLE = "Dar de alta de nuevo";
 const PIN_REDEMPTION_TITLE = "Cambiar el PIN";
@@ -172,7 +185,7 @@ const screenFor: Record<
   "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
-  "/cash-count": (screen) => screen.getByRole("heading", { name: "Cerrar caja" }),
+  "/cash-closed": (screen) => screen.getByRole("heading", { name: "Caja cerrada" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Otros medios" }),
   "/history": (screen) =>
     screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }),
@@ -225,6 +238,8 @@ function contextWith(
     enrollment,
     person: person ?? undefined,
     cashSession,
+    closedCash: undefined,
+    dismissClosedCash: () => {},
     openCashSession: async () => ({ kind: "unavailable" }),
     openingFloatSuggestion: async () => ({ kind: "none" }),
     closeCashSession: async () => ({ kind: "unavailable" }),
@@ -426,9 +441,32 @@ describe("routeFor", () => {
     cashSession?: CashSessionState;
     registerService?: RegisterServiceState;
     restoration?: Restoration;
+    closedCash?: ClosedCashSummary;
     route: RoutePath;
   }>([
     { coreStatus: "up", enrollment: "enrolled", person: undefined, route: "/sign-in" },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      closedCash: CLOSED_CASH,
+      route: "/cash-closed",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: undefined,
+      closedCash: CLOSED_CASH,
+      route: "/sign-in",
+    },
+    {
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: PERSON,
+      cashSession: OPEN_SESSION,
+      closedCash: CLOSED_CASH,
+      route: "/session",
+    },
     { coreStatus: "up", enrollment: "enrolled", person: PERSON, route: "/" },
     { coreStatus: "up", enrollment: "not_enrolled", person: PERSON, route: "/enroll" },
     { coreStatus: "up", enrollment: "unknown", person: PERSON, route: "/starting" },
@@ -680,10 +718,19 @@ describe("routeFor", () => {
       cashSession = NO_SESSION,
       registerService = "in_service",
       restoration = COMPLETED,
+      closedCash,
       route,
     }) => {
       expect(
-        routeFor({ coreStatus, enrollment, person, cashSession, registerService, restoration }),
+        routeFor({
+          coreStatus,
+          enrollment,
+          person,
+          cashSession,
+          registerService,
+          restoration,
+          closedCash,
+        }),
       ).toBe(route);
     },
   );
@@ -897,7 +944,7 @@ describe("the register's router", () => {
     { path: "/session", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/return", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
-    { path: "/cash-count", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/cash-closed", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/charge", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/receipt-printer", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     {
@@ -1002,10 +1049,9 @@ describe("the register's router", () => {
       redirectedTo: "/sign-in",
     },
     {
-      path: "/cash-count",
+      path: "/cash-closed",
       coreStatus: "down",
       enrollment: "enrolled",
-      cashSession: OPEN_SESSION,
       redirectedTo: "/core-down",
     },
     {
@@ -1084,7 +1130,7 @@ describe("the register's router", () => {
       redirectedTo: "/locked",
     },
     {
-      path: "/cash-count",
+      path: "/cash-closed",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -2464,49 +2510,91 @@ describe("the register's router", () => {
       {
         ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
         cashBalance: async () => BALANCE,
+        sessionOpenSale: async () => null,
         closeCashSession: async (person, sessionId, countedCash) => {
           closed.push([person.user_id, sessionId, countedCash]);
           return { kind: "unavailable" };
         },
       },
-      "/cash-count",
+      "/cash",
     );
     const screen = await render(<RouterProvider router={router} />);
     await expect
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
+    await userEvent.keyboard("{F12}");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Contado" }), "45800,00");
+    await userEvent.keyboard("{Enter}");
 
     await expect.poll(() => closed).toEqual([["u2", "s1", 4_580_000]]);
   });
 
-  it("closes /cash-count?leaving=true like any other close, asking for no sign out after it", async () => {
-    const closeCashSession = vi.fn<RouterContext["closeCashSession"]>(async () => ({
-      kind: "unavailable",
-    }));
+  it("shows the closed cash session on /cash-closed, leaving it for the open cash screen with F12 and signing out with Enter", async () => {
+    const dismissClosedCash = vi.fn();
+    const signOut = vi.fn();
     const router = createRegisterRouter(
       routeTree,
       {
-        ...contextWith("up", "enrolled", OPENER, undefined, OPEN_SESSION),
-        cashBalance: async () => BALANCE,
-        closeCashSession,
+        ...contextWith("up", "enrolled", OPENER, signOut),
+        closedCash: CLOSED_CASH,
+        dismissClosedCash,
       },
-      "/cash-count?leaving=true",
+      "/cash-closed",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await expect
-      .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+    await expect.element(screen.getByText("$ 144.000,00", { exact: true })).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-
-    await expect
-      .poll(() => closeCashSession.mock.calls)
-      .toEqual([[expect.objectContaining({ user_id: "u2" }), "s1", 4_580_000]]);
+    await userEvent.keyboard("{F12}");
+    expect(dismissClosedCash).toHaveBeenCalledOnce();
+    await userEvent.keyboard("{Enter}");
+    expect(signOut).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ["Historial", "/history"],
+    ["Venta diferida", "/deferred-sale"],
+    ["Impresora", "/receipt-printer"],
+    ["Balanza y lector", "/serial-devices"],
+    ["Venta", "/"],
+    ["Devolver", "/"],
+    ["Caja", "/"],
+  ] as const)(
+    "leaves the closed cash session through the rail's %s for %s, dropping the closed summary",
+    async (entry, path) => {
+      const dismissClosedCash = vi.fn();
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", "enrolled", {
+            ...OPENER,
+            abilities: [
+              "open_cash_session",
+              "view_sales_history",
+              "invoice_deferred_sale",
+              "configure_receipt_printer",
+              "configure_serial_devices",
+            ],
+          }),
+          closedCash: CLOSED_CASH,
+          dismissClosedCash,
+        },
+        "/cash-closed",
+      );
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screen.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+      await userEvent.click(
+        screen
+          .getByRole("navigation", { name: "Menú de la caja" })
+          .getByText(entry, { exact: true }),
+      );
+
+      await expect.element(screenFor[path](screen)).toBeVisible();
+      expect(dismissClosedCash).toHaveBeenCalled();
+    },
+  );
 
   it("names the register in the open-session screen's header", async () => {
     const router = createRegisterRouter(
@@ -3164,7 +3252,6 @@ describe("the register's header", () => {
     { path: "/charge", cashSession: OPEN_SESSION, person: undefined, context: SALE_TO_CHARGE },
     { path: "/cash", cashSession: OPEN_SESSION, person: undefined },
     { path: "/return", cashSession: OPEN_SESSION, person: undefined },
-    { path: "/cash-count", cashSession: OPEN_SESSION, person: undefined },
     { path: "/history", cashSession: NO_SESSION, person: undefined },
     { path: "/history", cashSession: OPEN_SESSION, person: undefined },
     { path: "/deferred-sale", cashSession: NO_SESSION, person: undefined },

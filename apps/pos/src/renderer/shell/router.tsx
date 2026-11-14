@@ -117,9 +117,10 @@ import type {
   SerialDevicesToRegister,
   SignInUsers,
 } from "../platform/core-client";
-import { CashCountScreen } from "../register/cash-count-screen";
+import { CashClosedScreen } from "../register/cash-closed-screen";
 import { CashScreen } from "../register/cash-screen";
 import type { CashSessionState } from "../register/cash-session-state";
+import type { ClosedCashSummary } from "../register/closed-cash-summary";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
@@ -174,6 +175,8 @@ export interface RouterContext {
   enrollment: Enrollment;
   person: SignedInPerson | undefined;
   cashSession: CashSessionState;
+  closedCash: ClosedCashSummary | undefined;
+  dismissClosedCash: () => void;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   signInUsers: () => Promise<SignInUsers>;
   authorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
@@ -384,6 +387,7 @@ type ScreenPath =
   | "/session"
   | "/history"
   | "/locked"
+  | "/cash-closed"
   | "/enroll"
   | "/starting"
   | "/core-down"
@@ -404,10 +408,12 @@ export function routeFor({
   enrollment,
   person,
   cashSession,
+  closedCash,
 }: Pick<
   RouterContext,
   "coreStatus" | "registerService" | "restoration" | "enrollment" | "person" | "cashSession"
->): ScreenPath {
+> &
+  Partial<Pick<RouterContext, "closedCash">>): ScreenPath {
   if (coreStatus === "refused") {
     return "/older-version";
   }
@@ -450,6 +456,9 @@ export function routeFor({
   if (cashSession.status === "open") {
     return person === undefined ? "/locked" : "/session";
   }
+  if (person !== undefined && closedCash !== undefined) {
+    return "/cash-closed";
+  }
   return person === undefined ? "/sign-in" : "/";
 }
 
@@ -460,15 +469,20 @@ function requireRoute(expected: ScreenPath | readonly ScreenPath[], context: Rou
   }
 }
 
+function routeLeavingClosedCash(context: RouterContext): ScreenPath {
+  const route = routeFor(context);
+  return route === "/cash-closed" ? "/" : route;
+}
+
 function requireSignedInPerson(context: RouterContext): SignedInPerson {
-  if (context.person === undefined || routeFor(context) !== "/") {
+  if (context.person === undefined || routeLeavingClosedCash(context) !== "/") {
     throw redirect({ to: routeFor(context) });
   }
   return context.person;
 }
 
 function requireSignedInPersonAnywhere(context: RouterContext) {
-  const route = routeFor(context);
+  const route = routeLeavingClosedCash(context);
   if (context.person === undefined || (route !== "/" && route !== "/session")) {
     throw redirect({ to: route });
   }
@@ -484,6 +498,17 @@ function requireOpenSession(context: RouterContext) {
     throw redirect({ to: routeFor(context) });
   }
   return { ...context.cashSession, person: context.person };
+}
+
+function requireClosedCash(context: RouterContext) {
+  if (
+    context.person === undefined ||
+    context.closedCash === undefined ||
+    routeFor(context) !== "/cash-closed"
+  ) {
+    throw redirect({ to: routeFor(context) });
+  }
+  return { person: context.person, closedCash: context.closedCash };
 }
 
 function requireRestoringStanding(context: RouterContext): {
@@ -1067,6 +1092,9 @@ const cashRoute = createRoute({
       cashMovements,
       cashMovementKinds,
       cashMovementPreview,
+      cashCountPreview,
+      sessionOpenSale,
+      closeCashSession,
       authorizers,
       recordCashMovement,
       readClockGuard,
@@ -1083,6 +1111,9 @@ const cashRoute = createRoute({
         loadCashMovementKinds={cashMovementKinds}
         loadCashMovementPreview={cashMovementPreview}
         loadAuthorizers={authorizers}
+        loadCashCountPreview={cashCountPreview}
+        loadSessionOpenSale={sessionOpenSale}
+        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash)}
         recordCashMovement={recordCashMovement}
         clockGuard={
           <ClockGuardOffer
@@ -1097,24 +1128,19 @@ const cashRoute = createRoute({
   },
 });
 
-const cashCountRoute = createRoute({
+const cashClosedRoute = createRoute({
   getParentRoute: () => registerStatusRoute,
-  path: "/cash-count",
-  beforeLoad: ({ context }) => {
-    const { id, person } = requireOpenSession(context);
-    return { id, person };
-  },
-  component: function CashCountRoute() {
-    const { id, person, signOut, cashBalance, cashCountPreview, closeCashSession } =
-      cashCountRoute.useRouteContext();
+  path: "/cash-closed",
+  beforeLoad: ({ context }) => requireClosedCash(context),
+  onLeave: ({ context }) => context.dismissClosedCash(),
+  component: function CashClosedRoute() {
+    const { person, closedCash, signOut, dismissClosedCash } = cashClosedRoute.useRouteContext();
     return (
-      <CashCountScreen
-        sessionId={id}
-        abilities={person.abilities}
+      <CashClosedScreen
+        person={person}
+        summary={closedCash}
         lock={signOut}
-        loadCashBalance={cashBalance}
-        loadCashCountPreview={cashCountPreview}
-        closeCashSession={(countedCash) => closeCashSession(person, id, countedCash)}
+        onOpenCash={dismissClosedCash}
       />
     );
   },
@@ -1386,7 +1412,7 @@ export const routeTree = rootRoute.addChildren([
       deferredSaleRoute,
       returnRoute,
       cashRoute,
-      cashCountRoute,
+      cashClosedRoute,
       lockedRoute,
       lockedCloseRoute,
     ]),
@@ -1517,6 +1543,7 @@ export function createAppRouter(
     | "searchCountableProducts"
     | "weighCountedProduct"
     | "refreshCashSession"
+    | "dismissClosedCash"
   >,
 ) {
   return createRegisterRouter(
@@ -1529,6 +1556,7 @@ export function createAppRouter(
       enrollment: "unknown",
       person: undefined,
       cashSession: { status: "unknown" },
+      closedCash: undefined,
       ...services,
     },
     "/starting",
