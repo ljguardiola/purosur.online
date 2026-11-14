@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -73,7 +74,13 @@ test.each([
   const screen = await render(
     <div className="flex items-start gap-4">
       <div className="min-w-0 flex-1">
-        <SearchField label="Producto" placeholder="Escaneá" value="" onChange={() => {}} />
+        <SearchField
+          label="Producto"
+          icon={<Search />}
+          placeholder="Escaneá"
+          value=""
+          onChange={() => {}}
+        />
       </div>
       {card}
     </div>,
