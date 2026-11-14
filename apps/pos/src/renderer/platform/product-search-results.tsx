@@ -20,6 +20,7 @@ export type ProductSearchResultsProps<Product extends SearchedProduct = FoundPro
   search: SearchResults<Product> | undefined;
   activeIndex: number;
   onChoose: (product: Product) => void;
+  legend?: readonly KeyLegendItem[];
 };
 
 export function searchOptionId(listboxId: string, index: number) {
@@ -106,6 +107,7 @@ export function ProductSearchResults<Product extends SearchedProduct = FoundProd
   search,
   activeIndex,
   onChoose,
+  legend = KEY_LEGEND,
 }: ProductSearchResultsProps<Product>) {
   const activeId = searchOptionId(listboxId, activeIndex);
 
@@ -133,6 +135,7 @@ export function ProductSearchResults<Product extends SearchedProduct = FoundProd
           search={search}
           activeIndex={activeIndex}
           onChoose={onChoose}
+          legend={legend}
         />
       )}
     </>
@@ -144,7 +147,11 @@ function FoundProducts<Product extends SearchedProduct>({
   search: { products, more },
   activeIndex,
   onChoose,
-}: ProductSearchResultsProps<Product> & { search: SearchResults<Product> }) {
+  legend,
+}: ProductSearchResultsProps<Product> & {
+  search: SearchResults<Product>;
+  legend: readonly KeyLegendItem[];
+}) {
   return (
     <div className={`${PANEL_POSITION_CLASS_NAME} ${PANEL_BOX_CLASS_NAME}`}>
       {/* Pressing an option must not take the focus away from the field, and a browser puts a
@@ -177,7 +184,7 @@ function FoundProducts<Product extends SearchedProduct>({
         </div>
       ) : null}
       <div className="border-t border-border bg-surface-subtle px-4 py-3">
-        <KeyLegend items={KEY_LEGEND} />
+        <KeyLegend items={legend} />
       </div>
     </div>
   );

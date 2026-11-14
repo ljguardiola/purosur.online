@@ -151,6 +151,7 @@ describe("SaleScreen opening the panels with F6, F7 and F8", () => {
     expect(legendOf()).toEqual([
       "↑↓Líneas",
       "F2Buscar",
+      "F4Consulta",
       "F6Precio",
       "F8Vaciar",
       "SuprQuitar",

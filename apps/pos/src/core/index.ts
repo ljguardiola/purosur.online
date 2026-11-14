@@ -180,6 +180,7 @@ import {
 } from "./returns/returns-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
+import { consultProductFor } from "./sales/product-consultation-requests";
 import {
   createReceiptPrinting,
   printingAfterCompletedSales,
@@ -1555,6 +1556,25 @@ const rendererRequestDeps: RendererRequestDeps = {
               gate: actionGate,
             },
             query,
+          ),
+  consultProduct:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (product) =>
+          consultProductFor(
+            {
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+              zoneRules,
+              scale: systelScale,
+              scaleStanding: () =>
+                serialDeviceWatch
+                  ? readStanding(serialDeviceWatch.reading(), "scale")
+                  : { kind: "unknown" },
+            },
+            product,
           ),
   findProductByCode:
     localDatabase === undefined || actionGate === undefined

@@ -47,6 +47,7 @@ type RoutePath =
   | "/"
   | "/sign-in"
   | "/session"
+  | "/consult"
   | "/cash"
   | "/cash-closed"
   | "/charge"
@@ -184,6 +185,7 @@ const screenFor: Record<
   "/": (screen) => screen.getByRole("heading", { name: SIGNED_IN_TITLE }),
   "/sign-in": (screen) => screen.getByRole("button", { name: SIGN_IN_USER_SELECT }),
   "/session": (screen) => screen.getByRole("combobox", { name: "Producto" }),
+  "/consult": (screen) => screen.getByRole("button", { name: "Consulta" }),
   "/cash": (screen) => screen.getByRole("heading", { name: "Caja" }),
   "/cash-closed": (screen) => screen.getByRole("heading", { name: "Caja cerrada" }),
   "/charge": (screen) => screen.getByRole("heading", { name: "Otros medios" }),
@@ -292,6 +294,7 @@ function contextWith(
     abandonMercadoPagoCharge: async () => ({ kind: "unavailable" }),
     scanProduct: async () => ({ kind: "unknown_code" }),
     searchProducts: async () => ({ kind: "results", products: [], more: false }),
+    consultProduct: async () => ({ kind: "not_found" }),
     findProductByCode: async () => ({ kind: "unknown_code" }),
     addProduct: async () => ({ kind: "product_unavailable" }),
     changeLineQuantity: async () => ({ kind: "unavailable" }),
@@ -943,6 +946,7 @@ describe("the register's router", () => {
       redirectedTo: "/session",
     },
     { path: "/session", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
+    { path: "/consult", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/return", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
     { path: "/cash-closed", coreStatus: "up", enrollment: "enrolled", redirectedTo: "/" },
@@ -1064,6 +1068,13 @@ describe("the register's router", () => {
     },
     {
       path: "/session",
+      coreStatus: "up",
+      enrollment: "enrolled",
+      person: null,
+      redirectedTo: "/sign-in",
+    },
+    {
+      path: "/consult",
       coreStatus: "up",
       enrollment: "enrolled",
       person: null,
@@ -3250,6 +3261,7 @@ describe("the register's header", () => {
   }>([
     { path: "/", cashSession: NO_SESSION, person: undefined },
     { path: "/session", cashSession: OPEN_SESSION, person: undefined },
+    { path: "/consult", cashSession: OPEN_SESSION, person: undefined },
     { path: "/charge", cashSession: OPEN_SESSION, person: undefined, context: SALE_TO_CHARGE },
     { path: "/cash", cashSession: OPEN_SESSION, person: undefined },
     { path: "/return", cashSession: OPEN_SESSION, person: undefined },
@@ -3506,5 +3518,41 @@ describe("the charge route's Mercado Pago QR", () => {
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
 
     await expect.poll(() => started).toEqual([["sale-1", { method: "QR" }, 238_000]]);
+  });
+});
+
+describe("the Consulta route", () => {
+  it("consults the product its search names", async () => {
+    const consultProduct = vi.fn(async () => ({ kind: "not_found" as const }));
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up", "enrolled", undefined, undefined, OPEN_SESSION), consultProduct },
+      "/consult?product_id=almendras",
+    );
+
+    await render(<RouterProvider router={router} />);
+
+    await vi.waitFor(() =>
+      expect(consultProduct).toHaveBeenCalledWith({ product_id: "almendras" }),
+    );
+  });
+
+  it("hands the sale screen the product Consulta returns with, to add it", async () => {
+    const addProduct = vi.fn(async () => ({ kind: "product_unavailable" as const }));
+    const router = createRegisterRouter(
+      routeTree,
+      { ...contextWith("up", "enrolled", undefined, undefined, OPEN_SESSION), addProduct },
+      "/consult",
+    );
+    await render(<RouterProvider router={router} />);
+
+    await router.navigate({
+      to: "/session",
+      search: {
+        add: { product_id: "leche", name: "Leche vegetal", sale_unit: "UNIT", unit_price: 430_000 },
+      },
+    });
+
+    await vi.waitFor(() => expect(addProduct).toHaveBeenCalledExactlyOnceWith("leche"));
   });
 });

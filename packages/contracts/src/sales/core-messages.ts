@@ -15,6 +15,10 @@ import {
   printDeferredSaleInvoiceResultMessageSchema,
 } from "./deferred-sale-lookup.js";
 import {
+  consultProductMessageSchema,
+  consultProductResultMessageSchema,
+} from "./product-consultation.js";
+import {
   addProductOutcomeSchema,
   addWeighedProductOutcomeSchema,
   adjustSaleLineOutcomeSchema,
@@ -353,6 +357,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   answerReceiptQuestionMessageSchema,
   printOriginalReceiptMessageSchema,
   findDeferredSaleMessageSchema,
+  consultProductMessageSchema,
   printDeferredSaleInvoiceMessageSchema,
   printCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
@@ -581,6 +586,7 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: printOriginalReceiptOutcomeSchema,
   }),
   findDeferredSaleResultMessageSchema,
+  consultProductResultMessageSchema,
   printDeferredSaleInvoiceResultMessageSchema,
   z.object({
     type: z.literal("print-credit-note-result"),

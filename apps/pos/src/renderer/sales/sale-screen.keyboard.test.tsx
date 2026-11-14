@@ -139,7 +139,7 @@ describe("SaleScreen removing the selected line", () => {
     ]) {
       await expect.element(screen.getByRole("button", { name })).toBeDisabled();
     }
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F4Consulta"]);
   });
 });
 
@@ -154,7 +154,7 @@ describe("SaleScreen with a sale that can no longer be changed", () => {
     });
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
 
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F8Cancelar venta"]);
+    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "F4Consulta", "F8Cancelar venta"]);
     await userEvent.keyboard("{Delete}");
     pressKeypad("+");
     pressKeypad("-");
@@ -224,6 +224,7 @@ describe("SaleScreen's key legend under the lines", () => {
       "↑↓Líneas",
       "F2Buscar",
       "F3Pesar",
+      "F4Consulta",
       "F6Precio",
       "F7Descuento",
       "F8Vaciar",
@@ -246,6 +247,7 @@ describe("SaleScreen's key legend under the lines", () => {
       .toEqual([
         "↑↓Líneas",
         "F2Buscar",
+        "F4Consulta",
         "F6Precio",
         "F7Descuento",
         "F8Vaciar",
@@ -260,6 +262,7 @@ describe("SaleScreen's key legend under the lines", () => {
         "↑↓Líneas",
         "F2Buscar",
         "F3Pesar",
+        "F4Consulta",
         "F6Precio",
         "F7Descuento",
         "F8Vaciar",
