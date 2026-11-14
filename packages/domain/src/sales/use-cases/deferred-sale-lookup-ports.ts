@@ -1,4 +1,9 @@
 import type { DeferredSaleFacts } from "../model/deferred-sale-lookup.js";
+import type { SaleHistoryLine } from "./register-sales-history.js";
+
+export interface DeferredSaleLine extends SaleHistoryLine {
+  listUnitPrice: number;
+}
 
 export type DeferredSaleSearch =
   | { kind: "short_code"; shortCode: string }
@@ -7,6 +12,7 @@ export type DeferredSaleSearch =
 
 export interface DeferredSaleLookup {
   find(search: DeferredSaleSearch): DeferredSaleFacts | null;
+  linesOf(saleId: string): DeferredSaleLine[];
 }
 
 export type DeferredSaleInvoicingOutcome =

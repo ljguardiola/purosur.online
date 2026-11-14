@@ -1,6 +1,7 @@
-import { deferredSaleReferenceFromQrText, isShortCode } from "@purosur/domain";
+import { deferredSaleReferenceFromQrText, isShortCode, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
 import { requestIdSchema } from "../shared/index.js";
+import { shownLineQuantitySchema } from "./sale.js";
 import { receiptCopySchema } from "./sales-history.js";
 
 const SHORT_CODE_MESSAGE = "code must be a deferred sale's short code";
@@ -58,6 +59,16 @@ const findDeferredSaleOutcomeSchema = z.discriminatedUnion("kind", [
       }),
     ]),
     original_printed: z.boolean(),
+    lines: z.array(
+      z.object({
+        product_name: z.string(),
+        sale_unit: z.enum(SALE_UNITS),
+        quantity: shownLineQuantitySchema,
+        list_unit_price: z.int().nonnegative(),
+        line_total: z.int(),
+      }),
+    ),
+    item_count: z.int().nonnegative(),
   }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("voided") }),

@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { deferredSaleInvoiceNumber, deferredSaleRefusal } from "./deferred-sale-text";
+import { deferredSaleComprobanteLine, deferredSaleRefusal } from "./deferred-sale-text";
 
-describe("deferredSaleInvoiceNumber", () => {
-  it("shows the point of sale and the number of an issued invoice", () => {
-    expect(deferredSaleInvoiceNumber({ kind: "issued", point_of_sale: 3, number: 1250 })).toBe(
-      "PV 00003\nNº 00001250",
+describe("deferredSaleComprobanteLine", () => {
+  it("shows the factura with its point of sale and number once issued", () => {
+    expect(deferredSaleComprobanteLine({ kind: "issued", point_of_sale: 3, number: 187 })).toBe(
+      "Factura C · 00003-00000187",
     );
   });
 
-  it("says the number is assigned when the invoice is issued, while it is pending", () => {
-    expect(deferredSaleInvoiceNumber({ kind: "pending" })).toBe("Se asigna al emitir");
+  it("says the number is assigned on issuing while the invoice is pending", () => {
+    expect(deferredSaleComprobanteLine({ kind: "pending" })).toBe(
+      "Factura C · Se asigna al emitir",
+    );
   });
 });
 
@@ -35,7 +37,7 @@ describe("deferredSaleRefusal", () => {
     [
       "not_a_deferred_sale_qr",
       "Ese QR no es de una venta diferida",
-      "Escaneá el QR del documento no fiscal, o tipeá su código de consulta.",
+      "Escaneá el QR del documento no fiscal.",
     ],
     [
       "lacks_permission",

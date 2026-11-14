@@ -54,6 +54,7 @@ import type { SignedInPerson } from "../shell/signed-in-person";
 import { CancelPaidSalePanel } from "./cancel-paid-sale-panel";
 import { changedLineId } from "./changed-line";
 import type { KeyedChargeMethod } from "./charge-method-availability";
+import { scannedDeferredSaleReading } from "./deferred-sale-qr";
 import { EmptySalePanel } from "./empty-sale-panel";
 import { LinePricePanel } from "./line-price-panel";
 import { LiveScaleCard } from "./live-scale-card";
@@ -599,6 +600,10 @@ export function SaleScreen({
 
   async function takeReading(reading: string) {
     const submitted = reading.trim();
+    if (!weighingOrWaiting() && scannedDeferredSaleReading(submitted) !== undefined) {
+      void navigate({ to: "/deferred-sale", search: { reading: submitted } });
+      return;
+    }
     flushSync(() => {
       setCode(submitted);
       setProblem(undefined);

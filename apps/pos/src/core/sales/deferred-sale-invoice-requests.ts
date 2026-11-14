@@ -59,6 +59,14 @@ export async function findDeferredSaleFor(
                 number: result.invoice.number,
               },
         original_printed: result.originalPrinted,
+        lines: result.lines.map((line) => ({
+          product_name: line.productName,
+          sale_unit: line.saleUnit,
+          quantity: line.quantity,
+          list_unit_price: line.listUnitPrice,
+          line_total: line.lineTotal,
+        })),
+        item_count: result.itemCount,
       }
     : result;
 }

@@ -1,6 +1,7 @@
 import type {
   CashBalance,
   EnrollmentOutcome,
+  FindDeferredSaleOutcome,
   ListedCashMovement,
   PaymentMethodAvailability,
   ReadClockGuardOutcome,
@@ -191,8 +192,7 @@ const screenFor: Record<
   "/charge": (screen) => screen.getByRole("heading", { name: "Otros medios" }),
   "/history": (screen) =>
     screen.getByRole("searchbox", { name: "Escaneá el ticket o escribí el número" }),
-  "/deferred-sale": (screen) =>
-    screen.getByRole("heading", { name: "Escaneá el documento del cliente" }),
+  "/deferred-sale": (screen) => screen.getByText("Acercá el QR del documento al lector"),
   "/return": (screen) => screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }),
   "/receipt-printer": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Impresora de tickets" }),
@@ -2212,6 +2212,26 @@ describe("the register's router", () => {
     });
   });
 
+  it("looks up the deferred sale of the reading the route carries", async () => {
+    const findDeferredSale = vi.fn(
+      async (): Promise<FindDeferredSaleOutcome> => ({ kind: "voided" }),
+    );
+    const reading = "purosur-deferred-sale:0198-abc:7KQ4M2P9";
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", PERSON, undefined, OPEN_SESSION),
+        findDeferredSale,
+      },
+      `/deferred-sale?reading=${encodeURIComponent(reading)}`,
+    );
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByText("Esa venta se anuló")).toBeVisible();
+    expect(findDeferredSale).toHaveBeenCalledExactlyOnceWith({ kind: "scanned", text: reading });
+  });
+
   it("renders the open-session screen for the person who opened the session", async () => {
     const router = routerAt("/session", "up", "enrolled", OPENER, OPEN_SESSION);
 
@@ -2566,7 +2586,6 @@ describe("the register's router", () => {
 
   it.each([
     ["Historial", "/history"],
-    ["Venta diferida", "/deferred-sale"],
     ["Impresora", "/receipt-printer"],
     ["Balanza y lector", "/serial-devices"],
     ["Venta", "/"],

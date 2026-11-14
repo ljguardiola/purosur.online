@@ -724,6 +724,17 @@ describe("SaleScreen products waiting during a weighing", () => {
     await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
   });
 
+  it("refuses a deferred sale's QR like any unknown code, keeping the weighing on the sale screen", async () => {
+    const { screen, readBarcode } = await weighingWith();
+    const pathname = screen.router.state.location.pathname;
+
+    readBarcode("purosur-deferred-sale:0198-abc:7KQ4M2P9");
+
+    await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
+    await expect.element(screen.getByRole("region", CARD_OF_QUESO)).toBeVisible();
+    expect(screen.router.state.location.pathname).toBe(pathname);
+  });
+
   it("queues a code typed in the search field while the reading is moving instead of adding it", async () => {
     const scanProduct = vi.fn(async () => WEIGHT_NEEDED);
     const { screen, field } = await renderScreen({
