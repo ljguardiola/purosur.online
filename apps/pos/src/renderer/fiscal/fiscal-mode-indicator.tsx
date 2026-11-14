@@ -1,6 +1,6 @@
 import type { RegisterStatus } from "@purosur/contracts";
 import { StatusPill } from "@purosur/ui";
-import { fiscalModeText } from "./fiscal-mode-text";
+import { fiscalModeText } from "../shell/fiscal-mode-text";
 
 export function FiscalModeIndicator({
   contingency,
