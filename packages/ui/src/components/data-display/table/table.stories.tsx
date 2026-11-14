@@ -17,9 +17,11 @@ import {
   playTabReachesFocusVisible,
 } from "../../../test-support/story-interactions";
 import { Button } from "../../forms/button";
+import { Checkbox } from "../../forms/checkbox";
 import { Eyebrow } from "../../layout/eyebrow";
 import type { KeyLegendItem } from "../key-legend";
 import { Table } from "./table";
+import { TableCellText } from "./table-cell-text";
 import { actionsColumn, dataColumn, groupColumn } from "./table-columns";
 import { TablePagination } from "./table-pagination";
 import type { TableColumns, TableProps, TableSort } from "./table-types";
@@ -900,6 +902,52 @@ export const RegisterCardFailure: Story = {
         title: "No se pudo cargar la venta",
         description: "Volvé a intentarlo en unos segundos.",
       }}
+    />
+  ),
+};
+
+const returnLegend: readonly KeyLegendItem[] = [
+  { keyName: "ArrowUpDown", label: "Líneas" },
+  { keyName: "Space", label: "Marcar" },
+  { keyName: "F6", label: "Editar" },
+];
+
+const checkboxColumns: TableColumns<Product> = [
+  dataColumn({
+    id: "mark",
+    header: "Marcar",
+    width: 56,
+    render: (item: Product) => (
+      <Checkbox name={`mark-${item.id}`} checked={item.id !== "2"} onCheckedChange={() => {}}>
+        <span className="sr-only">{item.name}</span>
+      </Checkbox>
+    ),
+  }),
+  dataColumn({
+    id: "name",
+    header: "Producto",
+    render: (item: Product) => <TableCellText strong>{item.name}</TableCellText>,
+  }),
+  dataColumn({
+    id: "stock",
+    header: "A devolver",
+    render: (item: Product) => (
+      <TableCellText strong tone={item.id === "3" ? "error" : undefined}>
+        {item.id === "2" ? "—" : `${item.stock} u`}
+      </TableCellText>
+    ),
+  }),
+];
+
+export const RegisterCardCheckboxColumn: Story = {
+  decorators: [inTallCard],
+  render: () => (
+    <ProductsTable
+      aria-label="Líneas de la devolución"
+      columns={checkboxColumns}
+      fill
+      legend={returnLegend}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
     />
   ),
 };

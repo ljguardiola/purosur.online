@@ -93,6 +93,7 @@ export {
   salePrintStanding,
   UNPRINTED_SALE_STANDINGS,
 } from "./model/sale-print-standing.js";
+export { saleMayBeReturned } from "./model/sale-returnability.js";
 export { SALE_VOID_REFUSALS } from "./model/sale-void.js";
 export type { SalesOfCashier, SoldByCashier } from "./model/sales-by-cashier.js";
 export type {

@@ -114,6 +114,7 @@ describe("GET /reports/returns", () => {
       range: { from: "2026-10-06", to: "2026-10-06" },
       typed: { rows: [], totals: { returns: 0, refunded: 0 } },
       scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+      history: { rows: [], totals: { returns: 0, refunded: 0 } },
       voids: { rows: [], totals: { voids: 0, voided: 0 } },
       totals: {
         voids: 0,
@@ -199,6 +200,7 @@ describe("GET /reports/returns", () => {
         rows: [expect.objectContaining({ return_id: scanned.saleReturn.id })],
         totals: { returns: 1, refunded: 2_400 },
       },
+      history: { rows: [], totals: { returns: 0, refunded: 0 } },
       voids: { rows: [], totals: { voids: 0, voided: 0 } },
       totals: {
         voids: 0,
@@ -234,6 +236,26 @@ describe("GET /reports/returns", () => {
         },
       ],
     });
+  });
+
+  it("keeps a return started from the sales history in a group of its own", async () => {
+    const { headers } = await signedInWith(db, ["view_returns_report"], NOW);
+    const { deviceId } = await aRegister("Caja 1");
+    const fromHistory = await applyReturn(db, {
+      deviceId,
+      soldAt: SOLD,
+      returnedAt: RETURNED,
+      saleReturn: { ticketSource: "HISTORY" },
+    });
+
+    const response = await returnsReport(headers, range);
+
+    expect(response.json().history).toMatchObject({
+      rows: [expect.objectContaining({ return_id: fromHistory.saleReturn.id })],
+      totals: { returns: 1, refunded: 2_400 },
+    });
+    expect(response.json().scanned.rows).toEqual([]);
+    expect(response.json().typed.rows).toEqual([]);
   });
 
   it("reports only the branch of the session, whatever the query says", async () => {

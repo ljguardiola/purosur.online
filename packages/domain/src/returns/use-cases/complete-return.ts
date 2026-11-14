@@ -8,6 +8,7 @@ import {
   type SaleCreditNoteRoute,
 } from "../../fiscal/index.js";
 import { plannedRefundState } from "../../payments/index.js";
+import { saleMayBeReturned } from "../../sales/index.js";
 import {
   type Clock,
   type JsonValue,
@@ -33,6 +34,7 @@ import type { TicketSource } from "../model/return-reasons.js";
 import { returnSaleLines } from "../model/return-sale.js";
 import { returnStockDelta, returnStockMovements } from "../model/return-stock.js";
 import type { ReturnedLine, ReturnedRefund } from "../model/returned-sale.js";
+import { ticketVerificationRequired } from "../model/ticket-verification.js";
 import type {
   IdGenerator,
   RecordedReturn,
@@ -45,6 +47,7 @@ import type {
 export interface CompleteReturnInput {
   saleId: string;
   ticketSource: TicketSource;
+  ticketVerified: boolean;
   lines: readonly ReturnDraftLine[];
   refunds: readonly RefundAllocation[];
 }
@@ -67,6 +70,7 @@ type ReturnCreditNote =
   | { kind: "pending" | "awaiting_invoice" | "issued_offline"; creditNoteId: string };
 
 export type CompleteReturnOutcome<Grant extends CompleteReturnGrant> =
+  | { kind: "ticket_not_verified" }
   | { kind: "not_found" }
   | { kind: "sale_not_returnable" }
   | { kind: "no_open_session" }
@@ -85,8 +89,11 @@ export type CompleteReturnOutcome<Grant extends CompleteReturnGrant> =
 
 export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>(
   { ledger, clock, zoneRules, ids, authority }: CompleteReturnPorts<Grant, Refusal>,
-  { saleId, ticketSource, lines, refunds }: CompleteReturnInput,
+  { saleId, ticketSource, ticketVerified, lines, refunds }: CompleteReturnInput,
 ): Promise<CompleteReturnOutcome<Grant> | Refusal> {
+  if (ticketVerificationRequired(ticketSource) && !ticketVerified) {
+    return { kind: "ticket_not_verified" };
+  }
   const authorization = await authority.authorize();
   if (authorization.kind === "refused") {
     return authorization.refusal;
@@ -99,7 +106,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
       return { kind: "not_found" };
     }
     const { sale } = facts;
-    if (sale.state !== "COMPLETED") {
+    if (!saleMayBeReturned(sale.state)) {
       return { kind: "sale_not_returnable" };
     }
     const session = tx.openSession();

@@ -84,6 +84,7 @@ export function toWireSaleForReturn(sale: SaleForReturnView, rules: ZoneRules): 
       remaining: payment.remaining,
       eligible: payment.eligible,
       ineligible_reason: payment.ineligibleReason,
+      refund_state: payment.refundState,
     })),
   };
 }

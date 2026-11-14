@@ -38,6 +38,7 @@ const SALE: Sale = {
   state: "completed",
   voidability: { kind: "not_voidable", refusal: "session_closed" },
   void_authorization_required: false,
+  returnable: true,
   reprint_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "duplicate", order_number: 1 },
@@ -515,6 +516,7 @@ describe("ReprintReceiptModal", () => {
     const CREDIT_NOTE_SALE: Sale = {
       ...SALE,
       state: "voided",
+      returnable: false,
       reprint: { kind: "sale_voided" },
       credit_note: {
         kind: "authorized",
