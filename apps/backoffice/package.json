@@ -20,7 +20,7 @@
     "@tanstack/react-router": "^1.170.45",
     "fflate": "^0.8.3",
     "jsqr": "1.4.0",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.70.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.5"
