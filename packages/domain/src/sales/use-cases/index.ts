@@ -228,6 +228,7 @@ export type {
   ReadSalesHistoryPorts,
   SalesHistoryPageShown,
   SalesHistoryRow,
+  SalesHistorySearch,
 } from "./read-sales-history.js";
 export { readSalesHistory } from "./read-sales-history.js";
 export type {

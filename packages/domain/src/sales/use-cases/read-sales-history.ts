@@ -1,3 +1,4 @@
+import type { DeferredSaleReference } from "../../fiscal/index.js";
 import {
   SALES_HISTORY_PAGE_SIZE,
   type SaleComprobante,
@@ -18,10 +19,14 @@ export interface ReadSalesHistoryPorts {
   history: RegisterSalesHistory;
 }
 
+export type SalesHistorySearch =
+  | ({ kind: "invoice" } & SaleDocumentNumber)
+  | ({ kind: "deferred" } & DeferredSaleReference);
+
 export interface ReadSalesHistoryInput {
   session: "open" | "all";
   page: number;
-  document?: SaleDocumentNumber;
+  search?: SalesHistorySearch;
 }
 
 export interface SalesHistoryRow {
@@ -41,13 +46,10 @@ export interface SalesHistoryPageShown {
 
 export function readSalesHistory(
   { history }: ReadSalesHistoryPorts,
-  { session, page, document }: ReadSalesHistoryInput,
+  { session, page, search }: ReadSalesHistoryInput,
 ): SalesHistoryPageShown {
   const offset = (page - 1) * SALES_HISTORY_PAGE_SIZE;
-  const found =
-    document === undefined
-      ? pageOfSales(history, session, { offset, limit: SALES_HISTORY_PAGE_SIZE })
-      : pageOfSalesWithDocument(history, session, document, offset);
+  const found = pageFound(history, session, search, offset);
   return {
     rows: found.entries.map(
       ({ fiscal, voided, ...entry }): SalesHistoryRow => ({
@@ -59,6 +61,27 @@ export function readSalesHistory(
     total: found.total,
     pageSize: SALES_HISTORY_PAGE_SIZE,
   };
+}
+
+function pageFound(
+  history: RegisterSalesHistory,
+  session: ReadSalesHistoryInput["session"],
+  search: SalesHistorySearch | undefined,
+  offset: number,
+): SalesHistoryPage {
+  if (search === undefined) {
+    return pageOfSales(history, session, { offset, limit: SALES_HISTORY_PAGE_SIZE });
+  }
+  if (search.kind === "invoice") {
+    const { pointOfSale, number } = search;
+    return pageOfSalesWithDocument(history, session, { pointOfSale, number }, offset);
+  }
+  const { id, shortCode } = search;
+  const sales =
+    session === "open"
+      ? history.salesOfOpenSessionOfDeferredSale({ id, shortCode })
+      : history.salesOfRegisterOfDeferredSale({ id, shortCode });
+  return { entries: sales.slice(offset, offset + SALES_HISTORY_PAGE_SIZE), total: sales.length };
 }
 
 function pageOfSales(

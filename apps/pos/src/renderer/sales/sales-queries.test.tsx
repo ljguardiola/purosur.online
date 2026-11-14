@@ -1121,14 +1121,14 @@ const HISTORY_FOUND: SalesHistoryOutcome = { kind: "found", rows: [], total: 0, 
 
 function SalesHistoryProbe({
   page = 1,
-  document,
+  search,
   read,
 }: {
   page?: number;
-  document?: SalesHistoryQuery["document"];
+  search?: SalesHistoryQuery["search"];
   read: (query: SalesHistoryQuery) => Promise<SalesHistoryOutcome>;
 }) {
-  const history = useSalesHistoryQuery({ session: "open", page, document, read });
+  const history = useSalesHistoryQuery({ session: "open", page, search, read });
   const refresh = useRefreshSalesHistory();
   return (
     <>
@@ -1246,17 +1246,17 @@ describe("sales history query", () => {
     expect(read).toHaveBeenCalledWith({ session: "open", page: 2 });
   });
 
-  it("reads the sales with the document number it is given", async () => {
+  it("reads the sales with the search it is given", async () => {
     const read = vi.fn(async () => HISTORY_FOUND);
     const screen = await renderWithClient(
-      <SalesHistoryProbe document={{ pointOfSale: null, number: 187 }} read={read} />,
+      <SalesHistoryProbe search={{ kind: "typed", pointOfSale: null, number: 187 }} read={read} />,
     );
 
     await expect.element(screen.getByText("found")).toBeVisible();
     expect(read).toHaveBeenCalledWith({
       session: "open",
       page: 1,
-      document: { pointOfSale: null, number: 187 },
+      search: { kind: "typed", pointOfSale: null, number: 187 },
     });
   });
 
@@ -1265,7 +1265,7 @@ describe("sales history query", () => {
     const read = vi.fn(async () => HISTORY_FOUND);
     const screen = await render(
       <QueryClientProvider client={queryClient}>
-        <SalesHistoryProbe document={{ pointOfSale: null, number: 187 }} read={read} />
+        <SalesHistoryProbe search={{ kind: "typed", pointOfSale: null, number: 187 }} read={read} />
       </QueryClientProvider>,
     );
     await expect.element(screen.getByText("found")).toBeVisible();
@@ -1273,7 +1273,7 @@ describe("sales history query", () => {
     await screen.rerender(
       <QueryClientProvider client={queryClient}>
         <SalesHistoryProbe
-          document={{ pointOfSale: 3, number: 187 }}
+          search={{ kind: "typed", pointOfSale: 3, number: 187 }}
           read={() => new Promise(() => {})}
         />
       </QueryClientProvider>,
