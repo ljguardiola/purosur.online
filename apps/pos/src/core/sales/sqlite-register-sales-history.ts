@@ -23,7 +23,6 @@ import { readCreditNotesOfSale } from "../fiscal/sqlite-sale-credit-notes";
 import { readSaleInvoices } from "../fiscal/sqlite-sale-invoices";
 import { readSalePayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
-import { readOpenSession } from "../register/sqlite-cash-ledger";
 import { saleTotalOf } from "./sqlite-sale-total";
 
 interface SaleRow {
@@ -93,10 +92,6 @@ export class SqliteRegisterSalesHistory implements RegisterSalesHistory {
 
   salesOfRegisterOfDeferredSale(reference: DeferredSaleReference): SalesHistoryEntry[] {
     return this.ofDeferredSale(OF_THIS_REGISTER, reference);
-  }
-
-  registerHasOpenSession(): boolean {
-    return readOpenSession(this.database) !== undefined;
   }
 
   saleOfRegister(saleId: string): SaleHistoryRecord | undefined {

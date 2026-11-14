@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { readSaleHistoryDetail } from "./read-sale-history-detail.js";
 import type { SaleHistoryCreditNote } from "./register-sales-history.js";
 import { FakeReceiptLedger } from "./test-support/fake-receipt-ledger.js";
+import { FakeRegisterCashSession } from "./test-support/fake-register-cash-session.js";
 import {
   type FakeHistorySale,
   FakeRegisterSalesHistory,
@@ -17,6 +18,7 @@ import {
 } from "./test-support/receipt-rig.js";
 
 const creditedSale = creditedSales(FICTIONAL_ISSUER);
+const cashSession = new FakeRegisterCashSession();
 
 function historySale(
   overrides: Partial<NonNullable<FakeHistorySale["record"]>> = {},
@@ -95,7 +97,7 @@ describe("readSaleHistoryDetail", () => {
     ]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome).toMatchObject({
       kind: "found",
@@ -107,7 +109,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
+    expect(readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" })).toEqual({
       kind: "found",
       detail: {
         saleId: "sale-1",
@@ -159,7 +161,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([historySale({ deferredShortCode: "7KQ4M2P9" })]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.shortCode).toBe("7KQ4M2P9");
     expect(outcome.kind === "found" && "deferredShortCode" in outcome.detail).toBe(false);
@@ -169,7 +171,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.shortCode).toBeNull();
   });
@@ -196,7 +198,7 @@ describe("readSaleHistoryDetail", () => {
       ],
     });
 
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.nextCopy).toEqual({
       kind: "duplicate",
@@ -208,7 +210,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-    expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
+    expect(readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" })).toEqual({
       kind: "not_found",
     });
   });
@@ -217,7 +219,7 @@ describe("readSaleHistoryDetail", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale({ completed: false })] });
 
-    expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toEqual({
+    expect(readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" })).toEqual({
       kind: "not_found",
     });
   });
@@ -225,7 +227,7 @@ describe("readSaleHistoryDetail", () => {
   it("says reprinting is available for a sale that stands", () => {
     const history = new FakeRegisterSalesHistory([historySale()]);
     const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
   });
@@ -235,7 +237,7 @@ describe("readSaleHistoryDetail", () => {
     const ledger = new FakeReceiptLedger({
       sales: [voidedSale({ printAttemptedAt: FIRST_PRINT_AT })],
     });
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "available" });
   });
@@ -243,7 +245,7 @@ describe("readSaleHistoryDetail", () => {
   it("says a voided sale's receipt is not printed when its original was never attempted", () => {
     const history = new FakeRegisterSalesHistory([historySale({ voided: true })]);
     const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
-    const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+    const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
     expect(outcome.kind === "found" && outcome.detail.reprint).toEqual({ kind: "sale_voided" });
   });
@@ -253,9 +255,12 @@ describe("readSaleHistoryDetail", () => {
       overrides: Parameters<typeof historySale>[0],
       { sessionOpen = true }: { sessionOpen?: boolean } = {},
     ) {
-      const history = new FakeRegisterSalesHistory([historySale(overrides)], { sessionOpen });
+      const history = new FakeRegisterSalesHistory([historySale(overrides)]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail(
+        { history, ledger, cashSession: new FakeRegisterCashSession({ open: sessionOpen }) },
+        { saleId: "sale-1" },
+      );
       return outcome.kind === "found" ? outcome.detail.returnable : undefined;
     }
 
@@ -288,7 +293,7 @@ describe("readSaleHistoryDetail", () => {
     function voidability(overrides: Parameters<typeof historySale>[0]) {
       const history = new FakeRegisterSalesHistory([historySale(overrides)]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
       return outcome.kind === "found" ? outcome.detail.voidability : undefined;
     }
 
@@ -405,7 +410,7 @@ describe("readSaleHistoryDetail", () => {
       const history = new FakeRegisterSalesHistory([historySale()]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -474,7 +479,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -535,7 +540,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [voidedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -576,7 +581,7 @@ describe("readSaleHistoryDetail", () => {
       ledger: FakeReceiptLedger,
     ): unknown => {
       const history = new FakeRegisterSalesHistory([historySale({ voided: true, creditNotes })]);
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
       return outcome.kind === "found"
         ? outcome.detail.creditNotes.map(({ nextCopy }) => nextCopy)
         : outcome;
@@ -594,7 +599,9 @@ describe("readSaleHistoryDetail", () => {
       const history = new FakeRegisterSalesHistory([historySale()]);
       const ledger = new FakeReceiptLedger({ sales: [creditedSale()] });
 
-      expect(readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" })).toMatchObject({
+      expect(
+        readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" }),
+      ).toMatchObject({
         detail: { creditNotes: [] },
       });
     });
@@ -634,7 +641,7 @@ describe("readSaleHistoryDetail", () => {
         ],
       });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -709,7 +716,7 @@ describe("readSaleHistoryDetail", () => {
         ]);
 
         const outcome = readSaleHistoryDetail(
-          { history, ledger: ledgerOfTwoReturns() },
+          { history, ledger: ledgerOfTwoReturns(), cashSession },
           { saleId: "sale-1" },
         );
 
@@ -778,7 +785,7 @@ describe("readSaleHistoryDetail", () => {
       ]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { standing: "voided" } });
     });
@@ -799,7 +806,7 @@ describe("readSaleHistoryDetail", () => {
       const history = new FakeRegisterSalesHistory([historySale()]);
       const ledger = new FakeReceiptLedger({ sales: [completedSale()] });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({ kind: "found", detail: { deferredInvoiceNextCopy: null } });
     });
@@ -810,7 +817,7 @@ describe("readSaleHistoryDetail", () => {
         sales: [completedSale({ printAttemptedAt: FIRST_PRINT_AT, printedAt: SENT_AT })],
       });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",
@@ -836,7 +843,7 @@ describe("readSaleHistoryDetail", () => {
         ],
       });
 
-      const outcome = readSaleHistoryDetail({ history, ledger }, { saleId: "sale-1" });
+      const outcome = readSaleHistoryDetail({ history, ledger, cashSession }, { saleId: "sale-1" });
 
       expect(outcome).toMatchObject({
         kind: "found",

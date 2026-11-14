@@ -16,6 +16,7 @@ import {
 import { toWireCreditNote } from "../fiscal/wire-credit-note";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteRegisterCashSession } from "../register/sqlite-register-cash-session";
 import type { ActionGate } from "../sessions/action-gate";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
@@ -112,6 +113,7 @@ export async function saleHistoryDetailFor(
         {
           history: new SqliteRegisterSalesHistory(database),
           ledger: new SqliteReceiptLedger(database),
+          cashSession: new SqliteRegisterCashSession(database),
         },
         { saleId },
       ),

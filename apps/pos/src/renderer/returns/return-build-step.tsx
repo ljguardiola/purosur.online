@@ -456,7 +456,7 @@ export function ReturnBuildStep({
           icon={<Search />}
           value={searchText}
           onChange={onSearch}
-          disabled={mode.kind === "refunds"}
+          disabled={mode.kind === "refunds" || submitting}
         />
         {mode.kind === "refunds" ? (
           <form.AppField name="refunds">

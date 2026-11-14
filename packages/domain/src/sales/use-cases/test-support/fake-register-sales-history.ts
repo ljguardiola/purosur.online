@@ -25,18 +25,9 @@ export class FakeRegisterSalesHistory implements RegisterSalesHistory {
   }[] = [];
   readonly filters: { scope: "open_session" | "register"; filter: SalesHistoryFilter }[] = [];
   private readonly sales: FakeHistorySale[];
-  private readonly sessionOpen: boolean;
 
-  constructor(
-    sales: FakeHistorySale[] = [],
-    { sessionOpen = true }: { sessionOpen?: boolean } = {},
-  ) {
+  constructor(sales: FakeHistorySale[] = []) {
     this.sales = sales;
-    this.sessionOpen = sessionOpen;
-  }
-
-  registerHasOpenSession(): boolean {
-    return this.sessionOpen;
   }
 
   salesOfOpenSession(filter: SalesHistoryFilter): SalesHistoryPage {

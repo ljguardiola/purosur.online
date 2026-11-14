@@ -66,6 +66,7 @@ export function ReturnFindStep({
 }: ReturnFindStepProps) {
   const [refusal, setRefusal] = useState<FindRefusalKind>();
   const [looking, setLooking] = useState(false);
+  const [searched, setSearched] = useState(false);
   const finding = useRef(false);
   const lastReading = useRef<SaleForReturnReading | undefined>(undefined);
   const searchArea = useRef<HTMLDivElement | null>(null);
@@ -86,6 +87,7 @@ export function ReturnFindStep({
     }
     finding.current = true;
     setLooking(true);
+    setSearched(true);
     lastReading.current = reading;
     setRefusal(undefined);
     const sent = authorization.value;
@@ -153,11 +155,13 @@ export function ReturnFindStep({
     settle(answer, undefined);
   });
 
+  const chosenId = searched ? undefined : saleId;
+
   useEffect(() => {
-    if (chosenAnswer !== undefined && saleId !== undefined) {
-      settleChosen(chosenAnswer, saleId);
+    if (chosenAnswer !== undefined && chosenId !== undefined) {
+      settleChosen(chosenAnswer, chosenId);
     }
-  }, [chosenAnswer, saleId]);
+  }, [chosenAnswer, chosenId]);
 
   function retryLastReading() {
     if (lastReading.current !== undefined) {
@@ -167,7 +171,7 @@ export function ReturnFindStep({
 
   const typed = values.search.trim() !== "";
   const choosing =
-    saleId !== undefined && (chosen.status === "loading" || chosenAnswer?.kind === "found");
+    chosenId !== undefined && (chosen.status === "loading" || chosenAnswer?.kind === "found");
 
   function submitSearch() {
     if (typed) {
@@ -248,7 +252,7 @@ export function ReturnFindStep({
                   legend={legend}
                   loading={choosing}
                   failure={
-                    saleId !== undefined && chosen.status === "failed"
+                    chosenId !== undefined && chosen.status === "failed"
                       ? {
                           icon: <TriangleAlert />,
                           title: "No se pudo buscar la venta",
