@@ -13,6 +13,7 @@ export type NoticeFrameProps = {
   trailing?: ReactNode;
   actions?: ReactNode;
   actionsPlacement?: "below" | "end";
+  current?: boolean;
   children: ReactNode;
 };
 
@@ -26,10 +27,11 @@ export function NoticeFrame({
   trailing,
   actions,
   actionsPlacement = "below",
+  current = false,
   children,
 }: NoticeFrameProps) {
   return (
-    <div className={className}>
+    <div className={className} aria-current={current ? "true" : undefined}>
       {iconBadgeClassName === undefined ? (
         <span aria-hidden="true" className={iconSlotClassName[iconSize]}>
           {icon}

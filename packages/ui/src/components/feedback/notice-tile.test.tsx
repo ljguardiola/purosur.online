@@ -55,7 +55,10 @@ test("does not accept a tile without a title or a subtitle", () => {
 });
 
 test("draws every tone's tinted surface, strong title and icon", async () => {
-  for (const [tone, expected] of Object.entries(tones) as [NoticeTone, (typeof tones)[NoticeTone]][]) {
+  for (const [tone, expected] of Object.entries(tones) as [
+    NoticeTone,
+    (typeof tones)[NoticeTone],
+  ][]) {
     const screen = await renderTile({ tone, title: `Title ${tone}` });
     const tile = tileOf(screen);
     const title = screen.getByText(`Title ${tone}`).first().element();
@@ -129,7 +132,12 @@ test("announces an error tile assertively", async () => {
 test("has no accessibility violations in any tone, focused or not", async () => {
   for (const tone of Object.keys(tones) as NoticeTone[]) {
     for (const focused of [true, false]) {
-      const screen = await renderTile({ tone, focused, description: "Detalle", whatToDo: "Acción" });
+      const screen = await renderTile({
+        tone,
+        focused,
+        description: "Detalle",
+        whatToDo: "Acción",
+      });
       await expectNoAccessibilityViolations(screen.container);
       await screen.unmount();
     }
