@@ -17,8 +17,3 @@ export function deferredSaleRequestFrom({ code }: DeferredSaleFormValues): {
 } {
   return { reading: { kind: "typed", code } };
 }
-
-export function scannedDeferredSaleReading(text: string): DeferredSaleReading | undefined {
-  const reading: DeferredSaleReading = { kind: "scanned", text };
-  return deferredSaleFormRequestSchema.safeParse({ reading }).success ? reading : undefined;
-}

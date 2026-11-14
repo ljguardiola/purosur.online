@@ -144,7 +144,7 @@ afterEach(() => {
 });
 
 describe("finding a deferred sale for a customer who returns", () => {
-  it("answers the sale a typed short code belongs to, not yet invoiced, at Argentina time", async () => {
+  it("answers the sale a typed short code belongs to, not yet invoiced, at Argentina time, with its lines", async () => {
     addDeferredSale("sale-1", "7KQ4M2P9");
 
     expect(
@@ -157,6 +157,16 @@ describe("finding a deferred sale for a customer who returns", () => {
       short_code: "7KQ4M2P9",
       invoice: { kind: "pending" },
       original_printed: false,
+      lines: [
+        {
+          product_name: "Yerba",
+          sale_unit: "UNIT",
+          quantity: 2,
+          list_unit_price: 1500,
+          line_total: 3000,
+        },
+      ],
+      item_count: 1,
     });
   });
 

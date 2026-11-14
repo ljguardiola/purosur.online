@@ -124,6 +124,7 @@ export { declineSaleReceipt } from "./decline-sale-receipt.js";
 export type {
   DeferredSaleInvoicing,
   DeferredSaleInvoicingOutcome,
+  DeferredSaleLine,
   DeferredSaleLookup,
   DeferredSaleSearch,
 } from "./deferred-sale-lookup-ports.js";

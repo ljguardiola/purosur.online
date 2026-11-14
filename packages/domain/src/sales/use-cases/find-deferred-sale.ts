@@ -3,7 +3,7 @@ import {
   type DeferredSaleInvoice,
   deferredSaleAvailability,
 } from "../model/deferred-sale-lookup.js";
-import type { DeferredSaleLookup } from "./deferred-sale-lookup-ports.js";
+import type { DeferredSaleLine, DeferredSaleLookup } from "./deferred-sale-lookup-ports.js";
 
 export type FindDeferredSaleInput =
   | { kind: "short_code"; shortCode: string }
@@ -28,6 +28,8 @@ export type FindDeferredSaleOutcome =
       shortCode: string;
       invoice: DeferredSaleInvoice;
       originalPrinted: boolean;
+      lines: DeferredSaleLine[];
+      itemCount: number;
     };
 
 export function findDeferredSale(
@@ -42,6 +44,7 @@ export function findDeferredSale(
   if (availability !== "available") {
     return { kind: availability };
   }
+  const lines = lookup.linesOf(facts.saleId);
   return {
     kind: "found",
     saleId: facts.saleId,
@@ -50,5 +53,7 @@ export function findDeferredSale(
     shortCode: facts.shortCode,
     invoice: facts.invoice,
     originalPrinted: facts.originalPrintAttempted,
+    lines,
+    itemCount: lines.length,
   };
 }

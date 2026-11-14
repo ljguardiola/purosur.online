@@ -1,16 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { authorizationDialog } from "../shell/test-support/authorization-modal-steps";
-import { FOUND_ISSUED, FOUND_PENDING, renderScreen } from "./test-support/deferred-sale-screen";
+import {
+  FOUND_ISSUED,
+  FOUND_PENDING,
+  QR_TEXT,
+  renderScreen,
+} from "./test-support/deferred-sale-screen";
 
-const SEARCH = "Buscar venta";
 const REPRINT = "Reimprimir duplicado";
 const PRINTED = { ...FOUND_ISSUED, original_printed: true } as const;
 
 async function findPrinted(overrides: Parameters<typeof renderScreen>[0] = {}) {
-  const rendered = await renderScreen({ findDeferredSale: async () => PRINTED, ...overrides });
-  await userEvent.fill(rendered.codeField, "7KQ4-M2P9");
-  await userEvent.click(rendered.screen.getByRole("button", { name: SEARCH }));
+  const rendered = await renderScreen({
+    reading: QR_TEXT,
+    findDeferredSale: async () => PRINTED,
+    ...overrides,
+  });
+  await expect.element(rendered.screen.getByText("La factura ya se imprimió")).toBeVisible();
   return rendered;
 }
 
@@ -26,32 +33,30 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
     ["not yet invoiced", FOUND_PENDING],
     ["invoiced and not printed", FOUND_ISSUED],
   ])("offers no duplicate for a sale %s", async (_case, outcome) => {
-    const { screen, codeField } = await renderScreen({ findDeferredSale: async () => outcome });
+    const { screen } = await renderScreen({
+      reading: QR_TEXT,
+      findDeferredSale: async () => outcome,
+    });
 
-    await userEvent.fill(codeField, "7KQ4-M2P9");
-    await userEvent.click(screen.getByRole("button", { name: SEARCH }));
-
-    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Imprimir factura" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: REPRINT })).not.toBeInTheDocument();
   });
 
-  it("offers the duplicate once printing from the window finds the factura already printed", async () => {
+  it("offers the duplicate once printing from the board finds the factura already printed", async () => {
     const findDeferredSale = vi
       .fn()
       .mockResolvedValueOnce(FOUND_ISSUED)
       .mockResolvedValueOnce(PRINTED);
-    const { screen, codeField } = await renderScreen({
+    const { screen } = await renderScreen({
+      reading: QR_TEXT,
       findDeferredSale,
       printDeferredSaleInvoice: async () => ({ kind: "already_printed" }),
     });
-    await userEvent.fill(codeField, "7KQ4-M2P9");
-    await userEvent.click(screen.getByRole("button", { name: SEARCH }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Imprimir la factura" }));
+    await userEvent.click(screen.getByRole("button", { name: "Imprimir factura" }));
 
     await expect.element(screen.getByText("La factura ya se imprimió")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: REPRINT })).toBeVisible();
-    expect(findDeferredSale).toHaveBeenNthCalledWith(2, { kind: "typed", code: "7KQ4-M2P9" });
+    expect(findDeferredSale).toHaveBeenNthCalledWith(2, { kind: "scanned", text: QR_TEXT });
   });
 
   it("opens the reprint of the factura with the sale's time and comprobante", async () => {
@@ -60,11 +65,29 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
     await userEvent.click(screen.getByRole("button", { name: REPRINT }));
 
     await expect
-      .element(screen.getByText("REIMPRIMIR FACTURA DE LA VENTA DE LAS 10:20"))
+      .element(screen.getByText("REIMPRIMIR FACTURA DE LA VENTA DE LAS 14:02"))
       .toBeVisible();
     await expect
-      .element(screen.getByRole("dialog").getByText("Factura C · PV 00003 · Nº 00001250"))
+      .element(screen.getByRole("dialog").getByText("Factura C · PV 00003 · Nº 00000187"))
       .toBeVisible();
+  });
+
+  it("opens the reprint of the factura on Enter", async () => {
+    const { screen } = await findPrinted();
+
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .element(screen.getByText("REIMPRIMIR FACTURA DE LA VENTA DE LAS 14:02"))
+      .toBeVisible();
+  });
+
+  it("shows the Enter key on the duplicate's button", async () => {
+    const { screen } = await findPrinted();
+
+    expect(
+      screen.getByRole("button", { name: REPRINT }).element().querySelector("kbd")?.textContent,
+    ).toBe("Enter");
   });
 
   it("reprints the factura with the typed reason and says it comes out once the printer is ready", async () => {
@@ -117,7 +140,7 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
     expect(reprintDeferredSaleInvoice).not.toHaveBeenCalled();
   });
 
-  it("goes back to looking sales up when the core cannot find the sale any more", async () => {
+  it("shows the sale as not found when the core cannot find it any more", async () => {
     const { screen } = await findPrinted({
       reprintDeferredSaleInvoice: async () => ({ kind: "not_found" }),
     });
@@ -131,5 +154,18 @@ describe("DeferredSaleScreen reprinting a factura already printed", () => {
 
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText("La factura ya se imprimió")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByText("No hay una venta diferida con ese código en esta caja"))
+      .toBeVisible();
+  });
+
+  it("keeps the printed sale's lines and totals on the board beside the notice", async () => {
+    const { screen } = await findPrinted();
+
+    await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+    await expect.element(screen.getByText("$ 16.400,00")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Imprimir factura" }))
+      .not.toBeInTheDocument();
   });
 });

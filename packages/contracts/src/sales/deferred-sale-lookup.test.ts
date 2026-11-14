@@ -114,7 +114,18 @@ describe("the result of finding a deferred sale", () => {
     short_code: "7KQ4M2P9",
     invoice: { kind: "pending" },
     original_printed: false,
+    lines: [
+      {
+        product_name: "Almendras peladas",
+        sale_unit: "KG",
+        quantity: 500,
+        list_unit_price: 1_890_000,
+        line_total: 945_000,
+      },
+    ],
+    item_count: 1,
   };
+  const almonds = found.lines[0];
 
   it.each([
     found,
@@ -145,6 +156,18 @@ describe("the result of finding a deferred sale", () => {
     ["a moment without an offset", { ...found, occurred_at: "2026-10-07T12:00:00" }],
     ["a total that is not whole", { ...found, total: 10.5 }],
     ["a sale without its short code", { ...found, short_code: undefined }],
+    ["a sale without its lines", { ...found, lines: undefined }],
+    ["a sale without its item count", { ...found, item_count: undefined }],
+    ["an item count that is not whole", { ...found, item_count: 1.5 }],
+    [
+      "a line without its unit price",
+      { ...found, lines: [{ ...almonds, list_unit_price: undefined }] },
+    ],
+    [
+      "a unit price that is not whole",
+      { ...found, lines: [{ ...almonds, list_unit_price: 10.5 }] },
+    ],
+    ["a line of an unknown sale unit", { ...found, lines: [{ ...almonds, sale_unit: "LITER" }] }],
     ["an outcome the register does not have", { kind: "cancelled" }],
   ])("rejects %s", (_case, outcome) => {
     const message = { type: "find-deferred-sale-result", request_id: REQUEST_ID, outcome };
