@@ -32,13 +32,13 @@ describe("LiveScaleCard", () => {
     expect(getComputedStyle(screen.getByText("0,395 kg").element()).opacity).toBe("0.65");
   });
 
-  it("shows the card with no value while the scale settles", async () => {
+  it("shows Sin lectura while the scale answers with no weight yet", async () => {
     const screen = await render(
       <LiveScaleCard readScale={readingOf({ kind: "settling" })} weighingReading={undefined} />,
     );
 
-    await expect.element(screen.getByText("Balanza")).toBeVisible();
-    expect(screen.container.textContent).toBe("Balanza");
+    await expect.element(screen.getByText("Sin lectura")).toBeVisible();
+    expect(screen.container.textContent).toBe("BalanzaSin lectura");
   });
 
   it("shows Sin lectura when the scale does not respond", async () => {

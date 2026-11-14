@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
+import { SearchField } from "../forms/search-field";
 import { ScaleCard } from "./scale-card";
 
 test("shows its Balanza title and no reading when it has none", async () => {
@@ -62,4 +63,24 @@ test("says Sin lectura on the warning surface when the scale gives no reading", 
     tokenRgb("warning-subtle"),
   );
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test.each([
+  ["with no reading", <ScaleCard key="idle" />],
+  ["with a reading", <ScaleCard key="reading" reading={{ value: "0,172 kg", settled: true }} />],
+  ["saying Sin lectura", <ScaleCard key="no-reading" noReading />],
+])("stands as tall as the register's search field beside it %s", async (_, card) => {
+  const screen = await render(
+    <div className="flex items-start gap-4">
+      <div className="min-w-0 flex-1">
+        <SearchField label="Producto" placeholder="Escaneá" value="" onChange={() => {}} />
+      </div>
+      {card}
+    </div>,
+  );
+
+  const row = screen.container.firstElementChild as HTMLElement;
+  const fieldBox = row.querySelector("input")?.closest("div.rounded-lg") as HTMLElement;
+  const cardBox = row.lastElementChild as HTMLElement;
+  expect(cardBox.getBoundingClientRect().height).toBe(fieldBox.getBoundingClientRect().height);
 });

@@ -288,15 +288,14 @@ const SCALE_READING_410 = vi.fn(
 );
 
 describe("SaleScreen balanza card", () => {
-  it("is beside the search field and shows no value while the scale settles", async () => {
+  it("is beside the search field and says Sin lectura while the scale has no weight yet", async () => {
     const { screen, field } = await renderScreen({
       currentSale: async () => SALE_OF_QUESO,
       readScale: SCALE_SETTLING,
     });
 
     const label = screen.getByText("Balanza", { exact: true });
-    await expect.element(label).toBeVisible();
-    expect(label.element().parentElement?.textContent).toBe("Balanza");
+    await expect.poll(() => label.element().parentElement?.textContent).toBe("BalanzaSin lectura");
     const fieldBox = field.element().getBoundingClientRect();
     const cardBox = label.element().getBoundingClientRect();
     expect(cardBox.left).toBeGreaterThanOrEqual(fieldBox.right);
