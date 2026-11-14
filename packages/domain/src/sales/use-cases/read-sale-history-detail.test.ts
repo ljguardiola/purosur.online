@@ -28,7 +28,7 @@ function historySale(
       occurredAt: new Date("2026-10-07T15:00:00.000Z"),
       paymentMethods: ["CASH"],
       total: 7500,
-      fiscal: { deferred: false, deferredInvoicePending: false, fiscalDocument: null },
+      fiscal: { deferred: false, fiscalDocument: null },
       voided: false,
     },
     record: {
@@ -48,7 +48,6 @@ function historySale(
       ],
       fiscal: {
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "AUTHORIZED",
           documentType: "factura_c",
@@ -78,12 +77,11 @@ function historySale(
 }
 
 describe("readSaleHistoryDetail", () => {
-  it("shows a sale whose deferred invoice is still to print as deferred, with its invoice number", () => {
+  it("shows a sale whose deferred invoice was issued but not printed as completed, with its invoice number", () => {
     const history = new FakeRegisterSalesHistory([
       historySale({
         fiscal: {
           deferred: false,
-          deferredInvoicePending: true,
           fiscalDocument: {
             state: "AUTHORIZED",
             documentType: "factura_c",
@@ -101,7 +99,7 @@ describe("readSaleHistoryDetail", () => {
 
     expect(outcome).toMatchObject({
       kind: "found",
-      detail: { standing: "deferred", comprobante: { kind: "fiscal", number: 1204 } },
+      detail: { standing: "completed", comprobante: { kind: "fiscal", number: 1204 } },
     });
   });
 
@@ -266,12 +264,8 @@ describe("readSaleHistoryDetail", () => {
       expect(returnable({ voided: true })).toBe(false);
     });
 
-    it("says a completed sale whose invoice is still to print may be returned", () => {
-      expect(
-        returnable({
-          fiscal: { deferred: false, deferredInvoicePending: true, fiscalDocument: null },
-        }),
-      ).toBe(true);
+    it("says a deferred sale may be returned", () => {
+      expect(returnable({ fiscal: { deferred: true, fiscalDocument: null } })).toBe(true);
     });
 
     it("says a sale that cannot be voided any longer may still be returned", () => {
@@ -281,7 +275,7 @@ describe("readSaleHistoryDetail", () => {
 
   describe("whether the sale may be voided", () => {
     const CASH_ONLY = [{ method: "CASH" as const, amount: 7500, cardType: null }];
-    const NO_INVOICE = { deferred: true, deferredInvoicePending: false, fiscalDocument: null };
+    const NO_INVOICE = { deferred: true, fiscalDocument: null };
     const NOT_INVOICED = { fiscal: NO_INVOICE, invoices: [] };
 
     function voidability(overrides: Parameters<typeof historySale>[0]) {
@@ -347,7 +341,6 @@ describe("readSaleHistoryDetail", () => {
     it("says why a sale whose invoice is being requested cannot be voided", () => {
       const fiscal = {
         deferred: false,
-        deferredInvoicePending: false,
         fiscalDocument: {
           state: "REQUESTING" as const,
           documentType: "factura_c" as const,
@@ -418,7 +411,6 @@ describe("readSaleHistoryDetail", () => {
         voidability({
           fiscal: {
             deferred: false,
-            deferredInvoicePending: false,
             fiscalDocument: {
               state: "RELEASED",
               documentType: "factura_c",
