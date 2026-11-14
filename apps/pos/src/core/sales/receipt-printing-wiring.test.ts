@@ -389,7 +389,7 @@ describe("the register's receipt printing over its local database", () => {
 
     it("answers lapsed to a yes that comes after the offer", async () => {
       const printing = await completed();
-      moment = new Date(NOW.getTime() + 3001);
+      moment = new Date(NOW.getTime() + 10_001);
 
       expect(await printing.answerReceiptQuestion?.({ saleId: "sale-1", print: true })).toEqual({
         kind: "lapsed",
