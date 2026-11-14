@@ -136,18 +136,16 @@ afterEach(() => {
 });
 
 describe("the register's contingency recording wiring", () => {
-  it("starts an interval when a cash session opens while the register is fiscally offline", async () => {
+  it("answers a cash session opened while the register is fiscally offline once its interval has started", async () => {
     const contingency = wiring();
 
     expect(await contingency.openCashSession?.(5000)).toMatchObject({ kind: "opened" });
 
-    await vi.waitFor(() =>
-      expect(contingencyEvents()).toEqual(["contingency_reporting_started", "contingency_entered"]),
-    );
+    expect(contingencyEvents()).toEqual(["contingency_reporting_started", "contingency_entered"]);
     expect(failures).toEqual([]);
   });
 
-  it("ends the interval when the cash session closes", async () => {
+  it("answers the cash session's closing once its interval has ended", async () => {
     const contingency = wiring();
     const sessionId = await openedSession(contingency);
 
@@ -155,10 +153,10 @@ describe("the register's contingency recording wiring", () => {
       kind: "closed",
     });
 
-    await vi.waitFor(() => expect(contingencyEvents()).toContain("contingency_left"));
+    expect(contingencyEvents()).toContain("contingency_left");
   });
 
-  it("ends the interval when a locked register's cash session is closed with another person's PIN", async () => {
+  it("answers a locked register's cash session closed with another person's PIN once its interval has ended", async () => {
     const contingency = wiring();
     const sessionId = await openedSession(contingency);
     signedInPerson.clear();
@@ -170,7 +168,7 @@ describe("the register's contingency recording wiring", () => {
       }),
     ).toMatchObject({ kind: "closed" });
 
-    await vi.waitFor(() => expect(contingencyEvents()).toContain("contingency_left"));
+    expect(contingencyEvents()).toContain("contingency_left");
   });
 
   it("ends, on startup, an interval left open when the register stopped", async () => {
@@ -186,7 +184,7 @@ describe("the register's contingency recording wiring", () => {
     ]);
   });
 
-  it("starts an interval when a sale's authorization leaves the register fiscally offline", async () => {
+  it("answers a sale's authorization that leaves the register fiscally offline once its interval has started", async () => {
     mode = REAL_TIME;
     const authorized: string[] = [];
     const contingency = wiring({
@@ -201,9 +199,7 @@ describe("the register's contingency recording wiring", () => {
     await contingency.authorizeSale("sale-1");
 
     expect(authorized).toEqual(["sale-1"]);
-    await vi.waitFor(() =>
-      expect(contingencyEvents()).toEqual(["contingency_reporting_started", "contingency_entered"]),
-    );
+    expect(contingencyEvents()).toEqual(["contingency_reporting_started", "contingency_entered"]);
   });
 
   it("evaluates the register's contingency again each time its enrollment standing is checked", async () => {
@@ -222,7 +218,7 @@ describe("the register's contingency recording wiring", () => {
     );
   });
 
-  it("starts an interval when a health check finds the tax authority unreachable, and ends it when the next one reaches it", async () => {
+  it("starts an interval when a health check finds the tax authority unreachable, and ends it when the next one reaches it, following each check once its interval is recorded", async () => {
     insertPointOfSale(database, 40);
     insertOfflinePointOfSale(database, OFFLINE_POINT_OF_SALE, 0);
     insertOfflineNumberBlock(database, "block-1", 1, 1000, OFFLINE_POINT_OF_SALE);
@@ -253,7 +249,8 @@ describe("the register's contingency recording wiring", () => {
     await realTime.openCashSession?.(5000);
     await vi.waitFor(() => expect(contingencyEvents()).toEqual(["contingency_reporting_started"]));
     const scheduled: (() => void)[] = [];
-    const afterCheck = vi.fn();
+    const eventsSeenAfterCheck: string[][] = [];
+    const afterCheck = vi.fn(() => eventsSeenAfterCheck.push(contingencyEvents()));
 
     contingency.startHealthChecks({
       zoneRules: fixedZoneRulesSource(),
@@ -275,7 +272,10 @@ describe("the register's contingency recording wiring", () => {
     await vi.waitFor(() =>
       expect(contingencyEvents()).toEqual(["contingency_reporting_started", "contingency_entered"]),
     );
-    expect(afterCheck).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(afterCheck).toHaveBeenCalledTimes(1));
+    expect(eventsSeenAfterCheck).toEqual([
+      ["contingency_reporting_started", "contingency_entered"],
+    ]);
 
     reachable = true;
     await vi.waitFor(() => expect(scheduled).toHaveLength(2));
@@ -288,6 +288,12 @@ describe("the register's contingency recording wiring", () => {
         "contingency_left",
       ]),
     );
+    await vi.waitFor(() => expect(afterCheck).toHaveBeenCalledTimes(2));
+    expect(eventsSeenAfterCheck[1]).toEqual([
+      "contingency_reporting_started",
+      "contingency_entered",
+      "contingency_left",
+    ]);
     expect(failures).toEqual([]);
   });
 });
