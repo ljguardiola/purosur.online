@@ -36,7 +36,10 @@ export function ThisRegisterSettings({
     backupTickets,
   });
   const [side, setSide] = useState<FocusSide>("list");
-  const onNotices = side === "notices" && notices.length > 0;
+  if (side === "notices" && notices.length === 0) {
+    setSide("list");
+  }
+  const onNotices = side === "notices";
   const [focusedId, setFocusedId] = useState<string>();
   const focusedAt = Math.max(
     0,
