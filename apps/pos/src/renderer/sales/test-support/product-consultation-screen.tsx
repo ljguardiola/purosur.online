@@ -11,7 +11,7 @@ import { RegisterStatusProvider } from "../../shell/register-status-context";
 import { render } from "../../shell/test-support/render-with-router";
 import type { ProductConsultationScreenProps } from "../product-consultation-screen";
 import { ProductConsultationScreen } from "../product-consultation-screen";
-import { SALE_OF_YERBA_AND_ALFAJOR } from "./sale-screen";
+import { AVAILABLE, SALE_OF_YERBA_AND_ALFAJOR } from "./sale-screen";
 
 export const TUESDAY = 2;
 
@@ -99,6 +99,7 @@ export async function renderScreen(overrides: Overrides = {}) {
           person={overrides.person ?? PERSON}
           lock={overrides.lock ?? (() => {})}
           currentSale={overrides.currentSale ?? (async () => SALE_OF_YERBA_AND_ALFAJOR)}
+          paymentMethodAvailability={overrides.paymentMethodAvailability ?? (async () => AVAILABLE)}
           consultProduct={consultProduct}
           searchProducts={searchProducts}
           productId={"productId" in overrides ? overrides.productId : "almendras"}

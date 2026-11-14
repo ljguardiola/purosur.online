@@ -3,6 +3,7 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
 import { Button } from "../forms/button";
+import { FigureStat } from "./figure-stat";
 import { ProductCard } from "./product-card";
 
 const figures = [
@@ -42,6 +43,27 @@ test("shows every figure under its label", async () => {
   }
   expect(getComputedStyle(screen.getByText("Peso").element()).textTransform).toBe("uppercase");
   expect(getComputedStyle(screen.getByText("0,410 kg").element()).fontFamily).toContain("mono");
+});
+
+test("draws each figure as the design system's figure, with a warning label and a plain value", async () => {
+  const loose = await render(
+    <FigureStat labelTone="warning" variant="plain" monospace label="Peso" value="0,410 kg" />,
+  );
+  const figureStatClassName = loose.container.firstElementChild?.className;
+  await loose.unmount();
+  const screen = await render(
+    <ProductCard
+      name="Almendras peladas"
+      price="$ 18.900,00 / kg"
+      soldBy="weight"
+      figures={figures}
+    />,
+  );
+  const label = screen.getByText("Peso").element();
+
+  expect(label.parentElement?.className).toBe(figureStatClassName);
+  expect(getComputedStyle(label).color).toBe(tokenRgb("warning"));
+  expect(getComputedStyle(screen.getByText("0,410 kg").element()).color).toBe(tokenRgb("text"));
 });
 
 test("shows the promotion tag only when it has one", async () => {

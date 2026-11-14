@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_UNIT_PRICE_CENTS } from "../../pricing/index.js";
-import { chargeLine, lineTotalReduction } from "./line-pricing.js";
+import { chargeLine, lineTotalReduction, shownPromotionId } from "./line-pricing.js";
 import type { LinePromotion } from "./sale.js";
 
 const TEN_PERCENT: LinePromotion = {
@@ -353,5 +353,30 @@ describe("lineTotalReduction", () => {
 
   it("is nothing when the adjustment leaves the line's total as it was", () => {
     expect(lineTotalReduction(175_000, 175_000)).toBe(0);
+  });
+});
+
+describe("shownPromotionId", () => {
+  it("is the promotion the line is charged with when one gives a discount", () => {
+    const promotions = [THREE_FOR_TWO, TEN_PERCENT];
+
+    expect(shownPromotionId(chargeLine(units(1), 2500, promotions), promotions)).toBe("ten");
+  });
+
+  it("is the first promotion in identifier order when none gives a discount on the quantity", () => {
+    const twoForOne: LinePromotion = {
+      ...THREE_FOR_TWO,
+      id: "a-two-for-one",
+      benefit: { kind: "BUY_N_PAY_M", buyQty: 2, payQty: 1 },
+    };
+    const promotions = [THREE_FOR_TWO, twoForOne];
+
+    expect(shownPromotionId(chargeLine(units(1), 2500, promotions), promotions)).toBe(
+      "a-two-for-one",
+    );
+  });
+
+  it("is none when no promotion is in force", () => {
+    expect(shownPromotionId(chargeLine(units(1), 2500, []), [])).toBeNull();
   });
 });

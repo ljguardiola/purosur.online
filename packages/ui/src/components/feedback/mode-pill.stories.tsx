@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Eye } from "lucide-react";
+import { within } from "storybook/test";
+import { playTabReachesFocusVisible } from "../../test-support/story-interactions";
 import { ModePill } from "./mode-pill";
 
 const meta: Meta<typeof ModePill> = {
@@ -14,6 +16,6 @@ type Story = StoryObj<typeof ModePill>;
 
 export const Default: Story = {};
 
-export const Hovered: Story = { parameters: { pseudo: { hover: true } } };
-
-export const Focused: Story = { parameters: { pseudo: { focusVisible: true } } };
+export const FocusVisible: Story = {
+  play: playTabReachesFocusVisible((canvasElement) => within(canvasElement).getByRole("button")),
+};

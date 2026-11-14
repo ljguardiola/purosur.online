@@ -44,7 +44,13 @@ const THREE_FOR_TWO: CandidatePromotion = {
 };
 
 function priceOf(productId: string, unitPrice: number) {
-  return { id: `price-${productId}`, productId, priceListId: "list-1", unitPrice, validFrom: LONG_AGO };
+  return {
+    id: `price-${productId}`,
+    productId,
+    priceListId: "list-1",
+    unitPrice,
+    validFrom: LONG_AGO,
+  };
 }
 
 function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
@@ -126,21 +132,24 @@ describe("consultProduct", () => {
     ["unsteady", { kind: "unstable", weightThousandths: 410 }],
     ["still settling", { kind: "not_stable" }],
     ["not connected", { kind: "unavailable" }],
-  ])("answers no weight and no amount while the scale is %s, keeping price, promotion and stock", async (_, reading) => {
-    const store = ledger({ promotionsByProduct: { almendras: [TEN_PERCENT_ON_WEDNESDAYS] } });
+  ])(
+    "answers no weight and no amount while the scale is %s, keeping price, promotion and stock",
+    async (_, reading) => {
+      const store = ledger({ promotionsByProduct: { almendras: [TEN_PERCENT_ON_WEDNESDAYS] } });
 
-    const outcome = await consult(store, { productId: "almendras" }, reading);
+      const outcome = await consult(store, { productId: "almendras" }, reading);
 
-    expect(outcome).toEqual({
-      kind: "consulted",
-      product: ALMENDRAS,
-      unitPrice: 1_890_000,
-      promotion: { benefit: { kind: "PERCENT_OFF", percent: 10 }, weekdays: [WEDNESDAY_WEEKDAY] },
-      weightThousandths: null,
-      amount: null,
-      stockThousandths: 12_400,
-    });
-  });
+      expect(outcome).toEqual({
+        kind: "consulted",
+        product: ALMENDRAS,
+        unitPrice: 1_890_000,
+        promotion: { benefit: { kind: "PERCENT_OFF", percent: 10 }, weekdays: [WEDNESDAY_WEEKDAY] },
+        weightThousandths: null,
+        amount: null,
+        stockThousandths: 12_400,
+      });
+    },
+  );
 
   it("answers a product sold by unit with no weight and the amount of one unit with the promotion in force", async () => {
     const store = ledger({ promotionsByProduct: { leche: [TEN_PERCENT_ON_WEDNESDAYS] } });
@@ -158,12 +167,30 @@ describe("consultProduct", () => {
     });
   });
 
-  it("answers no promotion for one unit when only a buy-N-pay-M promotion is in force", async () => {
+  it("answers a buy-N-pay-M promotion in force for one unit, with the amount of that unit without discount", async () => {
     const store = ledger({ promotionsByProduct: { leche: [THREE_FOR_TWO] } });
 
     const outcome = await consult(store, { productId: "leche" });
 
-    expect(outcome).toMatchObject({ kind: "consulted", promotion: null, amount: 430_000 });
+    expect(outcome).toMatchObject({
+      kind: "consulted",
+      promotion: { benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 }, weekdays: [] },
+      amount: 430_000,
+    });
+  });
+
+  it("answers the promotion that discounts rather than one in force that gives no discount on the quantity", async () => {
+    const store = ledger({
+      promotionsByProduct: { leche: [THREE_FOR_TWO, TEN_PERCENT_ON_WEDNESDAYS] },
+    });
+
+    const outcome = await consult(store, { productId: "leche" });
+
+    expect(outcome).toMatchObject({
+      kind: "consulted",
+      promotion: { benefit: { kind: "PERCENT_OFF", percent: 10 } },
+      amount: 387_000,
+    });
   });
 
   it("finds the product by its barcode", async () => {

@@ -1,13 +1,35 @@
-import type { ConsultProductOutcome, SearchProductsOutcome } from "@purosur/contracts";
+import type { ConsultProductOutcome, OpenSale, SearchProductsOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { deferred } from "../platform/test-support/deferred";
 import { ALMENDRAS, LECHE, renderScreen } from "./test-support/product-consultation-screen";
+import { SALE_OF_YERBA_AND_ALFAJOR } from "./test-support/sale-screen";
 
 const CARD = { name: "Almendras peladas" };
 
 function consulting(outcome: ConsultProductOutcome) {
   return vi.fn(async (): Promise<ConsultProductOutcome> => outcome);
+}
+
+function found(...names: string[]) {
+  return vi.fn(
+    async (): Promise<SearchProductsOutcome> => ({
+      kind: "results",
+      products: names.map((name) => ({
+        product_id: name.toLowerCase(),
+        name,
+        sale_unit: "KG",
+        unit_price: 1_890_000,
+        matches: [{ start: 0, length: 3 }],
+      })),
+      more: false,
+    }),
+  );
+}
+
+function selling(sale: Partial<OpenSale>) {
+  return async () => ({ ...SALE_OF_YERBA_AND_ALFAJOR, ...sale });
 }
 
 describe("ProductConsultationScreen showing a consulted product", () => {
@@ -103,7 +125,9 @@ describe("ProductConsultationScreen showing a consulted product", () => {
     await expect.element(card.getByText("14 u")).toBeVisible();
   });
 
-  it("asks the core again while it shows a weighed product, so the weight follows the scale", async () => {
+  it("asks the core again right after each answer while it shows a weighed product", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    onTestFinished(() => void vi.useRealTimers());
     const consultProduct = vi
       .fn<() => Promise<ConsultProductOutcome>>()
       .mockResolvedValueOnce({ ...ALMENDRAS, weight_thousandths: null, amount: null })
@@ -111,6 +135,107 @@ describe("ProductConsultationScreen showing a consulted product", () => {
     const { screen } = await renderScreen({ consultProduct });
 
     await expect.element(screen.getByText("$ 6.974,10")).toBeVisible();
+    await expect.poll(() => consultProduct.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("does not ask the core again while it shows a product sold by unit", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    onTestFinished(() => void vi.useRealTimers());
+    const consultProduct = consulting(LECHE);
+    const { screen, readBarcode } = await renderScreen({ consultProduct, productId: "leche" });
+    await expect.element(screen.getByRole("region", { name: LECHE.name })).toBeVisible();
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    readBarcode("7790001000017");
+
+    await vi.waitFor(() => expect(consultProduct).toHaveBeenCalledTimes(2));
+    expect(consultProduct.mock.calls).toEqual([
+      [{ product_id: "leche" }],
+      [{ barcode: "7790001000017" }],
+    ]);
+  });
+
+  it("shows a placeholder in the card's place while the core answers", async () => {
+    const answer = deferred<ConsultProductOutcome>();
+    const { screen } = await renderScreen({ consultProduct: () => answer.promise });
+    await expect.element(screen.getByText("Artículos")).toBeVisible();
+
+    await expect.element(screen.getByRole("main").getByText("Cargando…")).toBeInTheDocument();
+    await expect.element(screen.getByRole("region", CARD)).not.toBeInTheDocument();
+  });
+
+  it("says the product could not be consulted when the core fails, and asks again from the placeholder on Reintentar", async () => {
+    const again = deferred<ConsultProductOutcome>();
+    const consultProduct = vi
+      .fn<() => Promise<ConsultProductOutcome>>()
+      .mockRejectedValueOnce(new Error("core gone"))
+      .mockReturnValueOnce(again.promise);
+    const { screen } = await renderScreen({ consultProduct });
+
+    await expect.element(screen.getByText("No se pudo consultar el producto")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(screen.getByRole("main").getByText("Cargando…")).toBeInTheDocument();
+    again.resolve(ALMENDRAS);
+    await expect.element(screen.getByRole("region", CARD)).toBeVisible();
+  });
+
+  it("says the product could not be consulted when the core cannot answer", async () => {
+    const { screen } = await renderScreen({ consultProduct: consulting({ kind: "unavailable" }) });
+
+    await expect.element(screen.getByText("No se pudo consultar el producto")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  });
+
+  it("draws the charge keys as the sale does, ready to charge", async () => {
+    const { screen } = await renderScreen();
+
+    await expect
+      .element(screen.getByRole("button", { name: /Cobrar en efectivo/ }))
+      .not.toBeDisabled();
+  });
+
+  it("draws the sale's charge refusal as the sale does", async () => {
+    const { screen } = await renderScreen({
+      currentSale: selling({
+        charge_refusal: { kind: "reaches_buyer_identification_threshold", threshold: 500_000 },
+      }),
+    });
+
+    await expect.element(screen.getByText("Llegaste al tope de venta")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: /Cobro no habilitado/ })).toBeVisible();
+  });
+
+  it("draws the paid order the sale has to apply as the sale does", async () => {
+    const { screen } = await renderScreen({
+      currentSale: selling({
+        rebuilt_paid_order: {
+          payment_transaction_id: "payment-1",
+          method: "QR",
+          amount: 626_000,
+          applied: false,
+        },
+      }),
+    });
+
+    await expect
+      .element(screen.getByRole("button", { name: /Cobrar con el pago de Mercado Pago/ }))
+      .toBeVisible();
+  });
+
+  it("draws Point out of reach below its minimum as the sale does", async () => {
+    const { screen } = await renderScreen({
+      paymentMethodAvailability: async () => ({
+        qr: "available",
+        point: "below_minimum",
+        point_minimum: 1_000_000,
+        qr_minimum: 1500,
+      }),
+    });
+
+    await expect
+      .element(screen.getByText("Point: no se ofrece para cobrar menos de $ 10.000,00"))
+      .toBeVisible();
   });
 
   it("has no accessibility violations", async () => {
@@ -173,7 +298,9 @@ describe("ProductConsultationScreen finding the product to consult", () => {
 
     await userEvent.fill(field, "alm");
     await expect.element(screen.getByRole("option", { name: /Almendras peladas/ })).toBeVisible();
-    await expect.element(screen.getByRole("listitem").filter({ hasText: /^EnterConsultar$/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole("listitem").filter({ hasText: /^EnterConsultar$/ }))
+      .toBeVisible();
     await userEvent.keyboard("{Enter}");
 
     await vi.waitFor(() =>
@@ -182,15 +309,73 @@ describe("ProductConsultationScreen finding the product to consult", () => {
   });
 
   it("says no product has a code the core does not know", async () => {
-    const { screen } = await renderScreen({ consultProduct: consulting({ kind: "not_found" }) });
+    const { screen, readBarcode } = await renderScreen({
+      productId: undefined,
+      consultProduct: consulting({ kind: "not_found" }),
+    });
+
+    readBarcode("0000");
 
     await expect.element(screen.getByText("No hay ningún producto con ese código")).toBeVisible();
   });
 
-  it("says the product could not be looked up when the core cannot answer", async () => {
-    const { screen } = await renderScreen({ consultProduct: consulting({ kind: "unavailable" }) });
+  it("says the product chosen is no longer sold when the core no longer finds it", async () => {
+    const { screen } = await renderScreen({ consultProduct: consulting({ kind: "not_found" }) });
 
-    await expect.element(screen.getByText("No se pudo buscar el producto")).toBeVisible();
+    await expect.element(screen.getByText("Ese producto ya no se vende")).toBeVisible();
+    await expect
+      .element(screen.getByText("No hay ningún producto con ese código"))
+      .not.toBeInTheDocument();
+  });
+
+  it("closes the results with Esc, staying in Consulta", async () => {
+    const { screen, field } = await renderScreen({
+      productId: undefined,
+      searchProducts: found("Almendras peladas"),
+    });
+    await userEvent.fill(field, "alm");
+    await expect.element(screen.getByRole("option", { name: /Almendras peladas/ })).toBeVisible();
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect
+      .element(screen.getByRole("option", { name: /Almendras peladas/ }))
+      .not.toBeInTheDocument();
+    expect(screen.router.state.location.pathname).toBe("/");
+  });
+
+  it("moves the highlighted result with the arrows and consults the one highlighted", async () => {
+    const { screen, field, consultProduct } = await renderScreen({
+      productId: undefined,
+      searchProducts: found("Almendras peladas", "Almendras tostadas"),
+    });
+    await userEvent.fill(field, "alm");
+    await expect.element(screen.getByRole("option", { name: /Almendras tostadas/ })).toBeVisible();
+
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowUp}{ArrowDown}");
+    await userEvent.keyboard("{Enter}");
+
+    await vi.waitFor(() =>
+      expect(consultProduct).toHaveBeenCalledWith({ product_id: "almendras tostadas" }),
+    );
+  });
+
+  it("keeps the field's keys after a click elsewhere, so Esc still closes the results", async () => {
+    const { screen, field } = await renderScreen({
+      productId: undefined,
+      searchProducts: found("Almendras peladas"),
+    });
+    await userEvent.fill(field, "alm");
+    await expect.element(screen.getByRole("option", { name: /Almendras peladas/ })).toBeVisible();
+
+    await userEvent.click(screen.getByText("Balanza"));
+
+    await expect.element(field).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    await expect
+      .element(screen.getByRole("option", { name: /Almendras peladas/ }))
+      .not.toBeInTheDocument();
+    expect(screen.router.state.location.pathname).toBe("/");
   });
 });
 

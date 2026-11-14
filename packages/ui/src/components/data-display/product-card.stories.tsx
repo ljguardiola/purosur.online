@@ -7,7 +7,7 @@ const meta: Meta<typeof ProductCard> = {
   component: ProductCard,
   decorators: [
     (Story) => (
-      <div className="w-[850px]">
+      <div className="w-212">
         <Story />
       </div>
     ),

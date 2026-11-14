@@ -10,12 +10,7 @@ import {
   SALE_REQUESTS_NOW,
   saleRequestDeps,
 } from "./test-support/sale-requests";
-import {
-  addBarcode,
-  addDiscount,
-  addPrice,
-  addProduct,
-} from "./test-support/sqlite-sale-ledger";
+import { addBarcode, addDiscount, addPrice, addProduct } from "./test-support/sqlite-sale-ledger";
 
 const FRIDAY = 5;
 
@@ -85,7 +80,7 @@ describe("consulting a product on the register", () => {
 
     expect(outcome).toMatchObject({
       kind: "consulted",
-      promotion: null,
+      promotion: { benefit: { kind: "BUY_N_PAY_M", buy_qty: 2, pay_qty: 1 }, weekdays: [] },
       weight_thousandths: null,
       amount: 430_000,
       stock_thousandths: null,
