@@ -2,7 +2,9 @@ import {
   APPROVED_PAYMENT_STATE,
   exceedsRefundable,
   type PaymentMethod,
+  type PlannedRefundState,
   type PointCardType,
+  plannedRefundState,
   refundableAmount,
 } from "../../payments/index.js";
 
@@ -27,6 +29,7 @@ export interface PaymentRefundability {
   remaining: number;
   eligible: boolean;
   ineligibleReason: PaymentIneligibleReason | null;
+  refundState: PlannedRefundState;
 }
 
 export interface RefundAllocation {
@@ -60,6 +63,7 @@ export function returnablePayments(payments: readonly ReturnablePayment[]): Paym
       remaining: refundableAmount(payment.amount, payment.refundedAmount),
       eligible: ineligibleReason === null,
       ineligibleReason,
+      refundState: plannedRefundState(payment.method),
     };
   });
 }

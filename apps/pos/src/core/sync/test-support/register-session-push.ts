@@ -1017,6 +1017,7 @@ export async function withRegisterSession<TResult>(
     const returned = await completeReturnFor(deps(), {
       saleId: toReturn.sale.id,
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines: [
         {
           saleLineId: toReturn.sale.lines[0]?.id ?? "",
@@ -1064,6 +1065,7 @@ export async function withRegisterSession<TResult>(
     const exchanged = await completeReturnFor(deps(), {
       saleId: exchangedItem.sale.id,
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines: [
         {
           saleLineId: exchangedItem.sale.lines[0]?.id ?? "",
@@ -1111,6 +1113,7 @@ export async function withRegisterSession<TResult>(
     const returnedToTransfer = await completeReturnFor(deps(), {
       saleId: transferToReturn.sale.id,
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines: [
         {
           saleLineId: transferToReturn.sale.lines[0]?.id ?? "",

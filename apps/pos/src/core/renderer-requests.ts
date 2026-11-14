@@ -1139,6 +1139,7 @@ export async function answerRendererRequest(
           findSaleForReturn &&
             (() =>
               findSaleForReturn({
+                ticketSource: message.reading.source,
                 ticket: message.reading.ticket,
                 authorization: message.authorization,
               })),
@@ -1174,6 +1175,7 @@ export async function answerRendererRequest(
               completeReturn({
                 saleId: message.sale_id,
                 ticketSource: message.ticket_source,
+                ticketVerified: message.ticket_verified,
                 lines: message.lines.map(toDraftLine),
                 refunds: message.refunds.map(({ payment_id: paymentId, amount }) => ({
                   paymentId,

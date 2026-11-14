@@ -175,6 +175,7 @@ describe("SalesHistoryScreen reprinting a sale's receipt", () => {
       showing({
         ...DETAIL,
         state: "voided",
+        returnable: false,
         voidability: { kind: "not_voidable", refusal: "not_completed" },
         credit_notes: [],
       }),

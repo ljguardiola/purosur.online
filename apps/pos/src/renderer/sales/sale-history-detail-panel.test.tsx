@@ -145,6 +145,7 @@ describe("SaleHistoryDetailPanel", () => {
       detail: found({
         ...DETAIL,
         state: "voided",
+        returnable: false,
         payments: [{ method: "POINT", card_type: "DEBIT", amount: 5_070_000 }],
         credit_notes: [
           {

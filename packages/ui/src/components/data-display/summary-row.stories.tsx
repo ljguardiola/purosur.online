@@ -68,6 +68,17 @@ export const LongLabel: Story = {
   ],
 };
 
+export const AmountBesideLongLabel: Story = {
+  args: { label: "Transferencia · reembolso pendiente", value: "$ 5.000,00", amount: true },
+  decorators: [
+    (Story) => (
+      <div style={{ width: "350px" }}>
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 export const LongValue: Story = {
   args: {
     label: "Pago",

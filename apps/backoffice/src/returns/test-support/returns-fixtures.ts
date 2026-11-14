@@ -150,6 +150,7 @@ export const returnsReport: ReturnsReportBody = {
     totals: { returns: 2, refunded: 425_000 },
   },
   scanned: { rows: [scanned], totals: { returns: 1, refunded: 150_000 } },
+  history: { rows: [], totals: { returns: 0, refunded: 0 } },
   voids: {
     rows: [voidedByCarla, voidedWithoutAuthorizer],
     totals: { voids: 2, voided: 830_000 },
@@ -220,6 +221,7 @@ export const returnsReport: ReturnsReportBody = {
 export const noScannedReturnsReport: ReturnsReportBody = {
   ...returnsReport,
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+  history: { rows: [], totals: { returns: 0, refunded: 0 } },
 };
 
 export const noVoidsReport: ReturnsReportBody = {
@@ -231,16 +233,41 @@ export const voidsOnlyReport: ReturnsReportBody = {
   ...returnsReport,
   typed: { rows: [], totals: { returns: 0, refunded: 0 } },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+  history: { rows: [], totals: { returns: 0, refunded: 0 } },
 };
 
 export const noReturnsReport: ReturnsReportBody = {
   range: { from: "2026-10-07", to: "2026-10-07" },
   typed: { rows: [], totals: { returns: 0, refunded: 0 } },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+  history: { rows: [], totals: { returns: 0, refunded: 0 } },
   voids: { rows: [], totals: { voids: 0, voided: 0 } },
   totals: { ...figures },
   by_cashier: [],
   by_authorizer: [],
+};
+
+const fromHistory: ReturnRow = {
+  ...scanned,
+  return_id: "99999999-9999-4999-8999-999999999999",
+  lines: [
+    {
+      sale_line_id: "f3f3f3f3-f3f3-4f3f-8f3f-f3f3f3f3f3f3",
+      product_name: "Harina 1 kg",
+      sale_unit: "UNIT",
+      quantity: 2,
+      reason: "change_of_mind",
+      disposition: "restock",
+      resolution: "refund",
+      refunded: 60_000,
+    },
+  ],
+  refunded: 60_000,
+};
+
+export const historyReturnsOnlyReport: ReturnsReportBody = {
+  ...noReturnsReport,
+  history: { rows: [fromHistory], totals: { returns: 1, refunded: 60_000 } },
 };
 
 export const scannedReturnWithoutLinesReport: ReturnsReportBody = {

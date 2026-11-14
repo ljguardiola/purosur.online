@@ -75,7 +75,11 @@ async function aUser(firstName: string, locationId: string): Promise<string> {
   return id;
 }
 
-function returnAt(deviceId: string, returnedAt: Date, ticketSource: "QR" | "TYPED" = "QR") {
+function returnAt(
+  deviceId: string,
+  returnedAt: Date,
+  ticketSource: "QR" | "TYPED" | "HISTORY" = "QR",
+) {
   return applyReturn(db, {
     deviceId,
     soldAt: SOLD,
@@ -128,6 +132,19 @@ describe("the returns a branch made", () => {
     });
 
     expect(record?.ticketSource).toBe("QR");
+  });
+
+  it("carries a return started from the sales history as HISTORY", async () => {
+    const { deviceId, locationId } = await aRegister();
+    await returnAt(deviceId, RETURNED, "HISTORY");
+
+    const [record] = await returnsMade({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(record?.ticketSource).toBe("HISTORY");
   });
 
   it("names a person who is no longer known as nobody and has no authorizer when none was needed", async () => {

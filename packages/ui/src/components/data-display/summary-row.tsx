@@ -6,6 +6,7 @@ type SummaryRowTone = Extract<Tone, "error" | "info">;
 export type SummaryRowProps = {
   label: string;
   value: ReactNode;
+  amount?: boolean;
 } & ({ strong?: boolean; detail?: false } | { strong?: false; detail: true; saving?: false }) &
   ({ saving?: boolean; tone?: undefined } | { saving?: false; tone: SummaryRowTone });
 
@@ -25,6 +26,8 @@ const labelTypeClassName: Record<SummaryRowForm, string> = {
 // flex-1's zero basis gives the value only the room the label doesn't need, instead of both
 // shrinking proportionally and squeezing the label below its longest word.
 const valueBaseClassName = "flex-1 text-right";
+
+const amountValueClassName = "whitespace-nowrap";
 
 const valueTypeClassName: Record<SummaryRowForm, string> = {
   regular: "text-body font-semibold",
@@ -69,6 +72,7 @@ export function SummaryRow({
   strong = false,
   detail = false,
   saving = false,
+  amount = false,
   tone,
 }: SummaryRowProps) {
   const form = summaryRowForm(strong, detail);
@@ -79,6 +83,7 @@ export function SummaryRow({
   ].join(" ");
   const valueClassName = [
     valueBaseClassName,
+    amount ? amountValueClassName : "",
     tone === undefined ? valueTypeClassName[form] : toneTypeClassName[tone][form],
     valueColorClassName(form, saving, tone),
   ].join(" ");

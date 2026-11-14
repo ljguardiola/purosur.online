@@ -1,4 +1,4 @@
-import { saleTotal } from "../../sales/index.js";
+import { saleMayBeReturned, saleTotal } from "../../sales/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import { type PaymentRefundability, returnablePayments } from "./refund-allocation.js";
 import { returnableQuantity, wholeOnlyReasons } from "./return-line.js";
@@ -47,7 +47,7 @@ export function saleForReturnOutcome(
   if (facts === undefined || facts.sale.state === "OPEN") {
     return { kind: "not_found" };
   }
-  if (facts.sale.state !== "COMPLETED") {
+  if (!saleMayBeReturned(facts.sale.state)) {
     return { kind: "voided" };
   }
   return {

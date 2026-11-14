@@ -31,6 +31,7 @@ describe("returnablePayments", () => {
         remaining: 3800,
         eligible: true,
         ineligibleReason: null,
+        refundState: "APPROVED",
       },
     ]);
   });
@@ -50,6 +51,7 @@ describe("returnablePayments", () => {
           remaining: 4000,
           eligible: true,
           ineligibleReason: null,
+          refundState: "PENDING",
         },
       ]);
     },
@@ -75,6 +77,7 @@ describe("returnablePayments", () => {
         remaining: 0,
         eligible: false,
         ineligibleReason: "nothing_left",
+        refundState: "APPROVED",
       },
     ]);
   });

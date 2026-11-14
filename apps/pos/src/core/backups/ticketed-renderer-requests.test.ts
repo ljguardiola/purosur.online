@@ -194,6 +194,7 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
     await ticketedRequests.completeReturn?.({
       saleId: "sale-1",
       ticketSource: "QR",
+      ticketVerified: true,
       lines: [],
       refunds: [],
     });
@@ -209,6 +210,7 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
     await ticketedRequests.completeReturn?.({
       saleId: "sale-1",
       ticketSource: "QR",
+      ticketVerified: true,
       lines: [],
       refunds: [],
     });

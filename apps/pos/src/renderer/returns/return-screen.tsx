@@ -15,13 +15,12 @@ import { useAuthorization } from "../shell/use-authorization";
 import type { CompletedReturn } from "./hand-over-refund-modal";
 import { HandOverRefundModal } from "./hand-over-refund-modal";
 import { ReturnBuildStep } from "./return-build-step";
+import type { FoundSale } from "./return-find-step";
 import { ReturnFindStep } from "./return-find-step";
-import type { SaleForReturn } from "./return-sale";
-import { TicketConfirmationModal } from "./ticket-confirmation-modal";
 
 export type ReturnScreenProps = {
   person: SignedInPerson;
-  registerName: string | null;
+  saleId?: string | undefined;
   lock: () => void;
   findSaleForReturn: (
     reading: SaleForReturnReading,
@@ -38,26 +37,21 @@ export type ReturnScreenProps = {
 
 type Standing =
   | { step: "find" }
-  | { step: "confirm"; sale: SaleForReturn; source: "QR" | "TYPED" }
-  | { step: "build"; sale: SaleForReturn; source: "QR" | "TYPED" }
-  | {
-      step: "completed";
-      sale: SaleForReturn;
-      source: "QR" | "TYPED";
-      completed: CompletedReturn;
-    };
+  | ({ step: "build" } & FoundSale)
+  | ({ step: "completed"; completed: CompletedReturn } & FoundSale);
 
 function ReturnFlow({
   person,
-  registerName,
+  saleId,
   lock,
   findSaleForReturn,
   previewReturn,
   completeReturn,
   loadAuthorizers,
   onSessionInvalid,
+  initialSearch,
   restart,
-}: ReturnScreenProps & { restart: () => void }) {
+}: ReturnScreenProps & { initialSearch: string; restart: (search?: string) => void }) {
   const [standing, setStanding] = useState<Standing>({ step: "find" });
   const [authorizationRequired, setAuthorizationRequired] = useState(false);
   const authorization = useAuthorization({
@@ -75,47 +69,35 @@ function ReturnFlow({
           rail={rail}
           sale={standing.sale}
           source={standing.source}
+          verificationRequired={standing.verificationRequired}
           authorization={authorization}
+          finished={standing.step === "completed"}
           previewReturn={previewReturn}
           completeReturn={completeReturn}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
-          onCompleted={(completed) =>
-            setStanding({
-              step: "completed",
-              sale: standing.sale,
-              source: standing.source,
-              completed,
-            })
-          }
-          onLeave={restart}
+          onCompleted={(completed) => setStanding({ ...standing, step: "completed", completed })}
+          onLeave={() => restart()}
+          onSearch={restart}
           onSessionInvalid={onSessionInvalid}
         />
       ) : (
         <ReturnFindStep
           rail={rail}
           authorization={authorization}
+          saleId={saleId}
+          initialSearch={initialSearch}
           findSaleForReturn={findSaleForReturn}
-          onFound={(sale, source) => setStanding({ step: "confirm", sale, source })}
+          onFound={(found) => setStanding({ step: "build", ...found })}
           onAuthorizationRequired={() => setAuthorizationRequired(true)}
           onSessionInvalid={onSessionInvalid}
         />
       )}
-      {standing.step === "confirm" ? (
-        <TicketConfirmationModal
-          sale={standing.sale}
-          registerName={registerName}
-          onConfirm={() =>
-            setStanding({ step: "build", sale: standing.sale, source: standing.source })
-          }
-          onReject={() => setStanding({ step: "find" })}
-        />
-      ) : null}
       {standing.step === "completed" ? (
         <HandOverRefundModal
           cashToHandOver={standing.completed.cashToHandOver}
           pendingRefunds={standing.completed.pendingRefunds}
           lines={standing.completed.lines}
-          onDone={restart}
+          onDone={() => restart()}
         />
       ) : null}
     </>
@@ -123,6 +105,14 @@ function ReturnFlow({
 }
 
 export function ReturnScreen(props: ReturnScreenProps) {
-  const [attempt, setAttempt] = useState(0);
-  return <ReturnFlow key={attempt} {...props} restart={() => setAttempt(attempt + 1)} />;
+  const [attempt, setAttempt] = useState({ count: 0, search: "" });
+  return (
+    <ReturnFlow
+      key={attempt.count}
+      {...props}
+      saleId={attempt.count === 0 ? props.saleId : undefined}
+      initialSearch={attempt.search}
+      restart={(search = "") => setAttempt({ count: attempt.count + 1, search })}
+    />
+  );
 }

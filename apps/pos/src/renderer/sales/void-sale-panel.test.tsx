@@ -32,6 +32,7 @@ const SALE: SaleDetail = {
   state: "deferred",
   voidability: { kind: "voidable", refunds: [], credit_note_corrects: null },
   void_authorization_required: false,
+  returnable: true,
   reprint_authorization_required: false,
   reprint: { kind: "available" },
   next_copy: { kind: "original" },

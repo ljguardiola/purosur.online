@@ -2063,7 +2063,7 @@ export const saleReturns = pgTable(
   },
   (table) => [
     unique("returns_origin_event_id_key").on(table.originEventId),
-    check("returns_ticket_source_check", sql`${table.ticketSource} in ('QR', 'TYPED')`),
+    check("returns_ticket_source_check", sql`${table.ticketSource} in ('QR', 'TYPED', 'HISTORY')`),
     index("returns_sale_id_idx").on(table.saleId),
   ],
 );

@@ -57,6 +57,7 @@ function returnYerba(
     {
       saleId: "sale-1",
       ticketSource: "TYPED",
+      ticketVerified: true,
       lines: [
         {
           saleLineId: "line-1",

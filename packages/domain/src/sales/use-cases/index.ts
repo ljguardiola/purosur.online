@@ -284,6 +284,7 @@ export type {
   RecordPendingMercadoPagoPaymentOutcome,
 } from "./record-pending-mercado-pago-payment.js";
 export { recordPendingMercadoPagoPayment } from "./record-pending-mercado-pago-payment.js";
+export type { RegisterCashSession } from "./register-cash-session.js";
 export type { RegisterRestoration } from "./register-restoration.js";
 export type {
   RegisterSalesHistory,

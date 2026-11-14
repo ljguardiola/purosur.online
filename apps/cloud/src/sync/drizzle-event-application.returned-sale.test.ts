@@ -165,6 +165,12 @@ describe("recording the returns of applied events", () => {
     expect((await system.db.select().from(saleReturns))[0]?.ticketSource).toBe("TYPED");
   });
 
+  it("keeps a return started from the sales history", async () => {
+    await recordReturn({ ticketSource: "HISTORY" });
+
+    expect((await system.db.select().from(saleReturns))[0]?.ticketSource).toBe("HISTORY");
+  });
+
   it("keeps each returned line with its quantity, reason, resolution, disposition and refunded amount", async () => {
     const { saleReturn, completed } = await recordReturn();
 

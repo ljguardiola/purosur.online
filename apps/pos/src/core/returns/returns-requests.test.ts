@@ -108,6 +108,7 @@ function completion(overrides: Partial<Parameters<typeof completeReturnFor>[1]> 
   return {
     saleId: "sale-1",
     ticketSource: "QR" as const,
+    ticketVerified: true,
     lines: [YERBA],
     refunds: [{ paymentId: "pay-cash", amount: 5000 }],
     ...overrides,
@@ -198,6 +199,7 @@ describe("finding the sale to return", () => {
     };
 
     const outcome = await findSaleForReturnFor(deps({ zoneRules: { zoneRules: () => rules } }), {
+      ticketSource: "HISTORY",
       ticket: BY_SALE,
     });
 
@@ -207,8 +209,47 @@ describe("finding the sale to return", () => {
     });
   });
 
+  it("answers how the return was started and that a scanned or typed ticket must be verified", async () => {
+    cloudAnswer = BRANCH_SALE;
+    const scanned = await findSaleForReturnFor(deps(), {
+      ticketSource: "QR",
+      ticket: BRANCH_SALE_TICKET,
+    });
+    const typed = await findSaleForReturnFor(deps(), {
+      ticketSource: "TYPED",
+      ticket: BRANCH_SALE_TICKET,
+    });
+
+    expect(scanned).toMatchObject({
+      kind: "found",
+      ticket_source: "QR",
+      ticket_verification_required: true,
+    });
+    expect(typed).toMatchObject({
+      kind: "found",
+      ticket_source: "TYPED",
+      ticket_verification_required: true,
+    });
+  });
+
+  it("answers that a sale chosen from the history needs no ticket verification", async () => {
+    const outcome = await findSaleForReturnFor(deps(), {
+      ticketSource: "HISTORY",
+      ticket: BY_SALE,
+    });
+
+    expect(outcome).toMatchObject({
+      kind: "found",
+      ticket_source: "HISTORY",
+      ticket_verification_required: false,
+    });
+  });
+
   it("answers the sale, its returnable lines and its payments to a person who may process returns", async () => {
-    const outcome = await findSaleForReturnFor(deps(), { ticket: BY_SALE });
+    const outcome = await findSaleForReturnFor(deps(), {
+      ticketSource: "HISTORY",
+      ticket: BY_SALE,
+    });
 
     expect(outcome).toMatchObject({
       kind: "found",
@@ -263,6 +304,7 @@ describe("finding the sale to return", () => {
         remaining: 6000,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "APPROVED",
       },
       {
         payment_id: "pay-transfer",
@@ -273,6 +315,7 @@ describe("finding the sale to return", () => {
         remaining: 5500,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "PENDING",
       },
     ]);
   });
@@ -287,7 +330,10 @@ describe("finding the sale to return", () => {
         )
         .run(cardType, "2026-09-12T18:30:00.000Z", "2026-09-12T18:30:00.000Z");
 
-      const outcome = await findSaleForReturnFor(deps(), { ticket: BY_SALE });
+      const outcome = await findSaleForReturnFor(deps(), {
+        ticketSource: "HISTORY",
+        ticket: BY_SALE,
+      });
 
       expect(
         outcome.kind === "found" &&
@@ -297,6 +343,7 @@ describe("finding the sale to return", () => {
         card_type: cardType,
         eligible: true,
         ineligible_reason: null,
+        refund_state: "PENDING",
       });
     },
   );
@@ -312,6 +359,7 @@ describe("finding the sale to return", () => {
 
     expect(
       await findSaleForReturnFor(deps(), {
+        ticketSource: "TYPED",
         ticket: { kind: "invoice", pointOfSale: 12, number: 41 },
       }),
     ).toMatchObject({
@@ -323,6 +371,7 @@ describe("finding the sale to return", () => {
   it("answers not found for a ticket this register does not know", async () => {
     expect(
       await findSaleForReturnFor(deps(), {
+        ticketSource: "TYPED",
         ticket: { kind: "invoice", pointOfSale: 12, number: 99 },
       }),
     ).toEqual({ kind: "not_found" });
@@ -331,7 +380,9 @@ describe("finding the sale to return", () => {
   it("finds a sale of another register through the cloud and keeps a copy of it", async () => {
     cloudAnswer = BRANCH_SALE;
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toMatchObject({
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "QR", ticket: BRANCH_SALE_TICKET }),
+    ).toMatchObject({
       kind: "found",
       sale: {
         sale_id: "sale-elsewhere",
@@ -357,7 +408,9 @@ describe("finding the sale to return", () => {
        VALUES ('return-here', 'line-elsewhere', 1, 'defective', 'discard', 2500);`,
     );
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toMatchObject({
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "QR", ticket: BRANCH_SALE_TICKET }),
+    ).toMatchObject({
       kind: "found",
       sale: { lines: [{ id: "line-elsewhere", returned_quantity: 1, returnable_quantity: 2 }] },
     });
@@ -366,7 +419,9 @@ describe("finding the sale to return", () => {
   it("answers that a connection is needed when the cloud cannot be reached", async () => {
     cloudAnswer = { kind: "unreachable" };
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toEqual({
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "QR", ticket: BRANCH_SALE_TICKET }),
+    ).toEqual({
       kind: "needs_connection",
     });
     expect(readRetainedBranchSale(database, "sale-elsewhere")).toBeUndefined();
@@ -377,14 +432,16 @@ describe("finding the sale to return", () => {
     signedInPerson.set("u4");
     cloudAnswer = BRANCH_SALE;
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET })).toEqual({
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "QR", ticket: BRANCH_SALE_TICKET }),
+    ).toEqual({
       kind: "lacks_permission",
     });
     expect(askedTickets).toEqual([]);
   });
 
   it("does not ask the cloud for a sale the cashier already confirmed by its id", async () => {
-    await findSaleForReturnFor(deps(), { ticket: BY_SALE });
+    await findSaleForReturnFor(deps(), { ticketSource: "HISTORY", ticket: BY_SALE });
 
     expect(askedTickets).toEqual([]);
   });
@@ -392,14 +449,18 @@ describe("finding the sale to return", () => {
   it("answers voided for a sale that was voided", async () => {
     database.exec("UPDATE sales SET state = 'VOIDED', voided_at = '2026-09-13T12:00:00.000Z'");
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BY_SALE })).toEqual({ kind: "voided" });
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "HISTORY", ticket: BY_SALE }),
+    ).toEqual({ kind: "voided" });
   });
 
   it("refuses a cashier without the permission who brings no authorization", async () => {
     signedInPerson.set("u4");
     addPerson("u4", "Ada", ["sell_and_charge"]);
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BY_SALE })).toEqual({
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "HISTORY", ticket: BY_SALE }),
+    ).toEqual({
       kind: "lacks_permission",
     });
   });
@@ -410,6 +471,7 @@ describe("finding the sale to return", () => {
 
     expect(
       await findSaleForReturnFor(deps(), {
+        ticketSource: "HISTORY",
         ticket: BY_SALE,
         authorization: { user_id: "u2", pin: SUPERVISOR_PIN },
       }),
@@ -422,6 +484,7 @@ describe("finding the sale to return", () => {
 
     expect(
       await findSaleForReturnFor(deps(), {
+        ticketSource: "HISTORY",
         ticket: BY_SALE,
         authorization: { user_id: "u2", pin: "0000" },
       }),
@@ -431,7 +494,9 @@ describe("finding the sale to return", () => {
   it("answers not signed in when nobody is signed in", async () => {
     signedInPerson.clear();
 
-    expect(await findSaleForReturnFor(deps(), { ticket: BY_SALE })).toEqual({
+    expect(
+      await findSaleForReturnFor(deps(), { ticketSource: "HISTORY", ticket: BY_SALE }),
+    ).toEqual({
       kind: "not_signed_in",
     });
   });
@@ -609,6 +674,27 @@ describe("completing a return", () => {
         authorized_by: null,
         ticket_source: "QR",
       },
+    ]);
+  });
+
+  it("refuses a scanned or typed ticket that was not verified, changing nothing", async () => {
+    for (const ticketSource of ["QR", "TYPED"] as const) {
+      expect(
+        await completeReturnFor(deps(), completion({ ticketSource, ticketVerified: false })),
+      ).toEqual({ kind: "ticket_not_verified" });
+    }
+    expect(count("returns")).toBe(0);
+  });
+
+  it("completes a return started from the history without verification, recording where it started", async () => {
+    const outcome = await completeReturnFor(
+      deps(),
+      completion({ ticketSource: "HISTORY", ticketVerified: false }),
+    );
+
+    expect(outcome).toMatchObject({ kind: "completed" });
+    expect(database.prepare("SELECT ticket_source FROM returns").all()).toEqual([
+      { ticket_source: "HISTORY" },
     ]);
   });
 
@@ -991,6 +1077,7 @@ describe("returning a sale another register rang up", () => {
   const COMPLETION = {
     saleId: "sale-elsewhere",
     ticketSource: "TYPED" as const,
+    ticketVerified: true,
     lines: [LINE_BACK],
     refunds: [{ paymentId: "pay-elsewhere", amount: 2500 }],
   };
@@ -1007,7 +1094,7 @@ describe("returning a sale another register rang up", () => {
 
   async function findWithConnection(answer: BranchSaleLookupAnswer = BRANCH_SALE) {
     cloudAnswer = answer;
-    await findSaleForReturnFor(deps(), { ticket: BRANCH_SALE_TICKET });
+    await findSaleForReturnFor(deps(), { ticketSource: "QR", ticket: BRANCH_SALE_TICKET });
     cloudAnswer = { kind: "unreachable" };
     askedTickets = [];
   }
@@ -1200,7 +1287,7 @@ describe("returning a sale another register rang up", () => {
       cloudReply: CloudCreditNoteAnswer | null,
     ) {
       cloudAnswer = ON_ITS_WAY;
-      await findSaleForReturnFor(deps(), { ticket: DEFERRED_TICKET });
+      await findSaleForReturnFor(deps(), { ticketSource: "QR", ticket: DEFERRED_TICKET });
       cloudAnswer = reply;
       askedTickets = [];
       const calls: CloudCreditNoteCall[] = [];

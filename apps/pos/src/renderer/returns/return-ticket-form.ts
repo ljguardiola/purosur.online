@@ -7,23 +7,27 @@ const typedReadingSchema = findSaleForReturnMessageSchema.shape.reading.options[
 
 export const returnTicketRequestSchema = z.object({ reading: typedReadingSchema });
 
-export type ReturnTicketFormValues = { pointOfSale: string; number: string };
+export type ReturnTicketFormValues = { search: string };
 
-export const EMPTY_RETURN_TICKET_FORM: ReturnTicketFormValues = { pointOfSale: "", number: "" };
+export const EMPTY_RETURN_TICKET_FORM: ReturnTicketFormValues = { search: "" };
 
-export const INVALID_POINT_OF_SALE_MESSAGE = "Tipeá el punto de venta impreso, como 00003.";
+export const RETURN_TICKET_FIELDS = {
+  reading: null,
+  "reading.point_of_sale": "search",
+  "reading.number": "search",
+} as const;
 
-export const INVALID_INVOICE_NUMBER_MESSAGE =
-  "Tipeá el número de comprobante impreso, como 00001192.";
+const TYPED_NUMBER_PATTERN = /^(\d+)-(\d+)$/;
 
-export function returnTicketRequestFrom({ pointOfSale, number }: ReturnTicketFormValues): {
+export function returnTicketRequestFrom({ search }: ReturnTicketFormValues): {
   reading: { kind: "typed"; point_of_sale: number; number: number };
 } {
+  const match = TYPED_NUMBER_PATTERN.exec(search.trim());
   return {
     reading: {
       kind: "typed",
-      point_of_sale: parsePointOfSaleNumber(pointOfSale),
-      number: parsePointOfSaleNumber(number),
+      point_of_sale: match === null ? Number.NaN : parsePointOfSaleNumber(match[1] ?? ""),
+      number: match === null ? Number.NaN : parsePointOfSaleNumber(match[2] ?? ""),
     },
   };
 }

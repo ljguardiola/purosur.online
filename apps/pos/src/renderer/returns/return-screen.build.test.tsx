@@ -1,529 +1,406 @@
-import type { PreviewReturnOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
+  alertText,
+  CASH_SALE,
   chooseReturnLine,
+  legendOf,
+  lineRow,
+  linesTable,
+  lookUp,
+  markLine,
   openReturn,
-  previewOf,
   renderScreen,
+  searchBox,
+  selectLine,
+  statusText,
 } from "./test-support/return-screen";
-import { SALE } from "./test-support/sale-for-return";
 
-describe("ReturnScreen choosing what the customer returns", () => {
-  it("names the invoice and when it was bought, with how long each reason can still be returned", async () => {
+function summary(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
+  return screen.getByRole("complementary", { name: "Resumen de la devolución" });
+}
+
+function rowOf(screen: Awaited<ReturnType<typeof renderScreen>>["screen"], product: string) {
+  return linesTable(screen).getByRole("row", { name: new RegExp(product) });
+}
+
+describe("ReturnScreen showing the sale found by its ticket", () => {
+  it("shows the sale's number in the search, every line with its sold quantity, and nothing marked", async () => {
+    const { screen } = await renderScreen();
+
+    await openReturn(screen);
+
+    await expect.element(searchBox(screen)).toHaveValue("00003-00001192");
+    for (const product of [
+      "Pasta de maní 380 g",
+      "Nibs de cacao",
+      "Miel pura de abeja 1 kg",
+      "Té verde en hebras 100 g",
+    ]) {
+      await expect.element(lineRow(screen, product)).toBeVisible();
+    }
+    await expect.element(linesTable(screen).getByText("0,350 kg")).toBeVisible();
+    expect(
+      screen
+        .getByRole("checkbox")
+        .elements()
+        .filter((box) => (box as HTMLInputElement).checked),
+    ).toHaveLength(0);
+  });
+
+  it("selects the first line and shows the sale in the summary panel with Esc", async () => {
     const { screen } = await renderScreen();
 
     await openReturn(screen);
 
     await expect
-      .element(screen.getByRole("complementary", { name: "Resumen de la devolución" }))
-      .toBeVisible();
-    await expect
-      .element(screen.getByText("DEVOLUCIÓN · FACTURA C PV 00003 N° 00001192"))
-      .toBeVisible();
-    await expect.element(screen.getByText("Compra del 12/09/2026")).toBeVisible();
-    await expect.element(screen.getByText("Arrepentimiento hasta 27/09/2026")).toBeVisible();
-    await expect.element(screen.getByText("Defecto hasta 12/03/2027")).toBeVisible();
+      .element(rowOf(screen, "Pasta de maní 380 g"))
+      .toHaveAttribute("aria-current", "true");
+    const panel = summary(screen);
+    await expect.element(panel.getByText("A REINTEGRAR")).toBeVisible();
+    await expect.poll(() => panel.element().textContent).toMatch(/A REINTEGRAR\s*\$\s*0,00/);
+    await expect.element(panel.getByText("Factura C")).toBeVisible();
+    await expect.element(panel.getByText("00003-00001192")).toBeVisible();
+    await expect.element(panel.getByText("Venta", { exact: true })).toBeVisible();
+    await expect.element(panel.getByText("12/09 11:42")).toBeVisible();
+    await expect.element(panel.getByText("Líneas a devolver")).toBeVisible();
+    await expect.element(panel.getByText("Esc", { exact: true })).toBeVisible();
   });
 
-  it("says a reason's window is over", async () => {
-    const { screen } = await renderScreen({
-      findSaleForReturn: async () => ({
-        kind: "found",
-        sale: {
-          ...SALE,
-          windows: {
-            ...SALE.windows,
-            change_of_mind: { last_allowed_day: "2026-09-12", open: false },
-          },
-        },
-      }),
-    });
-
-    await openReturn(screen);
-
-    await expect.element(screen.getByText("Arrepentimiento vencido")).toBeVisible();
-  });
-
-  it("starts with nothing to refund and nothing to complete", async () => {
-    const { screen, previewReturn } = await renderScreen();
-
-    await openReturn(screen);
-
-    await expect.element(screen.getByText("A REINTEGRAR")).toBeVisible();
-    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
-    await expect.element(screen.getByText("Líneas a devolver")).toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
-    expect(previewReturn).not.toHaveBeenCalled();
-  });
-
-  it("shows how it is paid back: each payment, with an amount to refund by its own means", async () => {
-    const { screen } = await renderScreen();
-
-    await openReturn(screen);
-
-    await expect.element(screen.getByText("SE DEVUELVE POR EL MEDIO DEL PAGO")).toBeVisible();
-    await expect.element(screen.getByText("Efectivo")).toBeVisible();
-    await expect.element(screen.getByText("Pagó $ 15.000,00")).toBeVisible();
-    await expect.element(screen.getByText("Transferencia")).toBeVisible();
-    await expect
-      .element(screen.getByRole("textbox", { name: "Reintegro por Transferencia" }))
-      .not.toHaveAttribute("readonly");
-  });
-
-  it("shows the refund loading while the core works it out", async () => {
-    const { screen } = await renderScreen({ previewReturn: () => new Promise(() => {}) });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await vi.waitFor(() =>
-      expect(
-        screen.getByText("A REINTEGRAR").element().closest('[aria-busy="true"]'),
-      ).not.toBeNull(),
-    );
-    await expect.element(screen.getByText("$ 0,00")).not.toBeInTheDocument();
-  });
-
-  it("shows no refund when the core could not work it out", async () => {
-    const { screen } = await renderScreen({
-      previewReturn: async () => ({ kind: "unavailable" }),
-    });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await expect
-      .element(screen.getByText("No se pudo calcular el reintegro").first())
-      .toBeVisible();
-    await expect.element(screen.getByText("$ 0,00")).not.toBeInTheDocument();
-  });
-
-  it("says the cashier may not return when the core says so", async () => {
-    const { screen } = await renderScreen({
-      previewReturn: async () => ({ kind: "lacks_permission" }),
-    });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await expect
-      .element(screen.getByText("No tenés permiso para hacer devoluciones.").first())
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
-  });
-
-  it("asks the core about a line as soon as it is checked, with nothing chosen yet", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await vi.waitFor(() =>
-      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        {
-          sale_line_id: "line-pasta",
-          quantity: 3,
-          reason: null,
-          disposition: null,
-          resolution: null,
-        },
-      ]),
-    );
-    await expect
-      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.").first())
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
-  });
-
-  it("asks what happens with the merchandise once the reason is chosen", async () => {
+  it("moves the selection with the up and down arrows", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
 
-    await chooseReturnLine(screen, "Nibs de cacao", { reason: "Defecto" });
+    await userEvent.keyboard("{ArrowDown}");
 
+    await expect.element(rowOf(screen, "Nibs de cacao")).toHaveAttribute("aria-current", "true");
+    await userEvent.keyboard("{ArrowUp}");
     await expect
-      .element(screen.getByText("Elegí qué pasa con la mercadería de Nibs de cacao.").first())
-      .toBeVisible();
+      .element(rowOf(screen, "Pasta de maní 380 g"))
+      .toHaveAttribute("aria-current", "true");
   });
 
-  it("shows what to refund, and lets the cashier complete, once every checked line is decided", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Arrepentimiento",
-      disposition: "A la venta",
-    });
-
-    await vi.waitFor(() =>
-      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        {
-          sale_line_id: "line-pasta",
-          quantity: 3,
-          reason: "change_of_mind",
-          disposition: "restock",
-          resolution: null,
-        },
-      ]),
-    );
-    await expect.element(screen.getByText("$ 9.700,00", { exact: true }).first()).toBeVisible();
-    await expect
-      .element(screen.getByRole("textbox", { name: "Reintegro por Efectivo" }))
-      .toHaveValue("9.700,00");
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeEnabled();
-  });
-
-  it("asks whether a defective line is refunded or exchanged before it can be completed", async () => {
+  it("marks and unmarks the selected line with Espacio, showing its quantity and refund and totalling the summary", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
 
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Defecto",
-      disposition: "Descarte",
-    });
+    await userEvent.keyboard(" ");
 
     await expect
-      .element(screen.getByText("Elegí si se reintegra o se cambia Pasta de maní 380 g.").first())
+      .element(rowOf(screen, "Pasta de maní 380 g").getByText("3 u", { exact: true }).nth(1))
       .toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
+      .element(rowOf(screen, "Pasta de maní 380 g").getByText("$ 9.700,00"))
+      .toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*9\.700,00/);
+    await expect.element(summary(screen).getByText("1", { exact: true })).toBeVisible();
+    await expect.element(summary(screen).getByText("Efectivo · en el acto")).toBeVisible();
+    await userEvent.keyboard(" ");
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
   });
 
-  it("offers no exchange for a change of mind", async () => {
+  it("marks a line with its checkbox", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
 
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Arrepentimiento",
-      disposition: "A la venta",
-    });
+    await screen.getByRole("checkbox", { name: "Nibs de cacao" }).click({ force: true });
 
-    await expect
-      .element(screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ }))
-      .not.toBeInTheDocument();
+    await expect.element(rowOf(screen, "Nibs de cacao").getByText("$ 4.235,00")).toBeVisible();
   });
 
-  it("asks the core about an exchanged line, showing nothing to refund with no line of its own and asking for no payment to refund", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Defecto",
-      disposition: "Descarte",
-      resolution: "Cambio por otra igual",
-    });
-
-    await vi.waitFor(() =>
-      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        {
-          sale_line_id: "line-pasta",
-          quantity: 3,
-          reason: "defective",
-          disposition: "discard",
-          resolution: "exchange",
-        },
-      ]),
-    );
-    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
-    await expect.element(screen.getByText(/no hay nada que reintegrar/)).not.toBeInTheDocument();
-    await expect
-      .element(screen.getByText("SE DEVUELVE POR EL MEDIO DEL PAGO"))
-      .not.toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("textbox", { name: "Reintegro por Efectivo" }))
-      .not.toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeEnabled();
-  });
-
-  it("forgets an exchange chosen when the reason becomes a change of mind", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Defecto",
-      disposition: "Descarte",
-      resolution: "Cambio por otra igual",
-    });
-
-    await userEvent.click(screen.getByRole("button", { name: /Motivo de Pasta de maní 380 g/ }));
-    await userEvent.click(screen.getByRole("option", { name: /Arrepentimiento/ }));
-
-    await vi.waitFor(() =>
-      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        {
-          sale_line_id: "line-pasta",
-          quantity: 3,
-          reason: "change_of_mind",
-          disposition: "discard",
-          resolution: null,
-        },
-      ]),
-    );
-    await expect.element(screen.getByText("SE DEVUELVE POR EL MEDIO DEL PAGO")).toBeVisible();
-  });
-
-  it("keeps asking for the payments to refund while another line is refunded", async () => {
-    const { screen } = await renderScreen();
-    await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Defecto",
-      disposition: "Descarte",
-      resolution: "Cambio por otra igual",
-    });
-    await chooseReturnLine(screen, "Nibs de cacao", {
-      reason: "Defecto",
-      disposition: "Descarte",
-      resolution: "Reintegro",
-    });
-
-    await expect
-      .element(screen.getByRole("textbox", { name: "Reintegro por Efectivo" }))
-      .toHaveValue("4.235,00");
-  });
-
-  it("counts the lines to return", async () => {
+  it("shows a dash as the quantity and refund of a line that is not marked", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
 
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-    await chooseReturnLine(screen, "Nibs de cacao");
-
-    await expect.element(screen.getByText("Líneas a devolver")).toBeVisible();
-    expect(screen.getByText("Líneas a devolver").element().parentElement?.textContent).toBe(
-      "Líneas a devolver2",
-    );
+    await expect
+      .poll(() => rowOf(screen, "Nibs de cacao").element().textContent)
+      .toMatch(/—\s*—\s*$/);
   });
 
-  it("stops asking about a line that is unchecked", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-    await vi.waitFor(() => expect(previewReturn).toHaveBeenCalled());
-
-    await screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }).click({ force: true });
-
-    await expect
-      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.").first())
-      .not.toBeInTheDocument();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
-  });
-
-  it("shows the quantity the core says can still be returned when the cashier asks for more", async () => {
+  it("does not let a fully returned line be marked", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Defecto",
-      disposition: "Descarte",
-    });
-
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Cantidad de Pasta de maní 380 g" }),
-      "4",
-    );
-
     await expect
-      .element(screen.getByText("Pasta de maní 380 g: se pueden devolver hasta 3 u.").first())
+      .element(lineRow(screen, "Té verde en hebras 100 g").getByText("Ya se devolvió completa"))
       .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
-  });
+    await selectLine(screen, "Té verde en hebras 100 g");
 
-  it("returns a promotion's line whole for a change of mind, and asks the core for all of it", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Miel pura de abeja 1 kg", {
-      reason: "Arrepentimiento",
-      disposition: "A la venta",
-    });
+    await userEvent.keyboard(" ");
 
     await expect
-      .element(screen.getByRole("textbox", { name: "Cantidad de Miel pura de abeja 1 kg" }))
-      .toHaveValue("2");
-    await vi.waitFor(() =>
-      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        {
-          sale_line_id: "line-honey",
-          quantity: 2,
-          reason: "change_of_mind",
-          disposition: "restock",
-          resolution: null,
-        },
-      ]),
-    );
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
   });
 
-  it("lets the cashier return part of a promotion's line for a defect", async () => {
-    const { screen, previewReturn } = await renderScreen();
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Miel pura de abeja 1 kg", {
-      reason: "Defecto",
-      disposition: "Descarte",
-    });
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Cantidad de Miel pura de abeja 1 kg" }),
-      "1",
-    );
-
-    await vi.waitFor(() =>
-      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        {
-          sale_line_id: "line-honey",
-          quantity: 1,
-          reason: "defective",
-          disposition: "discard",
-          resolution: null,
-        },
-      ]),
-    );
-  });
-
-  it("shows the last day of a window the core says is over for the line", async () => {
-    const outsideWindow = (lines: Parameters<typeof previewOf>[0]): PreviewReturnOutcome => {
-      const previewed = previewOf(lines);
-      return previewed.kind !== "previewed"
-        ? previewed
-        : {
-            ...previewed,
-            lines: previewed.lines.map((line) => ({
-              ...line,
-              refusal: {
-                kind: "outside_window",
-                reason: "change_of_mind",
-                last_allowed_day: "2026-09-12",
-              },
-              refund_amount: null,
-            })),
-          };
-    };
-    const { screen } = await renderScreen({
-      previewReturn: async (_id, lines) => outsideWindow(lines),
-    });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Arrepentimiento",
-      disposition: "A la venta",
-    });
-
-    await expect
-      .element(
-        screen
-          .getByText("Venció el plazo por arrepentimiento: se podía hasta el 12/09/2026.")
-          .first(),
-      )
-      .toBeVisible();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
-  });
-
-  it("says the refund could not be worked out, and works it out again on request", async () => {
-    const previewReturn = vi
-      .fn<
-        (saleId: string, lines: Parameters<typeof previewOf>[0]) => Promise<PreviewReturnOutcome>
-      >()
-      .mockResolvedValueOnce({ kind: "unavailable" })
-      .mockImplementation(async (_saleId, lines) => previewOf(lines));
-    const { screen } = await renderScreen({ previewReturn });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await expect
-      .element(screen.getByText("No se pudo calcular el reintegro").first())
-      .toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-    await expect
-      .element(screen.getByText("Elegí el motivo de Pasta de maní 380 g.").first())
-      .toBeVisible();
-    expect(previewReturn).toHaveBeenCalledTimes(2);
-  });
-
-  it("tells the app the session ended when the core says nobody is signed in", async () => {
-    const { screen, onSessionInvalid } = await renderScreen({
-      previewReturn: async () => ({ kind: "not_signed_in" }),
-    });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalled());
-  });
-
-  it("says the sale can no longer be returned when the core says so", async () => {
-    const { screen } = await renderScreen({
-      previewReturn: async () => ({ kind: "sale_not_returnable" }),
-    });
-    await openReturn(screen);
-
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-
-    await expect
-      .element(screen.getByText("Esa venta ya no se puede devolver.").first())
-      .toBeVisible();
-  });
-
-  it("leaves without completing, asking nothing more of the core", async () => {
-    const previewReturn = vi.fn(async (_saleId: string, lines: Parameters<typeof previewOf>[0]) =>
-      previewOf(lines),
-    );
-    const { screen, completeReturn, findSaleForReturn } = await renderScreen({ previewReturn });
-    await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g", {
-      reason: "Defecto",
-      disposition: "Descarte",
-    });
-    await vi.waitFor(() => expect(previewReturn).toHaveBeenCalled());
-    const previews = previewReturn.mock.calls.length;
-
-    await userEvent.click(screen.getByRole("button", { name: "Salir sin completar" }));
-
-    await expect
-      .element(screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }))
-      .toBeVisible();
-    expect(previewReturn).toHaveBeenCalledTimes(previews);
-    expect(completeReturn).not.toHaveBeenCalled();
-    expect(findSaleForReturn).toHaveBeenCalledOnce();
-  });
-
-  it("forgets what was chosen when the return starts again", async () => {
+  it("lists the arrows Líneas, Espacio Marcar and F6 Editar, then T Verificar, and Enter Completar once it can complete", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
-    await userEvent.click(screen.getByRole("button", { name: "Salir sin completar" }));
 
+    expect(legendOf(screen)).toEqual(["↑↓Líneas", "EspacioMarcar", "F6Editar", "TVerificar"]);
+    await markLine(screen, "Pasta de maní 380 g");
+    await userEvent.keyboard("t");
+
+    expect(legendOf(screen)).toEqual([
+      "↑↓Líneas",
+      "EspacioMarcar",
+      "F6Editar",
+      "TVerificar",
+      "EnterCompletar",
+    ]);
+  });
+
+  it("offers no Tab or F1 key", async () => {
+    const { screen } = await renderScreen();
     await openReturn(screen);
 
-    await expect
-      .element(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }))
-      .not.toBeChecked();
-    await expect
-      .element(screen.getByRole("button", { name: "Completar devolución" }))
-      .toBeDisabled();
+    for (const key of legendOf(screen)) {
+      expect(key).not.toMatch(/^(Tab|F1)/);
+    }
   });
 
   it("has no accessibility violations", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
-    await chooseReturnLine(screen, "Pasta de maní 380 g");
 
     await expectNoAccessibilityViolations(document.body);
+  });
+
+  it("leaves to the empty search with Esc, forgetting the sale", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+    await markLine(screen, "Pasta de maní 380 g");
+
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(screen.getByText("Sin ventas")).toBeVisible();
+    await expect.element(searchBox(screen)).toHaveValue("");
+    await expect.element(searchBox(screen)).toHaveFocus();
+  });
+
+  it("previews the marked lines with the core, one request per change", async () => {
+    const { screen, previewReturn } = await renderScreen();
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+
+    await vi.waitFor(() =>
+      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
+        {
+          sale_line_id: "line-pasta",
+          quantity: 3,
+          reason: "change_of_mind",
+          disposition: "restock",
+          resolution: "refund",
+        },
+      ]),
+    );
+  });
+});
+
+describe("ReturnScreen showing a sale chosen from Historial", () => {
+  it("looks the sale up by its id, without the ticket step, and shows no Ticket verificado nor T", async () => {
+    const { screen, findSaleForReturn } = await renderScreen({ saleId: "sale-1" });
+
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
+
+    expect(findSaleForReturn).toHaveBeenCalledExactlyOnceWith(
+      { kind: "sale", sale_id: "sale-1" },
+      undefined,
+    );
+    await expect
+      .element(screen.getByRole("checkbox", { name: "Ticket verificado" }))
+      .not.toBeInTheDocument();
+    expect(legendOf(screen)).toEqual(["↑↓Líneas", "EspacioMarcar", "F6Editar"]);
+  });
+
+  it("completes as soon as a line is marked, offering Enter Completar", async () => {
+    const { screen } = await renderScreen({ saleId: "sale-1" });
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
+
+    await markLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
+      .toBeEnabled();
+    await vi.waitFor(() =>
+      expect(legendOf(screen)).toEqual(["↑↓Líneas", "EspacioMarcar", "F6Editar", "EnterCompletar"]),
+    );
+  });
+
+  it("shows the lines table and the panel's figure loading, not the empty search, while it looks the sale up", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: () => new Promise(() => {}),
+    });
+
+    await expect.element(linesTable(screen)).toHaveAttribute("aria-busy", "true");
+    await expect.element(screen.getByText("Sin ventas")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Devolución" }).getByText("$ 0,00"))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers to look the sale up again when the core does not answer, and shows it once found", async () => {
+    let answered = false;
+    const { screen, findSaleForReturn } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: vi.fn(async (reading) => {
+        if (!answered) {
+          answered = true;
+          return { kind: "unavailable" } as const;
+        }
+        return {
+          kind: "found",
+          sale: { ...CASH_SALE },
+          ticket_source: "HISTORY",
+          ticket_verification_required: reading.kind !== "sale",
+        } as const;
+      }),
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(lineRow(screen, "Pasta de maní 380 g")).toBeVisible();
+    expect(findSaleForReturn).toHaveBeenCalledTimes(2);
+  });
+
+  it("says why when the sale cannot be returned", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async () => ({ kind: "voided" }),
+    });
+
+    await expect
+      .element(alertText(screen, "Esa venta está anulada: no se puede devolver."))
+      .toBeVisible();
+  });
+
+  it("replaces the failure to look the sale up with the answer to a ticket the cashier types", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async (reading) =>
+        reading.kind === "sale" ? { kind: "unavailable" } : { kind: "not_found" },
+    });
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+    await lookUp(screen, "0003-00009999");
+
+    await expect
+      .element(alertText(screen, "No encontramos esa venta en esta sucursal."))
+      .toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Reintentar" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("replaces the failure to look the sale up with the refusal of a scanned code that is not a ticket's QR", async () => {
+    const { screen, readBarcode } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async () => ({ kind: "unavailable" }),
+    });
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+    readBarcode("7790001");
+
+    await expect
+      .element(
+        alertText(
+          screen,
+          "Ese QR no es de un ticket. Escaneá el QR de la factura C o del documento de una venta diferida, o tipeá los números impresos.",
+        ),
+      )
+      .toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+  });
+
+  it("replaces the failure to look the sale up with the refusal of a typed text that is not a ticket's number", async () => {
+    const { screen } = await renderScreen({
+      saleId: "sale-1",
+      findSaleForReturn: async () => ({ kind: "unavailable" }),
+    });
+    await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+
+    await lookUp(screen, "hola");
+
+    await expect
+      .element(alertText(screen, "Tipeá el número impreso del ticket, como 00003-00001192."))
+      .toBeVisible();
+    await expect.element(screen.getByText("No se pudo buscar la venta")).not.toBeInTheDocument();
+  });
+});
+
+describe("ReturnScreen refusing a line", () => {
+  it("shows a refused quantity in red with an amber notice, leaves the line out of the total and blocks completing", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+    await chooseReturnLine(screen, "Pasta de maní 380 g");
+    await chooseReturnLine(screen, "Nibs de cacao");
+    await selectLine(screen, "Pasta de maní 380 g");
+    await userEvent.keyboard("{F6}");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Cantidad" }), "5");
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .element(statusText(screen, "Pasta de maní 380 g: se pueden devolver hasta 3 u."))
+      .toBeVisible();
+    await expect.element(rowOf(screen, "Pasta de maní 380 g").getByText("5 u")).toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*4\.235,00/);
+    await expect.element(summary(screen).getByText("1", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
+      .toBeDisabled();
+    expect(legendOf(screen)).toEqual(["↑↓Líneas", "EspacioMarcar", "F6Editar"]);
+  });
+});
+
+describe("ReturnScreen showing what it refunds", () => {
+  it("shows $ 0,00, not loading, when the core refuses to preview the marked lines", async () => {
+    const { screen } = await renderScreen({
+      previewReturn: async () => ({ kind: "lacks_permission" }),
+    });
+    await openReturn(screen);
+
+    await markLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
+  });
+
+  it("shows $ 0,00, not loading, with the failure when the core does not answer the preview", async () => {
+    const { screen } = await renderScreen({
+      previewReturn: async () => ({ kind: "unavailable" }),
+    });
+    await openReturn(screen);
+
+    await markLine(screen, "Pasta de maní 380 g");
+
+    await expect
+      .element(summary(screen).getByText("No se pudo calcular el reintegro"))
+      .toBeVisible();
+    await expect
+      .poll(() => summary(screen).element().textContent)
+      .toMatch(/A REINTEGRAR\s*\$\s*0,00/);
+  });
+});
+
+describe("ReturnScreen once the sale is found", () => {
+  it("starts a new search with what the cashier types in the search", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+
+    await userEvent.type(searchBox(screen), "5");
+
+    await expect.element(screen.getByText("Sin ventas")).toBeVisible();
+    await expect.element(searchBox(screen)).toHaveValue("00003-000011925");
+    await expect.element(screen.getByRole("button", { name: "Buscar" })).toBeEnabled();
   });
 });
