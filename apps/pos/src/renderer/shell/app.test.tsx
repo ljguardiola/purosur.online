@@ -25,7 +25,7 @@ import { App } from "./app";
 
 const SIGN_IN_USER_SELECT = /USUARIO/;
 const SIGNED_IN_TITLE = "¿Qué querés hacer?";
-const LOCKED_TITLE = "Caja bloqueada";
+const LOCKED_TITLE = /Grace$/;
 const BRAND_LOGO_ALT = "Puro Sur";
 const CORE_DOWN_TITLE = "Esperá un momento";
 const ENROLLMENT_TITLE = "Dar de alta esta caja";
@@ -85,7 +85,7 @@ const ADA_SIGNED_IN: SignInOutcome = {
 
 async function resumeLockedRegister(screen: Awaited<ReturnType<typeof render>>) {
   await userEvent.type(screen.getByLabelText("PIN"), "1234");
-  await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 }
 
 function coreAnswering(
@@ -1446,7 +1446,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
   });
@@ -1641,8 +1641,12 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Ada" })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Ada", { exact: true }))
+      .not.toBeInTheDocument();
   });
 
   it("still says the cash session is open when the core cannot tell which one after refusing a sign-in", async () => {
@@ -1782,7 +1786,9 @@ describe("App", () => {
     postCoreStatus("up");
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: SIGN_IN_USER_SELECT }))
       .not.toBeInTheDocument();
@@ -1799,7 +1805,7 @@ describe("App", () => {
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
 
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     await expect
@@ -1818,9 +1824,7 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(
-        screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-      );
+      await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
       await userEvent.fill(screen.getByRole("textbox", { name: "Código" }), "K7QM2XPA3DTR4HWN");
       await userEvent.fill(screen.getByLabelText("PIN nuevo, de al menos 6 dígitos"), "482915");
       await userEvent.fill(screen.getByLabelText("Repetí el PIN nuevo"), "482915");
@@ -3137,7 +3141,9 @@ describe("App", () => {
     await userEvent.click(screen.getByRole("button", { name: "Abrir caja" }));
 
     await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
   });
 
   it("signs the person out in the core when the session already open is another person's", async () => {
@@ -3248,7 +3254,7 @@ describe("App", () => {
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
-      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
       return { screen, ...fake };
     }
@@ -3547,10 +3553,14 @@ describe("App", () => {
 
       await expect.element(screen.getByRole("heading", { name: LOCKED_TITLE })).toBeVisible();
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-      await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+      await expect
+        .element(
+          screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }),
+        )
+        .toBeVisible();
       expect(asked).toContain("sign-out");
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
-      await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+      await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
       await expect.element(screen.getByRole("combobox", { name: "Producto" })).toBeVisible();
     });
 
@@ -3621,8 +3631,7 @@ describe("App", () => {
       });
       const screen = await render(<App core={fake.core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
-      await userEvent.click(screen.getByText("Sofía", { exact: true }));
+      await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
       await userEvent.type(screen.getByLabelText("PIN"), "1234");
       await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
       return { screen, ...fake };
@@ -3649,13 +3658,14 @@ describe("App", () => {
       });
       const screen = await render(<App core={core} />);
       postCoreStatus("up");
-      await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+      await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
       await expect.element(screen.getByText("Sofía", { exact: true })).toBeVisible();
       closers = [...closers, { id: "u4", first_name: "Tomás" }];
 
       finishPull(null);
 
-      await expect.element(screen.getByText("Tomás", { exact: true })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: /USUARIO/ }));
+      await expect.element(screen.getByRole("option", { name: "Tomás" })).toBeVisible();
     });
 
     it("lands on the sign-in screen with nobody signed in once the session is closed", async () => {

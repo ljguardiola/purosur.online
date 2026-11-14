@@ -199,7 +199,7 @@ const screenFor: Record<
   "/initial-count": (screen) =>
     screen.getByRole("heading", { level: 1, name: "Inventario inicial" }),
   "/startup-pending": (screen) => screen.getByRole("table", { name: "Pendientes" }),
-  "/locked": (screen) => screen.getByRole("heading", { name: "Caja bloqueada" }),
+  "/locked": (screen) => screen.getByRole("heading", { name: /Grace$/ }),
   "/locked-close": (screen) => screen.getByRole("heading", { name: "¿Quién cierra la caja?" }),
   "/enroll": (screen) => screen.getByRole("heading", { name: ENROLLMENT_TITLE }),
   "/starting": (screen) => screen.getByRole("img", { name: BRAND_LOGO_ALT }),
@@ -1273,8 +1273,10 @@ describe("the register's router", () => {
 
     const screen = await render(<RouterProvider router={router} />);
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
-    await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /USUARIO/ }).getByText("Grace", { exact: true }))
+      .toBeVisible();
   });
 
   it("renders the out-of-service notice while the register is out of service", async () => {
@@ -2810,26 +2812,24 @@ describe("the register's router", () => {
     const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(
-      screen.getByRole("link", { name: "Tengo un código para cambiar el PIN" }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Cambiar PIN con código" }));
     await expect.element(screen.getByRole("heading", { name: PIN_REDEMPTION_TITLE })).toBeVisible();
     await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
   });
 
   it("reaches who closes the locked register from the locked register and comes back", async () => {
     const router = routerAt("/locked", "up", "enrolled", null, OPEN_SESSION);
     const screen = await render(<RouterProvider router={router} />);
 
-    await userEvent.click(screen.getByRole("link", { name: "Otra persona cierra la caja" }));
+    await userEvent.click(screen.getByRole("link", { name: "Cerrar con otro usuario" }));
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))
       .toBeVisible();
-    await userEvent.click(screen.getByRole("link", { name: "Volver" }));
+    await userEvent.keyboard("{Escape}");
 
-    await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: /Grace$/ })).toBeVisible();
   });
 
   it("identifies and closes the locked register's session through the router context with the session it is showing", async () => {
@@ -2853,7 +2853,6 @@ describe("the register's router", () => {
       "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await expect
@@ -2897,7 +2896,6 @@ describe("the register's router", () => {
       "/locked-close",
     );
     const screen = await render(<RouterProvider router={router} />);
-    await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
     await userEvent.click(screen.getByRole("button", { name: "Vaciar venta" }));
@@ -2918,7 +2916,7 @@ describe("the register's router", () => {
     );
     const screen = await render(<RouterProvider router={router} />);
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
-    await userEvent.click(screen.getByRole("button", { name: "Retomar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
 
     await userEvent.click(screen.getByRole("button", { name: "Tengo un código" }));
 
