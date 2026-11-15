@@ -1,3 +1,4 @@
+import { Package } from "lucide-react";
 import type { ReactNode } from "react";
 import { expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -49,9 +50,24 @@ const narrowColumns: TableColumns<Lot> = [
   }),
 ];
 
-function LotsTable({ columns, variant }: { columns: TableColumns<Lot>; variant: TableVariant }) {
-  const table = useTableModel({ items: lots, id: (lot) => lot.id, columns });
-  return <Table table={table} aria-label="Lotes" variant={variant} />;
+function LotsTable({
+  columns,
+  variant,
+  items = lots,
+}: {
+  columns: TableColumns<Lot>;
+  variant: TableVariant;
+  items?: Lot[];
+}) {
+  const table = useTableModel({ items, id: (lot) => lot.id, columns });
+  return (
+    <Table
+      table={table}
+      aria-label="Lotes"
+      variant={variant}
+      empty={{ icon: <Package />, title: "No hay lotes con saldo", variant: "blank" }}
+    />
+  );
 }
 
 function inside(width: number, children: ReactNode) {
@@ -98,4 +114,20 @@ test("adds no scrolling region when the columns fit their container", async () =
   expect(screen.getByRole("region").query()).toBeNull();
   const table = screen.getByRole("table", { name: "Lotes" }).element() as HTMLElement;
   expect(table.getBoundingClientRect().width).toBe(320);
+});
+
+test("shows its empty state whole inside a container narrower than its columns, with nothing to scroll", async () => {
+  const screen = await render(
+    inside(320, <LotsTable columns={wideColumns} variant="nested" items={[]} />),
+  );
+  const title = screen.getByText("No hay lotes con saldo").element();
+  const container = screen.container.firstElementChild as HTMLElement;
+
+  expect(title.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+    container.getBoundingClientRect().left,
+  );
+  expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
+    container.getBoundingClientRect().right,
+  );
+  expect(screen.getByRole("region").query()).toBeNull();
 });
