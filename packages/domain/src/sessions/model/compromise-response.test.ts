@@ -51,9 +51,8 @@ describe("the compromise-response runbook", () => {
   it("rotates each external secret as its own checklist item and notifies with one more", () => {
     expect(EXTERNAL_SECRET_ITEMS).toEqual([
       "mercado_pago_webhook_secret",
-      "whatsapp_webhook_token",
-      "whatsapp_webhook_secret",
       "claude_api_key",
+      "resend_api_key",
       "postgres_credentials",
       "ci_deployment_credentials",
       "storage_bucket_credentials",

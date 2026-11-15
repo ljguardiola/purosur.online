@@ -30,9 +30,8 @@ test("lists every external secret by its name", async () => {
 
   for (const label of [
     "Secreto del webhook de Mercado Pago",
-    "Token del webhook de WhatsApp",
-    "Secreto del webhook de WhatsApp",
     "Clave de la API de Claude",
+    "Clave de la API de Resend",
     "Credenciales de Postgres",
     "Credenciales de despliegue de CI",
     "Credenciales del bucket",
