@@ -2811,19 +2811,19 @@ describe("the route access inventory", () => {
         url: "/api/users/:id/passkeys/:passkeyId",
         access: capabilityAccess("manage_users"),
       },
-      {
-        method: "DELETE",
-        url: "/api/users/:id/passkeys",
-        access: capabilityAccess("manage_users"),
-      },
+      { method: "GET", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
+      { method: "PUT", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
+      { method: "DELETE", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
       {
         method: "DELETE",
         url: "/api/users/:id/alert-email-opt-in",
         access: capabilityAccess("manage_users"),
       },
-      { method: "GET", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
-      { method: "PUT", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
-      { method: "DELETE", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
+      {
+        method: "DELETE",
+        url: "/api/users/:id/passkeys",
+        access: capabilityAccess("manage_users"),
+      },
       {
         method: "PUT",
         url: "/api/users/:id/deactivation",
