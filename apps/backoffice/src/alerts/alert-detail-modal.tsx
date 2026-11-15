@@ -1017,6 +1017,7 @@ const EMAIL_FAILURE_REASON_TEXTS: Record<AlertEmailFailureReason, string> = {
   provider_refused: "el proveedor de email rechazó el envío",
   provider_unreachable: "el proveedor de email no respondió",
   provider_unconfirmed: "el proveedor de email no confirmó el envío",
+  provider_undelivered: "el proveedor de email no pudo entregarlo",
 };
 
 function emailDeliveryStatusText(delivery: AlertDetail["emailDeliveries"][number]): string {

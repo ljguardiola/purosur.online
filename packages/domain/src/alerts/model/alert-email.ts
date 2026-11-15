@@ -8,6 +8,7 @@ export const ALERT_EMAIL_FAILURE_REASONS = [
   "provider_refused",
   "provider_unreachable",
   "provider_unconfirmed",
+  "provider_undelivered",
 ] as const;
 
 export type AlertEmailFailureReason = (typeof ALERT_EMAIL_FAILURE_REASONS)[number];
