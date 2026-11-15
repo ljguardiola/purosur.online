@@ -104,6 +104,7 @@ export function SnapshotBackupsSection({
     dataColumn({
       id: "status",
       header: "Estado",
+      width: 200,
       render: (generation: SnapshotBackupGeneration) => (
         <div className="flex flex-col items-start gap-1">
           {generationStatus(generation)}
