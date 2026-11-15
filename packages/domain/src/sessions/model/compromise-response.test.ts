@@ -232,6 +232,37 @@ describe("stepStates", () => {
       { step: "re_enroll_registers", done: false, doneAt: null, available: true },
     ]);
   });
+
+  it("keeps the rotation step of a completed runbook done when a secret added to the list since has no record", () => {
+    const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
+      ...EXTERNAL_SECRET_ITEMS.filter((key) => key !== "resend_api_key").map((key, index) => ({
+        key,
+        at: index === 2 ? T4 : T3,
+      })),
+      { key: "notify", at: T5 },
+    ];
+
+    expect(stepStates(completions).slice(3)).toEqual([
+      { step: "rotate_external_secrets", done: true, doneAt: T4, available: false },
+      { step: "notify", done: true, doneAt: T5, available: false },
+      { step: "re_enroll_registers", done: false, doneAt: null, available: true },
+    ]);
+  });
+
+  it("dates the rotation step of a completed runbook by its notification when none of its secrets has a record", () => {
+    const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
+      { key: "notify", at: T5 },
+    ];
+
+    expect(stepStates(completions)[3]).toEqual({
+      step: "rotate_external_secrets",
+      done: true,
+      doneAt: T5,
+      available: false,
+    });
+  });
 });
 
 describe("itemStates", () => {
