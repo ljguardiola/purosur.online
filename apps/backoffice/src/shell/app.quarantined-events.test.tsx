@@ -114,6 +114,7 @@ const quarantinedEventAlert: AlertDetail = {
   open: true,
   closing: "when_its_events_are_released",
   deliveries: [],
+  emailDeliveries: [],
 };
 
 test("follows a quarantined event's alert to the quarantined events list", async () => {

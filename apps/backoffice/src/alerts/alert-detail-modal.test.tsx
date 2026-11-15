@@ -72,6 +72,7 @@ function baseDetail(overrides: DetailOverrides = {}): AlertDetail {
     open: true,
     closing: "by_hand",
     deliveries: [],
+    emailDeliveries: [],
   };
   return { ...passkeyAlert, ...overrides };
 }

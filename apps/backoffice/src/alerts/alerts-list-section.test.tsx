@@ -397,6 +397,7 @@ const passkeyDetail: AlertDetail = {
   open: true,
   closing: "by_hand",
   deliveries: [],
+  emailDeliveries: [],
 };
 
 test("the eye action opens the detail modal for that alert", async () => {
