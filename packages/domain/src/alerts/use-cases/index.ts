@@ -13,6 +13,7 @@ export type {
 export type {
   AlertClosingPorts,
   AlertClosure,
+  AlertEmailDelivery,
   AlertEscalation,
   AlertOpeningPorts,
   AlertRecipientCandidate,
