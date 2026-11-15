@@ -1,5 +1,7 @@
 export type { RoleAccess } from "./model/access-increase.js";
 export { grantedPermissionKeys, increasesAccess } from "./model/access-increase.js";
+export type { AlertSightKind } from "./model/alert-sight-kind.js";
+export { alertSightKindOf } from "./model/alert-sight-kind.js";
 export type { Capability } from "./model/capability-permissions.js";
 export {
   CAPABILITIES,
