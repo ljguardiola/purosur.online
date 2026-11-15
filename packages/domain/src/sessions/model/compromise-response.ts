@@ -19,9 +19,8 @@ export type CompromiseResponseAction = (typeof COMPROMISE_RESPONSE_ACTION_STEPS)
 
 export const EXTERNAL_SECRET_ITEMS = [
   "mercado_pago_webhook_secret",
-  "whatsapp_webhook_token",
-  "whatsapp_webhook_secret",
   "claude_api_key",
+  "resend_api_key",
   "postgres_credentials",
   "ci_deployment_credentials",
   "storage_bucket_credentials",
@@ -81,15 +80,17 @@ function stepDoneAt(
 ): Date | null {
   switch (step) {
     case "rotate_external_secrets": {
+      const notifiedAt = completionAt(completions, NOTIFY_ITEM);
       const times: number[] = [];
       for (const item of EXTERNAL_SECRET_ITEMS) {
         const at = completionAt(completions, item);
-        if (at === null) {
+        if (at !== null) {
+          times.push(at.getTime());
+        } else if (notifiedAt === null) {
           return null;
         }
-        times.push(at.getTime());
       }
-      return new Date(Math.max(...times));
+      return times.length === 0 ? notifiedAt : new Date(Math.max(...times));
     }
     case "notify":
       return completionAt(completions, NOTIFY_ITEM);
@@ -150,9 +151,13 @@ export function stepStates(
 export function itemStates(
   completions: readonly CompromiseResponseCompletion[],
 ): CompromiseResponseItemState[] {
-  return COMPROMISE_RESPONSE_ITEMS.map((item) => {
+  const completed = isResponseCompleted(completions);
+  return COMPROMISE_RESPONSE_ITEMS.flatMap((item) => {
     const doneAt = completionAt(completions, item);
-    return { item, step: stepOfItem(item), done: doneAt !== null, doneAt };
+    if (completed && doneAt === null) {
+      return [];
+    }
+    return [{ item, step: stepOfItem(item), done: doneAt !== null, doneAt }];
   });
 }
 

@@ -51,9 +51,8 @@ describe("the compromise-response runbook", () => {
   it("rotates each external secret as its own checklist item and notifies with one more", () => {
     expect(EXTERNAL_SECRET_ITEMS).toEqual([
       "mercado_pago_webhook_secret",
-      "whatsapp_webhook_token",
-      "whatsapp_webhook_secret",
       "claude_api_key",
+      "resend_api_key",
       "postgres_credentials",
       "ci_deployment_credentials",
       "storage_bucket_credentials",
@@ -233,21 +232,72 @@ describe("stepStates", () => {
       { step: "re_enroll_registers", done: false, doneAt: null, available: true },
     ]);
   });
+
+  it("keeps the rotation step of a completed runbook done when a secret added to the list since has no record", () => {
+    const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
+      ...EXTERNAL_SECRET_ITEMS.filter((key) => key !== "resend_api_key").map((key, index) => ({
+        key,
+        at: index === 2 ? T4 : T3,
+      })),
+      { key: "notify", at: T5 },
+    ];
+
+    expect(stepStates(completions).slice(3)).toEqual([
+      { step: "rotate_external_secrets", done: true, doneAt: T4, available: false },
+      { step: "notify", done: true, doneAt: T5, available: false },
+      { step: "re_enroll_registers", done: false, doneAt: null, available: true },
+    ]);
+  });
+
+  it("dates the rotation step of a completed runbook by its notification when none of its secrets has a record", () => {
+    const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
+      { key: "notify", at: T5 },
+    ];
+
+    expect(stepStates(completions)[3]).toEqual({
+      step: "rotate_external_secrets",
+      done: true,
+      doneAt: T5,
+      available: false,
+    });
+  });
 });
 
 describe("itemStates", () => {
   it("lists every item in order with when it was done", () => {
     const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
       { key: "claude_api_key", at: T2 },
-      { key: "notify", at: T3 },
     ];
 
     expect(itemStates(completions)).toEqual(
       COMPROMISE_RESPONSE_ITEMS.map((item) => ({
         item,
         step: stepOfItem(item),
-        done: item === "claude_api_key" || item === "notify",
-        doneAt: item === "claude_api_key" ? T2 : item === "notify" ? T3 : null,
+        done: item === "claude_api_key",
+        doneAt: item === "claude_api_key" ? T2 : null,
+      })),
+    );
+  });
+
+  it("leaves out of a completed runbook a secret added to the list since, which it has no record of", () => {
+    const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
+      ...EXTERNAL_SECRET_ITEMS.filter((key) => key !== "resend_api_key").map((key) => ({
+        key,
+        at: T3,
+      })),
+      { key: "notify", at: T5 },
+    ];
+
+    expect(itemStates(completions)).toEqual(
+      COMPROMISE_RESPONSE_ITEMS.filter((item) => item !== "resend_api_key").map((item) => ({
+        item,
+        step: stepOfItem(item),
+        done: true,
+        doneAt: item === "notify" ? T5 : T3,
       })),
     );
   });

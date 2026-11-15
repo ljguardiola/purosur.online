@@ -4,9 +4,8 @@ import { compromiseResponseDoneMoment } from "./compromise-response-moments";
 
 const ITEM_TEXT: Record<CompromiseResponseItem, { label: string; detail?: string }> = {
   mercado_pago_webhook_secret: { label: "Secreto del webhook de Mercado Pago" },
-  whatsapp_webhook_token: { label: "Token del webhook de WhatsApp" },
-  whatsapp_webhook_secret: { label: "Secreto del webhook de WhatsApp" },
   claude_api_key: { label: "Clave de la API de Claude" },
+  resend_api_key: { label: "Clave de la API de Resend" },
   postgres_credentials: { label: "Credenciales de Postgres" },
   ci_deployment_credentials: { label: "Credenciales de despliegue de CI" },
   storage_bucket_credentials: { label: "Credenciales del bucket" },

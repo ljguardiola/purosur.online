@@ -30,9 +30,8 @@ test("lists every external secret by its name", async () => {
 
   for (const label of [
     "Secreto del webhook de Mercado Pago",
-    "Token del webhook de WhatsApp",
-    "Secreto del webhook de WhatsApp",
     "Clave de la API de Claude",
+    "Clave de la API de Resend",
     "Credenciales de Postgres",
     "Credenciales de despliegue de CI",
     "Credenciales del bucket",
@@ -62,7 +61,7 @@ test("offers to mark each pending item and shows the done one with its day and t
   const screen = await renderChecklist();
 
   await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Marcar como hecho" }).elements()).toHaveLength(7);
+  expect(screen.getByRole("button", { name: "Marcar como hecho" }).elements()).toHaveLength(6);
 });
 
 test("reports the item whose button is pressed", async () => {
