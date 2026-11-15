@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import { CircleAlert, Package } from "lucide-react";
 import type { ReactNode } from "react";
 import { expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -54,13 +54,26 @@ function LotsTable({
   columns,
   variant,
   items = lots,
+  failed = false,
 }: {
   columns: TableColumns<Lot>;
   variant: TableVariant;
   items?: Lot[];
+  failed?: boolean;
 }) {
   const table = useTableModel({ items, id: (lot) => lot.id, columns });
-  return (
+  return failed ? (
+    <Table
+      table={table}
+      aria-label="Lotes"
+      variant={variant}
+      failure={{
+        icon: <CircleAlert />,
+        title: "No se pudieron cargar los lotes",
+        onRetry: () => {},
+      }}
+    />
+  ) : (
     <Table
       table={table}
       aria-label="Lotes"
@@ -116,18 +129,26 @@ test("adds no scrolling region when the columns fit their container", async () =
   expect(table.getBoundingClientRect().width).toBe(320);
 });
 
-test("shows its empty state whole inside a container narrower than its columns, with nothing to scroll", async () => {
-  const screen = await render(
-    inside(320, <LotsTable columns={wideColumns} variant="nested" items={[]} />),
-  );
-  const title = screen.getByText("No hay lotes con saldo").element();
-  const container = screen.container.firstElementChild as HTMLElement;
+test.each([
+  ["empty state", "No hay lotes con saldo", false],
+  ["load failure", "No se pudieron cargar los lotes", true],
+] as const)(
+  "keeps its %s whole in view inside a container narrower than its columns, under headers that keep their width",
+  async (_, message, failed) => {
+    const screen = await render(
+      inside(320, <LotsTable columns={wideColumns} variant="nested" items={[]} failed={failed} />),
+    );
+    const title = screen.getByText(message).element();
+    const container = screen.container.firstElementChild as HTMLElement;
+    const origin = screen.getByRole("columnheader", { name: "Origen" }).element();
 
-  expect(title.getBoundingClientRect().left).toBeGreaterThanOrEqual(
-    container.getBoundingClientRect().left,
-  );
-  expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
-    container.getBoundingClientRect().right,
-  );
-  expect(screen.getByRole("region").query()).toBeNull();
-});
+    expect(title.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+      container.getBoundingClientRect().left,
+    );
+    expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
+      container.getBoundingClientRect().right,
+    );
+    expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(96 + 6 + 6);
+    await expectNoAccessibilityViolations(screen.container);
+  },
+);
