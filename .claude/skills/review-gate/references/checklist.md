@@ -64,8 +64,12 @@ how a new one is judged.
   error replaced so its kind never reaches what reacts to it, an outside
   call recorded as other than what happened, an effect reaching past or
   stopping short of the work it belongs to, so half-done work waits for
-  nothing or one of two quantities kept equal moves alone, or a record kept
-  alive only through something another job removes on its own schedule, such
+  nothing or one of two quantities kept equal moves alone, a record kept
+  alive only through something another job removes on its own schedule, or a
+  scheduled run that can outlast its interval with nothing keeping the next
+  tick from starting, so it holds a shared worker slot waiting on the
+  previous run's lock (an every-minute email sweep with no job key whose
+  next tick blocks behind a slow run while the recovery emails wait), such
   as a document refused locally before any request counted as sent against a
   cap, one item's error halting a sweep over many, or a follow-up enqueued
   only on the path that succeeds.
