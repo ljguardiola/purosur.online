@@ -16,6 +16,7 @@ import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-r
 import { DrizzleBranchRegisterStore } from "../installation/drizzle-branch-register-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
+  alertEmailDeliveries,
   alerts,
   auditLog,
   branchSettings,
@@ -147,6 +148,7 @@ async function sampleDataSnapshot(
     "register_enrollment_codes",
     "alerts",
     "alert_deliveries",
+    "alert_email_deliveries",
     "audit_log",
     "branch_settings",
     "branch_hours",
@@ -478,6 +480,43 @@ describe("clearSampleData", () => {
     expect(await tableCount(db, "passkey_challenges")).toBe(0);
     const survivingAlerts = await db.select({ id: alerts.id }).from(alerts);
     expect(survivingAlerts).toEqual([{ id: realAlert.alertId }]);
+  }, 120_000);
+
+  it("clears a sample user the email of a real alert was sent to, keeping the real alert and its deliveries to others", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
+    const sampleCashierId = await userIdByEmail(db, sampleEmail("cajera.muestra"));
+    const realAlert = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "backoffice_recovery_requested",
+          scope: bootstrapAdmin.id,
+          detail: RECOVERY_REQUESTED_DETAIL,
+        },
+        { now: () => NOW },
+      ),
+    );
+    if (realAlert.kind !== "opened") throw new Error("test setup: real alert failed");
+    await db.insert(alertEmailDeliveries).values(
+      [sampleCashierId, bootstrapAdmin.id].map((recipientUserId) => ({
+        alertId: realAlert.alertId,
+        recipientUserId,
+        stage: "opened" as const,
+        level: "warning" as const,
+        occurredAt: NOW,
+      })),
+    );
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    const surviving = await db
+      .select({ recipientUserId: alertEmailDeliveries.recipientUserId })
+      .from(alertEmailDeliveries);
+    expect(surviving).toEqual([{ recipientUserId: bootstrapAdmin.id }]);
   }, 120_000);
 
   it("clears a sample register that an installation enrolled, with that installation", async () => {
