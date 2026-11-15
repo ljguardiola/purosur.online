@@ -486,6 +486,7 @@ test("creating a user reads users and roles again from the server, keeping the s
   const dialog = await openNewUserModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await chooseRole(dialog, "Administrador");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
