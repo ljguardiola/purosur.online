@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { productPanelSections } from "../catalog/test-support/product-panel-sections";
 import { almonds, honey } from "../catalog/test-support/products";
 import { mockLoaded } from "../catalog/test-support/products-list-screen";
+import { tagList } from "../platform/test-support/tags";
 import { openSession } from "../sessions/test-support/open-session";
 import { assemblyBatchList, mixBatch } from "../stock/test-support/assembly-batches";
 import { almendras, cajaDeInfusiones, mixDeFrutosSecos } from "../stock/test-support/recipes";
@@ -21,8 +22,6 @@ opensOnlyScreens([
   "/products/recipes",
   "/products/batches",
   "/products/classification",
-  "/products/classification/brands",
-  "/products/classification/tags",
   "/products/prices",
   "/products/promotions",
 ]);
@@ -61,6 +60,15 @@ function productsServices(capabilities: Capability[]) {
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
     kind: "ok",
     value: [],
+  });
+  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([]),
   });
   return services;
 }
@@ -227,9 +235,40 @@ test.each([
 );
 
 test.each([
-  ["/categories?search=alma", ["products_and_categories"], "/products/classification?search=alma"],
-  ["/brands", ["products_and_categories"], "/products/classification/brands"],
-  ["/tags", ["products_and_categories"], "/products/classification/tags"],
+  [
+    "/categories?search=alma&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?categorySearch=alma&categorySort=descending",
+  ],
+  ["/categories", ["products_and_categories"], "/products/classification"],
+  [
+    "/brands?search=granuz&status=all&sortBy=products&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?brandSearch=granuz&brandStatus=all&brandSortBy=products&brandSort=descending",
+  ],
+  ["/brands", ["products_and_categories"], "/products/classification"],
+  [
+    "/tags?search=sin&status=inactive&sortBy=products&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?tagSearch=sin&tagStatus=inactive&tagSortBy=products&tagSort=descending",
+  ],
+  ["/tags", ["products_and_categories"], "/products/classification"],
+  [
+    "/products/classification?search=alma&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?categorySearch=alma&categorySort=descending",
+  ],
+  [
+    "/products/classification/brands?search=granuz&status=all",
+    ["products_and_categories"],
+    "/products/classification?brandSearch=granuz&brandStatus=all",
+  ],
+  [
+    "/products/classification/tags?sortBy=products&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?tagSortBy=products&tagSort=descending",
+  ],
+  ["/products/classification/brands", ["products_and_categories"], "/products/classification"],
   ["/prices?search=yerba&review=all", ["prices_area"], "/products/prices?review=all&search=yerba"],
   ["/prices?review=overdue", ["prices_area"], "/products/prices?review=overdue"],
   [
@@ -280,13 +319,8 @@ test.each([
   },
 );
 
-test("opens Clasificación with its three sections, each one at its own address", async () => {
+test("opens Clasificación with Categorías, Marcas and Etiquetas as three lists on one screen", async () => {
   const services = productsServices(["products_and_categories", "catalog_area"]);
-  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/products/classification");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -294,20 +328,40 @@ test("opens Clasificación with its three sections, each one at its own address"
   await expect
     .element(screen.getByRole("tab", { name: "Clasificación", selected: true }))
     .toBeVisible();
-  const sections = screen.getByRole("tablist", { name: "Secciones de Clasificación" });
-  await expect
-    .element(sections.getByRole("tab", { name: "Categorías", selected: true }))
-    .toBeVisible();
-  for (const [index, name] of ["Categorías", "Marcas", "Etiquetas"].entries()) {
-    await expect.element(sections.getByRole("tab").nth(index)).toHaveAccessibleName(name);
+  for (const name of ["Categorías", "Marcas", "Etiquetas"]) {
+    await expect.element(screen.getByRole("table", { name })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name, level: 2 })).toBeVisible();
   }
-  expect(screen.getByRole("heading", { name: "Categorías", level: 1 }).query()).toBeNull();
+  expect(screen.getByRole("tablist", { name: "Secciones de Clasificación" }).query()).toBeNull();
+  expect(screen.getByRole("tablist").elements()).toHaveLength(1);
+  expect(location()).toBe("/products/classification");
+});
 
-  await userEvent.click(sections.getByRole("tab", { name: "Marcas" }));
+test("shows the three lists of Clasificación one under the other, in one scrolling column", async () => {
+  const services = productsServices(["products_and_categories", "catalog_area"]);
+  window.history.pushState(null, "", "/products/classification");
 
-  await expect.element(sections.getByRole("tab", { name: "Marcas", selected: true })).toBeVisible();
-  expect(location()).toBe("/products/classification/brands");
-  await expect.poll(() => services.brandsListScreen.fetchBrands).toHaveBeenCalled();
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const tops = [];
+  for (const name of ["Categorías", "Marcas", "Etiquetas"]) {
+    const table = screen.getByRole("table", { name });
+    await expect.element(table).toBeVisible();
+    tops.push(table.element().getBoundingClientRect().top);
+  }
+  expect(tops).toEqual([...tops].sort((a, b) => a - b));
+  expect(new Set(tops).size).toBe(3);
+});
+
+test("a new brand and a new tag are offered from their own list of Clasificación", async () => {
+  const services = productsServices(["products_and_categories", "catalog_area"]);
+  window.history.pushState(null, "", "/products/classification");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("button", { name: "Nueva categoría" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva marca" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva etiqueta" })).toBeVisible();
 });
 
 test("editing a brand in Clasificación is a modal and the list stays visible", async () => {
@@ -319,7 +373,7 @@ test("editing a brand in Clasificación is a modal and the list stays visible", 
       { id: "brand-2", name: "Vitora", active: true, version: 2, productCount: 18 },
     ],
   });
-  window.history.pushState(null, "", "/products/classification/brands");
+  window.history.pushState(null, "", "/products/classification");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table", { name: "Marcas" })).toBeVisible();
 
@@ -329,7 +383,7 @@ test("editing a brand in Clasificación is a modal and the list stays visible", 
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Granuz");
   await expect.element(screen.getByRole("table", { name: "Marcas" })).toBeVisible();
   await expect.element(screen.getByText("Vitora")).toBeVisible();
-  expect(location()).toBe("/products/classification/brands");
+  expect(location()).toBe("/products/classification");
 });
 
 function recipesAndBatchesServices(capabilities: Capability[]) {

@@ -55,6 +55,12 @@ test("shows the search field, the create button and the labelled table with its 
   await expect.element(table.getByText("Vitora")).toBeVisible();
 });
 
+test("titles the list with a heading of its label", async () => {
+  const screen = await render(<Harness />);
+
+  await expect.element(screen.getByRole("heading", { name: "Marcas", level: 2 })).toBeVisible();
+});
+
 test("reports what is typed in the search field and the press of the create button", async () => {
   const onSearchChange = vi.fn();
   const onCreate = vi.fn();
