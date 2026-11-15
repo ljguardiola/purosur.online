@@ -28,7 +28,7 @@ export function alertEmailDeliveryJobs<TQueryResult extends PgQueryResultHKT>({
           clock: { now },
         });
         helpers.logger.info(
-          `Alert emails: ${outcome.sent} sent, ${outcome.retrying} retrying, ${outcome.failed} failed`,
+          `Alert emails: ${outcome.sent} sent, ${outcome.retrying} retrying, ${outcome.failed} failed, ${outcome.skipped} skipped`,
         );
       },
     },

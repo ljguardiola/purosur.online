@@ -42,12 +42,14 @@ export function alertEmailContent(email: AlertEmail, backofficeOrigin: string): 
   }
   const facts = [
     `Nivel: ${LEVEL_NAMES[email.level]}`,
-    `Sucursal: ${email.branchName}`,
+    ...(email.branchName === null ? [] : [`Sucursal: ${email.branchName}`]),
     `${OCCURRED_WORDS[email.stage]} ${formatDayAndTime(email.occurredAt.toISOString(), ARGENTINA_TIME_ZONE)}`,
   ];
   const link = `${backofficeOrigin}/?alert=${email.alertId}`;
   return {
-    subject: `${SUBJECT_PREFIXES[email.stage]}: ${texts.label} — ${email.branchName}`,
+    subject: `${SUBJECT_PREFIXES[email.stage]}: ${texts.label}${
+      email.branchName === null ? "" : ` — ${email.branchName}`
+    }`,
     text: [texts.description, "", ...facts, "", `Ver la alerta: ${link}`].join("\n"),
     html:
       `<p>${escapeHtml(texts.description)}</p>` +

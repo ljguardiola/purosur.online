@@ -1,4 +1,4 @@
-CREATE TYPE "public"."alert_email_delivery_status" AS ENUM('pending', 'sent', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."alert_email_delivery_status" AS ENUM('pending', 'sent', 'failed', 'skipped');--> statement-breakpoint
 CREATE TYPE "public"."alert_email_stage" AS ENUM('opened', 'escalated', 'resolved');--> statement-breakpoint
 CREATE TABLE "alert_email_deliveries" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

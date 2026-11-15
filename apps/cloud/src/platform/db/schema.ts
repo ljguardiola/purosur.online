@@ -2563,6 +2563,7 @@ export const alertEmailDeliveryStatus = pgEnum("alert_email_delivery_status", [
   "pending",
   "sent",
   "failed",
+  "skipped",
 ]);
 
 export const alertEmailDeliveries = pgTable(

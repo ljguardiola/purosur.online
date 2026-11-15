@@ -1,5 +1,5 @@
 {
-  "id": "fac0f7c1-1f2d-48db-9f3b-d2cdd3febb7f",
+  "id": "7ff873a3-2fef-42b3-b154-d679ea0963fe",
   "prevId": "cc8d7095-7019-41de-9a34-bf5a8c05ea19",
   "version": "7",
   "dialect": "postgresql",
@@ -13775,7 +13775,7 @@
     "public.alert_email_delivery_status": {
       "name": "alert_email_delivery_status",
       "schema": "public",
-      "values": ["pending", "sent", "failed"]
+      "values": ["pending", "sent", "failed", "skipped"]
     },
     "public.alert_email_stage": {
       "name": "alert_email_stage",

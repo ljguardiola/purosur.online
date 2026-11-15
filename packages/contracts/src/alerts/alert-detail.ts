@@ -38,7 +38,7 @@ const alertDeliverySchema = z.object({
 
 const alertEmailDeliverySchema = z.object({
   stage: z.enum(ALERT_EMAIL_STAGES),
-  status: z.enum(["pending", "sent", "failed"]),
+  status: z.enum(["pending", "sent", "failed", "skipped"]),
   error: z.string().nullable(),
   createdAt: z.string(),
   sentAt: z.string().nullable(),

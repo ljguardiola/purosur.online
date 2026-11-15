@@ -8,10 +8,7 @@ import type {
 } from "@purosur/domain/alerts/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { alertEmailDeliveries, alerts, users } from "../platform/db/schema.js";
-
-// Branches carry no name of their own yet; the business has one, which is what every email names.
-const BRANCH_NAME = "Puro Sur";
+import { alertEmailDeliveries, alerts, branchSettings, users } from "../platform/db/schema.js";
 
 export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHKT>
   implements AlertEmailDeliveryStore
@@ -29,7 +26,9 @@ export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHK
         to: users.email,
         alertId: alertEmailDeliveries.alertId,
         kind: alerts.kind,
-        alertLocationId: alerts.locationId,
+        alertBranchAddress: branchSettings.address,
+        recipientActive: users.active,
+        recipientAlertEmailOptedInAt: users.alertEmailOptedInAt,
         stage: alertEmailDeliveries.stage,
         level: alertEmailDeliveries.level,
         occurredAt: alertEmailDeliveries.occurredAt,
@@ -39,18 +38,12 @@ export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHK
       .from(alertEmailDeliveries)
       .innerJoin(alerts, eq(alerts.id, alertEmailDeliveries.alertId))
       .innerJoin(users, eq(users.id, alertEmailDeliveries.recipientUserId))
+      .leftJoin(branchSettings, eq(branchSettings.locationId, alerts.locationId))
       .where(eq(alertEmailDeliveries.status, "pending"))
       .orderBy(asc(alertEmailDeliveries.createdAt), asc(alertEmailDeliveries.id));
-    return rows.flatMap(({ kind, alertLocationId, ...row }) =>
+    return rows.flatMap(({ kind, recipientAlertEmailOptedInAt, ...row }) =>
       isAlertKind(kind)
-        ? [
-            {
-              ...row,
-              kind,
-              alertBranchName: alertLocationId === null ? null : BRANCH_NAME,
-              recipientBranchName: BRANCH_NAME,
-            },
-          ]
+        ? [{ ...row, kind, recipientAlertEmailOptedIn: recipientAlertEmailOptedInAt !== null }]
         : [],
     );
   }
@@ -71,6 +64,13 @@ export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHK
         providerMessageId: sent.providerMessageId,
         error: null,
       })
+      .where(eq(alertEmailDeliveries.id, deliveryId));
+  }
+
+  async recordEmailSkipped(deliveryId: string): Promise<void> {
+    await this.db
+      .update(alertEmailDeliveries)
+      .set({ status: "skipped" })
       .where(eq(alertEmailDeliveries.id, deliveryId));
   }
 

@@ -38,7 +38,7 @@ export const ALERTS_PAGE_SIZE = 25;
 
 export interface AlertEmailDeliveryRow {
   stage: AlertEmailStage;
-  status: "pending" | "sent" | "failed";
+  status: "pending" | "sent" | "failed" | "skipped";
   error: string | null;
   createdAt: Date;
   sentAt: Date | null;
