@@ -199,3 +199,9 @@ test("describes the register_disk_space_low alert", () => {
     "A una caja le queda poco espacio libre en el disco",
   );
 });
+
+test("describes a change of who receives alerts by email", () => {
+  expect(alertKindDescription("alert_recipients_changed")).toBe(
+    "Alguien empezó o dejó de recibir las alertas por email.",
+  );
+});
