@@ -156,6 +156,7 @@ describe("GET /users/:id", () => {
       may_deactivate: false,
       may_reactivate: false,
       may_remove_passkey: false,
+      alert_email_opted_in_at: null,
     });
   });
 
@@ -204,6 +205,7 @@ describe("GET /users/:id", () => {
       may_deactivate: false,
       may_reactivate: false,
       may_remove_passkey: false,
+      alert_email_opted_in_at: null,
     });
   });
 
@@ -269,6 +271,7 @@ describe("GET /users/:id", () => {
       may_deactivate: false,
       may_reactivate: true,
       may_remove_passkey: false,
+      alert_email_opted_in_at: null,
     });
   });
 
@@ -417,6 +420,7 @@ describe("GET /users/:id", () => {
         may_deactivate: true,
         may_reactivate: false,
         may_remove_passkey: true,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -426,6 +430,7 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -435,6 +440,7 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: true,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -444,6 +450,7 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: true,
         may_remove_passkey: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -455,6 +462,7 @@ describe("GET /users/:id", () => {
         may_deactivate: true,
         may_reactivate: false,
         may_remove_passkey: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -469,6 +477,7 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: true,
         may_remove_passkey: false,
+        alert_email_opted_in_at: null,
       });
     });
 
