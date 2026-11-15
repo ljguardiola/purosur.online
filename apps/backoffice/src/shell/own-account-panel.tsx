@@ -4,6 +4,8 @@ import type { ReactElement } from "react";
 import { OwnCredentialsSection } from "../credentials/own-credentials-section";
 import { defaultOwnCredentialsSectionServices } from "../credentials/own-credentials-section-services";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
+import { OwnAlertEmailOptInSection } from "../users/own-alert-email-opt-in-section";
+import { defaultOwnAlertEmailOptInSectionServices } from "../users/own-alert-email-opt-in-section-services";
 import { OwnUserData } from "../users/own-user-data";
 import { defaultUserPanelServices } from "../users/user-panel-services";
 import { type BackofficeAccess, canSeeUsersArea } from "./backoffice-access";
@@ -12,12 +14,19 @@ const route = getRouteApi("/signed-in");
 
 const OwnAccountTabLink = createLink(Tab);
 
-type OwnAccountTab = "data" | "credentials";
+type OwnAccountTab = "data" | "credentials" | "alerts";
 
 const OWN_ACCOUNT_TABS: readonly PagePart<BackofficeAccess, OwnAccountTab>[] = [
   { key: "data", isVisibleTo: canSeeUsersArea },
   { key: "credentials", isVisibleTo: () => true },
+  { key: "alerts", isVisibleTo: () => true },
 ];
+
+const OWN_ACCOUNT_TAB_LABELS: Record<OwnAccountTab, string> = {
+  data: "Datos",
+  credentials: "Passkeys y PIN",
+  alerts: "Alertas por email",
+};
 
 export type OwnAccountPanelProps = {
   tab: string;
@@ -40,7 +49,7 @@ export function OwnAccountPanel({ tab, onClose }: OwnAccountPanelProps): ReactEl
             to="."
             search={(previous) => ({ ...previous, account: key })}
             value={key}
-            label={key === "data" ? "Datos" : "Passkeys y PIN"}
+            label={OWN_ACCOUNT_TAB_LABELS[key]}
           />
         ))}
       >
@@ -50,6 +59,13 @@ export function OwnAccountPanel({ tab, onClose }: OwnAccountPanelProps): ReactEl
               userId={session.userId}
               onSessionEnded={sessionActions.sessionEnded}
               services={services.userPanel ?? defaultUserPanelServices}
+            />
+          ) : selectedTab === "alerts" ? (
+            <OwnAlertEmailOptInSection
+              onSessionEnded={sessionActions.sessionEnded}
+              services={
+                services.ownAlertEmailOptInSection ?? defaultOwnAlertEmailOptInSectionServices
+              }
             />
           ) : (
             <OwnCredentialsSection

@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { BackofficeAccess } from "./backoffice-access";
 import { rootRoute } from "./root-route";
 
-const ownAccountTabs = z.enum(["data", "credentials"]);
+const ownAccountTabs = z.enum(["data", "credentials", "alerts"]);
 
 export const signedInRoute = createRoute({
   getParentRoute: () => rootRoute,
