@@ -6,10 +6,12 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { Table } from "./table";
 import { dataColumn } from "./table-columns";
-import type { TableColumns, TableVariant } from "./table-types";
+import type { TableColumns, TableSort, TableVariant } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
 type Lot = { id: string; name: string; origin: string; remaining: string; cost: string };
+
+const NO_SORT: TableSort = { column: "", direction: "ascending" };
 
 const lots: Lot[] = [
   {
@@ -61,7 +63,13 @@ function LotsTable({
   items?: Lot[];
   failed?: boolean;
 }) {
-  const table = useTableModel({ items, id: (lot) => lot.id, columns });
+  const table = useTableModel({
+    items,
+    id: (lot) => lot.id,
+    columns,
+    sort: NO_SORT,
+    onSortChange: () => {},
+  });
   return failed ? (
     <Table
       table={table}
@@ -169,7 +177,13 @@ const squeezableColumns: TableColumns<Lot> = [
 ];
 
 function FilledLotsTable({ items, failed }: { items: Lot[]; failed: boolean }) {
-  const table = useTableModel({ items, id: (lot) => lot.id, columns: squeezableColumns });
+  const table = useTableModel({
+    items,
+    id: (lot) => lot.id,
+    columns: squeezableColumns,
+    sort: NO_SORT,
+    onSortChange: () => {},
+  });
   return failed ? (
     <Table
       table={table}
