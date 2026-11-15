@@ -264,4 +264,104 @@ describe("editRole", () => {
       expect(store.snapshot().alerts).toEqual([]);
     });
   });
+
+  describe("when the edit changes which alerts the holders receive", () => {
+    const holders = [
+      { id: "u-2", name: "Ana", active: true },
+      { id: "u-3", name: "Beto", active: false },
+      { id: "u-4", name: "Carla", active: true },
+    ];
+
+    it.each([
+      ["none to local", ["sell_and_charge"], ["sell_and_charge", "view_branch_alerts"]],
+      ["none to all", ["sell_and_charge"], ["sell_and_charge", "view_all_alerts"]],
+      ["local to all", ["view_branch_alerts"], ["view_all_alerts"]],
+      ["all to local", ["view_all_alerts", "view_branch_alerts"], ["view_branch_alerts"]],
+      ["local to none", ["view_branch_alerts"], ["sell_and_charge"]],
+      ["all to none", ["view_all_alerts"], []],
+    ])(
+      "opens an alert for each active holder when the sight goes from %s",
+      async (_change, before, after) => {
+        const { store, edit } = fixture({ holders, permissions: before });
+
+        await edit({ name: "Cajera", permissionKeys: after });
+
+        expect(store.snapshot().recipientsChangedAlerts).toEqual(
+          ["u-2", "u-4"].map((holderId) => ({
+            holderId,
+            roleName: "Cajera",
+            actorId: "u-1",
+            openedAt: NOW,
+          })),
+        );
+      },
+    );
+
+    it.each([
+      [
+        "a permission with no alert sight is added",
+        ["sell_and_charge"],
+        ["sell_and_charge", "view_sales_history"],
+      ],
+      [
+        "view_branch_alerts is added to a role that holds view_all_alerts",
+        ["view_all_alerts"],
+        ["view_all_alerts", "view_branch_alerts"],
+      ],
+      [
+        "another permission is removed and the sight stays local",
+        ["view_branch_alerts", "sell_and_charge"],
+        ["view_branch_alerts"],
+      ],
+      ["only the name changes", ["view_all_alerts"], ["view_all_alerts"]],
+    ])("opens no alert when %s", async (_case, before, after) => {
+      const { store, edit } = fixture({ holders, permissions: before });
+
+      await edit({ name: "Cajera", permissionKeys: after });
+
+      expect(store.snapshot().recipientsChangedAlerts).toEqual([]);
+    });
+
+    it("opens no alert when the role has no active holders", async () => {
+      const { store, edit } = fixture({
+        holders: [{ id: "u-3", name: "Beto", active: false }],
+        permissions: ["sell_and_charge"],
+      });
+
+      await edit({ permissionKeys: ["view_all_alerts"] });
+
+      expect(store.snapshot().recipientsChangedAlerts).toEqual([]);
+    });
+
+    it("opens the alert after the access-increase alerts, once the holders are read", async () => {
+      const { store, edit } = fixture({ holders, permissions: ["sell_and_charge"] });
+
+      await edit({ permissionKeys: ["view_all_alerts"] });
+
+      expect(store.operationOrder).toEqual([
+        "lockRole",
+        "roleNameTaken",
+        "storedPermissionKeys",
+        "rewriteRole",
+        "recordRoleChange",
+        "activeRoleHolders",
+        "openAccessIncreasedAlert",
+        "openAccessIncreasedAlert",
+        "openRecipientsChangedAlert",
+        "openRecipientsChangedAlert",
+      ]);
+    });
+
+    it("rolls the edit back when opening an alert fails", async () => {
+      const { store, edit } = fixture({ holders, permissions: ["sell_and_charge"] });
+      const before = store.snapshot();
+      store.failingWrites.add("openRecipientsChangedAlert");
+
+      await expect(edit({ permissionKeys: ["view_branch_alerts"] })).rejects.toThrow(
+        "openRecipientsChangedAlert failed",
+      );
+
+      expect(store.snapshot()).toEqual(before);
+    });
+  });
 });

@@ -4,6 +4,7 @@ import {
   type NewRole,
   type RoleAccessIncrease,
   type RoleChange,
+  type RoleRecipientsChange,
   RoleNameConflict,
   type RoleRewrite,
   type RoleStore,
@@ -16,6 +17,7 @@ export interface FakeRoleStoreState {
   roles: FakeRole[];
   changes: RoleChange[];
   alerts: RoleAccessIncrease[];
+  recipientsChangedAlerts: RoleRecipientsChange[];
   createdRoles: number;
 }
 
@@ -23,7 +25,8 @@ type WriteOperation =
   | "insertRole"
   | "rewriteRole"
   | "recordRoleChange"
-  | "openAccessIncreasedAlert";
+  | "openAccessIncreasedAlert"
+  | "openRecipientsChangedAlert";
 
 const sameName = (left: string | null, right: string): boolean =>
   left !== null && left.toLowerCase() === right.toLowerCase();
@@ -100,6 +103,11 @@ class FakeRoleStoreTransaction implements RoleStoreTransaction {
     this.state.alerts.push(structuredClone(increase));
   }
 
+  async openRecipientsChangedAlert(change: RoleRecipientsChange): Promise<void> {
+    this.beforeWrite("openRecipientsChangedAlert");
+    this.state.recipientsChangedAlerts.push(structuredClone(change));
+  }
+
   private beforeWrite(operation: WriteOperation, writtenName?: string): void {
     this.store.operationOrder.push(operation);
     if (this.store.failingWrites.has(operation)) {
@@ -112,7 +120,13 @@ class FakeRoleStoreTransaction implements RoleStoreTransaction {
 }
 
 export class FakeRoleStore implements RoleStore {
-  private state: FakeRoleStoreState = { roles: [], changes: [], alerts: [], createdRoles: 0 };
+  private state: FakeRoleStoreState = {
+    roles: [],
+    changes: [],
+    alerts: [],
+    recipientsChangedAlerts: [],
+    createdRoles: 0,
+  };
 
   failingWrites = new Set<WriteOperation>();
   racedNames = new Set<string>();
