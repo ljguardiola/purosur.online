@@ -44,6 +44,10 @@ export const Large: Story = {
   args: { size: "large" },
 };
 
+export const NoneChosen: Story = {
+  args: { value: null },
+};
+
 export const NoIcon: Story = {
   args: {
     options: [
