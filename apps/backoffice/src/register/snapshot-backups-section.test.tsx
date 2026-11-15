@@ -354,3 +354,26 @@ test("has no accessibility violations once loaded and with each modal open", asy
   await expect.element(screen.getByRole("dialog", { name: "Cambiar las reglas" })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
+
+test("keeps every generation's state inside its own column in a container as narrow as the register panel", async () => {
+  const screen = await renderSection(
+    servicesWithBackups({
+      ...backups,
+      generations: [verifiedGeneration, failedGeneration, verifyingGeneration],
+    }),
+    { width: 325 },
+  );
+
+  await expect.element(screen.getByText("Verificando")).toBeVisible();
+  const header = screen.getByRole("columnheader", { name: "Estado" }).element();
+  const states = ["Verificada", "No pasó la verificación", "Verificando"].map((text) =>
+    screen.getByText(text).element(),
+  );
+  const columnRight = header.getBoundingClientRect().right;
+  expect(
+    states
+      .filter((state) => state.getBoundingClientRect().right > columnRight)
+      .map((state) => state.textContent),
+  ).toEqual([]);
+  expect(states.map((state) => state.getBoundingClientRect().height)).toEqual(states.map(() => 28));
+});

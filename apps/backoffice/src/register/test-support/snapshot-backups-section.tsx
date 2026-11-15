@@ -115,13 +115,15 @@ export function renderSection(
   {
     register = caja1,
     onSessionEnded = () => {},
+    width,
   }: {
     register?: SnapshotBackupRegister;
     onSessionEnded?: () => void;
+    width?: number;
   } = {},
 ) {
   return render(
-    <main>
+    <main style={width === undefined ? undefined : { width: `${width}px` }}>
       <SnapshotBackupsSection
         register={register}
         services={services}

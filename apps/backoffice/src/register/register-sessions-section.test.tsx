@@ -182,15 +182,35 @@ test("has no accessibility violations once loaded", async () => {
 });
 
 function paintedLineCount(element: Element): number {
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  return new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size;
+  const tops = new Set<number>();
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    for (const rect of range.getClientRects()) {
+      tops.add(Math.round(rect.top));
+    }
+  }
+  return tops.size;
 }
 
 const REGISTER_PANEL_WIDTH = 325;
 
 test("keeps each amount on one line in a container as narrow as the register panel", async () => {
-  const { screen } = await renderSection(undefined, undefined, { width: REGISTER_PANEL_WIDTH });
+  const largeAmounts = {
+    ...weekCashSessionClosesReport,
+    sessions: weekCashSessionClosesReport.sessions.map((session) => ({
+      ...session,
+      expected_cash: 155_532_100,
+      counted_cash: 155_517_600,
+      difference: -14_500,
+      has_difference: true,
+    })),
+  };
+  const read = vi
+    .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+    .mockResolvedValue({ kind: "ok", value: largeAmounts });
+  const { screen } = await renderSection(read, undefined, { width: REGISTER_PANEL_WIDTH });
 
   await expect.element(screen.getByRole("columnheader", { name: "Esperado" })).toBeVisible();
   const table = screen.getByRole("table");
