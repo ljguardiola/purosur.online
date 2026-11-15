@@ -1,5 +1,6 @@
 import {
   ALERT_CLOSINGS,
+  ALERT_EMAIL_STAGES,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
   CLOCK_PREVIOUS_READING_SOURCES,
@@ -17,20 +18,31 @@ import {
 import { z } from "zod";
 import { alertAudienceSchema, alertLevelSchema } from "./alert-summary.js";
 
+const alertRecipientSchema = z.object({
+  id: z.string(),
+  firstName: z.string(),
+  role: z.object({
+    id: z.string(),
+    name: z.string().nullable(),
+    isAdministrator: z.boolean(),
+  }),
+});
+
 const alertDeliverySchema = z.object({
   channel: z.string(),
   status: z.string(),
   error: z.string().nullable(),
   createdAt: z.string(),
-  recipient: z.object({
-    id: z.string(),
-    firstName: z.string(),
-    role: z.object({
-      id: z.string(),
-      name: z.string().nullable(),
-      isAdministrator: z.boolean(),
-    }),
-  }),
+  recipient: alertRecipientSchema,
+});
+
+const alertEmailDeliverySchema = z.object({
+  stage: z.enum(ALERT_EMAIL_STAGES),
+  status: z.enum(["pending", "sent", "failed"]),
+  error: z.string().nullable(),
+  createdAt: z.string(),
+  sentAt: z.string().nullable(),
+  recipient: alertRecipientSchema,
 });
 
 const actorName = z.string().optional();
@@ -383,6 +395,7 @@ const alertBase = {
   open: z.boolean(),
   closing: z.enum(ALERT_CLOSINGS),
   deliveries: z.array(alertDeliverySchema),
+  emailDeliveries: z.array(alertEmailDeliverySchema),
 };
 
 const alertDetailKinds = [
