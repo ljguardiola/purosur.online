@@ -1,5 +1,5 @@
 import { alertNamedRecordIds } from "@purosur/domain";
-import { closeAlert } from "@purosur/domain/alerts/use-cases";
+import { type AlertReader, closeAlert } from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
@@ -29,7 +29,7 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const reader = new DrizzleAlertReader(options.db);
+  const reader: AlertReader = new DrizzleAlertReader(options.db);
   const closingPorts = {
     store: new DrizzleAlertStore(options.db, now),
     clock: { now },

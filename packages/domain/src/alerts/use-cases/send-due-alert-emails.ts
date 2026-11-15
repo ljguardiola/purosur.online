@@ -5,35 +5,49 @@ import {
   nextAlertEmailAttemptAt,
   stillReceivesAlertEmails,
 } from "../model/alert-email.js";
-import type { SendDueAlertEmailsPorts } from "./alert-email-delivery-ports.js";
+import type {
+  AlertEmailBranchReader,
+  PendingAlertEmailDelivery,
+  SendDueAlertEmailsPorts,
+} from "./alert-email-delivery-ports.js";
 
-export interface SendDueAlertEmailsOutcome {
-  sent: number;
-  retrying: number;
-  failed: number;
-  skipped: number;
+export type SendDueAlertEmailsOutcome =
+  | { kind: "ran"; sent: number; retrying: number; failed: number; skipped: number }
+  | { kind: "lane_busy" };
+
+async function branchNameOf(
+  branches: AlertEmailBranchReader,
+  delivery: PendingAlertEmailDelivery,
+): Promise<string | null> {
+  return delivery.alertLocationId === null
+    ? null
+    : alertEmailBranchName(await branches.alertEmailBranchAddress(delivery.alertLocationId));
 }
 
 export async function sendDueAlertEmails({
   lanes,
+  recipients,
+  branches,
   sender,
   clock,
 }: SendDueAlertEmailsPorts): Promise<SendDueAlertEmailsOutcome> {
-  return lanes.inAlertEmailLane(async (store) => {
-    const outcome: SendDueAlertEmailsOutcome = { sent: 0, retrying: 0, failed: 0, skipped: 0 };
+  const run = await lanes.inAlertEmailLane(async (store) => {
+    const counts = { sent: 0, retrying: 0, failed: 0, skipped: 0 };
     const now = clock.now();
     const pending = await store.pendingEmailDeliveries();
     for (const delivery of pending.filter((candidate) => isAlertEmailDue(candidate, now))) {
-      if (
-        !stillReceivesAlertEmails({
-          active: delivery.recipientActive,
-          alertEmailOptedIn: delivery.recipientAlertEmailOptedIn,
-        })
-      ) {
-        await store.recordEmailSkipped(delivery.deliveryId);
-        outcome.skipped += 1;
+      if (delivery.attemptsMade >= ALERT_EMAIL_SEND_ATTEMPTS) {
+        await store.recordEmailGivenUp(delivery.deliveryId);
+        counts.failed += 1;
         continue;
       }
+      const recipient = await recipients.alertEmailRecipient(delivery.recipientUserId);
+      if (recipient === undefined || !stillReceivesAlertEmails(recipient)) {
+        await store.recordEmailSkipped(delivery.deliveryId);
+        counts.skipped += 1;
+        continue;
+      }
+      const branchName = await branchNameOf(branches, delivery);
       const attempt = delivery.attemptsMade + 1;
       await store.recordEmailAttempt(delivery.deliveryId, {
         attempt,
@@ -41,12 +55,12 @@ export async function sendDueAlertEmails({
       });
       const result = await sender.sendAlertEmail({
         deliveryId: delivery.deliveryId,
-        to: delivery.to,
+        to: recipient.email,
         alertId: delivery.alertId,
         kind: delivery.kind,
         stage: delivery.stage,
         level: delivery.level,
-        branchName: alertEmailBranchName(delivery.alertBranchAddress),
+        branchName,
         occurredAt: delivery.occurredAt,
       });
       if (result.kind === "sent") {
@@ -54,13 +68,14 @@ export async function sendDueAlertEmails({
           sentAt: clock.now(),
           providerMessageId: result.providerMessageId,
         });
-        outcome.sent += 1;
+        counts.sent += 1;
         continue;
       }
       const final = attempt >= ALERT_EMAIL_SEND_ATTEMPTS;
-      await store.recordEmailFailure(delivery.deliveryId, { error: result.error, final });
-      outcome[final ? "failed" : "retrying"] += 1;
+      await store.recordEmailFailure(delivery.deliveryId, { reason: result.reason, final });
+      counts[final ? "failed" : "retrying"] += 1;
     }
-    return outcome;
+    return counts;
   });
+  return run.kind === "busy" ? { kind: "lane_busy" } : { kind: "ran", ...run.result };
 }

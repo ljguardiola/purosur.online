@@ -1,4 +1,4 @@
-import { isAlertKind } from "@purosur/domain";
+import { isAlertKind, isEmailedAlertKind } from "@purosur/domain";
 import type {
   AlertEmailAttempt,
   AlertEmailDeliveryStore,
@@ -8,7 +8,7 @@ import type {
 } from "@purosur/domain/alerts/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { alertEmailDeliveries, alerts, branchSettings, users } from "../platform/db/schema.js";
+import { alertEmailDeliveries, alerts } from "../platform/db/schema.js";
 
 export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHKT>
   implements AlertEmailDeliveryStore
@@ -23,12 +23,10 @@ export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHK
     const rows = await this.db
       .select({
         deliveryId: alertEmailDeliveries.id,
-        to: users.email,
+        recipientUserId: alertEmailDeliveries.recipientUserId,
         alertId: alertEmailDeliveries.alertId,
         kind: alerts.kind,
-        alertBranchAddress: branchSettings.address,
-        recipientActive: users.active,
-        recipientAlertEmailOptedInAt: users.alertEmailOptedInAt,
+        alertLocationId: alerts.locationId,
         stage: alertEmailDeliveries.stage,
         level: alertEmailDeliveries.level,
         occurredAt: alertEmailDeliveries.occurredAt,
@@ -37,14 +35,10 @@ export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHK
       })
       .from(alertEmailDeliveries)
       .innerJoin(alerts, eq(alerts.id, alertEmailDeliveries.alertId))
-      .innerJoin(users, eq(users.id, alertEmailDeliveries.recipientUserId))
-      .leftJoin(branchSettings, eq(branchSettings.locationId, alerts.locationId))
       .where(eq(alertEmailDeliveries.status, "pending"))
       .orderBy(asc(alertEmailDeliveries.createdAt), asc(alertEmailDeliveries.id));
-    return rows.flatMap(({ kind, recipientAlertEmailOptedInAt, ...row }) =>
-      isAlertKind(kind)
-        ? [{ ...row, kind, recipientAlertEmailOptedIn: recipientAlertEmailOptedInAt !== null }]
-        : [],
+    return rows.flatMap(({ kind, ...row }) =>
+      isAlertKind(kind) && isEmailedAlertKind(kind) ? [{ ...row, kind }] : [],
     );
   }
 
@@ -77,7 +71,14 @@ export class DrizzleAlertEmailDeliveryStore<TQueryResult extends PgQueryResultHK
   async recordEmailFailure(deliveryId: string, failure: AlertEmailFailure): Promise<void> {
     await this.db
       .update(alertEmailDeliveries)
-      .set({ error: failure.error, ...(failure.final ? { status: "failed" as const } : {}) })
+      .set({ error: failure.reason, ...(failure.final ? { status: "failed" as const } : {}) })
+      .where(eq(alertEmailDeliveries.id, deliveryId));
+  }
+
+  async recordEmailGivenUp(deliveryId: string): Promise<void> {
+    await this.db
+      .update(alertEmailDeliveries)
+      .set({ status: "failed" })
       .where(eq(alertEmailDeliveries.id, deliveryId));
   }
 }

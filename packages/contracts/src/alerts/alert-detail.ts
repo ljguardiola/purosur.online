@@ -1,5 +1,6 @@
 import {
   ALERT_CLOSINGS,
+  ALERT_EMAIL_FAILURE_REASONS,
   ALERT_EMAIL_STAGES,
   type AlertKind,
   ARGENTINA_TIME_ZONE,
@@ -39,7 +40,7 @@ const alertDeliverySchema = z.object({
 const alertEmailDeliverySchema = z.object({
   stage: z.enum(ALERT_EMAIL_STAGES),
   status: z.enum(["pending", "sent", "failed", "skipped"]),
-  error: z.string().nullable(),
+  error: z.enum(ALERT_EMAIL_FAILURE_REASONS).nullable(),
   createdAt: z.string(),
   sentAt: z.string().nullable(),
   recipient: alertRecipientSchema,

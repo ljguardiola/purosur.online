@@ -564,7 +564,7 @@ export async function setUpBackgroundJobs(
     jobs: [
       accessEmailJobs({ now, backofficeOrigin: backgroundJobsEnv.backofficeOrigin, emailSender }),
       alertEscalationJobs({ now }),
-      alertEmailDeliveryJobs({ now, sender: alertEmailSender, connections }),
+      alertEmailDeliveryJobs({ now, sender: alertEmailSender, db, connections }),
       alertConditionResolutionJobs({ now, zoneRules }),
       arcaCertificateExpiryJobs({ now, ...backgroundJobsEnv.arcaCertificate }),
       ...(backgroundJobsEnv.offsiteDumpCheck

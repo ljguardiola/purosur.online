@@ -4,6 +4,8 @@ export interface ResendApiOptions {
 }
 
 const RESEND_API_URL = "https://api.resend.com/emails";
+
+export class ResendRefusalError extends Error {}
 // The worker runs two jobs at a time, so a Resend request that never answers would hold one of
 // those two slots and delay every other email.
 const RESEND_TIMEOUT_MS = 10_000;
@@ -34,7 +36,7 @@ export async function postResendEmail(
     });
     const responseBody = await response.text();
     if (!response.ok) {
-      throw new Error(`Resend API responded ${response.status}: ${responseBody}`);
+      throw new ResendRefusalError(`Resend API responded ${response.status}: ${responseBody}`);
     }
     return responseBody;
   } finally {

@@ -1,29 +1,4 @@
-import type { AlertKind } from "@purosur/domain";
-
-type EmailedAlertKind =
-  | "backoffice_passkey_changed"
-  | "backoffice_recovery_requested"
-  | "user_email_changed"
-  | "alert_recipients_changed"
-  | "backoffice_sign_in_lockout"
-  | "user_access_increased"
-  | "register_enrolled"
-  | "events_quarantined"
-  | "arca_certificate_expiring"
-  | "update_required"
-  | "register_silent"
-  | "sales_denied"
-  | "fiscal_rejected"
-  | "fiscal_unknown"
-  | "fiscal_emission_stopped"
-  | "clock_drift"
-  | "register_replenishment_failed"
-  | "on_battery"
-  | "outbox_chain_broken"
-  | "offsite_dump_unverified"
-  | "fortnight_report_overdue"
-  | "register_backup_overdue"
-  | "fortnight_report_document_rejected";
+import type { EmailedAlertKind } from "@purosur/domain";
 
 export interface AlertEmailKindTexts {
   label: string;
@@ -45,7 +20,7 @@ const ALERT_EMAIL_KIND_TEXTS = {
   },
   alert_recipients_changed: {
     label: "Cambió quién recibe alertas por email",
-    description: "Alguien empezó o dejó de recibir las alertas por email.",
+    description: "Cambió quién recibe las alertas por email o cuáles recibe.",
   },
   backoffice_sign_in_lockout: {
     label: "Bloqueo de ingreso",
@@ -128,8 +103,6 @@ const ALERT_EMAIL_KIND_TEXTS = {
   },
 } satisfies Record<EmailedAlertKind, AlertEmailKindTexts>;
 
-export function alertEmailKindTexts(kind: AlertKind): AlertEmailKindTexts | undefined {
-  return Object.hasOwn(ALERT_EMAIL_KIND_TEXTS, kind)
-    ? ALERT_EMAIL_KIND_TEXTS[kind as EmailedAlertKind]
-    : undefined;
+export function alertEmailKindTexts(kind: EmailedAlertKind): AlertEmailKindTexts {
+  return ALERT_EMAIL_KIND_TEXTS[kind];
 }

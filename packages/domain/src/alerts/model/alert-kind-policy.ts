@@ -489,6 +489,16 @@ export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
   return ALERT_KIND_POLICIES[kind];
 }
 
+export type EmailedAlertKind = {
+  [Kind in AlertKind]: (typeof ALERT_KIND_POLICIES)[Kind]["emailStages"] extends readonly []
+    ? never
+    : Kind;
+}[AlertKind];
+
+export function isEmailedAlertKind(kind: AlertKind): kind is EmailedAlertKind {
+  return ALERT_KIND_POLICIES[kind].emailStages.length > 0;
+}
+
 export function alertKindsWithScope(scopeKind: AlertScopeKind): AlertKind[] {
   return ALERT_KINDS.filter((kind) => ALERT_KIND_POLICIES[kind].scopeKind === scopeKind);
 }

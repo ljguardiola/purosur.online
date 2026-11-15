@@ -1,5 +1,5 @@
 import type { AlertEmailSender } from "@purosur/domain/alerts/use-cases";
-import { postResendEmail } from "../platform/resend-email-api.js";
+import { postResendEmail, ResendRefusalError } from "../platform/resend-email-api.js";
 import { alertEmailContent } from "./alert-email-content.js";
 
 export interface ResendAlertEmailSenderOptions {
@@ -39,8 +39,8 @@ export function createResendAlertEmailSender(
   const from = alertSenderOf(options.emailFrom);
   return {
     async sendAlertEmail(email) {
+      const content = alertEmailContent(email, options.backofficeOrigin);
       try {
-        const content = alertEmailContent(email, options.backofficeOrigin);
         const responseBody = await postResendEmail(
           options,
           {
@@ -55,10 +55,13 @@ export function createResendAlertEmailSender(
         );
         const providerMessageId = providerMessageIdOf(responseBody);
         return providerMessageId === undefined
-          ? { kind: "failed", error: "Resend API accepted the email without a message id" }
+          ? { kind: "failed", reason: "provider_unconfirmed" }
           : { kind: "sent", providerMessageId };
       } catch (error) {
-        return { kind: "failed", error: error instanceof Error ? error.message : String(error) };
+        return {
+          kind: "failed",
+          reason: error instanceof ResendRefusalError ? "provider_refused" : "provider_unreachable",
+        };
       }
     },
   };

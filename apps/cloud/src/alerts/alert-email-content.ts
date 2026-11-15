@@ -37,9 +37,6 @@ function escapeHtml(value: string): string {
 
 export function alertEmailContent(email: AlertEmail, backofficeOrigin: string): AlertEmailContent {
   const texts = alertEmailKindTexts(email.kind);
-  if (!texts) {
-    throw new Error(`alert kind ${email.kind} is not sent by email`);
-  }
   const facts = [
     `Nivel: ${LEVEL_NAMES[email.level]}`,
     ...(email.branchName === null ? [] : [`Sucursal: ${email.branchName}`]),

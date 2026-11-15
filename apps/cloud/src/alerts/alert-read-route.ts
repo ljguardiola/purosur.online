@@ -11,7 +11,12 @@ import {
   isOpenAlert,
   type ZoneRules,
 } from "@purosur/domain";
-import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
+import type {
+  AlertDelivery,
+  AlertDetailView,
+  AlertEmailDeliveryView,
+  AlertReader,
+} from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
@@ -26,7 +31,7 @@ import {
 import { visibleSightOf } from "./alert-route-sight.js";
 import { holdsOnlySourceAddressHash, scopeDisplay, wireScope } from "./alert-scope-wire.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
-import { type AlertEmailDeliveryRow, DrizzleAlertReader } from "./drizzle-alert-reader.js";
+import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
 export const ALERT_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -103,7 +108,7 @@ function toAlertDelivery(row: AlertDelivery): AlertDetail["deliveries"][number] 
   };
 }
 
-function toAlertEmailDelivery(row: AlertEmailDeliveryRow): AlertDetail["emailDeliveries"][number] {
+function toAlertEmailDelivery(row: AlertEmailDeliveryView): AlertDetail["emailDeliveries"][number] {
   return {
     stage: row.stage,
     status: row.status,
@@ -133,7 +138,7 @@ function detailWithoutSourceAddressHash(alert: AlertDetailView): Record<string, 
 export function toAlertDetailBody(
   alert: AlertDetailView,
   deliveries: AlertDelivery[],
-  emailDeliveries: AlertEmailDeliveryRow[],
+  emailDeliveries: AlertEmailDeliveryView[],
   namesById: ReadonlyMap<string, string>,
   now: Date,
   viewer: { locationId: string },
@@ -196,7 +201,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const reader = new DrizzleAlertReader(options.db);
+      const reader: AlertReader = new DrizzleAlertReader(options.db);
       const alert = await reader.findVisibleAlert(sight, ids.id);
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);

@@ -3,9 +3,13 @@ export type { AlertConditionObservation } from "../model/alert-condition-observa
 export type {
   AlertEmail,
   AlertEmailAttempt,
+  AlertEmailBranchReader,
   AlertEmailDeliveryStore,
   AlertEmailFailure,
+  AlertEmailLaneRun,
   AlertEmailLanes,
+  AlertEmailRecipient,
+  AlertEmailRecipientReader,
   AlertEmailSender,
   AlertEmailSendResult,
   AlertEmailSent,
@@ -15,6 +19,7 @@ export type {
 export type {
   AlertDelivery,
   AlertDetailView,
+  AlertEmailDeliveryView,
   AlertListFilters,
   AlertListPage,
   AlertReader,

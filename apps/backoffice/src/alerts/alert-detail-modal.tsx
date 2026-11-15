@@ -3,7 +3,7 @@ import {
   alertDetailSchema,
   type PermissionCatalogWire,
 } from "@purosur/contracts";
-import type { AlertLevel } from "@purosur/domain";
+import type { AlertEmailFailureReason, AlertLevel } from "@purosur/domain";
 import {
   Button,
   ButtonLink,
@@ -48,6 +48,7 @@ import {
   LifeBuoy,
   Mail,
   MailCheck,
+  MailX,
   PackageX,
   ShieldAlert,
   ShieldPlus,
@@ -1012,6 +1013,12 @@ const EMAIL_STATUS_TONE = {
   skipped: "neutral",
 } as const;
 
+const EMAIL_FAILURE_REASON_TEXTS: Record<AlertEmailFailureReason, string> = {
+  provider_refused: "el proveedor de email rechazó el envío",
+  provider_unreachable: "el proveedor de email no respondió",
+  provider_unconfirmed: "el proveedor de email no confirmó el envío",
+};
+
 function emailDeliveryStatusText(delivery: AlertDetail["emailDeliveries"][number]): string {
   switch (delivery.status) {
     case "pending":
@@ -1019,7 +1026,9 @@ function emailDeliveryStatusText(delivery: AlertDetail["emailDeliveries"][number
     case "sent":
       return "Enviado";
     case "failed":
-      return `No se pudo enviar${delivery.error ? `: ${delivery.error}` : ""}`;
+      return delivery.error === null
+        ? "No se pudo enviar"
+        : `No se pudo enviar: ${EMAIL_FAILURE_REASON_TEXTS[delivery.error]}`;
     case "skipped":
       return "No se envió: ya no recibe alertas por email";
   }
@@ -1226,7 +1235,11 @@ function OpenAlertDetailModal({
             <div className="flex flex-col gap-2">
               <p className="font-bold text-text text-detail">Aviso por email</p>
               {alert.emailDeliveries.length === 0 ? (
-                <p className="text-text-subtle text-detail">Nadie recibió esta alerta por email.</p>
+                <EmptyState
+                  icon={<MailX />}
+                  title="Nadie recibió esta alerta por email"
+                  variant="blank"
+                />
               ) : (
                 <div className="flex flex-col gap-1 rounded-lg border border-border text-left text-detail">
                   {alert.emailDeliveries.map((delivery) => (

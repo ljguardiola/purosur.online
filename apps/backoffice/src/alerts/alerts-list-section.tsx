@@ -159,8 +159,8 @@ export function AlertsListSection({
       setSearchQuery(filters.search.trim());
       setPage(filters.page);
     }
-    if ((filters.alert ?? null) !== selectedAlertId) {
-      setSelectedAlertId(filters.alert ?? null);
+    if (filters.alert !== undefined && filters.alert !== seenFilters.alert) {
+      setSelectedAlertId(filters.alert);
     }
   }
 
@@ -172,7 +172,9 @@ export function AlertsListSection({
       status: statusFilter,
       search,
       page,
-      ...(selectedAlertId === null ? {} : { alert: selectedAlertId }),
+      ...(filters.alert !== undefined && filters.alert === selectedAlertId
+        ? { alert: filters.alert }
+        : {}),
     };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);

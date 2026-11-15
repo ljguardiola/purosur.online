@@ -1,4 +1,8 @@
-import type { AlertEmailDeliveryStore, AlertEmailLanes } from "@purosur/domain/alerts/use-cases";
+import type {
+  AlertEmailDeliveryStore,
+  AlertEmailLaneRun,
+  AlertEmailLanes,
+} from "@purosur/domain/alerts/use-cases";
 import { sql } from "drizzle-orm";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
@@ -17,12 +21,17 @@ export class DrizzleAlertEmailLanes<TQueryResult extends PgQueryResultHKT>
 
   inAlertEmailLane<TOutcome>(
     work: (store: AlertEmailDeliveryStore) => Promise<TOutcome>,
-  ): Promise<TOutcome> {
+  ): Promise<AlertEmailLaneRun<TOutcome>> {
     return this.connections.withConnection(async (db) => {
       const key = sql`hashtextextended(${ALERT_EMAIL_LOCK_KEY}, 0)`;
-      await db.execute(sql`select pg_advisory_lock(${key})`);
+      const [lock] = await db
+        .select({ held: sql<boolean>`pg_try_advisory_lock(${key})` })
+        .from(sql`(values (1)) as attempt(one)`);
+      if (lock?.held !== true) {
+        return { kind: "busy" };
+      }
       try {
-        return await work(new DrizzleAlertEmailDeliveryStore(db));
+        return { kind: "ran", result: await work(new DrizzleAlertEmailDeliveryStore(db)) };
       } finally {
         await db.execute(sql`select pg_advisory_unlock(${key})`);
       }

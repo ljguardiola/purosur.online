@@ -1,5 +1,7 @@
 import type { SalesDeniedReason } from "../../register/index.js";
 import type { AlertAudience, AlertKind, AlertLevel } from "../model/alert-catalog.js";
+import type { AlertEmailFailureReason } from "../model/alert-email.js";
+import type { AlertEmailStage } from "../model/alert-kind-policy.js";
 import type { VisibleAlertSight } from "../model/alert-visibility.js";
 
 interface AlertRecord {
@@ -59,6 +61,19 @@ export interface AlertDelivery {
   recipientRoleIsAdministrator: boolean;
 }
 
+export interface AlertEmailDeliveryView {
+  stage: AlertEmailStage;
+  status: "pending" | "sent" | "failed" | "skipped";
+  error: AlertEmailFailureReason | null;
+  createdAt: Date;
+  sentAt: Date | null;
+  recipientId: string;
+  recipientFirstName: string;
+  recipientRoleId: string;
+  recipientRoleName: string | null;
+  recipientRoleIsAdministrator: boolean;
+}
+
 export interface AlertReader {
   findVisibleAlert(sight: VisibleAlertSight, alertId: string): Promise<AlertDetailView | undefined>;
   listVisibleAlerts(
@@ -68,5 +83,6 @@ export interface AlertReader {
   ): Promise<AlertListPage>;
   overviewOfOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertsOverview>;
   deliveriesOf(alertId: string): Promise<AlertDelivery[]>;
+  emailDeliveriesOf(alertId: string): Promise<AlertEmailDeliveryView[]>;
   displayNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;
 }

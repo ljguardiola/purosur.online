@@ -4,6 +4,18 @@ import { alertSightOf, canSeeAlert } from "./alert-visibility.js";
 
 export const ALERT_EMAIL_SEND_ATTEMPTS = 5;
 
+export const ALERT_EMAIL_FAILURE_REASONS = [
+  "provider_refused",
+  "provider_unreachable",
+  "provider_unconfirmed",
+] as const;
+
+export type AlertEmailFailureReason = (typeof ALERT_EMAIL_FAILURE_REASONS)[number];
+
+export function isAlertEmailFailureReason(text: string): text is AlertEmailFailureReason {
+  return (ALERT_EMAIL_FAILURE_REASONS as readonly string[]).includes(text);
+}
+
 const FIRST_RETRY_DELAY_MS = 60 * 1000;
 
 export interface AlertEmailCandidate {

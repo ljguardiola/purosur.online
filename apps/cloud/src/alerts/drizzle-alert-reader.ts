@@ -1,7 +1,7 @@
 import {
-  type AlertEmailStage,
   type AlertKind,
   alertKindsWithScope,
+  isAlertEmailFailureReason,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   SALES_DENIED_REASONS,
   type SalesDeniedReason,
@@ -10,6 +10,7 @@ import {
 import type {
   AlertDelivery,
   AlertDetailView,
+  AlertEmailDeliveryView,
   AlertListFilters,
   AlertListPage,
   AlertReader,
@@ -35,19 +36,6 @@ import { closedAlertCondition, openAlertCondition } from "./open-alert-condition
 import { openAlertsOverviewOf } from "./open-alerts-overview.js";
 
 export const ALERTS_PAGE_SIZE = 25;
-
-export interface AlertEmailDeliveryRow {
-  stage: AlertEmailStage;
-  status: "pending" | "sent" | "failed" | "skipped";
-  error: string | null;
-  createdAt: Date;
-  sentAt: Date | null;
-  recipientId: string;
-  recipientFirstName: string;
-  recipientRoleId: string;
-  recipientRoleName: string | null;
-  recipientRoleIsAdministrator: boolean;
-}
 
 function sightCondition(sight: VisibleAlertSight): SQL | undefined {
   if (sight.kind === "all") {
@@ -200,8 +188,8 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .orderBy(asc(alertDeliveries.createdAt), asc(alertDeliveries.id));
   }
 
-  async emailDeliveriesOf(alertId: string): Promise<AlertEmailDeliveryRow[]> {
-    return this.db
+  async emailDeliveriesOf(alertId: string): Promise<AlertEmailDeliveryView[]> {
+    const rows = await this.db
       .select({
         stage: alertEmailDeliveries.stage,
         status: alertEmailDeliveries.status,
@@ -220,6 +208,10 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .where(eq(alertEmailDeliveries.alertId, alertId))
       .orderBy(asc(alertEmailDeliveries.stage), asc(users.firstName), asc(users.id));
+    return rows.map(({ error, ...row }) => ({
+      ...row,
+      error: error !== null && isAlertEmailFailureReason(error) ? error : null,
+    }));
   }
 
   async displayNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {
