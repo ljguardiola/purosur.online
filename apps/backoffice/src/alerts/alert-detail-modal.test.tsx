@@ -3657,6 +3657,7 @@ test.each([
   ["provider_refused", "No se pudo enviar: el proveedor de email rechazó el envío"],
   ["provider_unreachable", "No se pudo enviar: el proveedor de email no respondió"],
   ["provider_unconfirmed", "No se pudo enviar: el proveedor de email no confirmó el envío"],
+  ["provider_undelivered", "No se pudo enviar: el proveedor de email no pudo entregarlo"],
   [null, "No se pudo enviar"],
 ] as const)("tells in Spanish why an email failed with %s", async (error, text) => {
   const services = createServices();
