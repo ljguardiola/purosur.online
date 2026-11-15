@@ -138,7 +138,7 @@ test("sends a person with only purchase_order_reads away from the price tabs to 
   await expectTabs(screen, ["Pedidos"]);
 });
 
-test("shows no section column beside the Compras tabs, with Pedidos kept selected on every order tab", async () => {
+test("shows no section column beside the Compras tabs, with Comparar precios selected on the price comparison", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads", "price_comparison"]);
   window.history.pushState(null, "", "/purchase-orders/comparison");
 

@@ -140,6 +140,17 @@ test("keeps the returns history's filters in the address", async () => {
     .toBe("?register=11111111-1111-4111-8111-111111111111");
 });
 
+test("links the area tab to Pendientes unfiltered while the returns history is filtered by a register", async () => {
+  const services = refundsServices(["refunds_area", "returns_report"]);
+  window.history.pushState(null, "", `/refunds/history?register=${BACK_REGISTER_ID}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("radio", { name: "Historial" })).toBeChecked();
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
+    .toHaveAttribute("href", "/refunds");
+});
+
 test("shows only Historial to a person with returns_report alone, and sends /refunds to it", async () => {
   const services = refundsServices(["returns_report"]);
   window.history.pushState(null, "", "/refunds");

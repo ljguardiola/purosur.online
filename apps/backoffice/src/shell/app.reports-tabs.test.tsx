@@ -306,81 +306,73 @@ test.each([
   {
     path: "/reports/sales-by-day",
     tab: "Ventas",
-    title: "Ventas por día o por rango",
     option: "Por día",
   },
   {
     path: "/reports/sales-by-payment-method",
     tab: "Ventas",
-    title: "Ventas por medio de pago",
     option: "Por medio de pago",
   },
   {
     path: "/reports/sales-by-product-and-category",
     tab: "Ventas",
-    title: "Ventas por producto y por categoría",
     option: "Por producto y categoría",
   },
   {
     path: "/reports/sales-by-cashier",
     tab: "Ventas",
-    title: "Ventas por cajero",
     option: "Por cajero",
   },
   {
     path: "/reports/average-ticket",
     tab: "Ventas",
-    title: "Ticket promedio",
     option: "Ticket promedio",
   },
   {
     path: "/reports/sales-by-promotion",
     tab: "Descuentos y control",
-    title: "Descuentos por promoción",
     option: "Por promoción",
   },
   {
     path: "/reports/manual-discounts",
     tab: "Descuentos y control",
-    title: "Descuentos manuales y sobre el total",
     option: "Manuales y sobre el total",
   },
   {
     path: "/reports/cash-rounding",
     tab: "Descuentos y control",
-    title: "Redondeo en efectivo",
     option: "Redondeo en efectivo",
   },
   {
     path: "/reports/hand-typed-weights",
     tab: "Descuentos y control",
-    title: "Pesos tipeados a mano",
     option: "Pesos tipeados a mano",
   },
   {
     path: "/reports/margin",
     tab: "Rentabilidad",
-    title: "Margen por producto y por categoría",
     option: "Margen por producto y categoría",
   },
   {
     path: "/reports/mercado-pago-charge-costs",
     tab: "Rentabilidad",
-    title: "Costos de Mercado Pago",
     option: "Costos de Mercado Pago",
   },
-])("keeps $path working, under $tab, titled $title", async ({ path, tab, option }) => {
-  const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
-  window.history.pushState(null, "", path);
+])(
+  "keeps $path working, under the selected $tab tab with $option checked",
+  async ({ path, tab, option }) => {
+    const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
+    window.history.pushState(null, "", path);
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe(path);
-  expect(shownEyebrow()).toBeNull();
-  await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
-  await expect.element(screen.getByRole("radio", { name: option })).toBeChecked();
-});
+    await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+    expect(window.location.pathname).toBe(path);
+    expect(shownEyebrow()).toBeNull();
+    await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: option })).toBeChecked();
+  },
+);
 
 test("shows only Rentabilidad, on the charge costs, to a person with only that permission", async () => {
   const services = reportsServices(["mercado_pago_charge_costs"]);

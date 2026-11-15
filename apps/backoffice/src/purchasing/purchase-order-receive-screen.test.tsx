@@ -5,6 +5,7 @@ import { userEvent } from "vitest/browser";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
+import { shownEyebrow } from "../shell/test-support/eyebrow";
 import { render } from "../shell/test-support/render-with-router";
 import { PurchaseOrderReceiveScreen } from "./purchase-order-receive-screen";
 import type { PurchaseOrderReceiveScreenServices } from "./purchase-order-receive-services";
@@ -107,6 +108,12 @@ test("prefills one line per line of the draft, loaded the way the draft loads it
   await expect.element(avena.getByRole("textbox", { name: /^Cantidad/ })).toHaveValue("12,500");
   await expect.element(avena.getByRole("textbox", { name: /^Costo por kg/ })).toHaveValue("");
   expect(line(screen, 3).query()).toBeNull();
+});
+
+test("names the order's supplier in the heading, with nothing above it", async () => {
+  await opened();
+
+  expect(shownEyebrow()).toBeNull();
 });
 
 test("shows the order's supplier, which cannot be chosen, and dates the receipt today", async () => {
@@ -326,7 +333,7 @@ test("cancel goes back to the order", async () => {
   expect(window.history.state).not.toMatchObject({ purchaseOrderReceived: true });
 });
 
-test("shows a placeholder while the draft loads, with no way to register and a way back", async () => {
+test("shows a placeholder while the draft loads under the bare heading, with no way to register and a way back", async () => {
   const pending =
     deferred<
       Awaited<ReturnType<PurchaseOrderReceiveScreenServices["fetchPurchaseOrderReceiptDraft"]>>
@@ -339,6 +346,7 @@ test("shows a placeholder while the draft loads, with no way to register and a w
   await expect
     .element(screen.getByRole("heading", { name: "Recibir pedido", level: 1 }))
     .toBeVisible();
+  expect(shownEyebrow()).toBeNull();
   await expect.element(screen.getByRole("button", { name: "Volver al pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Registrar la recepción" }).query()).toBeNull();
 });
