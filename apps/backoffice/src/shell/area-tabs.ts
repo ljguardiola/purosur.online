@@ -2,7 +2,7 @@ import type { LinkProps } from "@tanstack/react-router";
 import type { PagePart } from "../platform/page-parts";
 import type { BackofficeAccess } from "./backoffice-access";
 
-export type AreaTabTarget = NonNullable<LinkProps["to"]>;
+type AreaTabTarget = NonNullable<LinkProps["to"]>;
 
 export type AreaTab<Key extends string = string> = {
   key: Key;
