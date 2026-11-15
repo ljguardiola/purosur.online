@@ -259,6 +259,7 @@ export function MercadoPagoChargeCostsScreen({
           filters={filters}
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
+          periodShortcuts
         />
         <ListFilter
           name="group"
