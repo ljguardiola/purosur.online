@@ -28,13 +28,14 @@ function fakeFetch(response: { ok: boolean; status: number; body: string }) {
   });
 }
 
-function senderWith(fetch: typeof globalThis.fetch) {
+function senderWith(fetch: typeof globalThis.fetch, warn: (message: string) => void = () => {}) {
   return createResendAlertEmailSender({
     apiKey: "re_test_key",
     emailFrom: FICTIONAL_RECOVERY_SENDER,
     replyTo: FICTIONAL_RECOVERY_REPLY_TO,
     backofficeOrigin: ORIGIN,
     fetch,
+    warn,
   });
 }
 
@@ -107,5 +108,49 @@ describe("createResendAlertEmailSender", () => {
     const result = await senderWith(fetch).sendAlertEmail(EMAIL);
 
     expect(result).toEqual({ kind: "failed", reason: "provider_unconfirmed" });
+  });
+
+  it.each([
+    [
+      "a refusal",
+      fakeFetch({ ok: false, status: 429, body: "rate limited" }),
+      "Resend API responded 429: rate limited",
+    ],
+    [
+      "an unreachable provider",
+      vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED")),
+      "connect ECONNREFUSED",
+    ],
+    [
+      "an unconfirmed email",
+      fakeFetch({ ok: true, status: 200, body: "{}" }),
+      "Resend API accepted the email without a message id",
+    ],
+  ])(
+    "logs the provider's own error of %s with the alert, delivery and stage, and never the recipient or the body",
+    async (_case, fetch, providerError) => {
+      const warn = vi.fn();
+
+      await senderWith(fetch, warn).sendAlertEmail(EMAIL);
+
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        `Alert email not sent (alert alert-1, delivery delivery-1, stage escalated): ${providerError}`,
+      );
+      const logged = String(warn.mock.calls[0]?.[0]);
+      const content = alertEmailContent(EMAIL, ORIGIN);
+      expect(logged).not.toContain(EMAIL.to);
+      expect(logged).not.toContain(content.subject);
+    },
+  );
+
+  it("logs nothing when the email is sent", async () => {
+    const warn = vi.fn();
+
+    await senderWith(
+      fakeFetch({ ok: true, status: 200, body: '{"id":"msg-1"}' }),
+      warn,
+    ).sendAlertEmail(EMAIL);
+
+    expect(warn).not.toHaveBeenCalled();
   });
 });
