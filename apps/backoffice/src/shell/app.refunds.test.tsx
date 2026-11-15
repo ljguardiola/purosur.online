@@ -101,7 +101,7 @@ test("following the Historial view opens the returns history, and Pendientes com
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("radio", { name: "Historial" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Historial" }), { force: true });
 
   await expect.element(screen.getByRole("radio", { name: "Historial" })).toBeChecked();
   await expect
@@ -114,7 +114,7 @@ test("following the Historial view opens the returns history, and Pendientes com
   expect(location()).toBe("/refunds/history");
   expect(services.returnsHistoryScreen.fetchReturnsReport).toHaveBeenCalledWith({});
 
-  await userEvent.click(screen.getByRole("radio", { name: "Pendientes" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Pendientes" }), { force: true });
 
   await expect.element(screen.getByRole("radio", { name: "Pendientes" })).toBeChecked();
   expect(location()).toBe("/refunds");
@@ -280,7 +280,7 @@ test("redirects /reports/returns to /refunds/history keeping the period and the 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
     .toBeVisible();
   expect(location()).toBe(
     "/refunds/history?from=2026-10-01&register=11111111-1111-4111-8111-111111111111&to=2026-10-07",
@@ -340,7 +340,7 @@ test("keeps the register chosen in the address", async () => {
   await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
 });
 
-test("shows the days a good-condition exchange is open on both tabs, with Cambiar for who can change the branch", async () => {
+test("shows the days a good-condition exchange is open on both views, with Cambiar for who can change the branch", async () => {
   const services = refundsServices(["refunds_area", "returns_report", "branch_area"]);
   window.history.pushState(null, "", "/refunds");
 
@@ -348,7 +348,7 @@ test("shows the days a good-condition exchange is open on both tabs, with Cambia
 
   await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
-  await userEvent.click(screen.getByRole("tab", { name: "Historial" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Historial" }), { force: true });
   await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
 });

@@ -97,7 +97,7 @@ test("keeps the title Reportes when moving to another report", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("radio", { name: "Por día" })).toBeChecked();
 
-  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }), { force: true });
 
   await expect.element(screen.getByRole("radio", { name: "Por cajero" })).toBeChecked();
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();

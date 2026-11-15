@@ -152,7 +152,7 @@ test("redirects the old /location-settings address to /branch", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Sucursal", selected: true })).toBeVisible();
   expect(window.location.pathname).toBe("/branch");
 });
 

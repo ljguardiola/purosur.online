@@ -26,7 +26,7 @@ test("titles the document after the page being shown", async () => {
 
   await expect.poll(() => document.title).toBe("Ayuda · Puro Sur");
 
-  await userEvent.click(screen.getByRole("link", { name: "Primeros pasos" }));
+  await userEvent.click(screen.getByRole("tab", { name: "Primeros pasos" }));
   await expect.poll(() => document.title).toBe("Primeros pasos · Ayuda · Puro Sur");
 
   await userEvent.click(screen.getByRole("link", { name: "Bienvenida" }));
@@ -182,7 +182,7 @@ test("opens every help page at the top of its content, not where the previous pa
 
   await userEvent.click(link);
 
-  await expect.element(screen.getByRole("heading", { name: "Catálogo", level: 1 })).toHaveFocus();
+  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 1 })).toHaveFocus();
   expect(scrollingAncestor(screen.getByRole("searchbox").element()).scrollTop).toBe(0);
 });
 
