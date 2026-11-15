@@ -27,7 +27,11 @@ describe("createResendAlertEmailStatusQuery", () => {
   it.each(["bounced", "failed", "suppressed", "canceled"])(
     "answers undelivered for an email whose last event is %s",
     async (lastEvent) => {
-      const fetch = fakeFetch({ ok: true, status: 200, body: JSON.stringify({ last_event: lastEvent }) });
+      const fetch = fakeFetch({
+        ok: true,
+        status: 200,
+        body: JSON.stringify({ last_event: lastEvent }),
+      });
 
       await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
         kind: "undelivered",
@@ -38,7 +42,11 @@ describe("createResendAlertEmailStatusQuery", () => {
   it.each(["delivered", "opened", "clicked", "complained"])(
     "answers delivered for an email whose last event is %s",
     async (lastEvent) => {
-      const fetch = fakeFetch({ ok: true, status: 200, body: JSON.stringify({ last_event: lastEvent }) });
+      const fetch = fakeFetch({
+        ok: true,
+        status: 200,
+        body: JSON.stringify({ last_event: lastEvent }),
+      });
 
       await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
         kind: "delivered",
@@ -49,7 +57,11 @@ describe("createResendAlertEmailStatusQuery", () => {
   it.each(["sent", "queued", "scheduled", "delivery_delayed", "a_future_event"])(
     "answers in transit for an email whose last event is %s",
     async (lastEvent) => {
-      const fetch = fakeFetch({ ok: true, status: 200, body: JSON.stringify({ last_event: lastEvent }) });
+      const fetch = fakeFetch({
+        ok: true,
+        status: 200,
+        body: JSON.stringify({ last_event: lastEvent }),
+      });
 
       await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
         kind: "in_transit",
