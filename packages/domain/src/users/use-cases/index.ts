@@ -86,3 +86,9 @@ export type {
   UserStoreTransaction,
 } from "./user-store.js";
 export { UserEmailConflict } from "./user-store.js";
+export type {
+  WithdrawOwnAlertEmailOptInInput,
+  WithdrawOwnAlertEmailOptInOutcome,
+  WithdrawOwnAlertEmailOptInPorts,
+} from "./withdraw-own-alert-email-opt-in.js";
+export { withdrawOwnAlertEmailOptIn } from "./withdraw-own-alert-email-opt-in.js";
