@@ -486,6 +486,7 @@ test("creating a user reads users and roles again from the server, keeping the s
   const dialog = await openNewUserModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await chooseRole(dialog, "Administrador");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -506,7 +507,12 @@ async function openNewUserModal(screen: Awaited<ReturnType<typeof renderUsersLis
   return screen.getByRole("dialog");
 }
 
-test("opens the create modal preselecting the only role, and cancel closes it without calling the API", async () => {
+async function chooseRole(dialog: Awaited<ReturnType<typeof openNewUserModal>>, roleName: string) {
+  await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
+  await userEvent.click(page.getByRole("option", { name: roleName }));
+}
+
+test("opens the create modal with no role chosen, and cancel closes it without calling the API", async () => {
   const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderUsersList(services);
@@ -515,13 +521,92 @@ test("opens the create modal preselecting the only role, and cancel closes it wi
   const dialog = await openNewUserModal(screen);
 
   await expect.element(dialog.getByRole("heading", { name: "Nuevo usuario" })).toBeVisible();
-  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("Administrador");
+  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("");
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Rol/ }))
+    .toHaveAttribute("placeholder", "Elegí un rol");
   expect(dialog.getByText("Se pide tu passkey para confirmar.").query()).toBeNull();
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   expect(services.createUser).not.toHaveBeenCalled();
+});
+
+test("refuses to create a user with no role chosen, showing the error on Rol", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Rol/ }))
+    .toHaveAccessibleDescription("Elegí un rol.");
+  expect(services.createUser).not.toHaveBeenCalled();
+});
+
+test("creates the user with exactly the role chosen", async () => {
+  const services = createUsersListServices({
+    fetchRoles: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: [
+        {
+          id: "00000000-0000-4000-8000-000000000001",
+          isAdministrator: true,
+          name: null,
+          permissionKeys: [],
+          userCount: 1,
+          mayEdit: false,
+        },
+        {
+          id: "00000000-0000-4000-8000-000000000004",
+          isAdministrator: false,
+          name: "Depósito",
+          permissionKeys: [],
+          userCount: 0,
+          mayEdit: true,
+        },
+      ],
+    }),
+  });
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "ok" });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await chooseRole(dialog, "Depósito");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.poll(() => vi.mocked(services.createUser).mock.calls.length).toBe(1);
+  expect(services.createUser).toHaveBeenCalledWith({
+    first_name: "Martina Gómez",
+    email: "martina@example.com",
+    role_id: "00000000-0000-4000-8000-000000000004",
+  });
+});
+
+test("opening the create modal again shows no role chosen, whatever was chosen before", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  await chooseRole(dialog, "Administrador");
+  await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("Administrador");
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  const reopened = await openNewUserModal(screen);
+
+  await expect.element(reopened.getByRole("combobox", { name: /^Rol/ })).toHaveValue("");
 });
 
 test("shows no helper line under Correo in the create modal", async () => {
@@ -585,6 +670,7 @@ test("creates a user directly, without the authorization modal, when the session
   });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -615,6 +701,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
   });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -642,6 +729,7 @@ test("cancelling the authorization modal keeps the create-user form open with it
   vi.mocked(services.createUser).mockResolvedValue({ kind: "authorization_required" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
   const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
@@ -674,6 +762,7 @@ test("requires name and email before submitting, without calling the API", async
   expect(services.createUser).not.toHaveBeenCalled();
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "no-es-un-correo");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -690,6 +779,7 @@ test("shows email_taken on Correo and keeps the modal open", async () => {
   vi.mocked(services.createUser).mockResolvedValue({ kind: "email_taken" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -706,6 +796,7 @@ test("shows a server validation_failed error on the named field", async () => {
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "email" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -724,6 +815,7 @@ test("rejects an email longer than any address can be, without calling the API",
     dialog.getByRole("textbox", { name: /^Correo/ }),
     `${"a".repeat(250)}@example.com`,
   );
+  await chooseRole(dialog, "Administrador");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
   await expect.element(dialog.getByText("Ingresá un correo válido.")).toBeVisible();
@@ -742,6 +834,7 @@ test("shows a server validation_failed error for the name on Nombre", async () =
   });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -758,6 +851,7 @@ test("shows the generic failure notice when the cloud refuses a field the form d
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -773,6 +867,7 @@ test("shows a server validation_failed error for the role on Rol", async () => {
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "role_id" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -790,6 +885,7 @@ test("keeps the loaded list and an open create modal when the parent re-renders 
   const dialog = await openNewUserModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await chooseRole(dialog, "Administrador");
 
   await screen.rerender(usersListScreenElement(services, () => {}));
 
@@ -895,6 +991,7 @@ test("shows an error inside the authorization modal, not calling createUser agai
   vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
   const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
@@ -913,6 +1010,7 @@ test("shows a notice when the chosen role is no longer valid", async () => {
   vi.mocked(services.createUser).mockResolvedValue({ kind: "unknown_role" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -929,6 +1027,7 @@ test("ends the session when creating the user finds the session already ended", 
   vi.mocked(services.createUser).mockResolvedValue({ kind: "unauthenticated" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -948,6 +1047,7 @@ test("ends the session when authorizing finds the session already ended", async 
   });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
   const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
@@ -966,6 +1066,7 @@ test("opens the own account panel over Inicio, without the authorization modal, 
   vi.mocked(services.createUser).mockResolvedValue({ kind: "forbidden" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -987,6 +1088,7 @@ test("opens the own account panel over Inicio when creating the user retried aft
   vi.mocked(services.createUser).mockResolvedValueOnce({ kind: "forbidden" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
   await userEvent.click(
@@ -1127,6 +1229,7 @@ test("on a duplicate deactivated email, shows the reactivation notice and a Reac
   });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sofía Díaz");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "sofia@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -1151,6 +1254,7 @@ test("editing Correo after a duplicate-deactivated conflict clears the notice an
     name: "Sofía Díaz",
   });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sofía Díaz");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "sofia@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
   await expect
@@ -1181,6 +1285,7 @@ test("Reactivar a X in the create modal closes it and opens that user's panel on
     name: "Sofía Díaz",
   });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sofía Díaz");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "sofia@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
@@ -1308,6 +1413,7 @@ test("tells an outdated tab to reload because the backoffice was updated when cr
   vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await chooseRole(dialog, "Administrador");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
