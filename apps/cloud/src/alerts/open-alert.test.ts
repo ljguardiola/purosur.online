@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   rolePermissions,
   roles,
@@ -10,6 +11,7 @@ import {
 } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { escalateAlertsTask } from "./alert-escalation-task.js";
 import { type OpenAlertInput, openAlert } from "./open-alert.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -153,5 +155,70 @@ describe("openAlert", () => {
     expect(second).toEqual({ kind: "already_open", alertId: first.alertId });
     expect(await db.select().from(alerts)).toHaveLength(1);
     expect(await db.select().from(alertDeliveries)).toHaveLength(1);
+  });
+
+  it("records a pending email of the opening for each recipient who opted in, and none for an alert that stays on the board", async () => {
+    const optedInId = await insertUser({
+      firstName: "Ada",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+    });
+    await insertUser({
+      firstName: "Grace",
+      email: "grace@example.com",
+      roleId: await insertRole({ name: "Supervisor", permissionKeys: ["view_all_alerts"] }),
+    });
+    await db.update(users).set({ alertEmailOptedInAt: NOON }).where(eq(users.id, optedInId));
+
+    const emailed = await db.transaction((tx) =>
+      openAlert(tx, PASSKEY_REGISTERED, { now: () => NOON }),
+    );
+    const onBoardOnly = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "lots_expiring",
+          scope: locationId,
+          locationId,
+          detail: { lotCount: 2, windowDays: 30 },
+        },
+        { now: () => NOON },
+      ),
+    );
+
+    if (emailed.kind !== "opened" || onBoardOnly.kind !== "opened") {
+      throw new Error("expected both alerts to open");
+    }
+    expect(await db.select().from(alertEmailDeliveries)).toMatchObject([
+      {
+        alertId: emailed.alertId,
+        recipientUserId: optedInId,
+        stage: "opened",
+        level: "warning",
+        occurredAt: NOON,
+        status: "pending",
+      },
+    ]);
+  });
+
+  it("records a pending email of the escalation, besides the one of the opening, once the alert escalates", async () => {
+    const optedInId = await insertUser({
+      firstName: "Ada",
+      email: "ada@example.com",
+      roleId: await seededAdministratorRoleId(),
+    });
+    await db.update(users).set({ alertEmailOptedInAt: NOON }).where(eq(users.id, optedInId));
+    await db.transaction((tx) => openAlert(tx, PASSKEY_REGISTERED, { now: () => NOON }));
+    const escalatedAt = new Date(NOON.getTime() + 25 * 60 * 60 * 1000);
+
+    await escalateAlertsTask(db, { now: () => escalatedAt });
+
+    const emails = await db.select().from(alertEmailDeliveries);
+    expect(emails.map(({ stage, level, occurredAt }) => [stage, level, occurredAt]).sort()).toEqual(
+      [
+        ["escalated", "critical", escalatedAt],
+        ["opened", "warning", NOON],
+      ].sort(),
+    );
   });
 });
