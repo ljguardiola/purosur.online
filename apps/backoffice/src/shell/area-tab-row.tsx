@@ -1,5 +1,5 @@
 import { Tab, Tabs } from "@purosur/ui";
-import { createLink } from "@tanstack/react-router";
+import { createLink, useMatchRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { AreaTab } from "./area-tabs";
 
@@ -13,6 +13,7 @@ export type AreaTabsProps = {
 };
 
 export function AreaTabs({ area, tabs, selected, children }: AreaTabsProps) {
+  const matchRoute = useMatchRoute();
   return (
     <Tabs
       label={`Secciones de ${area}`}
@@ -21,7 +22,7 @@ export function AreaTabs({ area, tabs, selected, children }: AreaTabsProps) {
         <AreaTabLink
           key={key}
           to={to}
-          search={key === selected ? true : {}}
+          search={key === selected && matchRoute({ to }) !== false ? true : {}}
           value={key}
           label={label}
         />

@@ -146,9 +146,9 @@ export function HelpContent({
   const categories = Object.entries(help.categories);
   const content = (
     <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
-      <h2 className="text-heading text-text-accent">
-        {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
-      </h2>
+      {(activeArticle || !activeCategory) && (
+        <h2 className="text-heading text-text-accent">{activeArticle?.title ?? idleTitle}</h2>
+      )}
       <div className="w-105">
         <SearchField
           value={search}

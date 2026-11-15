@@ -60,7 +60,6 @@ type PurchaseFormSupplier =
 export type PurchaseRegistrationFormProps<Parsed> = {
   access: BackofficeAccess;
   productCreationModal: ProductCreationModal;
-  eyebrow: string;
   title: string;
   submitLabel: string;
   failureTitle: string;
@@ -88,7 +87,6 @@ const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: []
 export function PurchaseRegistrationForm<Parsed>({
   access,
   productCreationModal,
-  eyebrow,
   title,
   submitLabel,
   failureTitle,
@@ -221,7 +219,6 @@ export function PurchaseRegistrationForm<Parsed>({
     <ScreenLayout
       topBar={
         <AreaTopBar
-          eyebrow={eyebrow}
           title={title}
           action={
             <div className="flex items-center gap-3">
