@@ -6,6 +6,7 @@ import {
   isAlertEmailRecipient,
   nextAlertEmailAttemptAt,
   sendsAlertEmailAt,
+  stillReceivesAlertEmails,
 } from "./alert-email.js";
 
 const HERE = "location-here";
@@ -141,12 +142,30 @@ describe("the retries of a failing send", () => {
 });
 
 describe("alertEmailBranchName", () => {
-  it("names the alert's branch when it has one", () => {
-    expect(alertEmailBranchName("Sucursal Centro", "Casa Central")).toBe("Sucursal Centro");
+  it("names the alert's branch by its address", () => {
+    expect(alertEmailBranchName("Av. Siempreviva 742")).toBe("Av. Siempreviva 742");
   });
 
-  it("names the recipient's branch when the alert belongs to no branch", () => {
-    expect(alertEmailBranchName(null, "Casa Central")).toBe("Casa Central");
+  it("names no branch for an alert that belongs to none", () => {
+    expect(alertEmailBranchName(null)).toBeNull();
+  });
+
+  it.each(["", "   "])("names no branch when the address is empty (%j)", (address) => {
+    expect(alertEmailBranchName(address)).toBeNull();
+  });
+});
+
+describe("stillReceivesAlertEmails", () => {
+  it("holds for an active user with an opt-in recorded", () => {
+    expect(stillReceivesAlertEmails({ active: true, alertEmailOptedIn: true })).toBe(true);
+  });
+
+  it("fails for a deactivated user", () => {
+    expect(stillReceivesAlertEmails({ active: false, alertEmailOptedIn: true })).toBe(false);
+  });
+
+  it("fails for a user whose opt-in is no longer recorded", () => {
+    expect(stillReceivesAlertEmails({ active: true, alertEmailOptedIn: false })).toBe(false);
   });
 });
 

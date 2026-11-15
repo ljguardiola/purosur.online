@@ -10,14 +10,14 @@ import type {
   PendingAlertEmailDelivery,
 } from "../alert-email-delivery-ports.js";
 
-export interface FakeEmailDelivery extends PendingAlertEmailDelivery {
-  status: "pending" | "sent" | "failed";
+interface FakeEmailDelivery extends PendingAlertEmailDelivery {
+  status: "pending" | "sent" | "failed" | "skipped";
   error: string | null;
   providerMessageId: string | null;
   sentAt: Date | null;
 }
 
-export class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
+class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
   readonly deliveries: FakeEmailDelivery[] = [];
   readonly log: string[];
   readonly attempts: ({ deliveryId: string } & AlertEmailAttempt)[] = [];
@@ -36,8 +36,9 @@ export class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
       stage: "opened",
       level: "warning",
       occurredAt: new Date("2026-10-01T11:00:00.000Z"),
-      alertBranchName: null,
-      recipientBranchName: "Casa Central",
+      alertBranchAddress: null,
+      recipientActive: true,
+      recipientAlertEmailOptedIn: true,
       attemptsMade: 0,
       status: "pending",
       nextAttemptAt: null,
@@ -79,6 +80,13 @@ export class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
     delivery.status = "sent";
     delivery.sentAt = new Date(sent.sentAt);
     delivery.providerMessageId = sent.providerMessageId;
+    delivery.nextAttemptAt = null;
+  }
+
+  async recordEmailSkipped(deliveryId: string): Promise<void> {
+    this.log.push(`recordEmailSkipped:${deliveryId}`);
+    const delivery = this.find(deliveryId);
+    delivery.status = "skipped";
     delivery.nextAttemptAt = null;
   }
 

@@ -21,7 +21,7 @@ describe("sendDueAlertEmails", () => {
   it("sends nothing and answers zero counts when no delivery is due", async () => {
     const { sender, send } = setup();
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 0, failed: 0 });
+    await expect(send()).resolves.toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0 });
 
     expect(sender.sent).toEqual([]);
   });
@@ -36,8 +36,7 @@ describe("sendDueAlertEmails", () => {
       stage: "escalated",
       level: "critical",
       occurredAt: new Date("2026-10-01T11:30:00.000Z"),
-      alertBranchName: "Sucursal Centro",
-      recipientBranchName: "Casa Central",
+      alertBranchAddress: "Av. Siempreviva 742",
     });
 
     await send();
@@ -50,30 +49,42 @@ describe("sendDueAlertEmails", () => {
         kind: "sales_denied",
         stage: "escalated",
         level: "critical",
-        branchName: "Sucursal Centro",
+        branchName: "Av. Siempreviva 742",
         occurredAt: new Date("2026-10-01T11:30:00.000Z"),
       },
     ]);
   });
 
-  it("names the recipient's branch in the email of an alert that belongs to no branch", async () => {
+  it("names no branch in the email of an alert that belongs to none, or whose branch has no address", async () => {
     const { sender, store, send } = setup();
-    store.seed({
-      deliveryId: "delivery-1",
-      alertBranchName: null,
-      recipientBranchName: "Casa Central",
-    });
+    store.seed({ deliveryId: "delivery-1", alertBranchAddress: null });
+    store.seed({ deliveryId: "delivery-2", alertBranchAddress: "" });
 
     await send();
 
-    expect(sender.sent[0]?.branchName).toBe("Casa Central");
+    expect(sender.sent.map(({ branchName }) => branchName)).toEqual([null, null]);
+  });
+
+  it("does not send to a recipient who is no longer active or no longer has an opt-in, recording the delivery as skipped and counting it", async () => {
+    const { lanes, sender, store, send } = setup();
+    store.seed({ deliveryId: "inactive", recipientActive: false });
+    store.seed({ deliveryId: "withdrawn", recipientAlertEmailOptedIn: false });
+    store.seed({ deliveryId: "still-receives" });
+
+    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 2 });
+
+    expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual(["still-receives"]);
+    expect(store.find("inactive")).toMatchObject({ status: "skipped", attemptsMade: 0 });
+    expect(store.find("withdrawn")).toMatchObject({ status: "skipped", attemptsMade: 0 });
+    expect(lanes.log).not.toContain("recordEmailAttempt:inactive");
+    expect(lanes.log).toContain("recordEmailSkipped:inactive");
   });
 
   it("records a sent delivery with when it was sent and the provider's id, and counts it", async () => {
     const { store, send } = setup();
     store.seed({ deliveryId: "delivery-1" });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0 });
+    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 0 });
 
     expect(store.find("delivery-1")).toMatchObject({
       status: "sent",
@@ -119,7 +130,7 @@ describe("sendDueAlertEmails", () => {
     store.seed({ deliveryId: "delivery-1", attemptsMade: 1 });
     sender.results.set("delivery-1", { kind: "failed", error: "mailbox full" });
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 1, failed: 0 });
+    await expect(send()).resolves.toEqual({ sent: 0, retrying: 1, failed: 0, skipped: 0 });
 
     expect(store.find("delivery-1")).toMatchObject({
       status: "pending",
@@ -134,7 +145,7 @@ describe("sendDueAlertEmails", () => {
     store.seed({ deliveryId: "delivery-1", attemptsMade: ALERT_EMAIL_SEND_ATTEMPTS - 1 });
     sender.results.set("delivery-1", { kind: "failed", error: "mailbox full" });
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 0, failed: 1 });
+    await expect(send()).resolves.toEqual({ sent: 0, retrying: 0, failed: 1, skipped: 0 });
 
     expect(store.find("delivery-1")).toMatchObject({
       status: "failed",
@@ -148,7 +159,7 @@ describe("sendDueAlertEmails", () => {
     store.seed({ deliveryId: "delivery-1", attemptsMade: ALERT_EMAIL_SEND_ATTEMPTS - 2 });
     sender.results.set("delivery-1", { kind: "failed", error: "timeout" });
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 1, failed: 0 });
+    await expect(send()).resolves.toEqual({ sent: 0, retrying: 1, failed: 0, skipped: 0 });
   });
 
   it("leaves alone a delivery whose next attempt is not due yet, and one already sent or failed", async () => {
@@ -162,7 +173,7 @@ describe("sendDueAlertEmails", () => {
     store.seed({ deliveryId: "failed", status: "failed" });
     store.seed({ deliveryId: "due-now", attemptsMade: 1, nextAttemptAt: NOW });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0 });
+    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 0 });
 
     expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual(["due-now"]);
   });
@@ -175,7 +186,7 @@ describe("sendDueAlertEmails", () => {
     sender.results.set("delivery-1", { kind: "failed", error: "boom" });
     sender.results.set("delivery-3", { kind: "failed", error: "boom" });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 1, failed: 1 });
+    await expect(send()).resolves.toEqual({ sent: 1, retrying: 1, failed: 1, skipped: 0 });
 
     expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual([
       "delivery-1",
