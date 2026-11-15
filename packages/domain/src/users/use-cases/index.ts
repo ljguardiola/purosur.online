@@ -1,4 +1,5 @@
 export type { ReplenishedUser } from "../model/replenished-user.js";
+export type { AlertEmailOptInReads } from "./alert-email-opt-in-reads.js";
 export type {
   AlertEmailOptInStore,
   AlertEmailOptInStoreTransaction,
@@ -45,6 +46,11 @@ export type {
   FindDeactivatableUserPorts,
 } from "./find-deactivatable-user.js";
 export { findDeactivatableUser } from "./find-deactivatable-user.js";
+export type {
+  FindOwnAlertEmailOptInInput,
+  FindOwnAlertEmailOptInPorts,
+} from "./find-own-alert-email-opt-in.js";
+export { findOwnAlertEmailOptIn } from "./find-own-alert-email-opt-in.js";
 export type {
   FindUncoveredRegisterPermissionsInput,
   FindUncoveredRegisterPermissionsPorts,
