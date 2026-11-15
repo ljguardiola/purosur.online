@@ -23,6 +23,7 @@ export function branchUserFromWire(row: BranchUserWire) {
       name: row.role.name,
     },
     passkeyCount: row.passkey_count,
+    alertEmailOptedInAt: row.alert_email_opted_in_at,
     // The server refuses to change the role regardless, so callers lock that field on this.
     isLastActiveAdministrator: row.is_last_active_administrator,
     mayEmitPinCode: row.may_emit_pin_code,

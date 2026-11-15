@@ -1,5 +1,6 @@
 import type { BranchUser } from "../platform/branch-users-api";
 import { roleDisplayName } from "../platform/role-display-name";
+import { alertEmailOptInText } from "./alert-email-opt-in-text";
 
 export function UserDataFields({ user }: { user: BranchUser }) {
   return (
@@ -11,6 +12,12 @@ export function UserDataFields({ user }: { user: BranchUser }) {
       <div className="flex flex-col gap-1">
         <p className="font-bold text-text-subtle text-detail">Correo</p>
         <p className="font-semibold text-body text-text">{user.email}</p>
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="font-bold text-text-subtle text-detail">Alertas por email</p>
+        <p className="font-semibold text-body text-text">
+          {alertEmailOptInText(user.alertEmailOptedInAt)}
+        </p>
       </div>
     </div>
   );
