@@ -64,6 +64,33 @@ test("lists each line with its quantity, cost paid, unit cost, lot and expiry", 
     ]);
 });
 
+function paintedLineCount(element: Element): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size;
+}
+
+test("keeps each of a line's values on one line, even a large cost by the kilo", async () => {
+  const [avena] = compraDeAvena.lines;
+  if (!avena) {
+    throw new Error("test setup: a purchase has no line");
+  }
+  const compraCara = {
+    ...compraDeAvena,
+    lines: [
+      { ...avena, costPaidCents: 2_760_900, unitCostCents: 2_760_900, expiresOn: "2027-02-15" },
+    ],
+  };
+  const screen = await renderPanel(createPanelServices(), { purchase: compraCara });
+
+  await expect.element(screen.getByText("$ 27.609,00 por kg").first()).toBeVisible();
+  const values = screen.getByRole("definition").elements();
+  expect(values.length).toBeGreaterThan(0);
+  expect(values.map((value) => [value.textContent, paintedLineCount(value)])).toEqual(
+    values.map((value) => [value.textContent, 1]),
+  );
+});
+
 test("describes each line's product with its brand name and net content", async () => {
   const screen = await renderPanel(createPanelServices(), { purchase: compraDeAceite });
 

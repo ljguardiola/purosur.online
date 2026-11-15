@@ -963,3 +963,23 @@ export const Inactive: Story = {
     />
   ),
 };
+
+const wideColumns = [
+  dataColumn({ id: "name", header: "Producto", width: 220, render: (item: Product) => item.name }),
+  dataColumn({ id: "sku", header: "Código", render: (item: Product) => item.sku }),
+  dataColumn({
+    id: "stock",
+    header: "Stock",
+    width: 150,
+    align: "end",
+    render: (item: Product) => item.stock,
+  }),
+] as const;
+
+export const WiderThanItsContainer: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable aria-label="Productos" columns={wideColumns} variant="nested" />
+    </div>
+  ),
+};
