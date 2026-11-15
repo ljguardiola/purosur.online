@@ -19,6 +19,14 @@ const delivery = {
     role: { id: "role-1", name: "Administrador", isAdministrator: true },
   },
 };
+const emailDelivery = {
+  stage: "opened",
+  status: "sent",
+  error: null,
+  createdAt: "2026-05-04T13:10:05.000Z",
+  sentAt: "2026-05-04T13:11:00.000Z",
+  recipient: delivery.recipient,
+};
 const emailChange = {
   id: "alert-1",
   kind: "user_email_changed",
@@ -39,6 +47,7 @@ const emailChange = {
   open: true,
   closing: "by_hand",
   deliveries: [delivery],
+  emailDeliveries: [emailDelivery],
 };
 
 describe("alertDetailSchema", () => {
@@ -68,6 +77,46 @@ describe("alertDetailSchema", () => {
     };
 
     expect(alertDetailSchema.safeParse(closed).data).toEqual(closed);
+  });
+
+  it("accepts an alert with no email deliveries", () => {
+    const withoutEmails = { ...emailChange, emailDeliveries: [] };
+
+    expect(alertDetailSchema.safeParse(withoutEmails).data).toEqual(withoutEmails);
+  });
+
+  it("accepts an email delivery of each stage and status, a pending one with no send time and a failed one with its error", () => {
+    const emailDeliveries = [
+      { ...emailDelivery, stage: "escalated", status: "pending", sentAt: null },
+      {
+        ...emailDelivery,
+        stage: "resolved",
+        status: "failed",
+        error: "Resend API responded 500",
+        sentAt: null,
+      },
+    ];
+
+    expect(alertDetailSchema.safeParse({ ...emailChange, emailDeliveries }).data).toEqual({
+      ...emailChange,
+      emailDeliveries,
+    });
+  });
+
+  it("strips keys it does not define, also inside an email delivery and its recipient", () => {
+    expect(
+      alertDetailSchema.safeParse({
+        ...emailChange,
+        emailDeliveries: [
+          {
+            ...emailDelivery,
+            id: "delivery-1",
+            attempts: 3,
+            recipient: { ...delivery.recipient, email: "x@example.com" },
+          },
+        ],
+      }).data,
+    ).toEqual(emailChange);
   });
 
   it("requires the kind of scope the alert's kind has", () => {
@@ -129,6 +178,8 @@ describe("alertDetailSchema", () => {
     ["closing", null],
     ["deliveries", null],
     ["deliveries", {}],
+    ["emailDeliveries", null],
+    ["emailDeliveries", {}],
   ])("refuses %s as %j", (field, value) => {
     expect(alertDetailSchema.safeParse({ ...emailChange, [field]: value }).success).toBe(false);
   });
@@ -157,6 +208,35 @@ describe("alertDetailSchema", () => {
     expect(
       alertDetailSchema.safeParse({ ...emailChange, deliveries: [{ ...delivery, [field]: value }] })
         .success,
+    ).toBe(false);
+  });
+
+  const emailDeliveryFields = ["stage", "status", "error", "createdAt", "sentAt", "recipient"];
+  it.each(emailDeliveryFields)("requires an email delivery's %s", (field) => {
+    const { [field as keyof typeof emailDelivery]: _omitted, ...rest } = emailDelivery;
+
+    expect(alertDetailSchema.safeParse({ ...emailChange, emailDeliveries: [rest] }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["stage", "closed"],
+    ["stage", null],
+    ["status", "bounced"],
+    ["status", null],
+    ["error", undefined],
+    ["error", 1],
+    ["createdAt", 1],
+    ["sentAt", undefined],
+    ["sentAt", 1],
+    ["recipient", null],
+  ])("refuses an email delivery's %s as %j", (field, value) => {
+    expect(
+      alertDetailSchema.safeParse({
+        ...emailChange,
+        emailDeliveries: [{ ...emailDelivery, [field]: value }],
+      }).success,
     ).toBe(false);
   });
 
