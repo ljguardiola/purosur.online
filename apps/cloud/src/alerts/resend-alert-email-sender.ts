@@ -8,6 +8,7 @@ export interface ResendAlertEmailSenderOptions {
   replyTo: string;
   backofficeOrigin: string;
   fetch?: typeof globalThis.fetch;
+  warn?: (message: string) => void;
 }
 
 const ALERT_SENDER_NAME = "Puro Sur Alertas";
@@ -37,8 +38,14 @@ export function createResendAlertEmailSender(
   options: ResendAlertEmailSenderOptions,
 ): AlertEmailSender {
   const from = alertSenderOf(options.emailFrom);
+  const warn = options.warn ?? console.warn;
   return {
     async sendAlertEmail(email) {
+      const logFailure = (providerError: string) => {
+        warn(
+          `Alert email not sent (alert ${email.alertId}, delivery ${email.deliveryId}, stage ${email.stage}): ${providerError}`,
+        );
+      };
       const content = alertEmailContent(email, options.backofficeOrigin);
       try {
         const responseBody = await postResendEmail(
@@ -54,10 +61,13 @@ export function createResendAlertEmailSender(
           { "Idempotency-Key": `alert-email/${email.deliveryId}` },
         );
         const providerMessageId = providerMessageIdOf(responseBody);
-        return providerMessageId === undefined
-          ? { kind: "failed", reason: "provider_unconfirmed" }
-          : { kind: "sent", providerMessageId };
+        if (providerMessageId === undefined) {
+          logFailure("Resend API accepted the email without a message id");
+          return { kind: "failed", reason: "provider_unconfirmed" };
+        }
+        return { kind: "sent", providerMessageId };
       } catch (error) {
+        logFailure(error instanceof Error ? error.message : String(error));
         return {
           kind: "failed",
           reason: error instanceof ResendRefusalError ? "provider_refused" : "provider_unreachable",
