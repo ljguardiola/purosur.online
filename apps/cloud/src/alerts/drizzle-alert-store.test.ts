@@ -514,6 +514,20 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
     ]);
   });
 
+  it("leaves out an open alert whose stored kind is outside the catalog", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const open = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    await db.insert(alerts).values({
+      ...newAlert({ scope: "user-2" }),
+      detail: { ...newAlert().detail },
+      kind: "kind_no_release_knows",
+    });
+
+    const locked = await store.transaction((tx) => tx.lockOpenAlerts());
+
+    expect(locked.map(({ alertId }) => alertId)).toEqual([open]);
+  });
+
   it("escalates the given alerts to the given level, recording when", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);
     const escalated = await store.transaction((tx) => tx.insertAlert(newAlert()));
