@@ -451,6 +451,45 @@ describe("opening alerts", () => {
       },
     });
   });
+
+  it("opens the alert of a changed recipient set naming the assigned role", async () => {
+    await store().transaction((tx) =>
+      tx.openUserAlert({
+        kind: "recipients_changed",
+        userId: actorId,
+        roleName: "Supervisora",
+        actorId,
+        openedAt: NOW,
+      }),
+    );
+
+    const [opened] = await db.select().from(alerts);
+    expect(opened).toMatchObject({
+      kind: "alert_recipients_changed",
+      scope: actorId,
+      audience: "all",
+      openedAt: NOW,
+      detail: { change: "role_assigned", roleName: "Supervisora", actorId },
+    });
+  });
+
+  it("opens the alert of a changed recipient set of an Administrator, who has no role name", async () => {
+    await store().transaction((tx) =>
+      tx.openUserAlert({
+        kind: "recipients_changed",
+        userId: actorId,
+        roleName: null,
+        actorId,
+        openedAt: NOW,
+      }),
+    );
+
+    const [opened] = await db.select().from(alerts);
+    expect(opened).toMatchObject({
+      kind: "alert_recipients_changed",
+      detail: { change: "role_assigned", roleName: null, actorId },
+    });
+  });
 });
 
 describe("the change log", () => {

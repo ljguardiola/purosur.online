@@ -233,6 +233,73 @@ describe("editing a role", () => {
       },
     });
   });
+
+  it("opens the alert of a changed recipient set for each active holder when the permissions change which alerts they see", async () => {
+    const role = await createdRole("Cajero", []);
+    const holderIds: string[] = [];
+    for (const name of ["Beto", "Cora"]) {
+      const [holder] = await db
+        .insert(users)
+        .values({
+          firstName: name,
+          email: `${name.toLowerCase()}@example.com`,
+          locationId: await seededLocationId(db),
+        })
+        .returning({ id: users.id });
+      if (!holder) {
+        throw new Error("test setup: seeding the holder returned no row");
+      }
+      await db.insert(userRoles).values({ userId: holder.id, roleId: role.id });
+      holderIds.push(holder.id);
+    }
+
+    await edit({
+      id: role.id,
+      name: "Cajero",
+      permissionKeys: ["view_branch_alerts"],
+      version: 1,
+    });
+
+    const opened = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.kind, "alert_recipients_changed"));
+    expect(opened.map((alert) => alert.scope).sort()).toEqual(holderIds.sort());
+    for (const alert of opened) {
+      expect(alert).toMatchObject({
+        audience: "all",
+        openedAt: NOW,
+        detail: { change: "role_permissions_changed", roleName: "Cajero", actorId },
+      });
+    }
+  });
+
+  it("opens no alert of a changed recipient set when the permissions keep what the holders see", async () => {
+    const role = await createdRole("Cajero", ["view_branch_alerts"]);
+    const [holder] = await db
+      .insert(users)
+      .values({
+        firstName: "Beto",
+        email: "beto@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    if (!holder) {
+      throw new Error("test setup: seeding the holder returned no row");
+    }
+    await db.insert(userRoles).values({ userId: holder.id, roleId: role.id });
+
+    await edit({
+      id: role.id,
+      name: "Cajero",
+      permissionKeys: ["view_branch_alerts", "sell_and_charge"],
+      version: 1,
+    });
+
+    expect(
+      await db.select().from(alerts).where(eq(alerts.kind, "alert_recipients_changed")),
+    ).toEqual([]);
+  });
 });
 
 describe("DrizzleRoleStore's clock", () => {

@@ -634,3 +634,71 @@ describe("PUT /roles/:id and the alert for increased access", () => {
     expect(opened.map((alert) => alert.scope)).toEqual([activeId]);
   });
 });
+
+describe("PUT /roles/:id and the alert of a changed recipient set", () => {
+  let roleId: string;
+
+  async function recipientsChangedAlerts() {
+    return db.select().from(alerts).where(eq(alerts.kind, "alert_recipients_changed"));
+  }
+
+  function editPermissions(permissions: string[], name = "Cajera") {
+    return insertSession(administratorId).then((rawSessionId) =>
+      editRoleRequest(roleId, rawSessionId, { name, permissions, version: 1 }),
+    );
+  }
+
+  beforeEach(async () => {
+    roleId = await insertRole("Cajera", ["sell_and_charge"]);
+  });
+
+  it("opens one alert per active holder naming the role and who changed it when the edit changes what the holders see", async () => {
+    const locationId = await seededLocationId(db);
+    const activeId = await insertUser({
+      firstName: "Grace Villalba",
+      email: "grace@example.com",
+      roleId,
+      locationId,
+    });
+    const deactivatedId = await insertUser({
+      firstName: "Hedy Correa",
+      email: "hedy@example.com",
+      roleId,
+      locationId,
+    });
+    await db.update(users).set({ active: false }).where(eq(users.id, deactivatedId));
+
+    const response = await editPermissions(["sell_and_charge", "view_branch_alerts"], "Cajera");
+
+    expect(response.statusCode).toBe(200);
+    const opened = await recipientsChangedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: activeId,
+      audience: "all",
+      resolvedAt: null,
+      detail: { change: "role_permissions_changed", roleName: "Cajera", actorId: administratorId },
+    });
+  });
+
+  it("opens no alert when the edit keeps what the holders see", async () => {
+    await insertUser({
+      firstName: "Grace Villalba",
+      email: "grace@example.com",
+      roleId,
+      locationId: await seededLocationId(db),
+    });
+
+    const response = await editPermissions(["sell_and_charge", "void_sale"]);
+
+    expect(response.statusCode).toBe(200);
+    expect(await recipientsChangedAlerts()).toHaveLength(0);
+  });
+
+  it("opens no alert when the role has no active holder", async () => {
+    const response = await editPermissions(["sell_and_charge", "view_branch_alerts"]);
+
+    expect(response.statusCode).toBe(200);
+    expect(await recipientsChangedAlerts()).toHaveLength(0);
+  });
+});
