@@ -30,10 +30,10 @@ export interface EmailChangedDetail {
   actorId: string;
 }
 
-export interface RecipientsChangedDetail {
-  change: "opted_in" | "withdrawn";
-  actorId: string;
-}
+export type RecipientsChangedDetail =
+  | { change: "opted_in" | "withdrawn"; actorId: string }
+  | { change: "role_permissions_changed"; roleName: string; actorId: string }
+  | { change: "role_assigned"; roleName: string | null; actorId: string };
 
 export interface SignInLockoutDetail {
   sourceAddress: string;

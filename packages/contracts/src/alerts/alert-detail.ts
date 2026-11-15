@@ -75,11 +75,25 @@ const emailChangedDetailSchema = z.object({
   actorName,
 });
 
-const recipientsChangedDetailSchema = z.object({
-  change: z.enum(["opted_in", "withdrawn"]),
-  actorId: z.string(),
-  actorName,
-});
+const recipientsChangedDetailSchema = z.discriminatedUnion("change", [
+  z.object({
+    change: z.enum(["opted_in", "withdrawn"]),
+    actorId: z.string(),
+    actorName,
+  }),
+  z.object({
+    change: z.literal("role_permissions_changed"),
+    roleName: z.string(),
+    actorId: z.string(),
+    actorName,
+  }),
+  z.object({
+    change: z.literal("role_assigned"),
+    roleName: z.string().nullable(),
+    actorId: z.string(),
+    actorName,
+  }),
+]);
 
 const signInLockoutDetailSchema = z.object({
   sourceAddress: z.string().optional(),
