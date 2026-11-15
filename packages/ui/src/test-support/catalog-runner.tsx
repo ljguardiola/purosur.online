@@ -78,9 +78,10 @@ function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-// Chromium antialiases text a pixel past the area it repaints when that text goes away, so a
-// story's capture can keep a trace of a story before it. Changing the page's background, for one
-// painted frame, makes the next frame repaint every pixel.
+// Chromium antialiases text a pixel past the area it repaints when that text goes away, and
+// antialiases rounded edges differently where only part of the page was repainted, so a capture can
+// keep a trace of a story before it, or of the repaints a story's play happened to trigger.
+// Changing the page's background, for one painted frame, makes the next frame repaint every pixel.
 async function repaintWholePage(): Promise<void> {
   const root = document.documentElement;
   root.style.backgroundColor = "black";
@@ -106,6 +107,7 @@ export async function renderCatalogStory(Story: CatalogStory): Promise<HTMLEleme
     .toEqual(forcedBodyPseudoStateClasses(Story));
 
   await Story.play?.({ canvasElement: screen.container });
+  await repaintWholePage();
 
   return screen.container;
 }
