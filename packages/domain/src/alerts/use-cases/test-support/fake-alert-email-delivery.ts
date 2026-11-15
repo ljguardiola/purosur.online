@@ -57,7 +57,7 @@ export class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
   }
 
   async pendingEmailDeliveries(): Promise<PendingAlertEmailDelivery[]> {
-    this.log.push(`pendingEmailDeliveries:held=`);
+    this.log.push(`pendingEmailDeliveries:held=${this.lanes.held}`);
     return this.deliveries
       .filter((delivery) => delivery.status === "pending")
       .map(({ status: _status, error: _e, providerMessageId: _p, sentAt: _s, ...pending }) =>
