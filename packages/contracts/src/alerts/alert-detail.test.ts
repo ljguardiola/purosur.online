@@ -1,4 +1,5 @@
 import {
+  ALERT_EMAIL_FAILURE_REASONS,
   ALERT_KINDS,
   type AlertDetails,
   type AlertKind,
@@ -85,16 +86,16 @@ describe("alertDetailSchema", () => {
     expect(alertDetailSchema.safeParse(withoutEmails).data).toEqual(withoutEmails);
   });
 
-  it("accepts an email delivery of each stage and status, a pending or skipped one with no send time and a failed one with its error", () => {
+  it("accepts an email delivery of each stage and status, a pending or skipped one with no send time and a failed one with the reason it failed", () => {
     const emailDeliveries = [
       { ...emailDelivery, stage: "escalated", status: "pending", sentAt: null },
-      {
+      ...ALERT_EMAIL_FAILURE_REASONS.map((reason) => ({
         ...emailDelivery,
         stage: "resolved",
         status: "failed",
-        error: "Resend API responded 500",
+        error: reason,
         sentAt: null,
-      },
+      })),
       { ...emailDelivery, status: "skipped", sentAt: null },
     ];
 
@@ -228,6 +229,7 @@ describe("alertDetailSchema", () => {
     ["status", null],
     ["error", undefined],
     ["error", 1],
+    ["error", "Resend API responded 500"],
     ["createdAt", 1],
     ["sentAt", undefined],
     ["sentAt", 1],

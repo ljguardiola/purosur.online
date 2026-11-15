@@ -3628,7 +3628,7 @@ test("shows each email's recipient, stage and status in the email notice section
           emailDelivery({
             stage: "resolved",
             status: "failed",
-            error: "mailbox full",
+            error: "provider_refused",
             sentAt: null,
             recipient: emailRecipient("user-4", "Hedy", "Supervisora"),
           }),
@@ -3648,7 +3648,25 @@ test("shows each email's recipient, stage and status in the email notice section
   await expect.element(screen.getByText("Pendiente")).toBeVisible();
   await expect.element(screen.getByText("Hedy · Supervisora")).toBeVisible();
   await expect.element(screen.getByText("Al resolverse")).toBeVisible();
-  await expect.element(screen.getByText("No se pudo enviar: mailbox full")).toBeVisible();
+  await expect
+    .element(screen.getByText("No se pudo enviar: el proveedor de email rechazó el envío"))
+    .toBeVisible();
+});
+
+test.each([
+  ["provider_refused", "No se pudo enviar: el proveedor de email rechazó el envío"],
+  ["provider_unreachable", "No se pudo enviar: el proveedor de email no respondió"],
+  ["provider_unconfirmed", "No se pudo enviar: el proveedor de email no confirmó el envío"],
+  [null, "No se pudo enviar"],
+] as const)("tells in Spanish why an email failed with %s", async (error, text) => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(baseDetail({ emailDeliveries: [emailDelivery({ status: "failed", error, sentAt: null })] })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
 });
 
 test("shows an email skipped because its recipient no longer receives alerts by email", async () => {
@@ -3671,5 +3689,7 @@ test("says nobody received the alert by email when it has no email deliveries", 
   const screen = await renderModal(services);
 
   await expect.element(screen.getByText("Aviso por email")).toBeVisible();
-  await expect.element(screen.getByText("Nadie recibió esta alerta por email.")).toBeVisible();
+  await expect
+    .element(screen.getByText("Nadie recibió esta alerta por email", { exact: true }))
+    .toBeVisible();
 });

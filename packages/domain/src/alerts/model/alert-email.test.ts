@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALERT_EMAIL_FAILURE_REASONS,
   ALERT_EMAIL_SEND_ATTEMPTS,
   alertEmailBranchName,
   isAlertEmailDue,
+  isAlertEmailFailureReason,
   isAlertEmailRecipient,
   nextAlertEmailAttemptAt,
   sendsAlertEmailAt,
@@ -183,5 +185,23 @@ describe("isAlertEmailDue", () => {
 
   it("is not due before its next attempt", () => {
     expect(isAlertEmailDue({ nextAttemptAt: new Date(now.getTime() + 1) }, now)).toBe(false);
+  });
+});
+
+describe("the reasons an alert email could not be sent", () => {
+  it("are the provider refusing it, not answering, and answering without confirming it", () => {
+    expect(ALERT_EMAIL_FAILURE_REASONS).toEqual([
+      "provider_refused",
+      "provider_unreachable",
+      "provider_unconfirmed",
+    ]);
+  });
+
+  it.each(ALERT_EMAIL_FAILURE_REASONS)("recognizes %s as one of them", (reason) => {
+    expect(isAlertEmailFailureReason(reason)).toBe(true);
+  });
+
+  it.each(["", "mailbox full", "Provider_refused"])("recognizes %j as none of them", (text) => {
+    expect(isAlertEmailFailureReason(text)).toBe(false);
   });
 });

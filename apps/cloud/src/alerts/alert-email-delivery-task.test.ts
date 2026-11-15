@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { alertEmailDeliveries, alerts, users } from "../platform/db/schema.js";
+import { alertEmailDeliveries, alerts, branchSettings, users } from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { buildJobHelpers } from "../test-support/job-helpers.js";
@@ -34,6 +34,7 @@ function jobsSending(sender: FakeAlertEmailSender) {
   return alertEmailDeliveryJobs({
     now: () => NOW,
     sender,
+    db: testDatabase.db,
     connections: { withConnection: (work) => work(testDatabase.db) },
   });
 }
@@ -54,6 +55,10 @@ async function seedDelivery(
   overrides: Partial<typeof alertEmailDeliveries.$inferInsert> & { optedOut?: boolean } = {},
 ): Promise<string> {
   const { optedOut = false, ...deliveryOverrides } = overrides;
+  await db
+    .update(branchSettings)
+    .set({ address: "Av. Siempreviva 742" })
+    .where(eq(branchSettings.locationId, await seededLocationId(db)));
   const [user] = await db
     .insert(users)
     .values({
@@ -66,10 +71,11 @@ async function seedDelivery(
   const [alert] = await db
     .insert(alerts)
     .values({
-      kind: "register_silent",
+      kind: "sales_denied",
       scope: "register-1",
       level: "warning",
-      audience: "all",
+      audience: "local",
+      locationId: await seededLocationId(db),
       detail: {},
       openedAt: NOW,
     })
@@ -123,7 +129,9 @@ describe("alertEmailDeliveryJobs", () => {
 
     const logs = await runner(sender)();
 
-    expect(sender.sent).toMatchObject([{ deliveryId, to: "ada@example.com", stage: "opened" }]);
+    expect(sender.sent).toMatchObject([
+      { deliveryId, to: "ada@example.com", stage: "opened", branchName: "Av. Siempreviva 742" },
+    ]);
     expect(await storedDelivery(deliveryId)).toMatchObject({
       status: "sent",
       attempts: 1,
@@ -135,30 +143,30 @@ describe("alertEmailDeliveryJobs", () => {
     );
   });
 
-  it("keeps a failed delivery pending with its error, to try again a minute later", async () => {
+  it("keeps a failed delivery pending with the reason it failed, to try again a minute later", async () => {
     const deliveryId = await seedDelivery();
-    const sender = new FakeAlertEmailSender({ kind: "failed", error: "Resend API responded 500" });
+    const sender = new FakeAlertEmailSender({ kind: "failed", reason: "provider_refused" });
 
     await runner(sender)();
 
     expect(await storedDelivery(deliveryId)).toMatchObject({
       status: "pending",
       attempts: 1,
-      error: "Resend API responded 500",
+      error: "provider_refused",
       nextAttemptAt: new Date(NOW.getTime() + MINUTE_MS),
     });
   });
 
-  it("gives up on a delivery whose last attempt fails, leaving it failed with its error", async () => {
+  it("gives up on a delivery whose last attempt fails, leaving it failed with the reason it failed", async () => {
     const deliveryId = await seedDelivery({ attempts: 4 });
-    const sender = new FakeAlertEmailSender({ kind: "failed", error: "Resend API responded 500" });
+    const sender = new FakeAlertEmailSender({ kind: "failed", reason: "provider_unreachable" });
 
     await runner(sender)();
 
     expect(await storedDelivery(deliveryId)).toMatchObject({
       status: "failed",
       attempts: 5,
-      error: "Resend API responded 500",
+      error: "provider_unreachable",
     });
   });
 

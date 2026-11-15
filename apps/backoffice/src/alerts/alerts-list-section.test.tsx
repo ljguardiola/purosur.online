@@ -445,7 +445,7 @@ test("opens the detail modal when the route starts naming an alert", async () =>
   await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
 });
 
-test("reports the alert opened from the list, and drops it when the detail closes", async () => {
+test("keeps the alert opened from the list out of the filters it reports, also after its detail closes", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
   const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
@@ -456,16 +456,24 @@ test("reports the alert opened from the list, and drops it when the detail close
 
   await userEvent.click(screen.getByRole("button", { name: /Ver la alerta/ }));
   await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
-  await expect
-    .poll(() => onFiltersChange.mock.lastCall)
-    .toEqual([{ ...alertsListFilters.parse({}), alert: "alert-1" }]);
+  await userEvent.keyboard("{Escape}");
+  await expect.element(screen.getByText("Se registró una passkey")).not.toBeInTheDocument();
 
-  await screen.rerender(
-    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
-      filters: { ...alertsListFilters.parse({}), alert: "alert-1" },
-      onFiltersChange,
-    }),
-  );
+  expect(onFiltersChange).not.toHaveBeenCalled();
+});
+
+test("drops the alert its filters name once that alert's detail closes", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
+  services.alertDetailModal = { fetchAlert, fetchPermissionCatalog: vi.fn(), closeAlert: vi.fn() };
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters: { ...alertsListFilters.parse({}), alert: "alert-1" },
+    onFiltersChange,
+  });
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+  expect(onFiltersChange).not.toHaveBeenCalled();
 
   await userEvent.keyboard("{Escape}");
 

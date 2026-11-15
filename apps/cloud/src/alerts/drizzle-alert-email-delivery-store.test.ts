@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { alertEmailDeliveries, alerts, branchSettings, users } from "../platform/db/schema.js";
+import { alertEmailDeliveries, alerts, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAlertEmailDeliveryStore } from "./drizzle-alert-email-delivery-store.js";
@@ -87,9 +87,14 @@ async function stored(deliveryId: string) {
 }
 
 describe("DrizzleAlertEmailDeliveryStore pendingEmailDeliveries", () => {
-  it("lists a pending delivery with its recipient's email and what the email says", async () => {
+  it("lists a pending delivery with its recipient, its alert's branch and what the email says", async () => {
     const recipientId = await insertRecipient();
-    const alertId = await insertAlert();
+    const alertId = await insertAlert({
+      kind: "sales_denied",
+      scope: "register-1",
+      audience: "local",
+      locationId: await seededLocationId(db),
+    });
     const deliveryId = await insertDelivery(alertId, recipientId, {
       stage: "escalated",
       level: "critical",
@@ -102,55 +107,25 @@ describe("DrizzleAlertEmailDeliveryStore pendingEmailDeliveries", () => {
     expect(pending).toEqual([
       {
         deliveryId,
-        to: "ada@example.com",
+        recipientUserId: recipientId,
         alertId,
-        kind: "backoffice_passkey_changed",
+        kind: "sales_denied",
         stage: "escalated",
         level: "critical",
         occurredAt: NOON,
-        alertBranchAddress: null,
-        recipientActive: true,
-        recipientAlertEmailOptedIn: false,
+        alertLocationId: await seededLocationId(db),
         attemptsMade: 2,
         nextAttemptAt: new Date(NOON.getTime() + 60_000),
       },
     ]);
   });
 
-  it("gives the address of the alert's branch, and none for an alert of no branch", async () => {
-    const recipientId = await insertRecipient();
-    const allAlert = await insertAlert();
-    const localAlert = await insertAlert({
-      kind: "sales_denied",
-      scope: "register-1",
-      audience: "local",
-      locationId: await seededLocationId(db),
-    });
-    await db
-      .update(branchSettings)
-      .set({ address: "Av. Siempreviva 742" })
-      .where(eq(branchSettings.locationId, await seededLocationId(db)));
-    await insertDelivery(allAlert, recipientId);
-    await insertDelivery(localAlert, recipientId);
-
-    const pending = await new DrizzleAlertEmailDeliveryStore(db).pendingEmailDeliveries();
-
-    const byAlert = new Map(pending.map((delivery) => [delivery.alertId, delivery]));
-    expect(byAlert.get(allAlert)?.alertBranchAddress).toBeNull();
-    expect(byAlert.get(localAlert)?.alertBranchAddress).toBe("Av. Siempreviva 742");
-  });
-
-  it("answers whether the recipient is still active and still has an opt-in recorded", async () => {
-    const recipientId = await insertRecipient();
-    await db
-      .update(users)
-      .set({ alertEmailOptedInAt: NOON, active: false })
-      .where(eq(users.id, recipientId));
-    await insertDelivery(await insertAlert(), recipientId);
+  it("names no branch for an alert of no branch", async () => {
+    await insertDelivery(await insertAlert(), await insertRecipient());
 
     const [pending] = await new DrizzleAlertEmailDeliveryStore(db).pendingEmailDeliveries();
 
-    expect(pending).toMatchObject({ recipientActive: false, recipientAlertEmailOptedIn: true });
+    expect(pending?.alertLocationId).toBeNull();
   });
 
   it("leaves out a delivery already sent or given up on", async () => {
@@ -167,11 +142,13 @@ describe("DrizzleAlertEmailDeliveryStore pendingEmailDeliveries", () => {
     expect(pending.map((delivery) => delivery.alertId)).toEqual([pendingAlert]);
   });
 
-  it("leaves out a delivery of an alert whose kind the catalog does not list", async () => {
+  it("leaves out a delivery of an alert whose kind the catalog does not list or never goes by email", async () => {
     const recipientId = await insertRecipient();
     const unknown = await insertAlert({ kind: "kind_no_release_knows" });
+    const boardOnly = await insertAlert({ kind: "lots_expiring", scope: "branch" });
     const known = await insertAlert({ scope: "other" });
     await insertDelivery(unknown, recipientId);
+    await insertDelivery(boardOnly, recipientId);
     await insertDelivery(known, recipientId);
 
     const pending = await new DrizzleAlertEmailDeliveryStore(db).pendingEmailDeliveries();
@@ -213,7 +190,7 @@ describe("DrizzleAlertEmailDeliveryStore recordEmailAttempt", () => {
 describe("DrizzleAlertEmailDeliveryStore recordEmailSent", () => {
   it("marks the delivery sent with when and the provider's message id", async () => {
     const deliveryId = await insertDelivery(await insertAlert(), await insertRecipient(), {
-      error: "Resend API responded 500",
+      error: "provider_refused",
     });
 
     await new DrizzleAlertEmailDeliveryStore(db).recordEmailSent(deliveryId, {
@@ -253,31 +230,31 @@ describe("DrizzleAlertEmailDeliveryStore recordEmailSkipped", () => {
 });
 
 describe("DrizzleAlertEmailDeliveryStore recordEmailFailure", () => {
-  it("keeps the delivery pending with the error when more attempts remain", async () => {
+  it("keeps the delivery pending with the reason it failed when more attempts remain", async () => {
     const deliveryId = await insertDelivery(await insertAlert(), await insertRecipient());
 
     await new DrizzleAlertEmailDeliveryStore(db).recordEmailFailure(deliveryId, {
-      error: "Resend API responded 500",
+      reason: "provider_refused",
       final: false,
     });
 
     expect(await stored(deliveryId)).toMatchObject({
       status: "pending",
-      error: "Resend API responded 500",
+      error: "provider_refused",
     });
   });
 
-  it("marks the delivery failed with the error after the last attempt", async () => {
+  it("marks the delivery failed with the reason it failed after the last attempt", async () => {
     const deliveryId = await insertDelivery(await insertAlert(), await insertRecipient());
 
     await new DrizzleAlertEmailDeliveryStore(db).recordEmailFailure(deliveryId, {
-      error: "Resend API responded 500",
+      reason: "provider_unreachable",
       final: true,
     });
 
     expect(await stored(deliveryId)).toMatchObject({
       status: "failed",
-      error: "Resend API responded 500",
+      error: "provider_unreachable",
     });
   });
 
@@ -287,10 +264,31 @@ describe("DrizzleAlertEmailDeliveryStore recordEmailFailure", () => {
     const other = await insertDelivery(await insertAlert({ scope: "b" }), recipientId);
 
     await new DrizzleAlertEmailDeliveryStore(db).recordEmailFailure(target, {
-      error: "boom",
+      reason: "provider_refused",
       final: true,
     });
 
     expect(await stored(other)).toMatchObject({ status: "pending", error: null });
+  });
+});
+
+describe("DrizzleAlertEmailDeliveryStore recordEmailGivenUp", () => {
+  it("marks only the delivery it names failed, keeping the reason it last failed and its attempts", async () => {
+    const recipientId = await insertRecipient();
+    const target = await insertDelivery(await insertAlert({ scope: "a" }), recipientId, {
+      attempts: 5,
+      error: "provider_unreachable",
+      nextAttemptAt: NOON,
+    });
+    const other = await insertDelivery(await insertAlert({ scope: "b" }), recipientId);
+
+    await new DrizzleAlertEmailDeliveryStore(db).recordEmailGivenUp(target);
+
+    expect(await stored(target)).toMatchObject({
+      status: "failed",
+      attempts: 5,
+      error: "provider_unreachable",
+    });
+    expect(await stored(other)).toMatchObject({ status: "pending" });
   });
 });

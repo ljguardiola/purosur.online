@@ -527,7 +527,7 @@ describe("DrizzleAlertReader emailDeliveriesOf", () => {
         level: "warning",
         occurredAt: NOON,
         status: "failed",
-        error: "Resend API responded 500",
+        error: "provider_refused",
         createdAt: NOON,
       },
       {
@@ -561,10 +561,28 @@ describe("DrizzleAlertReader emailDeliveriesOf", () => {
     });
     expect(deliveries[1]).toMatchObject({
       status: "failed",
-      error: "Resend API responded 500",
+      error: "provider_refused",
       sentAt: null,
     });
     expect(deliveries[2]).toMatchObject({ status: "pending", error: null });
+  });
+
+  it("answers no reason for an email whose stored error is none the domain names", async () => {
+    const alertId = await insertAlert();
+    const recipient = await insertUser("Ada", await seededAdministratorRoleId());
+    await db.insert(alertEmailDeliveries).values({
+      alertId,
+      recipientUserId: recipient,
+      stage: "opened",
+      level: "warning",
+      occurredAt: NOON,
+      status: "failed",
+      error: "Resend API responded 500",
+    });
+
+    const [delivery] = await new DrizzleAlertReader(db).emailDeliveriesOf(alertId);
+
+    expect(delivery).toMatchObject({ status: "failed", error: null });
   });
 
   it("answers only the emails of the alert asked for", async () => {

@@ -85,42 +85,27 @@ describe("createResendAlertEmailSender", () => {
     expect(result).toEqual({ kind: "sent", providerMessageId: "msg-1" });
   });
 
-  it("answers failed with the provider's refusal instead of throwing", async () => {
+  it("answers that the provider refused the email when it does not answer 2xx, instead of throwing", async () => {
     const fetch = fakeFetch({ ok: false, status: 429, body: "rate limited" });
 
     const result = await senderWith(fetch).sendAlertEmail(EMAIL);
 
-    expect(result).toEqual({ kind: "failed", error: "Resend API responded 429: rate limited" });
+    expect(result).toEqual({ kind: "failed", reason: "provider_refused" });
   });
 
-  it("answers failed when the request itself fails", async () => {
+  it("answers that the provider could not be reached when the request itself fails", async () => {
     const fetch = vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED"));
 
     const result = await senderWith(fetch).sendAlertEmail(EMAIL);
 
-    expect(result).toEqual({ kind: "failed", error: "connect ECONNREFUSED" });
+    expect(result).toEqual({ kind: "failed", reason: "provider_unreachable" });
   });
 
-  it("answers failed when the provider accepts the email without giving an id", async () => {
+  it("answers that the provider did not confirm the email when it accepts it without giving an id", async () => {
     const fetch = fakeFetch({ ok: true, status: 200, body: "{}" });
 
     const result = await senderWith(fetch).sendAlertEmail(EMAIL);
 
-    expect(result).toEqual({
-      kind: "failed",
-      error: "Resend API accepted the email without a message id",
-    });
-  });
-
-  it("answers failed, without calling the provider, for an alert of a kind that never goes by email", async () => {
-    const fetch = fakeFetch({ ok: true, status: 200, body: '{"id":"msg-1"}' });
-
-    const result = await senderWith(fetch).sendAlertEmail({ ...EMAIL, kind: "lots_expiring" });
-
-    expect(result).toEqual({
-      kind: "failed",
-      error: "alert kind lots_expiring is not sent by email",
-    });
-    expect(fetch).not.toHaveBeenCalled();
+    expect(result).toEqual({ kind: "failed", reason: "provider_unconfirmed" });
   });
 });

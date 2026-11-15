@@ -366,7 +366,7 @@ describe("GET /alerts/:id", () => {
         level: "critical",
         occurredAt: NOON,
         status: "failed",
-        error: "Resend API responded 500",
+        error: "provider_refused",
         createdAt: NOON,
       },
       {
@@ -405,7 +405,7 @@ describe("GET /alerts/:id", () => {
       {
         stage: "escalated",
         status: "failed",
-        error: "Resend API responded 500",
+        error: "provider_refused",
         createdAt: NOON.toISOString(),
         sentAt: null,
         recipient,

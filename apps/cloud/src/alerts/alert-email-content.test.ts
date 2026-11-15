@@ -1,8 +1,6 @@
-import { ALERT_KINDS, alertKindPolicy } from "@purosur/domain";
 import type { AlertEmail } from "@purosur/domain/alerts/use-cases";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { alertEmailContent } from "./alert-email-content.js";
-import { alertEmailKindTexts } from "./alert-email-kind-texts.js";
 
 const ORIGIN = "https://staging.purosur.online";
 
@@ -106,26 +104,7 @@ describe("alertEmailContent", () => {
     expect(html).not.toContain("Sucursal");
   });
 
-  it("refuses an alert of a kind that never goes by email", () => {
-    expect(() => alertEmailContent(email({ kind: "lots_expiring" }), ORIGIN)).toThrow(
-      "alert kind lots_expiring is not sent by email",
-    );
-  });
-});
-
-describe("the texts of the alerts sent by email", () => {
-  const emailedKinds = ALERT_KINDS.filter((kind) => alertKindPolicy(kind).emailStages.length > 0);
-
-  it("exist for exactly the kinds that go by email at some stage", () => {
-    const textedKinds = ALERT_KINDS.filter((kind) => alertEmailKindTexts(kind) !== undefined);
-
-    expect(textedKinds).toEqual(emailedKinds);
-  });
-
-  it.each(emailedKinds)("give %s a label and a description", (kind) => {
-    const texts = alertEmailKindTexts(kind);
-
-    expect(texts?.label).not.toBe("");
-    expect(texts?.description).not.toBe("");
+  it("takes no alert of a kind that never goes by email", () => {
+    expectTypeOf<"lots_expiring">().not.toExtend<Parameters<typeof alertEmailContent>[0]["kind"]>();
   });
 });

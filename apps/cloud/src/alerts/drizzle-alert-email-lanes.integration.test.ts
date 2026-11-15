@@ -5,7 +5,6 @@ import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleAlertEmailLanes } from "./drizzle-alert-email-lanes.js";
 
 let integrationDb: IntegrationDatabase;
@@ -42,9 +41,8 @@ async function seedPendingDelivery(): Promise<string> {
 }
 
 describe("the alert email lanes on a real Postgres", () => {
-  it("lets one run at a time, the second waiting until the first is done", async () => {
+  it("lets one run at a time, a second one ending at once, without its work, while the first holds the lane", async () => {
     const lanes = new DrizzleAlertEmailLanes(postgresDedicatedConnections(sql));
-    const events: string[] = [];
     let release: () => void = () => {};
     const held = new Promise<void>((resolve) => {
       release = resolve;
@@ -56,18 +54,23 @@ describe("the alert email lanes on a real Postgres", () => {
     const first = lanes.inAlertEmailLane(async () => {
       entered();
       await held;
-      events.push("first done");
+      return "first";
     });
     await firstEntered;
-    const second = lanes.inAlertEmailLane(async () => {
-      events.push("second entered");
+    let secondRan = false;
+
+    const second = await lanes.inAlertEmailLane(async () => {
+      secondRan = true;
     });
-    await waitForLockWaiters(sql, 1);
-
     release();
-    await Promise.all([first, second]);
 
-    expect(events).toEqual(["first done", "second entered"]);
+    expect(second).toEqual({ kind: "busy" });
+    expect(secondRan).toBe(false);
+    await expect(first).resolves.toEqual({ kind: "ran", result: "first" });
+    await expect(lanes.inAlertEmailLane(async () => "after")).resolves.toEqual({
+      kind: "ran",
+      result: "after",
+    });
   });
 
   it("commits each write as it is made, visible to other connections while the lane is still held", async () => {
@@ -84,7 +87,7 @@ describe("the alert email lanes on a real Postgres", () => {
       return row?.attempts;
     });
 
-    expect(seenWhileHeld).toBe(1);
+    expect(seenWhileHeld).toEqual({ kind: "ran", result: 1 });
   });
 
   it("releases the lane when the work fails, so the next run goes ahead", async () => {
@@ -96,6 +99,9 @@ describe("the alert email lanes on a real Postgres", () => {
       }),
     ).rejects.toThrow("the run failed");
 
-    await expect(lanes.inAlertEmailLane(async () => "next run")).resolves.toBe("next run");
+    await expect(lanes.inAlertEmailLane(async () => "next run")).resolves.toEqual({
+      kind: "ran",
+      result: "next run",
+    });
   });
 });

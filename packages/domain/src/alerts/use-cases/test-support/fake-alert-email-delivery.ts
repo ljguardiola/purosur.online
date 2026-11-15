@@ -1,9 +1,13 @@
 import type {
   AlertEmail,
   AlertEmailAttempt,
+  AlertEmailBranchReader,
   AlertEmailDeliveryStore,
   AlertEmailFailure,
+  AlertEmailLaneRun,
   AlertEmailLanes,
+  AlertEmailRecipient,
+  AlertEmailRecipientReader,
   AlertEmailSender,
   AlertEmailSendResult,
   AlertEmailSent,
@@ -29,16 +33,14 @@ class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
   }
 
   seed(delivery: Partial<FakeEmailDelivery> & { deliveryId: string }): void {
-    this.deliveries.push({
-      to: `${delivery.deliveryId}@example.test`,
+    const seeded: FakeEmailDelivery = {
+      recipientUserId: `user-of-${delivery.deliveryId}`,
       alertId: "alert-1",
       kind: "backoffice_passkey_changed",
       stage: "opened",
       level: "warning",
       occurredAt: new Date("2026-10-01T11:00:00.000Z"),
-      alertBranchAddress: null,
-      recipientActive: true,
-      recipientAlertEmailOptedIn: true,
+      alertLocationId: null,
       attemptsMade: 0,
       status: "pending",
       nextAttemptAt: null,
@@ -46,7 +48,15 @@ class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
       providerMessageId: null,
       sentAt: null,
       ...structuredClone(delivery),
-    });
+    };
+    this.deliveries.push(seeded);
+    if (!this.lanes.recipients.recipients.has(seeded.recipientUserId)) {
+      this.lanes.recipients.recipients.set(seeded.recipientUserId, {
+        email: `${delivery.deliveryId}@example.test`,
+        active: true,
+        alertEmailOptedIn: true,
+      });
+    }
   }
 
   find(deliveryId: string): FakeEmailDelivery {
@@ -93,25 +103,68 @@ class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
   async recordEmailFailure(deliveryId: string, failure: AlertEmailFailure): Promise<void> {
     this.log.push(`recordEmailFailure:${deliveryId}`);
     const delivery = this.find(deliveryId);
-    delivery.error = failure.error;
+    delivery.error = failure.reason;
     if (failure.final) {
       delivery.status = "failed";
       delivery.nextAttemptAt = null;
     }
   }
+
+  async recordEmailGivenUp(deliveryId: string): Promise<void> {
+    this.log.push(`recordEmailGivenUp:${deliveryId}`);
+    const delivery = this.find(deliveryId);
+    delivery.status = "failed";
+    delivery.nextAttemptAt = null;
+  }
+}
+
+class FakeAlertEmailRecipients implements AlertEmailRecipientReader {
+  readonly recipients = new Map<string, AlertEmailRecipient>();
+  private readonly log: string[];
+
+  constructor(log: string[]) {
+    this.log = log;
+  }
+
+  async alertEmailRecipient(userId: string): Promise<AlertEmailRecipient | undefined> {
+    this.log.push(`alertEmailRecipient:${userId}`);
+    const recipient = this.recipients.get(userId);
+    return recipient === undefined ? undefined : structuredClone(recipient);
+  }
+}
+
+class FakeAlertEmailBranches implements AlertEmailBranchReader {
+  readonly addresses = new Map<string, string>();
+  private readonly log: string[];
+
+  constructor(log: string[]) {
+    this.log = log;
+  }
+
+  async alertEmailBranchAddress(locationId: string): Promise<string | null> {
+    this.log.push(`alertEmailBranchAddress:${locationId}`);
+    return this.addresses.get(locationId) ?? null;
+  }
 }
 
 export class FakeAlertEmailLanes implements AlertEmailLanes {
   readonly log: string[] = [];
+  readonly recipients = new FakeAlertEmailRecipients(this.log);
+  readonly branches = new FakeAlertEmailBranches(this.log);
   readonly store = new FakeAlertEmailDeliveryStore(this);
   held = false;
+  heldByAnotherRun = false;
 
   async inAlertEmailLane<TOutcome>(
     work: (store: AlertEmailDeliveryStore) => Promise<TOutcome>,
-  ): Promise<TOutcome> {
+  ): Promise<AlertEmailLaneRun<TOutcome>> {
+    if (this.heldByAnotherRun) {
+      this.log.push("inAlertEmailLane:busy");
+      return { kind: "busy" };
+    }
     this.held = true;
     try {
-      return await work(this.store);
+      return { kind: "ran", result: await work(this.store) };
     } finally {
       this.held = false;
     }
@@ -121,6 +174,7 @@ export class FakeAlertEmailLanes implements AlertEmailLanes {
 export class FakeAlertEmailSender implements AlertEmailSender {
   readonly sent: AlertEmail[] = [];
   readonly results = new Map<string, AlertEmailSendResult | Error>();
+  onSend: (email: AlertEmail) => void = () => {};
   private readonly lanes: FakeAlertEmailLanes;
 
   constructor(lanes: FakeAlertEmailLanes) {
@@ -130,6 +184,7 @@ export class FakeAlertEmailSender implements AlertEmailSender {
   async sendAlertEmail(email: AlertEmail): Promise<AlertEmailSendResult> {
     this.lanes.log.push(`send:${email.deliveryId}:held=${this.lanes.held}`);
     this.sent.push(structuredClone(email));
+    this.onSend(email);
     const result = this.results.get(email.deliveryId);
     if (result instanceof Error) {
       throw result;

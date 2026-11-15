@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import {
   ALERT_CLOSINGS,
@@ -8,8 +8,10 @@ import {
   alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
+  type EmailedAlertKind,
   FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS,
   FISCAL_UNKNOWN_ESCALATION_DELAY_MS,
+  isEmailedAlertKind,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
   REFUND_TASK_ALERT_OPENING_DELAY_MS,
   REFUND_TASK_ESCALATION_DELAY_MS,
@@ -225,6 +227,43 @@ describe("the alerts that go by email", () => {
       "sales_denied",
       "fiscal_emission_stopped",
     ]);
+  });
+});
+
+describe("isEmailedAlertKind", () => {
+  it("holds for exactly the kinds that go by email at some stage", () => {
+    expect(ALERT_KINDS.filter(isEmailedAlertKind)).toEqual([
+      "backoffice_passkey_changed",
+      "backoffice_recovery_requested",
+      "user_email_changed",
+      "alert_recipients_changed",
+      "backoffice_sign_in_lockout",
+      "user_access_increased",
+      "register_enrolled",
+      "events_quarantined",
+      "arca_certificate_expiring",
+      "update_required",
+      "register_silent",
+      "sales_denied",
+      "fiscal_rejected",
+      "fiscal_unknown",
+      "fiscal_emission_stopped",
+      "clock_drift",
+      "register_replenishment_failed",
+      "on_battery",
+      "outbox_chain_broken",
+      "offsite_dump_unverified",
+      "fortnight_report_overdue",
+      "register_backup_overdue",
+      "fortnight_report_document_rejected",
+    ]);
+  });
+
+  it("types as emailed a kind that goes by email at some stage, and never one that stays on the board", () => {
+    expectTypeOf<"sales_denied">().toExtend<EmailedAlertKind>();
+    expectTypeOf<"arca_certificate_expiring">().toExtend<EmailedAlertKind>();
+    expectTypeOf<"lots_expiring">().not.toExtend<EmailedAlertKind>();
+    expectTypeOf<"refund_task">().not.toExtend<EmailedAlertKind>();
   });
 });
 

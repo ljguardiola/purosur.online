@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { postResendEmail } from "./resend-email-api.js";
+import { postResendEmail, ResendRefusalError } from "./resend-email-api.js";
 
 function fakeFetch(response: { ok: boolean; status: number; body?: string }) {
   return vi.fn().mockResolvedValue({
@@ -46,12 +46,21 @@ describe("postResendEmail", () => {
     });
   });
 
-  it("rejects with the status and body when the Resend API does not answer 2xx", async () => {
+  it("rejects with a refusal carrying the status and body when the Resend API does not answer 2xx", async () => {
     const fetch = fakeFetch({ ok: false, status: 422, body: "invalid from" });
 
-    await expect(postResendEmail({ apiKey: "re_test_key", fetch }, MESSAGE)).rejects.toThrow(
-      "Resend API responded 422: invalid from",
-    );
+    const rejection = postResendEmail({ apiKey: "re_test_key", fetch }, MESSAGE);
+
+    await expect(rejection).rejects.toThrow("Resend API responded 422: invalid from");
+    await expect(rejection).rejects.toBeInstanceOf(ResendRefusalError);
+  });
+
+  it("rejects with no refusal when the request itself fails", async () => {
+    const fetch = vi.fn().mockRejectedValue(new Error("connect ECONNREFUSED"));
+
+    await expect(
+      postResendEmail({ apiKey: "re_test_key", fetch }, MESSAGE),
+    ).rejects.not.toBeInstanceOf(ResendRefusalError);
   });
 
   it("gives up on a request that never answers after ten seconds", async () => {

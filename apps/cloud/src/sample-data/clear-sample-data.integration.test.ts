@@ -519,6 +519,27 @@ describe("clearSampleData", () => {
     expect(surviving).toEqual([{ recipientUserId: bootstrapAdmin.id }]);
   }, 120_000);
 
+  it("clears the emails a sample alert was sent to a real user", async () => {
+    const db = await freshOwnerDatabase();
+    const bootstrapAdmin = await seedActiveAdministrator(db);
+    expect(
+      (await loadSampleData(db, { zoneRules: fixedZoneRulesSource(), now: () => NOW })).kind,
+    ).toBe("loaded");
+    const [sampleAlert] = await db.select({ id: alerts.id }).from(alerts).limit(1);
+    if (!sampleAlert) throw new Error("test setup: the sample data loaded no alert");
+    await db.insert(alertEmailDeliveries).values({
+      alertId: sampleAlert.id,
+      recipientUserId: bootstrapAdmin.id,
+      stage: "opened",
+      level: "warning",
+      occurredAt: NOW,
+    });
+
+    expect((await clearSampleData(db)).kind).toBe("cleared");
+
+    expect(await tableCount(db, "alert_email_deliveries")).toBe(0);
+  }, 120_000);
+
   it("clears a sample register that an installation enrolled, with that installation", async () => {
     const db = await freshOwnerDatabase();
     await seedActiveAdministrator(db);

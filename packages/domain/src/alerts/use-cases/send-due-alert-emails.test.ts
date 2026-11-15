@@ -13,7 +13,14 @@ function setup() {
   const lanes = new FakeAlertEmailLanes();
   const sender = new FakeAlertEmailSender(lanes);
   const store = lanes.store;
-  const send = () => sendDueAlertEmails({ lanes, sender, clock: { now: () => new Date(NOW) } });
+  const send = () =>
+    sendDueAlertEmails({
+      lanes,
+      recipients: lanes.recipients,
+      branches: lanes.branches,
+      sender,
+      clock: { now: () => new Date(NOW) },
+    });
   return { lanes, sender, store, send };
 }
 
@@ -21,22 +28,34 @@ describe("sendDueAlertEmails", () => {
   it("sends nothing and answers zero counts when no delivery is due", async () => {
     const { sender, send } = setup();
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 0, failed: 0, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 0,
+      retrying: 0,
+      failed: 0,
+      skipped: 0,
+    });
 
     expect(sender.sent).toEqual([]);
   });
 
-  it("hands the sender the email of each due delivery", async () => {
-    const { sender, store, send } = setup();
+  it("hands the sender the email of each due delivery, at its recipient's email and naming its branch's address", async () => {
+    const { lanes, sender, store, send } = setup();
+    lanes.recipients.recipients.set("user-ana", {
+      email: "ana@example.test",
+      active: true,
+      alertEmailOptedIn: true,
+    });
+    lanes.branches.addresses.set("location-1", "Av. Siempreviva 742");
     store.seed({
       deliveryId: "delivery-1",
-      to: "ana@example.test",
+      recipientUserId: "user-ana",
       alertId: "alert-7",
       kind: "sales_denied",
       stage: "escalated",
       level: "critical",
       occurredAt: new Date("2026-10-01T11:30:00.000Z"),
-      alertBranchAddress: "Av. Siempreviva 742",
+      alertLocationId: "location-1",
     });
 
     await send();
@@ -56,35 +75,94 @@ describe("sendDueAlertEmails", () => {
   });
 
   it("names no branch in the email of an alert that belongs to none, or whose branch has no address", async () => {
-    const { sender, store, send } = setup();
-    store.seed({ deliveryId: "delivery-1", alertBranchAddress: null });
-    store.seed({ deliveryId: "delivery-2", alertBranchAddress: "" });
+    const { lanes, sender, store, send } = setup();
+    lanes.branches.addresses.set("location-blank", "");
+    store.seed({ deliveryId: "delivery-1", alertLocationId: null });
+    store.seed({ deliveryId: "delivery-2", alertLocationId: "location-blank" });
 
     await send();
 
     expect(sender.sent.map(({ branchName }) => branchName)).toEqual([null, null]);
+    expect(lanes.log).toContain("alertEmailBranchAddress:location-blank");
+    expect(lanes.log.filter((entry) => entry.startsWith("alertEmailBranchAddress"))).toHaveLength(
+      1,
+    );
   });
 
-  it("does not send to a recipient who is no longer active or no longer has an opt-in, recording the delivery as skipped and counting it", async () => {
+  it("does not send to a recipient who is no longer active, no longer has an opt-in or is gone, recording the delivery as skipped and counting it", async () => {
     const { lanes, sender, store, send } = setup();
-    store.seed({ deliveryId: "inactive", recipientActive: false });
-    store.seed({ deliveryId: "withdrawn", recipientAlertEmailOptedIn: false });
+    lanes.recipients.recipients.set("user-inactive", {
+      email: "inactive@example.test",
+      active: false,
+      alertEmailOptedIn: true,
+    });
+    lanes.recipients.recipients.set("user-withdrawn", {
+      email: "withdrawn@example.test",
+      active: true,
+      alertEmailOptedIn: false,
+    });
+    store.seed({ deliveryId: "inactive", recipientUserId: "user-inactive" });
+    store.seed({ deliveryId: "withdrawn", recipientUserId: "user-withdrawn" });
+    store.seed({ deliveryId: "gone" });
+    lanes.recipients.recipients.delete("user-of-gone");
     store.seed({ deliveryId: "still-receives" });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 2 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 1,
+      retrying: 0,
+      failed: 0,
+      skipped: 3,
+    });
 
     expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual(["still-receives"]);
-    expect(store.find("inactive")).toMatchObject({ status: "skipped", attemptsMade: 0 });
-    expect(store.find("withdrawn")).toMatchObject({ status: "skipped", attemptsMade: 0 });
-    expect(lanes.log).not.toContain("recordEmailAttempt:inactive");
+    for (const deliveryId of ["inactive", "withdrawn", "gone"]) {
+      expect(store.find(deliveryId)).toMatchObject({ status: "skipped", attemptsMade: 0 });
+      expect(lanes.log).not.toContain(`recordEmailAttempt:${deliveryId}`);
+    }
     expect(lanes.log).toContain("recordEmailSkipped:inactive");
+  });
+
+  it("reads again, just before each send, whether its recipient still receives alert emails", async () => {
+    const { lanes, sender, store, send } = setup();
+    lanes.recipients.recipients.set("user-ana", {
+      email: "ana@example.test",
+      active: true,
+      alertEmailOptedIn: true,
+    });
+    store.seed({ deliveryId: "first", recipientUserId: "user-ana" });
+    store.seed({ deliveryId: "second", recipientUserId: "user-ana" });
+    sender.onSend = () => {
+      lanes.recipients.recipients.set("user-ana", {
+        email: "ana@example.test",
+        active: true,
+        alertEmailOptedIn: false,
+      });
+    };
+
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 1,
+      retrying: 0,
+      failed: 0,
+      skipped: 1,
+    });
+
+    expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual(["first"]);
+    expect(store.find("second")).toMatchObject({ status: "skipped", attemptsMade: 0 });
   });
 
   it("records a sent delivery with when it was sent and the provider's id, and counts it", async () => {
     const { store, send } = setup();
     store.seed({ deliveryId: "delivery-1" });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 1,
+      retrying: 0,
+      failed: 0,
+      skipped: 0,
+    });
 
     expect(store.find("delivery-1")).toMatchObject({
       status: "sent",
@@ -94,7 +172,7 @@ describe("sendDueAlertEmails", () => {
     });
   });
 
-  it("records the attempt, with when the next one is due, before it calls the sender, and what came of it after", async () => {
+  it("reads the recipient, then records the attempt with when the next one is due, before it calls the sender, and what came of it after", async () => {
     const { lanes, store, send } = setup();
     store.seed({ deliveryId: "delivery-1", attemptsMade: 2 });
 
@@ -102,6 +180,7 @@ describe("sendDueAlertEmails", () => {
 
     expect(lanes.log).toEqual([
       "pendingEmailDeliveries:held=true",
+      "alertEmailRecipient:user-of-delivery-1",
       "recordEmailAttempt:delivery-1",
       "send:delivery-1:held=true",
       "recordEmailSent:delivery-1",
@@ -125,31 +204,43 @@ describe("sendDueAlertEmails", () => {
     ]);
   });
 
-  it("keeps a delivery whose send failed pending, with its error, to be retried, and counts it as retrying", async () => {
+  it("keeps a delivery whose send failed pending, with the reason it failed, to be retried, and counts it as retrying", async () => {
     const { sender, store, send } = setup();
     store.seed({ deliveryId: "delivery-1", attemptsMade: 1 });
-    sender.results.set("delivery-1", { kind: "failed", error: "mailbox full" });
+    sender.results.set("delivery-1", { kind: "failed", reason: "provider_refused" });
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 1, failed: 0, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 0,
+      retrying: 1,
+      failed: 0,
+      skipped: 0,
+    });
 
     expect(store.find("delivery-1")).toMatchObject({
       status: "pending",
-      error: "mailbox full",
+      error: "provider_refused",
       attemptsMade: 2,
       nextAttemptAt: new Date(NOW.getTime() + 2 * MINUTE_MS),
     });
   });
 
-  it("gives up on a delivery whose last attempt fails, keeping its error, and counts it as failed", async () => {
+  it("gives up on a delivery whose last attempt fails, keeping the reason it failed, and counts it as failed", async () => {
     const { sender, store, send } = setup();
     store.seed({ deliveryId: "delivery-1", attemptsMade: ALERT_EMAIL_SEND_ATTEMPTS - 1 });
-    sender.results.set("delivery-1", { kind: "failed", error: "mailbox full" });
+    sender.results.set("delivery-1", { kind: "failed", reason: "provider_unreachable" });
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 0, failed: 1, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 0,
+      retrying: 0,
+      failed: 1,
+      skipped: 0,
+    });
 
     expect(store.find("delivery-1")).toMatchObject({
       status: "failed",
-      error: "mailbox full",
+      error: "provider_unreachable",
       attemptsMade: ALERT_EMAIL_SEND_ATTEMPTS,
     });
   });
@@ -157,10 +248,41 @@ describe("sendDueAlertEmails", () => {
   it("does not give up before the last attempt", async () => {
     const { sender, store, send } = setup();
     store.seed({ deliveryId: "delivery-1", attemptsMade: ALERT_EMAIL_SEND_ATTEMPTS - 2 });
-    sender.results.set("delivery-1", { kind: "failed", error: "timeout" });
+    sender.results.set("delivery-1", { kind: "failed", reason: "provider_unreachable" });
 
-    await expect(send()).resolves.toEqual({ sent: 0, retrying: 1, failed: 0, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 0,
+      retrying: 1,
+      failed: 0,
+      skipped: 0,
+    });
   });
+
+  it.each([ALERT_EMAIL_SEND_ATTEMPTS, ALERT_EMAIL_SEND_ATTEMPTS + 1])(
+    "gives up, without sending again, on a pending delivery that already made %i attempts, keeping the reason it last failed",
+    async (attemptsMade) => {
+      const { lanes, sender, store, send } = setup();
+      store.seed({ deliveryId: "delivery-1", attemptsMade, error: "provider_unreachable" });
+
+      await expect(send()).resolves.toEqual({
+        kind: "ran",
+        sent: 0,
+        retrying: 0,
+        failed: 1,
+        skipped: 0,
+      });
+
+      expect(sender.sent).toEqual([]);
+      expect(lanes.log).not.toContain("recordEmailAttempt:delivery-1");
+      expect(store.find("delivery-1")).toMatchObject({
+        status: "failed",
+        error: "provider_unreachable",
+        attemptsMade,
+        nextAttemptAt: null,
+      });
+    },
+  );
 
   it("leaves alone a delivery whose next attempt is not due yet, and one already sent or failed", async () => {
     const { sender, store, send } = setup();
@@ -173,7 +295,13 @@ describe("sendDueAlertEmails", () => {
     store.seed({ deliveryId: "failed", status: "failed" });
     store.seed({ deliveryId: "due-now", attemptsMade: 1, nextAttemptAt: NOW });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 0, failed: 0, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 1,
+      retrying: 0,
+      failed: 0,
+      skipped: 0,
+    });
 
     expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual(["due-now"]);
   });
@@ -183,10 +311,16 @@ describe("sendDueAlertEmails", () => {
     store.seed({ deliveryId: "delivery-1" });
     store.seed({ deliveryId: "delivery-2" });
     store.seed({ deliveryId: "delivery-3", attemptsMade: ALERT_EMAIL_SEND_ATTEMPTS - 1 });
-    sender.results.set("delivery-1", { kind: "failed", error: "boom" });
-    sender.results.set("delivery-3", { kind: "failed", error: "boom" });
+    sender.results.set("delivery-1", { kind: "failed", reason: "provider_refused" });
+    sender.results.set("delivery-3", { kind: "failed", reason: "provider_refused" });
 
-    await expect(send()).resolves.toEqual({ sent: 1, retrying: 1, failed: 1, skipped: 0 });
+    await expect(send()).resolves.toEqual({
+      kind: "ran",
+      sent: 1,
+      retrying: 1,
+      failed: 1,
+      skipped: 0,
+    });
 
     expect(sender.sent.map(({ deliveryId }) => deliveryId)).toEqual([
       "delivery-1",
@@ -220,5 +354,17 @@ describe("sendDueAlertEmails", () => {
 
     expect(lanes.log.filter((entry) => entry.endsWith("held=true"))).toHaveLength(3);
     expect(lanes.held).toBe(false);
+  });
+
+  it("ends at once, reading and sending nothing, while another run holds the lane", async () => {
+    const { lanes, sender, store, send } = setup();
+    store.seed({ deliveryId: "delivery-1" });
+    lanes.heldByAnotherRun = true;
+
+    await expect(send()).resolves.toEqual({ kind: "lane_busy" });
+
+    expect(sender.sent).toEqual([]);
+    expect(lanes.log).toEqual(["inAlertEmailLane:busy"]);
+    expect(store.find("delivery-1")).toMatchObject({ status: "pending", attemptsMade: 0 });
   });
 });
