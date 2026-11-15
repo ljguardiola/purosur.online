@@ -79,7 +79,7 @@ describe("issuedFiscalDocumentsSchema", () => {
     state: "awaiting_authorization",
   };
   const listing = {
-    range: { from: "2026-10-05", to: "2026-10-06" },
+    range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
     documents: [receipt, creditNote, awaiting],
     total: 3,
     page_size: 50,
@@ -137,7 +137,10 @@ describe("issuedFiscalDocumentsSchema", () => {
   it.each([
     ["a negative total", { total: -1 }],
     ["a page size of zero", { page_size: 0 }],
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
   ])("refuses a listing with %s", (_name, change) => {
     expect(issuedFiscalDocumentsSchema.safeParse({ ...listing, ...change }).success).toBe(false);
   });

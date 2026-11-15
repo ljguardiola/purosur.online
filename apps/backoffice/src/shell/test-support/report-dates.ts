@@ -33,3 +33,10 @@ export function periodSegments(scope: Scope) {
     .all()
     .map((segment) => segment.element().textContent);
 }
+
+export function textsOutsidePeriod(scope: Pick<Locator, "getByText">, text: RegExp) {
+  return scope
+    .getByText(text)
+    .elements()
+    .filter((element) => element.closest('[role="group"]') === null);
+}

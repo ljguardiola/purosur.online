@@ -221,7 +221,7 @@ test("keeps the other end shown and tells the caller nothing emptied while one e
     segmentsOf(group)
       .slice(3)
       .map((segment) => segment.textContent),
-  ).toEqual(["20", "2", "2027"]);
+  ).toEqual(["20", "02", "2027"]);
   expect(timesEmptied(screen)).toBe("0");
 });
 

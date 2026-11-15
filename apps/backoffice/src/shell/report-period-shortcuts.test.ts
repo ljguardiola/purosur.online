@@ -48,9 +48,7 @@ test("names the shortcut whose period is shown", () => {
   expect(shortcutOfPeriod({ from: "2026-10-15", to: "2026-10-15" }, today)).toBe("today");
   expect(shortcutOfPeriod({ from: "2026-10-09", to: "2026-10-15" }, today)).toBe("last-7-days");
   expect(shortcutOfPeriod({ from: "2026-10-01", to: "2026-10-15" }, today)).toBe("this-month");
-  expect(shortcutOfPeriod({ from: "2026-09-01", to: "2026-09-30" }, today)).toBe(
-    "previous-month",
-  );
+  expect(shortcutOfPeriod({ from: "2026-09-01", to: "2026-09-30" }, today)).toBe("previous-month");
 });
 
 test("names no shortcut for a period none of them gives", () => {

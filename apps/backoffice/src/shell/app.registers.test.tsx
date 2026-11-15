@@ -498,7 +498,7 @@ test("writes the period typed in the panel's Sesiones into the URL, replacing th
   const services = registersServices(EVERY_CAPABILITY);
   window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=sessions`);
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
   const entries = window.history.length;
 
   await typePeriodStart(screen, "02102026");

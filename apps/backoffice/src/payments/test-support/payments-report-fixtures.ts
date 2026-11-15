@@ -1,7 +1,7 @@
 import type { HandConfirmedPaymentsBody, SalesByPaymentMethodBody } from "@purosur/contracts";
 
 export const weekPaymentsReport: SalesByPaymentMethodBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   methods: [
     { method: "TRANSFER", sales_count: 1, amount: 50_000 },
     { method: "CASH", sales_count: 4, amount: 900_000 },
@@ -12,7 +12,7 @@ export const weekPaymentsReport: SalesByPaymentMethodBody = {
 };
 
 export const todayPaymentsReport: SalesByPaymentMethodBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   methods: [],
   totals: { sales_count: 0, total: 0, average_ticket: null },
 };
@@ -21,7 +21,7 @@ const ANA_ID = "9a3e7c40-2b1d-4f6a-8c05-5d7e1a3b9c28";
 const UNKNOWN_CASHIER_ID = "3d5f8a12-6b4c-4e97-a0d3-7c2e9b1f4a56";
 
 export const weekHandConfirmedReport: HandConfirmedPaymentsBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   totals: { count: 3, amount: 190_000 },
   methods: [
     { method: "TRANSFER", count: 2, amount: 150_000 },
@@ -81,7 +81,7 @@ export const weekHandConfirmedReport: HandConfirmedPaymentsBody = {
 };
 
 export const emptyHandConfirmedReport: HandConfirmedPaymentsBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   totals: { count: 0, amount: 0 },
   methods: [
     { method: "TRANSFER", count: 0, amount: 0 },

@@ -68,8 +68,8 @@ test("shows the range the report answered and asks for the one in the URL", asyn
   const services = createServices();
   const screen = await renderScreen(services, { filters: { state: "PENDING_RECEIPT" } });
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["5", "10", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["4", "11", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["05", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["04", "11", "2026"]);
   await screen.unmount();
 
   await renderScreen(services, {
@@ -242,7 +242,7 @@ test("asks the differences for the range in the URL and reports a typed one with
     filters: { differences: true },
     onFiltersChange,
   });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "09", "2026"]);
 
   await typePeriodStart(screen, "01102026");
   await typePeriodEnd(screen, "07102026");
