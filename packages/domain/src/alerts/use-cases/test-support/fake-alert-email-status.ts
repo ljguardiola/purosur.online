@@ -7,6 +7,7 @@ import type {
 
 export class FakeAlertEmailStatusStore implements AlertEmailStatusStore {
   readonly undelivered: string[] = [];
+  readonly reads: string[] = [];
   private readonly sentByProviderMessageId = new Map<string, SentAlertEmail>();
   private readonly pendingDeliveryIds = new Set<string>();
 
@@ -21,7 +22,13 @@ export class FakeAlertEmailStatusStore implements AlertEmailStatusStore {
   async sentAlertEmailOfProviderMessage(
     providerMessageId: string,
   ): Promise<SentAlertEmail | undefined> {
+    this.reads.push("sentAlertEmailOfProviderMessage");
     return this.sentByProviderMessageId.get(providerMessageId);
+  }
+
+  async hasAlertEmailSendInFlight(): Promise<boolean> {
+    this.reads.push("hasAlertEmailSendInFlight");
+    return this.pendingDeliveryIds.size > 0;
   }
 
   async isAlertEmailDeliveryPending(deliveryId: string): Promise<boolean> {

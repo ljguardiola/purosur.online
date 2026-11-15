@@ -126,16 +126,16 @@ describe("POST /alerts/email-deliveries/notifications", () => {
       },
     );
 
-    it("acknowledges the notification of an email the provider holds as no alert email's", async () => {
+    it("acknowledges the notification of an email no delivery sent without asking the provider, even when the provider cannot be asked", async () => {
       const deliveryId = await route.sentDelivery();
-      providerAnswers("bounced");
+      route.statusQuery.answer = { kind: "unavailable" };
 
       const response = await route.notify({
         rawBody: notificationBody("email.bounced", "an-access-email-id"),
       });
 
       expect(response.statusCode).toBe(200);
-      expect(route.statusQuery.queried).toEqual(["an-access-email-id"]);
+      expect(route.statusQuery.queried).toEqual([]);
       expect(await route.deliveryOf(deliveryId)).toMatchObject({ status: "sent" });
     });
 
