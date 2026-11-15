@@ -10,6 +10,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
+import { settingsTabs } from "../shell/test-support/settings-tabs";
 import type { BranchSettings } from "./branch-settings-api";
 import { BranchSettingsScreen } from "./branch-settings-screen";
 import type { BranchSettingsScreenServices } from "./branch-settings-services";
@@ -97,20 +98,26 @@ function renderScreen(
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <BranchSettingsScreen onSessionEnded={onSessionEnded} services={services} />
+        <BranchSettingsScreen
+          settingsTabs={settingsTabs}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
       </main>
     </FieldSizeProvider>,
   );
 }
 
-test("shows the breadcrumb, heading, and the branch's loaded values", async () => {
+test("shows the Configuración title with the Sucursal tab selected, and the branch's loaded values", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Sucursal", selected: true })).toBeVisible();
   await expect
     .element(screen.getByRole("textbox", { name: "Dirección" }))
     .toHaveValue("Av. Belgrano 1450, CABA");
@@ -1208,7 +1215,11 @@ async function reopenWithCachedSettings(
   await screen.rerender(
     <FieldSizeProvider size="backoffice">
       <main>
-        <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
+        <BranchSettingsScreen
+          settingsTabs={settingsTabs}
+          onSessionEnded={() => {}}
+          services={services}
+        />
         <FetchesInFlight />
       </main>
     </FieldSizeProvider>,
@@ -1363,7 +1374,9 @@ test("has no accessibility violations once loaded", async () => {
   const services = createServices();
   vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });
@@ -1376,7 +1389,11 @@ test("fits the three deadline fields inside their card at the backoffice's conte
   const screen = await render(
     <FieldSizeProvider size="backoffice">
       <main style={{ width: 1104, height: 1000, display: "flex", flexDirection: "column" }}>
-        <BranchSettingsScreen onSessionEnded={() => {}} services={services} />
+        <BranchSettingsScreen
+          settingsTabs={settingsTabs}
+          onSessionEnded={() => {}}
+          services={services}
+        />
       </main>
     </FieldSizeProvider>,
   );
@@ -1422,7 +1439,11 @@ test("keeps unsaved edits without refetching when the parent re-renders with a n
   await screen.rerender(
     <FieldSizeProvider size="backoffice">
       <main>
-        <BranchSettingsScreen services={services} onSessionEnded={() => {}} />
+        <BranchSettingsScreen
+          settingsTabs={settingsTabs}
+          services={services}
+          onSessionEnded={() => {}}
+        />
       </main>
     </FieldSizeProvider>,
   );

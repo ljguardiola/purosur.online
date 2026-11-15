@@ -1,5 +1,4 @@
-import { createRoute, Outlet, useParams } from "@tanstack/react-router";
-import { HelpSectionColumn } from "../help/help-section-column";
+import { createRoute, Outlet } from "@tanstack/react-router";
 import { AreaLayout } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
@@ -10,14 +9,8 @@ export const helpAreaRoute = createRoute({
 });
 
 function HelpArea() {
-  const { help } = helpAreaRoute.useRouteContext();
-  const { categoryId } = useParams({ strict: false });
   return (
-    <AreaLayout
-      area="help"
-      sectionColumnLabel="Secciones de ayuda"
-      sectionColumn={<HelpSectionColumn help={help} activeCategoryId={categoryId ?? null} />}
-    >
+    <AreaLayout area="help">
       <Outlet />
     </AreaLayout>
   );

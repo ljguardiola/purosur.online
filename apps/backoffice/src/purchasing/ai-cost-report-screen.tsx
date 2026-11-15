@@ -11,11 +11,12 @@ import {
 import { Bot } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
+import type { AreaTab } from "../shell/area-tabs";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
-import { ScreenLayout } from "../shell/screen-layout";
+import { SettingsFrame } from "../shell/settings-frame";
+import type { SettingsTab } from "../shell/settings-tabs";
 import { AiCostAmount } from "./ai-cost-amount";
 import type { AiCostReportFilters } from "./ai-cost-report-filters";
 import type { AiCostReportScreenServices } from "./ai-cost-report-services";
@@ -24,6 +25,7 @@ import { incompleteAiCostText } from "./ai-cost-text";
 import { useAiCostReportQuery } from "./purchasing-queries";
 
 export type AiCostReportScreenProps = {
+  settingsTabs: readonly AreaTab<SettingsTab>[];
   filters: AiCostReportFilters;
   onFiltersChange: (filters: AiCostReportFilters) => void;
   onSessionEnded: () => void;
@@ -79,6 +81,7 @@ function costColumns(grouping: Grouping) {
 }
 
 export function AiCostReportScreen({
+  settingsTabs,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -105,10 +108,7 @@ export function AiCostReportScreen({
   ];
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Configuración" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <SettingsFrame tabs={settingsTabs} selected="ai-cost">
       <div className="flex flex-wrap items-end gap-3">
         <ReportFilters
           filters={filters}
@@ -164,6 +164,6 @@ export function AiCostReportScreen({
           variant: filters.from === "" ? "blank" : "filtered",
         }}
       />
-    </ScreenLayout>
+    </SettingsFrame>
   );
 }

@@ -1,14 +1,16 @@
 import type { HelpArticle } from "@purosur/ui";
-import { Eyebrow, HelpArticleBody, SearchField, searchArticles } from "@purosur/ui";
-import { Link, useRouter } from "@tanstack/react-router";
+import { Eyebrow, HelpArticleBody, SearchField, searchArticles, Tab, Tabs } from "@purosur/ui";
+import { createLink, Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { focusRingClassName } from "../platform/focus-ring";
 import { ownEntry } from "../platform/own-entry";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import type { BackofficeHelpCatalog } from "./help-catalog";
+
+const HelpTabLink = createLink(Tab);
 
 const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-3 " +
@@ -141,18 +143,12 @@ export function HelpContent({
   const hasArticles = Object.keys(help.articles).length > 0;
   const idleTitle = hasArticles ? "Elegí una sección" : "Todavía no hay contenido de ayuda";
 
-  return (
-    <ScreenLayout
-      topBar={
-        <div className="flex h-18 shrink-0 flex-col justify-center border-border border-b bg-surface px-8">
-          {activeArticle && activeCategory ? (
-            <p className="text-text-subtle text-detail">{`Ayuda · ${activeCategory.label}`}</p>
-          ) : null}
-          <ScreenTitle>{activeArticle?.title ?? activeCategory?.label ?? idleTitle}</ScreenTitle>
-        </div>
-      }
-      bodyClassName="gap-4 p-6"
-    >
+  const categories = Object.entries(help.categories);
+  const content = (
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
+      <h2 className="text-heading text-text-accent">
+        {activeArticle?.title ?? activeCategory?.label ?? idleTitle}
+      </h2>
       <div className="w-105">
         <SearchField
           value={search}
@@ -183,6 +179,30 @@ export function HelpContent({
               : "Cuando se sumen funciones nuevas, sus artículos van a aparecer acá."
           }
         />
+      )}
+    </div>
+  );
+
+  return (
+    <ScreenLayout topBar={<AreaTopBar title="Ayuda" />} bodyClassName="p-0">
+      {categories.length === 0 ? (
+        content
+      ) : (
+        <Tabs
+          label="Secciones de Ayuda"
+          selectedTab={activeCategory && categoryId ? categoryId : ""}
+          tabs={categories.map(([id, category]) => (
+            <HelpTabLink
+              key={id}
+              to="/help/$categoryId"
+              params={{ categoryId: id }}
+              value={id}
+              label={category.label}
+            />
+          ))}
+        >
+          {content}
+        </Tabs>
       )}
     </ScreenLayout>
   );

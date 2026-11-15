@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import { settingsTabs } from "../shell/test-support/settings-tabs";
 import { QuarantinedEventsScreen } from "./quarantined-events-screen";
 import type { QuarantinedEventsScreenServices } from "./quarantined-events-services";
 import { quarantinedCashClosing, quarantinedSale } from "./test-support/quarantined-events";
@@ -25,12 +26,16 @@ function deferred<T>() {
 function renderScreen(services: QuarantinedEventsScreenServices, onSessionEnded = () => {}) {
   return render(
     <main>
-      <QuarantinedEventsScreen services={services} onSessionEnded={onSessionEnded} />
+      <QuarantinedEventsScreen
+        settingsTabs={settingsTabs}
+        services={services}
+        onSessionEnded={onSessionEnded}
+      />
     </main>,
   );
 }
 
-test("shows the breadcrumb, the heading and what the list is for", async () => {
+test("shows the Configuración title with its tab selected and what the list is for", async () => {
   const services = createServices();
   vi.mocked(services.fetchQuarantinedEvents).mockResolvedValue({
     kind: "ok",
@@ -39,9 +44,11 @@ test("shows the breadcrumb, the heading and what the list is for", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
   await expect
-    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("tab", { name: "Cambios de cajas retenidos", selected: true }))
     .toBeVisible();
   await expect
     .element(

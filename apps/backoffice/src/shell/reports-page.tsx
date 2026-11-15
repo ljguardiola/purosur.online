@@ -14,7 +14,6 @@ import {
   REPORT_VIEW_LABELS,
   REPORT_VIEW_TABS,
   REPORT_VIEW_TARGETS,
-  REPORT_VIEW_TITLES,
   REPORTS_TAB_LABELS,
   type ReportView,
   reportsTabsOf,
@@ -44,10 +43,7 @@ export function ReportsPage(): ReactElement {
   }));
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes" title={REPORT_VIEW_TITLES[selectedView]} />}
-      bodyClassName="p-0"
-    >
+    <ScreenLayout topBar={<AreaTopBar title="Reportes" />} bodyClassName="p-0">
       <Tabs
         label="Secciones de Reportes"
         selectedTab={selectedTab}

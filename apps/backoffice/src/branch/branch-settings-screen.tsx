@@ -12,8 +12,9 @@ import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToOwnAccount } from "../platform/send-to-own-account";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
+import type { AreaTab } from "../shell/area-tabs";
+import { SettingsFrame } from "../shell/settings-frame";
+import type { SettingsTab } from "../shell/settings-tabs";
 import { BranchDayRow } from "./branch-day-row";
 import { useBranchSettingsQuery, useReloadBranchSettings } from "./branch-queries";
 import type { BranchSettings } from "./branch-settings-api";
@@ -29,13 +30,18 @@ import {
 import type { BranchSettingsScreenServices } from "./branch-settings-services";
 
 export type BranchSettingsScreenProps = {
+  settingsTabs: readonly AreaTab<SettingsTab>[];
   onSessionEnded: () => void;
   services: BranchSettingsScreenServices;
 };
 
 type FormNotice = { kind: "attemptFailed" } | { kind: "staleVersion" };
 
-export function BranchSettingsScreen({ onSessionEnded, services }: BranchSettingsScreenProps) {
+export function BranchSettingsScreen({
+  settingsTabs,
+  onSessionEnded,
+  services,
+}: BranchSettingsScreenProps) {
   const sendToOwnAccount = useSendToOwnAccount();
   const { fetchBranchSettings, saveBranchSettings } = services;
   const data = useBranchSettingsQuery({ fetchBranchSettings, onSessionEnded });
@@ -118,25 +124,20 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
   const busy = submitting || reloading;
 
   return (
-    <ScreenLayout
-      topBar={
-        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-          <div className="flex flex-col justify-center">
-            <p className="text-text-subtle text-detail">Configuración</p>
-            <ScreenTitle>Sucursal</ScreenTitle>
-          </div>
-          <Button
-            variant="primary"
-            icon={<Check />}
-            dataStatus={data.status}
-            disabled={busy}
-            onPress={() => void submit()}
-          >
-            Guardar los cambios
-          </Button>
-        </div>
+    <SettingsFrame
+      tabs={settingsTabs}
+      selected="branch"
+      action={
+        <Button
+          variant="primary"
+          icon={<Check />}
+          dataStatus={data.status}
+          disabled={busy}
+          onPress={() => void submit()}
+        >
+          Guardar los cambios
+        </Button>
       }
-      bodyClassName="gap-4 p-6"
     >
       {data.status === "loading" && <LoadingPlaceholder variant="form" fields={6} />}
       {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "la sucursal")} />}
@@ -244,6 +245,6 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
           </div>
         </div>
       )}
-    </ScreenLayout>
+    </SettingsFrame>
   );
 }
