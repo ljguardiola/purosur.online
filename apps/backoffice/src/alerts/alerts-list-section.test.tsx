@@ -460,6 +460,13 @@ test("reports the alert opened from the list, and drops it when the detail close
     .poll(() => onFiltersChange.mock.lastCall)
     .toEqual([{ ...alertsListFilters.parse({}), alert: "alert-1" }]);
 
+  await screen.rerender(
+    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+      filters: { ...alertsListFilters.parse({}), alert: "alert-1" },
+      onFiltersChange,
+    }),
+  );
+
   await userEvent.keyboard("{Escape}");
 
   await expect.poll(() => onFiltersChange.mock.lastCall).toEqual([alertsListFilters.parse({})]);
