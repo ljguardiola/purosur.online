@@ -486,6 +486,35 @@ describe("the Cloud Server service's environment", () => {
     });
   });
 
+  describe("the email provider's webhook signing secret", () => {
+    it("carries the secret when it is set", async () => {
+      vi.stubEnv("RESEND_WEBHOOK_SECRET", "whsec_fictional-signing-secret-of-the-tests");
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      expect(cloud.variables?.["RESEND_WEBHOOK_SECRET"]).toEqual({
+        type: "literal",
+        value: "whsec_fictional-signing-secret-of-the-tests",
+      });
+    });
+
+    it("leaves it out when it is not set", async () => {
+      vi.stubEnv("RESEND_WEBHOOK_SECRET", "");
+
+      const cloud = findService(await compile(), "Cloud Server");
+
+      expect(cloud.variables).not.toHaveProperty("RESEND_WEBHOOK_SECRET");
+    });
+
+    it("gives the Schema Migrations service no secret", async () => {
+      vi.stubEnv("RESEND_WEBHOOK_SECRET", "whsec_fictional-signing-secret-of-the-tests");
+
+      const migrate = findService(await compile(), "Schema Migrations");
+
+      expect(migrate.variables ?? {}).not.toHaveProperty("RESEND_WEBHOOK_SECRET");
+    });
+  });
+
   it("declares no custom domain, leaving the one registered in Railway as it is", async () => {
     const cloud = findService(await compile(), "Cloud Server");
     expect(cloud.networking?.customDomains).toBeUndefined();
