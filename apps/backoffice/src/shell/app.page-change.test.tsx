@@ -26,7 +26,7 @@ test("titles the document after the page being shown", async () => {
 
   await expect.poll(() => document.title).toBe("Ayuda · Puro Sur");
 
-  await userEvent.click(screen.getByRole("link", { name: "Primeros pasos" }));
+  await userEvent.click(screen.getByRole("tab", { name: "Primeros pasos" }));
   await expect.poll(() => document.title).toBe("Primeros pasos · Ayuda · Puro Sur");
 
   await userEvent.click(screen.getByRole("link", { name: "Bienvenida" }));
@@ -37,15 +37,13 @@ test("moves focus to the page heading after an in-app navigation, not on the fir
   window.history.pushState(null, "", "/help/getting_started/intro");
   const screen = await render(<App help={help} services={createAppServices()} />);
 
-  const firstHeading = screen.getByRole("heading", { name: "Bienvenida", level: 1 });
+  const firstHeading = screen.getByRole("heading", { name: "Ayuda", level: 1 });
   await expect.element(firstHeading).toBeVisible();
   expect(document.activeElement).not.toBe(firstHeading.element());
 
-  await userEvent.click(screen.getByRole("link", { name: "Facturación", exact: true }));
+  await userEvent.click(screen.getByRole("tab", { name: "Facturación", exact: true }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Facturación", level: 1 }))
-    .toHaveFocus();
+  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 1 })).toHaveFocus();
 });
 
 async function pressEnterOn(link: HTMLElement) {
@@ -57,13 +55,13 @@ test("moves focus to the new screen's title, with a focus ring, after choosing a
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
   const screen = await render(<App help={emptyHelp} services={services} />);
-  const firstTitle = screen.getByRole("heading", { name: "Personas", level: 1 });
+  const firstTitle = screen.getByRole("heading", { name: "Configuración", level: 1 });
   await expect.element(firstTitle).toBeVisible();
   expect(document.activeElement).not.toBe(firstTitle.element());
 
-  await pressEnterOn(screen.getByRole("link", { name: "Sucursal" }).element() as HTMLElement);
+  await pressEnterOn(screen.getByRole("tab", { name: "Sucursal" }).element() as HTMLElement);
 
-  const title = screen.getByRole("heading", { name: "Sucursal", level: 1 });
+  const title = screen.getByRole("heading", { name: "Configuración", level: 1 });
   await expect.element(title).toHaveFocus();
   const style = getComputedStyle(title.element());
   await expect.poll(() => style.outlineStyle).toBe("solid");
@@ -73,13 +71,13 @@ test("moves focus to the new screen's title, with a focus ring, after choosing a
 test("moves focus to the new area's screen title after switching area from the rail with the keyboard", async () => {
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
-  await expect
-    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 1 })).toBeVisible();
 
   await pressEnterOn(screen.getByRole("link", { name: "Configuración" }).element() as HTMLElement);
 
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toHaveFocus();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toHaveFocus();
 });
 
 test("moves focus to the new screen's title, with a focus ring, after following a link with the keyboard between the screens reached without a session", async () => {
@@ -184,7 +182,7 @@ test("opens every help page at the top of its content, not where the previous pa
 
   await userEvent.click(link);
 
-  await expect.element(screen.getByRole("heading", { name: "Catálogo", level: 1 })).toHaveFocus();
+  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 1 })).toHaveFocus();
   expect(scrollingAncestor(screen.getByRole("searchbox").element()).scrollTop).toBe(0);
 });
 
@@ -192,12 +190,12 @@ test("shows a focus ring on the page heading it focuses after a keyboard navigat
   window.history.pushState(null, "", "/help/getting_started");
   const screen = await render(<App help={help} services={createAppServices()} />);
 
-  const link = screen.getByRole("link", { name: "Facturación", exact: true });
+  const link = screen.getByRole("tab", { name: "Facturación", exact: true });
   await expect.element(link).toBeVisible();
 
   await pressEnterOn(link.element() as HTMLElement);
 
-  const heading = screen.getByRole("heading", { name: "Facturación", level: 1 });
+  const heading = screen.getByRole("heading", { name: "Ayuda", level: 1 });
   await expect.element(heading).toHaveFocus();
   await expect.element(heading).toBeVisible();
   const headingElement = heading.element() as HTMLElement;

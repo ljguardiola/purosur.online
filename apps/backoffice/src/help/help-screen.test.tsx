@@ -8,7 +8,7 @@ import { HelpContent as HelpContentInPage } from "./help-screen";
 
 const help = defineHelp("es-AR", {
   categories: {
-    getting_started: { label: "Primeros pasos", icon: "flag" },
+    getting_started: { label: "Primeros pasos" },
     billing: { label: "Facturación" },
   },
   articles: {
@@ -74,7 +74,7 @@ test("shows the empty-catalog state and the search field when the catalog has no
 
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
   await expect
-    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Todavía no hay contenido de ayuda", level: 2 }))
     .toBeVisible();
   expect(screen.getByText("Todavía no hay contenido de ayuda").elements()).toHaveLength(1);
 });
@@ -83,35 +83,34 @@ test("prompts to pick a section, not the empty-catalog state, when the catalog h
   const screen = await render(<ContentHarness categoryId={null} articleId={null} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Elegí una sección", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Elegí una sección", level: 2 }))
     .toBeVisible();
   expect(screen.getByText("Elegí una sección").elements()).toHaveLength(1);
   await expect.element(screen.getByText("O buscá un tema.")).toBeVisible();
   expect(screen.getByText("Todavía no hay contenido de ayuda").query()).toBeNull();
 });
 
-test("lists a selected category's articles as links, titled by the category alone", async () => {
+test("lists a selected category's articles as links, named only by the selected tab", async () => {
   const screen = await render(<ContentHarness categoryId="getting_started" articleId={null} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Primeros pasos", level: 1 }))
+    .element(screen.getByRole("tab", { name: "Primeros pasos", selected: true }))
     .toBeVisible();
+  expect(screen.getByRole("heading", { level: 2 }).query()).toBeNull();
   expect(screen.getByText("Ayuda · Primeros pasos").query()).toBeNull();
 
   const link = screen.getByRole("link", { name: "Bienvenida" }).element() as HTMLAnchorElement;
   expect(link.getAttribute("href")).toBe("/help/getting_started/intro");
 });
 
-test("renders a selected article's breadcrumb, title and every block kind", async () => {
+test("renders a selected article's title and every block kind, with the category as the selected tab", async () => {
   const screen = await render(<ContentHarness categoryId="getting_started" articleId="intro" />);
 
-  const breadcrumb = screen.getByText("Ayuda · Primeros pasos");
-  const title = screen.getByRole("heading", { name: "Bienvenida", level: 1 });
-  await expect.element(breadcrumb).toBeVisible();
-  await expect.element(title).toBeVisible();
-  expect(breadcrumb.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
-    title.element().getBoundingClientRect().top,
-  );
+  await expect.element(screen.getByRole("heading", { name: "Bienvenida", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("tab", { name: "Primeros pasos", selected: true }))
+    .toBeVisible();
+  expect(screen.getByText("Ayuda · Primeros pasos").query()).toBeNull();
   await expect.element(screen.getByText("Antes de empezar")).toBeVisible();
   await expect
     .element(screen.getByText("Configurá tu catálogo antes de abrir la caja."))
@@ -130,7 +129,7 @@ test("renders a selected article's breadcrumb, title and every block kind", asyn
 test("gives an article's structure to assistive technology as headings and lists", async () => {
   const screen = await render(<ContentHarness categoryId="getting_started" articleId="intro" />);
 
-  await expect.element(screen.getByRole("heading", { name: "Bienvenida", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Bienvenida", level: 2 })).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Antes de empezar", level: 2 }))
     .toBeVisible();
@@ -215,17 +214,17 @@ function isRenderedOnScreen(element: Element): boolean {
   return element.getBoundingClientRect().width > 1;
 }
 
-test("titles every state with an on-screen level-1 heading", async () => {
+test("titles the idle state and an article with an on-screen level-2 heading under the level-1 Ayuda", async () => {
   const home = await render(<ContentHarness categoryId={null} articleId={null} />);
-  const homeHeading = home.getByRole("heading", { name: "Elegí una sección", level: 1 });
+  const homeHeading = home.getByRole("heading", { name: "Elegí una sección", level: 2 });
   await expect.element(homeHeading).toBeVisible();
   expect(isRenderedOnScreen(homeHeading.element())).toBe(true);
   await home.unmount();
 
-  const section = await render(<ContentHarness categoryId="billing" articleId={null} />);
-  const sectionHeading = section.getByRole("heading", { name: "Facturación", level: 1 });
-  await expect.element(sectionHeading).toBeVisible();
-  expect(isRenderedOnScreen(sectionHeading.element())).toBe(true);
+  const article = await render(<ContentHarness categoryId="billing" articleId="billing_basics" />);
+  const articleHeading = article.getByRole("heading", { name: "Facturación básica", level: 2 });
+  await expect.element(articleHeading).toBeVisible();
+  expect(isRenderedOnScreen(articleHeading.element())).toBe(true);
 });
 
 // React logs a duplicate-key warning synchronously inside the act() that render() awaits, so the
@@ -305,7 +304,7 @@ test("renders the related panel from the article's related list", async () => {
 
 test("stretches the article card to the foot of the content area, sizing the related panel to its own rows", async () => {
   const screen = await render(
-    <Shell sectionColumnLabel="Secciones" railAreas={null} railFooter={null} sectionColumn={null}>
+    <Shell railAreas={null} railFooter={null}>
       <ContentHarness categoryId="getting_started" articleId="intro" />
     </Shell>,
   );

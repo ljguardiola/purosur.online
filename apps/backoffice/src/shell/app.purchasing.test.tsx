@@ -20,6 +20,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -79,23 +80,15 @@ function purchasingServices(capabilities: Capability[], { inPurchasingArea = tru
   return services;
 }
 
-test("opens Proveedores from the rail's Compras item, listing only that section", async () => {
+test("opens the supplier price lists from the rail's Compras item, with only that tab in the single tab row", async () => {
   const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(railLink(screen));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
+  await expectOneNavigationLevel(screen, "Compras", ["Listas de precios"]);
   expect(window.location.pathname).toBe("/suppliers/price-lists");
-  const links = screen
-    .getByRole("navigation", { name: "Compras" })
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(links).toEqual(["Proveedores"]);
   await expect.element(railLink(screen)).toHaveAttribute("aria-current", "page");
 });
 
@@ -111,7 +104,7 @@ test("hides the Compras item in the rail for a user without a purchasing permiss
   expect(railLink(screen).query()).toBeNull();
 });
 
-test("shows the Compras item to an Administrator, with every section in order", async () => {
+test("shows the Compras item to an Administrator, with every tab in order", async () => {
   const services = purchasingServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   window.history.pushState(null, "", "/suppliers");
@@ -119,40 +112,39 @@ test("shows the Compras item to an Administrator, with every section in order", 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(railLink(screen)).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
-  const links = screen
-    .getByRole("navigation", { name: "Compras" })
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(links).toEqual(["Proveedores", "Pedidos", "Compras"]);
+  await expectOneNavigationLevel(screen, "Compras", [
+    "Proveedores",
+    "Listas de precios",
+    "Pedidos",
+    "Sugerir pedido",
+    "Comparar precios",
+    "Compras registradas",
+    "Fletes",
+  ]);
 });
 
 test.each([
   ["suppliers", ["Proveedores"]],
-  ["supplier_price_lists", ["Proveedores"]],
-  ["purchases", ["Compras"]],
-  ["freights", ["Compras"]],
-] as const)(
-  "lists only the sections %s allows in the section column",
-  async (capability, labels) => {
-    const services = purchasingServices([capability]);
-    window.history.pushState(null, "", "/help");
-    const screen = await render(<App help={emptyHelp} services={services} />);
+  ["supplier_price_lists", ["Listas de precios"]],
+  ["purchases", ["Compras registradas"]],
+  ["freights", ["Fletes"]],
+] as const)("lists only the tabs %s allows in the tab row", async (capability, labels) => {
+  const services = purchasingServices([capability]);
+  vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.freightsListScreen.fetchFreights).mockResolvedValue({
+    kind: "ok",
+    value: { items: [], count: 0, totalCents: 0 },
+  });
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await userEvent.click(railLink(screen));
+  await userEvent.click(railLink(screen));
 
-    await expect.element(screen.getByRole("navigation", { name: "Compras" })).toBeVisible();
-    const links = screen
-      .getByRole("navigation", { name: "Compras" })
-      .getByRole("link")
-      .elements()
-      .map((link) => link.textContent);
-    expect(links).toEqual(labels);
-  },
-);
+  await expectOneNavigationLevel(screen, "Compras", labels);
+});
 
 test.each([
   ["purchases", "/purchases"],
@@ -276,28 +268,22 @@ test("shows no open alerts count in the list's top bar", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 
-test("lists Pedidos beside the supplier price lists for whoever compares prices", async () => {
+test("lists the order tabs beside the supplier price lists for whoever compares prices", async () => {
   const services = purchasingServices(["supplier_price_lists", "price_comparison"]);
   window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
-  const links = screen
-    .getByRole("navigation", { name: "Compras" })
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(links).toEqual(["Proveedores", "Pedidos"]);
+  await expectOneNavigationLevel(screen, "Compras", [
+    "Listas de precios",
+    "Sugerir pedido",
+    "Comparar precios",
+  ]);
 });
 
 test.each(["/purchase-orders/comparison", "/purchase-orders/suggestion"])(
@@ -318,10 +304,8 @@ test("hides the purchase orders from whoever may only manage the lists", async (
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
-  expect(screen.getByRole("link", { name: "Pedidos" }).query()).toBeNull();
+  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Pedidos" }).query()).toBeNull();
 });
 
 test("sends a user who may not read purchase orders away from them to the own account panel", async () => {
@@ -427,9 +411,9 @@ test("lists the purchase orders for whoever may only receive them", async () => 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(railLink(screen));
 
-  await expect.element(screen.getByRole("heading", { name: "Pedidos", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/purchase-orders");
-  expect(screen.getByRole("link", { name: "Pedidos" }).query()).not.toBeNull();
+  await expect.element(screen.getByRole("tab", { name: "Pedidos", selected: true })).toBeVisible();
 });
 
 test("sends a user who may not receive orders away from the receipt to the own account panel", async () => {

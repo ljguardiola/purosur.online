@@ -5,7 +5,7 @@ describe("defineHelp", () => {
   it("returns the categories and articles it was given, looked up by id", () => {
     const help = defineHelp("es-AR", {
       categories: {
-        getting_started: { label: "Primeros pasos", icon: "flag" },
+        getting_started: { label: "Primeros pasos" },
       },
       articles: {
         intro: {
@@ -16,27 +16,16 @@ describe("defineHelp", () => {
       },
     });
 
-    expect(help.categories.getting_started).toEqual({ label: "Primeros pasos", icon: "flag" });
+    expect(help.categories.getting_started).toEqual({ label: "Primeros pasos" });
     expect(help.articles.intro.title).toBe("Bienvenida");
     expect(help.articles.intro.body).toEqual([{ kind: "paragraph", text: "Cómo empezar." }]);
-  });
-
-  it("accepts a category with no icon", () => {
-    const help = defineHelp("es-AR", {
-      categories: {
-        getting_started: { label: "Primeros pasos" },
-      },
-      articles: {},
-    });
-
-    expect(help.categories.getting_started).toEqual({ label: "Primeros pasos" });
   });
 
   it("keeps an article's related list and article links intact", () => {
     const help = defineHelp("es-AR", {
       categories: {
-        getting_started: { label: "Primeros pasos", icon: "flag" },
-        billing: { label: "Facturación", icon: "landmark" },
+        getting_started: { label: "Primeros pasos" },
+        billing: { label: "Facturación" },
       },
       articles: {
         intro: {

@@ -75,19 +75,17 @@ test("opens Proveedores with its two tabs for a person with both capabilities", 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   expect(document.title).toBe("Proveedores · Puro Sur");
-  expect(shownEyebrow()).toBe("Compras");
+  expect(shownEyebrow()).toBeNull();
   await expect
     .element(screen.getByRole("tab", { name: "Proveedores", selected: true }))
     .toBeVisible();
-  await expectTabs(screen, "Secciones de Proveedores", ["Proveedores", "Listas de precios"]);
+  await expectTabs(screen, "Secciones de Compras", ["Proveedores", "Listas de precios"]);
   await expect.element(screen.getByRole("table", { name: "Proveedores" })).toBeVisible();
 });
 
-test("shows both tabs to an Administrator", async () => {
+test("shows every Compras tab to an Administrator", async () => {
   const services = suppliersServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   window.history.pushState(null, "", "/suppliers");
@@ -95,7 +93,15 @@ test("shows both tabs to an Administrator", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("tab", { name: "Listas de precios" })).toBeVisible();
-  await expectTabs(screen, "Secciones de Proveedores", ["Proveedores", "Listas de precios"]);
+  await expectTabs(screen, "Secciones de Compras", [
+    "Proveedores",
+    "Listas de precios",
+    "Pedidos",
+    "Sugerir pedido",
+    "Comparar precios",
+    "Compras registradas",
+    "Fletes",
+  ]);
 });
 
 test("opens Listas de precios from its tab, with the lists and their upload action", async () => {
@@ -136,12 +142,10 @@ test.each([
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
     await expect.poll(location).toBe(first);
     await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
-    await expectTabs(screen, "Secciones de Proveedores", [tab]);
+    await expectTabs(screen, "Secciones de Compras", [tab]);
   },
 );
 

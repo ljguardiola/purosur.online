@@ -19,11 +19,11 @@ test("lists neither Cajas registradoras nor Backups in Configuración, which the
     value: [],
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  const sections = screen.getByRole("navigation", { name: "Configuración" });
-  await expect.element(sections.getByRole("link", { name: "Personas" })).toBeVisible();
+  const sections = screen.getByRole("tablist", { name: "Secciones de Configuración" });
+  await expect.element(sections.getByRole("tab", { name: "Usuarios" })).toBeVisible();
 
-  expect(sections.getByRole("link", { name: "Cajas registradoras" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Backups" }).query()).toBeNull();
+  expect(sections.getByRole("tab", { name: "Cajas registradoras" }).query()).toBeNull();
+  expect(sections.getByRole("tab", { name: "Backups" }).query()).toBeNull();
 });
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
@@ -43,9 +43,11 @@ test("shows the Sucursal item in the rail for a user holding configure_branch, l
     value: [],
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("tablist", { name: "Secciones de Configuración" }))
+    .toBeVisible();
 
-  await expect.element(screen.getByRole("link", { name: "Sucursal" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Sucursal" })).toBeVisible();
 });
 
 test("hides the Sucursal item in the rail for a user without configure_branch", async () => {
@@ -64,7 +66,7 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
   expect(screen.getByRole("link", { name: "Sucursal" }).query()).toBeNull();
 });
 
-test("following the sidebar's Sucursal item opens the branch settings screen, with Configuración and Sucursal active", async () => {
+test("following the Sucursal tab opens the branch settings screen, with Configuración active in the rail and Sucursal selected", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
@@ -95,18 +97,21 @@ test("following the sidebar's Sucursal item opens the branch settings screen, wi
     },
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Sucursal" }));
+  await userEvent.click(screen.getByRole("tab", { name: "Sucursal" }));
 
-  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
   expect(window.location.pathname).toBe("/branch");
   const configItem = screen
     .getByRole("link", { name: "Configuración" })
     .element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBe("page");
-  const branchItem = screen.getByRole("link", { name: "Sucursal" }).element() as HTMLAnchorElement;
-  expect(branchItem.getAttribute("aria-current")).toBe("page");
+  await expect.element(screen.getByRole("tab", { name: "Sucursal", selected: true })).toBeVisible();
 });
 
 test("redirects the old /location-settings address to /branch", async () => {
@@ -147,7 +152,7 @@ test("redirects the old /location-settings address to /branch", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Sucursal", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Sucursal", selected: true })).toBeVisible();
   expect(window.location.pathname).toBe("/branch");
 });
 

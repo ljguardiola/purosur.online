@@ -17,6 +17,7 @@ import {
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { shownEyebrow } from "./test-support/eyebrow";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -56,22 +57,12 @@ function stockServices(capabilities: Capability[]) {
   return services;
 }
 
-const SECTION_LABELS = ["Stock"];
-
 function location() {
   return window.location.pathname + window.location.search;
 }
 
 function railLink(screen: Awaited<ReturnType<typeof render>>) {
   return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Stock" });
-}
-
-function sectionLabels(screen: Awaited<ReturnType<typeof render>>) {
-  return screen
-    .getByRole("navigation", { name: "Stock" })
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
 }
 
 test("opens Stock from the rail with its three tabs for a person with every stock capability", async () => {
@@ -261,51 +252,33 @@ test.each([
 });
 
 test.each([
-  ["stock_balances", ["Stock"]],
-  ["stock_expiries", ["Stock"]],
-  ["stock_counts", ["Stock"]],
-  ["stock_movements", ["Stock"]],
-  ["initial_inventory", ["Stock"]],
-] as const)(
-  "lists only the sections %s allows in the section column",
-  async (capability, labels) => {
-    const services = stockServices([capability, "stock_area"]);
-    window.history.pushState(null, "", "/help");
-    const screen = await render(<App help={emptyHelp} services={services} />);
-
-    await userEvent.click(railLink(screen));
-
-    await expect.element(screen.getByRole("navigation", { name: "Stock" })).toBeVisible();
-    expect(sectionLabels(screen)).toEqual(labels);
-  },
-);
-
-test("lists every section of Stock in that order to an Administrator", async () => {
-  const services = stockServices([]);
-  vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  window.history.pushState(null, "", "/stock");
-
+  "stock_balances",
+  "stock_expiries",
+  "stock_counts",
+  "stock_movements",
+  "initial_inventory",
+] as const)("shows no section column beside the tabs %s allows", async (capability) => {
+  const services = stockServices([capability, "stock_area"]);
+  window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
 
+  await userEvent.click(railLink(screen));
+
   await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
-  expect(sectionLabels(screen)).toEqual(SECTION_LABELS);
-  const stockLink = screen.getByRole("navigation", { name: "Stock" }).getByRole("link", {
-    name: "Stock",
-  });
-  await expect.element(stockLink).toHaveAttribute("href", "/stock");
-  await expect.element(stockLink).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("navigation", { name: "Stock", exact: true }).query()).toBeNull();
 });
 
-test("keeps the Stock link of the section column active on every tab", async () => {
+test("shows an Administrator the one tab row of Stock under the single title", async () => {
   const services = stockServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   window.history.pushState(null, "", "/stock/movements");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
+  await expectOneNavigationLevel(screen, "Stock", ["Saldos", "Vencimientos", "Movimientos"]);
   await expect
-    .element(screen.getByRole("navigation", { name: "Stock" }).getByRole("link", { name: "Stock" }))
-    .toHaveAttribute("aria-current", "page");
+    .element(screen.getByRole("tab", { name: "Movimientos", selected: true }))
+    .toBeVisible();
 });
 
 test("hides the Stock item in the rail for a user with only purchasing permissions", async () => {

@@ -7,18 +7,13 @@ import { Shell } from "./shell";
 
 function renderShell(content: ReactNode = <p>main content</p>) {
   return render(
-    <Shell
-      sectionColumnLabel="Secciones"
-      railAreas={<p>rail areas</p>}
-      railFooter={<p>rail footer</p>}
-      sectionColumn={<p>section content</p>}
-    >
+    <Shell railAreas={<p>rail areas</p>} railFooter={<p>rail footer</p>}>
       {content}
     </Shell>,
   );
 }
 
-test("lays out the area rail, section column and content as three landmark regions", async () => {
+test("lays out the area rail and content as two landmark regions, with no section column", async () => {
   const screen = await renderShell();
 
   const rail = screen.getByRole("navigation", { name: "Áreas" });
@@ -26,23 +21,19 @@ test("lays out the area rail, section column and content as three landmark regio
   await expect.element(rail.getByText("rail areas")).toBeVisible();
   await expect.element(rail.getByText("rail footer")).toBeVisible();
 
-  const sections = screen.getByRole("navigation", { name: "Secciones" });
-  await expect.element(sections).toBeVisible();
-  await expect.element(sections.getByText("section content")).toBeVisible();
-
   const main = screen.getByRole("main");
   await expect.element(main).toBeVisible();
   await expect.element(main.getByText("main content")).toBeVisible();
 });
 
-test("renders the rail before the section column and the section column before the content, in DOM order", async () => {
+test("renders the rail before the content, in DOM order", async () => {
   const screen = await renderShell();
 
   const texts = Array.from(screen.container.querySelectorAll("p")).map(
     (element) => element.textContent,
   );
 
-  expect(texts).toEqual(["rail areas", "rail footer", "section content", "main content"]);
+  expect(texts).toEqual(["rail areas", "rail footer", "main content"]);
 });
 
 test("heads the rail with the brand-named 40px isotype inside the rail's 16px top padding", async () => {
@@ -125,20 +116,4 @@ test("keeps the page itself from scrolling when a screen's content overflows wit
 
   const page = document.documentElement;
   expect(page.scrollHeight).toBeLessThanOrEqual(page.clientHeight);
-});
-
-test("renders no section column when it is given none", async () => {
-  const screen = await render(
-    <Shell
-      sectionColumnLabel="Secciones"
-      railAreas={<p>rail areas</p>}
-      railFooter={<p>rail footer</p>}
-    >
-      <p>main content</p>
-    </Shell>,
-  );
-
-  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("navigation", { name: "Secciones" }).query()).toBeNull();
-  await expect.element(screen.getByText("main content")).toBeVisible();
 });

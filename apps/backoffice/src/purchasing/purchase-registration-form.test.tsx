@@ -9,6 +9,7 @@ import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support
 import type { CloudData } from "../platform/use-cloud-query";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { shownEyebrow } from "../shell/test-support/eyebrow";
 import { render } from "../shell/test-support/render-with-router";
 import { emptyPurchaseForm, purchaseRegistrationRequestFrom } from "./purchase-form";
 import { PurchaseRegistrationForm, type PurchaseSubmitOutcome } from "./purchase-registration-form";
@@ -49,7 +50,6 @@ function renderForm({
         <PurchaseRegistrationForm
           access={access}
           productCreationModal={StubProductCreationModal}
-          eyebrow="Compras"
           title="Cargar la compra"
           submitLabel="Guardar la compra"
           failureTitle="No se guardó la compra"
@@ -120,13 +120,13 @@ function purchaseDateSegments(form: Form) {
     .map((segment) => segment.element().textContent);
 }
 
-test("shows the eyebrow and heading it is given, with the day the choices answer as the purchase date", async () => {
+test("shows the heading it is given with nothing above it, with the day the choices answer as the purchase date", async () => {
   const form = await opened();
 
-  await expect.element(form.getByText("Compras").first()).toBeVisible();
   await expect
     .element(form.getByRole("heading", { name: "Cargar la compra", level: 1 }))
     .toBeVisible();
+  expect(shownEyebrow()).toBeNull();
   expect(purchaseDateSegments(form)).toEqual(["16", "9", "2026"]);
 });
 

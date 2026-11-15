@@ -4,7 +4,7 @@ import { render } from "vitest-browser-react";
 import { AI_COST_BY_SUPPLIER } from "../purchasing/test-support/ai-cost";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
-import { shownEyebrow } from "./test-support/eyebrow";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { reportsServices as reportsServicesOf } from "./test-support/reports-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -21,16 +21,16 @@ function reportsServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens the report at its address, under Configuración > Diagnóstico, and reads it from the cloud", async () => {
+test("opens the report at its address, under Configuración, and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
   window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
+  await expectOneNavigationLevel(screen, "Configuración", ["Sucursal", "Costo de IA"]);
   await expect
-    .element(screen.getByRole("heading", { name: "Costo de IA", level: 1 }))
+    .element(screen.getByRole("tab", { name: "Costo de IA", selected: true }))
     .toBeVisible();
-  expect(shownEyebrow()).toBe("Configuración");
   expect(screen.getByText("Reportes · Compras").query()).toBeNull();
   await expect.element(screen.getByText("Distribuidora Andina").first()).toBeVisible();
   expect(services.aiCostReportScreen.fetchAiCostReport).toHaveBeenCalledWith({
@@ -39,23 +39,15 @@ test("opens the report at its address, under Configuración > Diagnóstico, and 
   expect(document.title).toBe("Costo de IA · Puro Sur");
 });
 
-test("offers the report under Diagnóstico in the Configuración column, after the other items, to who may see it", async () => {
+test("offers the report as the last Configuración tab, to who may see it", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
   window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const sections = screen.getByRole("navigation", { name: "Configuración" });
   await expect
-    .element(sections.getByRole("heading", { name: "Diagnóstico", level: 3 }))
+    .element(screen.getByRole("tab", { name: "Costo de IA", selected: true }))
     .toBeVisible();
-  await expect
-    .element(
-      sections
-        .getByRole("list", { name: "Diagnóstico" })
-        .getByRole("link", { name: "Costo de IA" }),
-    )
-    .toHaveAttribute("aria-current", "page");
   await expect
     .element(
       screen
@@ -63,45 +55,30 @@ test("offers the report under Diagnóstico in the Configuración column, after t
         .getByRole("link", { name: "Configuración" }),
     )
     .toHaveAttribute("aria-current", "page");
-  const labels = sections
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(labels.at(-1)).toBe("Costo de IA");
+  expect(screen.getByRole("heading", { name: "Diagnóstico" }).query()).toBeNull();
 });
 
-test("groups Cambios de cajas retenidos and Costo de IA under Diagnóstico, in that order", async () => {
+test("places Cambios de cajas retenidos before Costo de IA in the tab row", async () => {
   const services = reportsServices(["reports_area", "branch_area", "quarantined_events"]);
   window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const diagnostics = screen
-    .getByRole("navigation", { name: "Configuración" })
-    .getByRole("list", { name: "Diagnóstico" });
-  await expect.element(diagnostics.getByRole("link", { name: "Costo de IA" })).toBeVisible();
-  expect(
-    diagnostics
-      .getByRole("link")
-      .elements()
-      .map((link) => link.textContent),
-  ).toEqual(["Cambios de cajas retenidos", "Costo de IA"]);
+  await expectOneNavigationLevel(screen, "Configuración", [
+    "Sucursal",
+    "Cambios de cajas retenidos",
+    "Costo de IA",
+  ]);
 });
 
-test("leaves the report out of the Configuración column without the reports area", async () => {
+test("leaves the report out of the Configuración tabs without the reports area", async () => {
   const services = reportsServices(["branch_area"]);
   window.history.pushState(null, "", "/branch");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(
-      screen.getByRole("navigation", { name: "Configuración" }).getByRole("link", {
-        name: "Sucursal",
-      }),
-    )
-    .toBeVisible();
-  expect(screen.getByRole("link", { name: "Costo de IA" }).query()).toBeNull();
+  await expect.element(screen.getByRole("tab", { name: "Sucursal" })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Costo de IA" }).query()).toBeNull();
   expect(screen.getByRole("heading", { name: "Diagnóstico" }).query()).toBeNull();
 });
 
@@ -111,8 +88,10 @@ test("leaves the report out of Reportes", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("navigation", { name: "Reportes" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Costo de IA" }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("tablist", { name: "Secciones de Reportes" }))
+    .toBeVisible();
+  expect(screen.getByRole("tab", { name: "Costo de IA" }).query()).toBeNull();
   expect(screen.getByRole("radio", { name: "Costo de IA" }).query()).toBeNull();
 });
 
