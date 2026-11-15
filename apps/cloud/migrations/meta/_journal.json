@@ -1296,6 +1296,13 @@
       "when": 1794722862335,
       "tag": "0191_users_alert_email_opted_in_at",
       "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1794727828147,
+      "tag": "0192_alert_email_deliveries",
+      "breakpoints": true
     }
   ]
 }

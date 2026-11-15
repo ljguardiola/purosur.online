@@ -2557,6 +2557,45 @@ export const alertDeliveries = pgTable(
   ],
 );
 
+export const alertEmailStage = pgEnum("alert_email_stage", ["opened", "escalated", "resolved"]);
+
+export const alertEmailDeliveryStatus = pgEnum("alert_email_delivery_status", [
+  "pending",
+  "sent",
+  "failed",
+]);
+
+export const alertEmailDeliveries = pgTable(
+  "alert_email_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => alerts.id),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id),
+    stage: alertEmailStage("stage").notNull(),
+    level: alertLevel("level").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    status: alertEmailDeliveryStatus("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    error: text("error"),
+    providerMessageId: text("provider_message_id"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alert_email_deliveries_alert_recipient_stage_key").on(
+      table.alertId,
+      table.recipientUserId,
+      table.stage,
+    ),
+    index("alert_email_deliveries_status_idx").on(table.status),
+  ],
+);
+
 export const arcaVitalityChecks = pgTable(
   "arca_vitality_checks",
   {
