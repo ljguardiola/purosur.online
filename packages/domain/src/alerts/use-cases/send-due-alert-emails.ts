@@ -1,6 +1,7 @@
 import {
   ALERT_EMAIL_SEND_ATTEMPTS,
   alertEmailBranchName,
+  isAlertEmailDue,
   nextAlertEmailAttemptAt,
 } from "../model/alert-email.js";
 import type { SendDueAlertEmailsPorts } from "./alert-email-delivery-ports.js";
@@ -18,7 +19,9 @@ export async function sendDueAlertEmails({
 }: SendDueAlertEmailsPorts): Promise<SendDueAlertEmailsOutcome> {
   return lanes.inAlertEmailLane(async (store) => {
     const outcome: SendDueAlertEmailsOutcome = { sent: 0, retrying: 0, failed: 0 };
-    for (const delivery of await store.dueEmailDeliveries(clock.now())) {
+    const now = clock.now();
+    const pending = await store.pendingEmailDeliveries();
+    for (const delivery of pending.filter((candidate) => isAlertEmailDue(candidate, now))) {
       const attempt = delivery.attemptsMade + 1;
       await store.recordEmailAttempt(delivery.deliveryId, {
         attempt,

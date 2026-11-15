@@ -48,6 +48,7 @@ export { FORTNIGHT_REPORT_PENDING_REASONS } from "./model/alert-details.js";
 export {
   ALERT_EMAIL_SEND_ATTEMPTS,
   alertEmailBranchName,
+  isAlertEmailDue,
   isAlertEmailRecipient,
   nextAlertEmailAttemptAt,
   sendsAlertEmailAt,

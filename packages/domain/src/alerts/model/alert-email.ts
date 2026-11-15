@@ -30,6 +30,10 @@ export function isAlertEmailRecipient(
   );
 }
 
+export function isAlertEmailDue(delivery: { nextAttemptAt: Date | null }, now: Date): boolean {
+  return delivery.nextAttemptAt === null || delivery.nextAttemptAt <= now;
+}
+
 export function nextAlertEmailAttemptAt(failedAttempts: number, now: Date): Date {
   return new Date(now.getTime() + FIRST_RETRY_DELAY_MS * 2 ** (failedAttempts - 1));
 }

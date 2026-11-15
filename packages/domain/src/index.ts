@@ -57,6 +57,7 @@ export {
   fiscalRejectionAlertObservation,
   fiscalUnknownAlertKey,
   invoiceAlreadyCreditedObservation,
+  isAlertEmailDue,
   isAlertEmailRecipient,
   isAlertKind,
   isAlertLevel,

@@ -9,7 +9,7 @@ export type {
   AlertEmailSender,
   AlertEmailSendResult,
   AlertEmailSent,
-  DueAlertEmailDelivery,
+  PendingAlertEmailDelivery,
   SendDueAlertEmailsPorts,
 } from "./alert-email-delivery-ports.js";
 export type {

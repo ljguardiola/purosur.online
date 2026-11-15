@@ -2,7 +2,7 @@ import type { Clock } from "../../shared/index.js";
 import type { AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import type { AlertEmailStage } from "../model/alert-kind-policy.js";
 
-export interface DueAlertEmailDelivery {
+export interface PendingAlertEmailDelivery {
   deliveryId: string;
   to: string;
   alertId: string;
@@ -13,6 +13,7 @@ export interface DueAlertEmailDelivery {
   alertBranchName: string | null;
   recipientBranchName: string;
   attemptsMade: number;
+  nextAttemptAt: Date | null;
 }
 
 export interface AlertEmail {
@@ -50,7 +51,7 @@ export interface AlertEmailFailure {
 }
 
 export interface AlertEmailDeliveryStore {
-  dueEmailDeliveries(now: Date): Promise<DueAlertEmailDelivery[]>;
+  pendingEmailDeliveries(): Promise<PendingAlertEmailDelivery[]>;
   recordEmailAttempt(deliveryId: string, attempt: AlertEmailAttempt): Promise<void>;
   recordEmailSent(deliveryId: string, sent: AlertEmailSent): Promise<void>;
   recordEmailFailure(deliveryId: string, failure: AlertEmailFailure): Promise<void>;
