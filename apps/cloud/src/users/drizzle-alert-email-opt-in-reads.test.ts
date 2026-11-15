@@ -64,8 +64,11 @@ describe("drizzleAlertEmailOptInReads", () => {
 
   it("finds no user of another branch, no deactivated user and no unknown id", async () => {
     const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!location) {
+      throw new Error("test setup: seeding the location returned no row");
+    }
     const elsewhere = await insertUser({
-      locationId: location?.id,
+      locationId: location.id,
       alertEmailOptedInAt: OPTED_IN_AT,
     });
     const deactivated = await insertUser({ active: false, alertEmailOptedInAt: OPTED_IN_AT });

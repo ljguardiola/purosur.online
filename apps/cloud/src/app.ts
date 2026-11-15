@@ -275,6 +275,7 @@ import {
   type ReadableEventVersionsRouteOptions,
   registerReadableEventVersionsRoute,
 } from "./sync/readable-event-versions-route.js";
+import { registerAlertEmailOptInRoutes } from "./users/alert-email-opt-in-routes.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEditRoutes } from "./users/user-edit-route.js";
@@ -615,6 +616,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerUserEditRoutes(api, { ...options.users, now, voidOutstandingRecoveryTokens });
         registerUserPasskeysListRoute(api, { ...options.users, now });
         registerUserPasskeyRemovalRoutes(api, { ...options.users, now });
+        registerAlertEmailOptInRoutes(api, { ...options.users, now });
         registerUserPasskeysRemovalRoute(api, { ...options.users, now });
         registerUserDeactivationRoutes(api, {
           ...options.users,
