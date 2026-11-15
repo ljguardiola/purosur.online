@@ -189,11 +189,12 @@ describe("isAlertEmailDue", () => {
 });
 
 describe("the reasons an alert email could not be sent", () => {
-  it("are the provider refusing it, not answering, and answering without confirming it", () => {
+  it("are the provider refusing it, not answering, answering without confirming it, and failing to deliver it", () => {
     expect(ALERT_EMAIL_FAILURE_REASONS).toEqual([
       "provider_refused",
       "provider_unreachable",
       "provider_unconfirmed",
+      "provider_undelivered",
     ]);
   });
 
