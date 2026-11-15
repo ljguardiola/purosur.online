@@ -18,6 +18,7 @@ const administrator: BranchUser = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 beforeEach(() => {

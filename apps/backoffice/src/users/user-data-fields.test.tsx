@@ -17,13 +17,13 @@ test("shows that a user who opted in receives alerts by email, and since when", 
     <UserDataFields user={{ ...lucia, alertEmailOptedInAt: "2026-03-14T15:00:00.000Z" }} />,
   );
 
-  await expect.element(screen.getByText("Alertas por email")).toBeVisible();
+  await expect.element(screen.getByText("Notificaciones")).toBeVisible();
   await expect.element(screen.getByText("Recibe alertas por email desde 14/03/2026")).toBeVisible();
 });
 
 test("shows that a user with no opt-in does not receive alerts by email", async () => {
   const screen = await render(<UserDataFields user={lucia} />);
 
-  await expect.element(screen.getByText("Alertas por email")).toBeVisible();
+  await expect.element(screen.getByText("Notificaciones")).toBeVisible();
   await expect.element(screen.getByText("No recibe alertas por email")).toBeVisible();
 });

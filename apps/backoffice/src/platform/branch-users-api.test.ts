@@ -30,6 +30,7 @@ const administratorRow = {
   may_deactivate: false,
   may_reactivate: false,
   may_remove_passkey: true,
+  may_withdraw_alert_email_opt_in: false,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -45,6 +46,7 @@ const administrator: BranchUser = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 test("fetchUsers lists the branch's users on 200", async () => {
@@ -118,6 +120,7 @@ test.each([
   ["may_deactivate", "mayDeactivate"],
   ["may_reactivate", "mayReactivate"],
   ["may_remove_passkey", "mayRemovePasskey"],
+  ["may_withdraw_alert_email_opt_in", "mayWithdrawAlertEmailOptIn"],
 ] as const)("fetchUsers maps each user's %s from the wire to %s", async (field, mapped) => {
   for (const answer of [true, false]) {
     vi.mocked(fetch).mockResolvedValue(

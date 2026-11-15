@@ -37,6 +37,7 @@ const lucia: BranchUser = {
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const authorizationOptions = { challenge: "session-auth" } as never;

@@ -26,6 +26,7 @@ const lucas = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const sofia = {
@@ -47,6 +48,7 @@ const sofia = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 function servicesListing(

@@ -33,6 +33,7 @@ const administrator: BranchUser = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const martina: BranchUser = {
@@ -49,6 +50,7 @@ const martina: BranchUser = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const tomas: BranchUser = {
@@ -69,6 +71,7 @@ const tomas: BranchUser = {
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const sofia: BranchUser = {
@@ -90,6 +93,7 @@ const sofia: BranchUser = {
   mayDeactivate: false,
   mayReactivate: true,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -156,7 +160,7 @@ test("shows, for each user, whether they receive alerts by email and since when"
 
   const screen = await renderUsersList(services);
 
-  await expect.element(screen.getByText("Alertas por email")).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Notificaciones" })).toBeVisible();
   await expect.element(screen.getByText("Recibe alertas por email desde 14/03/2026")).toBeVisible();
   await expect.element(screen.getByText("No recibe alertas por email")).toBeVisible();
 });

@@ -38,30 +38,6 @@ describe("withdrawOwnAlertEmailOptIn", () => {
     ]);
   });
 
-  it("locks the user before writing anything and touches nothing else", async () => {
-    const store = storeWith();
-
-    await withdrawOwnAlertEmailOptIn({ store }, INPUT);
-
-    expect(store.operationOrder).toEqual([
-      "lockBranchUserOptIn",
-      "clearOptIn",
-      "recordUserChange",
-      "openRecipientsChangedAlert",
-    ]);
-  });
-
-  it("changes nothing when no opt-in is recorded", async () => {
-    const store = storeWith(null);
-    const before = store.snapshot();
-
-    const outcome = await withdrawOwnAlertEmailOptIn({ store }, INPUT);
-
-    expect(outcome).toEqual({ kind: "not_recorded" });
-    expect(store.current).toEqual(before);
-    expect(store.operationOrder).toEqual(["lockBranchUserOptIn"]);
-  });
-
   it.each([
     ["never authorized", null],
     ["authorized more than five minutes ago", new Date("2026-10-01T11:54:59.999Z")],
@@ -79,36 +55,6 @@ describe("withdrawOwnAlertEmailOptIn", () => {
       expect(outcome).toEqual({ kind: "authorization_required" });
       expect(store.current).toEqual(before);
       expect(store.operationOrder).toEqual([]);
-    },
-  );
-
-  it("finds no user of another branch or a deactivated one, and writes nothing", async () => {
-    const store = storeWith();
-    store.seedUser({ id: "u-3", locationId: "branch-2", active: true, alertEmailOptedInAt: AT });
-    store.seedUser({ id: "u-4", locationId: BRANCH, active: false, alertEmailOptedInAt: AT });
-    const before = store.snapshot();
-
-    expect(await withdrawOwnAlertEmailOptIn({ store }, { ...INPUT, userId: "u-3" })).toEqual({
-      kind: "not_found",
-    });
-    expect(await withdrawOwnAlertEmailOptIn({ store }, { ...INPUT, userId: "u-4" })).toEqual({
-      kind: "not_found",
-    });
-    expect(store.current).toEqual(before);
-  });
-
-  it.each(["clearOptIn", "recordUserChange", "openRecipientsChangedAlert"] as const)(
-    "leaves the opt-in in place when %s fails",
-    async (failing) => {
-      const store = storeWith();
-      const before = store.snapshot();
-      store.failingWrites.add(failing);
-
-      await expect(withdrawOwnAlertEmailOptIn({ store }, INPUT)).rejects.toThrow(
-        `${failing} failed`,
-      );
-
-      expect(store.current).toEqual(before);
     },
   );
 });

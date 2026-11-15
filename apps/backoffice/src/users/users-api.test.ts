@@ -31,6 +31,7 @@ const administratorRow = {
   may_deactivate: false,
   may_reactivate: false,
   may_remove_passkey: true,
+  may_withdraw_alert_email_opt_in: false,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -46,6 +47,7 @@ const administrator: BranchUser = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const creationInput = {

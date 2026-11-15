@@ -30,6 +30,7 @@ test("announces the design system's screen-reader texts in Spanish whatever the 
         mayDeactivate: false,
         mayReactivate: false,
         mayRemovePasskey: true,
+        mayWithdrawAlertEmailOptIn: false,
       },
     ],
   });

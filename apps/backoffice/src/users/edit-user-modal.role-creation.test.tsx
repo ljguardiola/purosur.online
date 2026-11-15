@@ -29,6 +29,7 @@ const lucia: BranchUser = {
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 async function opened(withCreation: boolean) {

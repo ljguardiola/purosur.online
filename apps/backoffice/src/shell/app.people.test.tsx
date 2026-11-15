@@ -28,6 +28,7 @@ const martina = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 function servicesFor(capabilities?: Capability[]): AppServices {

@@ -76,6 +76,7 @@ export const lucia: BranchUser = {
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 export function CredentialSectionsStub(props: UserCredentialSectionsProps) {
@@ -159,6 +160,7 @@ export const adminTarget: BranchUser = {
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 export const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -178,6 +180,7 @@ export const sofia: BranchUser = {
   mayDeactivate: false,
   mayReactivate: true,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 export async function openEditModal(screen: Screen) {

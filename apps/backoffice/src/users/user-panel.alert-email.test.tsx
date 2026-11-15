@@ -1,13 +1,12 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import {
-  createServices,
-  lucia,
-  NO_DEACTIVATE_ACCESS,
-  renderScreen,
-} from "./test-support/user-panel";
+import { createServices, lucia, renderScreen } from "./test-support/user-panel";
 
-const optedInLucia = { ...lucia, alertEmailOptedInAt: "2026-03-14T15:00:00.000Z" };
+const optedInLucia = {
+  ...lucia,
+  alertEmailOptedInAt: "2026-03-14T15:00:00.000Z",
+  mayWithdrawAlertEmailOptIn: true,
+};
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -40,23 +39,14 @@ test("offers no action on a user who does not receive alerts by email", async ()
   expect(screen.getByRole("button", { name: "Recibir alertas por email" }).query()).toBeNull();
 });
 
-test("offers no action on the signed-in user's own panel", async () => {
+test("offers no action on a user who receives alerts by email when the cloud answers it may not be stopped", async () => {
   const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: optedInLucia });
+  vi.mocked(services.fetchUser).mockResolvedValue({
+    kind: "ok",
+    value: { ...optedInLucia, active: false, mayWithdrawAlertEmailOptIn: false },
+  });
 
-  const screen = await renderScreen(services, () => {}, "user-1", "user-1");
-
-  await expect.element(screen.getByText("Recibe alertas por email desde 14/03/2026")).toBeVisible();
-  expect(
-    screen.getByRole("button", { name: "Dejar de recibir alertas por email" }).query(),
-  ).toBeNull();
-});
-
-test("offers no action to someone who cannot manage users", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: optedInLucia });
-
-  const screen = await renderScreen(services, () => {}, "user-1", "admin-1", NO_DEACTIVATE_ACCESS);
+  const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Recibe alertas por email desde 14/03/2026")).toBeVisible();
   expect(

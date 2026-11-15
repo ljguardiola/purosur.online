@@ -43,20 +43,25 @@ function renderSection(
   );
 }
 
-test("shows a loading state before the opt-in resolves", async () => {
+function expectNoOptInAction(screen: Awaited<ReturnType<typeof renderSection>>) {
+  expect(screen.getByRole("button", { name: "Recibir alertas por email" }).query()).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Dejar de recibir alertas por email" }).query(),
+  ).toBeNull();
+}
+
+test("shows a loading state before the opt-in resolves, with no action yet", async () => {
   const services = createServices();
   vi.mocked(services.fetchOwnAlertEmailOptIn).mockReturnValue(new Promise(() => {}));
 
   const screen = await renderSection(services);
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas por email" })).toBeVisible();
   await expect.element(screen.getByRole("status")).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "Recibir alertas por email" }))
-    .toBeDisabled();
+  expect(screen.getByRole("heading").query()).toBeNull();
+  expectNoOptInAction(screen);
 });
 
-test("shows a failure with a retry when the opt-in cannot be read, and keeps both actions disabled", async () => {
+test("shows a failure with a retry when the opt-in cannot be read, with no action", async () => {
   const services = createServices();
   vi.mocked(services.fetchOwnAlertEmailOptIn).mockResolvedValueOnce({ kind: "failed" });
   vi.mocked(services.fetchOwnAlertEmailOptIn).mockResolvedValueOnce({
@@ -67,9 +72,7 @@ test("shows a failure with a retry when the opt-in cannot be read, and keeps bot
   const screen = await renderSection(services);
 
   await expect.element(screen.getByText("No pudimos abrir tus alertas por email")).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "Recibir alertas por email" }))
-    .toBeDisabled();
+  expectNoOptInAction(screen);
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 

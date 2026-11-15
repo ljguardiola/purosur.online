@@ -37,6 +37,7 @@ const sofia: BranchUser = {
   mayDeactivate: false,
   mayReactivate: true,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 beforeEach(() => {

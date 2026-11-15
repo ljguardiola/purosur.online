@@ -57,7 +57,7 @@ describe("recordOwnAlertEmailOptIn", () => {
 
     const outcome = await recordOwnAlertEmailOptIn({ store }, INPUT);
 
-    expect(outcome).toEqual({ kind: "already_recorded" });
+    expect(outcome).toEqual({ kind: "already_recorded", optedInAt: EARLIER });
     expect(store.current).toEqual(before);
     expect(store.operationOrder).toEqual(["lockBranchUserOptIn"]);
   });

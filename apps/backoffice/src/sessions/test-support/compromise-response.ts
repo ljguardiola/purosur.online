@@ -56,6 +56,7 @@ export function account(
     mayDeactivate: true,
     mayReactivate: false,
     mayRemovePasskey: true,
+    mayWithdrawAlertEmailOptIn: false,
     ...user,
   };
 }

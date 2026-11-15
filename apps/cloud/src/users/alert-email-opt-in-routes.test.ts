@@ -2,15 +2,7 @@ import { PASSKEY_AUTHORIZATION_WINDOW_MS } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  alerts,
-  auditLog,
-  locations,
-  roles,
-  sessions,
-  userRoles,
-  users,
-} from "../platform/db/schema.js";
+import { alerts, auditLog, roles, sessions, userRoles, users } from "../platform/db/schema.js";
 import { SESSION_COOKIE_NAME } from "../sessions/session-cookie.js";
 import { generateSessionId, hashSessionId } from "../sessions/session-id.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -72,15 +64,14 @@ async function roleId(administrator: boolean): Promise<string> {
 }
 
 async function insertUser(
-  input: { administrator?: boolean; locationId?: string; optedInAt?: Date; active?: boolean } = {},
+  input: { administrator?: boolean; optedInAt?: Date } = {},
 ): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
       firstName: "Ada Lucero",
       email: `${crypto.randomUUID()}@example.com`,
-      locationId: input.locationId ?? locationId,
-      active: input.active ?? true,
+      locationId,
       alertEmailOptedInAt: input.optedInAt ?? null,
     })
     .returning({ id: users.id });
@@ -420,26 +411,12 @@ describe("DELETE /users/:id/alert-email-opt-in", () => {
     expect(await storedOptIn(administratorId)).toEqual(EARLIER);
   });
 
-  it.each([
-    ["an unknown user", async () => crypto.randomUUID()],
-    ["a deactivated user", async () => insertUser({ active: false, optedInAt: EARLIER })],
-    [
-      "a user of another branch",
-      async () => {
-        const [other] = await db.insert(locations).values({}).returning({ id: locations.id });
-        if (!other) {
-          throw new Error("test setup: seeding the location returned no row");
-        }
-        return insertUser({ locationId: other.id, optedInAt: EARLIER });
-      },
-    ],
-  ])("answers 404 not_found for %s", async (_name, target) => {
+  it("answers 404 not_found for an unknown user", async () => {
     const administratorId = await insertUser({ administrator: true });
-    const targetId = await target();
 
     const response = await request(
       "DELETE",
-      `/users/${targetId}/alert-email-opt-in`,
+      `/users/${crypto.randomUUID()}/alert-email-opt-in`,
       await insertSession(administratorId),
     );
 

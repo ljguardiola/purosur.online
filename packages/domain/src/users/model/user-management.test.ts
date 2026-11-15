@@ -5,6 +5,8 @@ import {
   mayReactivateUser,
   mayRemovePasskeyOf,
   mayRemoveUserPasskey,
+  mayWithdrawAlertEmailOptInOf,
+  mayWithdrawUserAlertEmailOptIn,
 } from "./user-management.js";
 
 const ADMINISTRATOR = { id: "actor", isAdministrator: true, permissionKeys: [] };
@@ -111,5 +113,57 @@ describe("mayReactivateUser", () => {
 
   it("refuses a person without reactivate_users", () => {
     expect(mayReactivateUser(holding("deactivate_users"), { active: false })).toBe(false);
+  });
+});
+
+describe("mayWithdrawAlertEmailOptInOf", () => {
+  it("allows withdrawing the opt-in of another user", () => {
+    expect(mayWithdrawAlertEmailOptInOf("actor", { id: "other" })).toBe(true);
+  });
+
+  it("refuses withdrawing one's own opt-in", () => {
+    expect(mayWithdrawAlertEmailOptInOf("actor", { id: "actor" })).toBe(false);
+  });
+});
+
+describe("mayWithdrawUserAlertEmailOptIn", () => {
+  const OPTED_IN_OTHER = {
+    id: "other",
+    active: true,
+    alertEmailOptedInAt: new Date("2026-09-01T10:00:00.000Z"),
+  };
+
+  it("lets an administrator withdraw the opt-in of another active user who opted in", () => {
+    expect(mayWithdrawUserAlertEmailOptIn(ADMINISTRATOR, OPTED_IN_OTHER)).toBe(true);
+  });
+
+  it("refuses a user with no opt-in recorded", () => {
+    expect(
+      mayWithdrawUserAlertEmailOptIn(ADMINISTRATOR, {
+        ...OPTED_IN_OTHER,
+        alertEmailOptedInAt: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("refuses an inactive user", () => {
+    expect(
+      mayWithdrawUserAlertEmailOptIn(ADMINISTRATOR, { ...OPTED_IN_OTHER, active: false }),
+    ).toBe(false);
+  });
+
+  it("refuses the administrator's own account", () => {
+    expect(mayWithdrawUserAlertEmailOptIn(ADMINISTRATOR, { ...OPTED_IN_OTHER, id: "actor" })).toBe(
+      false,
+    );
+  });
+
+  it("refuses a person who is not an administrator, whatever permission they hold", () => {
+    expect(
+      mayWithdrawUserAlertEmailOptIn(
+        holding("deactivate_users", "reactivate_users", "reset_user_pin"),
+        OPTED_IN_OTHER,
+      ),
+    ).toBe(false);
   });
 });
