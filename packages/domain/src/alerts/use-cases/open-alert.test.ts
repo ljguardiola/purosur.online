@@ -6,11 +6,8 @@ import {
   REFUND_TASK_ESCALATION_DELAY_MS,
 } from "../model/alert-kind-policy.js";
 import { openAlert } from "./open-alert.js";
-import { NOW } from "./test-support/alert-fixtures.js";
+import { ELSEWHERE, HERE, NOW, seedEmailViewers } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock } from "./test-support/fake-alert-store.js";
-
-const HERE = "location-here";
-const ELSEWHERE = "location-elsewhere";
 
 const PASSKEY_CHANGED: OpenAlertInput = {
   kind: "backoffice_passkey_changed",
@@ -350,5 +347,113 @@ describe("openAlert", () => {
       "listActiveAlertViewers",
       "recordBackofficeDeliveries",
     ]);
+  });
+
+  describe("by email", () => {
+    function storeWithEmailViewers(): FakeAlertStore {
+      const store = new FakeAlertStore();
+      seedEmailViewers(store);
+      return store;
+    }
+
+    it("records an email for each opted-in recipient of an alert that goes by email, with its level and the moment it opened", async () => {
+      const store = storeWithEmailViewers();
+
+      await open(store, PASSKEY_CHANGED);
+
+      expect(store.snapshot().emailDeliveries).toEqual(
+        ["administrator", "view-all"].map((recipientUserId) => ({
+          alertId: "alert-1",
+          recipientUserId,
+          stage: "opened",
+          level: "warning",
+          occurredAt: NOW,
+        })),
+      );
+    });
+
+    it("records the email of an alert opened at a level other than its kind's with that level", async () => {
+      const store = storeWithEmailViewers();
+
+      await openAlert({ store, clock: new FixedClock(NOW) }, PASSKEY_CHANGED, "critical");
+
+      expect(store.snapshot().emailDeliveries[0]).toMatchObject({ level: "critical" });
+    });
+
+    it("sends a holder of only view_branch_alerts the alert of their branch that leaves a register unable to sell", async () => {
+      const store = storeWithEmailViewers();
+
+      await open(store, {
+        kind: "sales_denied",
+        scope: "register-1",
+        locationId: HERE,
+        detail: { deviceId: "device-1", reason: "battery_critical" },
+      });
+
+      expect(
+        store.snapshot().emailDeliveries.map(({ recipientUserId }) => recipientUserId),
+      ).toEqual(["administrator", "view-all", "branch-here"]);
+    });
+
+    it("records no email for an alert that stays on the board, though its recipients see it", async () => {
+      const store = storeWithEmailViewers();
+
+      await open(store, {
+        kind: "late_payment_refund",
+        scope: "refund-1",
+        locationId: HERE,
+        detail: { saleId: "sale-1", amount: 2500, providerOrderId: null, method: "QR" },
+      });
+
+      expect(store.snapshot().deliveries.length).toBeGreaterThan(0);
+      expect(store.snapshot().emailDeliveries).toEqual([]);
+    });
+
+    it("records no email for the expiring ARCA certificate when it opens", async () => {
+      const store = storeWithEmailViewers();
+
+      await open(store, {
+        kind: "arca_certificate_expiring",
+        scope: "production",
+        detail: { notAfter: "2026-10-20T00:00:00.000Z" },
+      });
+
+      expect(store.snapshot().emailDeliveries).toEqual([]);
+    });
+
+    it("records no email for an alert that was already open", async () => {
+      const store = storeWithEmailViewers();
+      await open(store, PASSKEY_CHANGED);
+      const before = store.snapshot().emailDeliveries;
+
+      const outcome = await open(store, PASSKEY_CHANGED);
+
+      expect(outcome.kind).toBe("already_open");
+      expect(store.snapshot().emailDeliveries).toEqual(before);
+    });
+
+    it("records the emails after the backoffice deliveries, reading the viewers once", async () => {
+      const store = storeWithEmailViewers();
+
+      await open(store, PASSKEY_CHANGED);
+
+      expect(store.operationOrder).toEqual([
+        "insertAlert",
+        "listActiveAlertViewers",
+        "recordBackofficeDeliveries",
+        "recordEmailDeliveries",
+      ]);
+    });
+
+    it("opens no alert when recording its emails fails", async () => {
+      const store = storeWithEmailViewers();
+      store.failingWrites.add("recordEmailDeliveries");
+
+      await expect(open(store, PASSKEY_CHANGED)).rejects.toThrow("recordEmailDeliveries failed");
+
+      expect(store.snapshot().alerts).toEqual([]);
+      expect(store.snapshot().deliveries).toEqual([]);
+      expect(store.snapshot().emailDeliveries).toEqual([]);
+    });
   });
 });
