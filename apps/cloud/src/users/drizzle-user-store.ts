@@ -231,6 +231,17 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
           deps,
         );
         return;
+      case "recipients_changed":
+        await openAlert(
+          this.tx,
+          {
+            kind: "alert_recipients_changed",
+            scope: alert.userId,
+            detail: { change: "role_assigned", roleName: alert.roleName, actorId: alert.actorId },
+          },
+          deps,
+        );
+        return;
       case "role_assigned":
         await openAlert(
           this.tx,
