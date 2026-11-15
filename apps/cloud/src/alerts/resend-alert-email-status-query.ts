@@ -3,6 +3,7 @@ import type {
   QueriedAlertEmailStatus,
 } from "@purosur/domain/alerts/use-cases";
 import { getResendEmail } from "../platform/resend-email-api.js";
+import { ALERT_EMAIL_DELIVERY_TAG } from "./resend-alert-email-sender.js";
 
 export interface ResendAlertEmailStatusQueryOptions {
   apiKey: string;
@@ -10,25 +11,36 @@ export interface ResendAlertEmailStatusQueryOptions {
   warn?: (message: string) => void;
 }
 
-const UNDELIVERED_EVENTS = new Set(["bounced", "failed", "suppressed", "canceled"]);
-const DELIVERED_EVENTS = new Set(["delivered", "opened", "clicked", "complained"]);
+function fieldOf(value: unknown, name: string): unknown {
+  return typeof value === "object" && value !== null ? Reflect.get(value, name) : undefined;
+}
 
-function lastEventOf(responseBody: string): string | undefined {
+function alertDeliveryIdOf(tags: unknown): string | null {
+  if (!Array.isArray(tags)) {
+    return null;
+  }
+  const value = fieldOf(
+    tags.find((tag) => fieldOf(tag, "name") === ALERT_EMAIL_DELIVERY_TAG),
+    "value",
+  );
+  return typeof value === "string" ? value : null;
+}
+
+function answerOf(responseBody: string): QueriedAlertEmailStatus | undefined {
+  let parsed: unknown;
   try {
-    const parsed: unknown = JSON.parse(responseBody);
-    const lastEvent =
-      typeof parsed === "object" && parsed !== null ? Reflect.get(parsed, "last_event") : undefined;
-    return typeof lastEvent === "string" ? lastEvent : undefined;
+    parsed = JSON.parse(responseBody);
   } catch {
     return undefined;
   }
-}
-
-function statusOf(lastEvent: string): QueriedAlertEmailStatus {
-  if (UNDELIVERED_EVENTS.has(lastEvent)) {
-    return { kind: "undelivered" };
-  }
-  return DELIVERED_EVENTS.has(lastEvent) ? { kind: "delivered" } : { kind: "in_transit" };
+  const lastEvent = fieldOf(parsed, "last_event");
+  return typeof lastEvent === "string"
+    ? {
+        kind: "answered",
+        status: lastEvent,
+        alertDeliveryId: alertDeliveryIdOf(fieldOf(parsed, "tags")),
+      }
+    : undefined;
 }
 
 export function createResendAlertEmailStatusQuery(
@@ -42,10 +54,10 @@ export function createResendAlertEmailStatusQuery(
         return { kind: "unavailable" } as const;
       };
       try {
-        const lastEvent = lastEventOf(await getResendEmail(options, providerMessageId));
-        return lastEvent === undefined
-          ? logUnavailable("Resend API answered without a last event")
-          : statusOf(lastEvent);
+        return (
+          answerOf(await getResendEmail(options, providerMessageId)) ??
+          logUnavailable("Resend API answered without a last event")
+        );
       } catch (error) {
         return logUnavailable(error instanceof Error ? error.message : String(error));
       }

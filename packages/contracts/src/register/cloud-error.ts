@@ -22,6 +22,7 @@ const CLOUD_ERRORS = {
   payment_provider_unavailable: { status: 503, retryable: true },
   alert_email_provider_not_configured: { status: 503, retryable: false },
   alert_email_provider_unavailable: { status: 503, retryable: true },
+  alert_email_send_not_yet_recorded: { status: 503, retryable: true },
   update_feed_unavailable: { status: 503, retryable: true },
   snapshot_backups_unavailable: { status: 503, retryable: true },
 } as const satisfies Record<string, { status: number; retryable: boolean }>;

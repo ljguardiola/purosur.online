@@ -17,6 +17,24 @@ export function isAlertEmailFailureReason(text: string): text is AlertEmailFailu
   return (ALERT_EMAIL_FAILURE_REASONS as readonly string[]).includes(text);
 }
 
+export type AlertEmailProviderStatusMeaning = "undelivered" | "delivered" | "unchanged";
+
+const ALERT_EMAIL_PROVIDER_STATUS_MEANINGS: ReadonlyMap<string, AlertEmailProviderStatusMeaning> =
+  new Map([
+    ["bounced", "undelivered"],
+    ["failed", "undelivered"],
+    ["suppressed", "undelivered"],
+    ["canceled", "undelivered"],
+    ["delivered", "delivered"],
+    ["opened", "delivered"],
+    ["clicked", "delivered"],
+    ["complained", "delivered"],
+  ]);
+
+export function alertEmailProviderStatusMeaning(status: string): AlertEmailProviderStatusMeaning {
+  return ALERT_EMAIL_PROVIDER_STATUS_MEANINGS.get(status) ?? "unchanged";
+}
+
 const FIRST_RETRY_DELAY_MS = 60 * 1000;
 
 export interface AlertEmailCandidate {

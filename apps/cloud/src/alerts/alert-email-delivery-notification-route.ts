@@ -1,4 +1,8 @@
-import { cloudError, cloudErrorStatus } from "@purosur/contracts";
+import {
+  alertEmailDeliveryNotificationSchema,
+  cloudError,
+  cloudErrorStatus,
+} from "@purosur/contracts";
 import {
   type AlertEmailStatusQuery,
   applyQueriedAlertEmailStatus,
@@ -7,6 +11,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { reportError } from "../platform/error-reporting.js";
 import { ReportedNotifications } from "../platform/reported-notifications.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleAlertEmailStatusStore } from "./drizzle-alert-email-status-store.js";
 import { verifyResendWebhookSignature } from "./resend-webhook-signature.js";
@@ -20,7 +25,6 @@ export interface AlertEmailDeliveryNotificationRouteOptions<TQueryResult extends
 }
 
 const REFUSALS_REMEMBERED_AS_REPORTED = 100;
-const EMAIL_EVENT_PREFIX = "email.";
 
 const PROVIDER_NOT_CONFIGURED = cloudError(
   "alert_email_provider_not_configured",
@@ -30,30 +34,21 @@ const PROVIDER_UNAVAILABLE = cloudError(
   "alert_email_provider_unavailable",
   "the alert email provider could not be reached",
 );
+const SEND_NOT_YET_RECORDED = cloudError(
+  "alert_email_send_not_yet_recorded",
+  "the alert email's sending is not recorded yet",
+);
 
 function headerValue(value: string | string[] | undefined): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function notifiedEmailId(rawBody: string): string | undefined {
-  let body: unknown;
+function parsedJson(rawBody: string): unknown {
   try {
-    body = JSON.parse(rawBody);
+    return JSON.parse(rawBody);
   } catch {
     return undefined;
   }
-  if (typeof body !== "object" || body === null) {
-    return undefined;
-  }
-  const type = Reflect.get(body, "type");
-  const data = Reflect.get(body, "data");
-  const emailId =
-    typeof data === "object" && data !== null ? Reflect.get(data, "email_id") : undefined;
-  return typeof type === "string" &&
-    type.startsWith(EMAIL_EVENT_PREFIX) &&
-    typeof emailId === "string"
-    ? emailId
-    : undefined;
 }
 
 export function registerAlertEmailDeliveryNotificationRoute<TQueryResult extends PgQueryResultHKT>(
@@ -110,17 +105,30 @@ export function registerAlertEmailDeliveryNotificationRoute<TQueryResult extends
           return;
         }
 
-        const providerMessageId = notifiedEmailId(rawBody);
-        if (providerMessageId === undefined) {
+        const notification = await readValidatedBody(
+          reply,
+          alertEmailDeliveryNotificationSchema,
+          parsedJson(rawBody),
+        );
+        if (notification === undefined) {
+          return;
+        }
+        if (!("data" in notification)) {
           await reply.code(200).send();
           return;
         }
         const outcome = await applyQueriedAlertEmailStatus(
           { store, statusQuery },
-          { providerMessageId },
+          { providerMessageId: notification.data.email_id },
         );
         if (outcome.kind === "provider_unavailable") {
           await reply.code(cloudErrorStatus(PROVIDER_UNAVAILABLE.code)).send(PROVIDER_UNAVAILABLE);
+          return;
+        }
+        if (outcome.kind === "send_not_yet_recorded") {
+          await reply
+            .code(cloudErrorStatus(SEND_NOT_YET_RECORDED.code))
+            .send(SEND_NOT_YET_RECORDED);
           return;
         }
         await reply.code(200).send();

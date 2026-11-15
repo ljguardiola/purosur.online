@@ -27,6 +27,16 @@ export class DrizzleAlertEmailStatusStore<TQueryResult extends PgQueryResultHKT>
     return row;
   }
 
+  async isAlertEmailDeliveryPending(deliveryId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ deliveryId: alertEmailDeliveries.id })
+      .from(alertEmailDeliveries)
+      .where(
+        and(eq(alertEmailDeliveries.id, deliveryId), eq(alertEmailDeliveries.status, "pending")),
+      );
+    return row !== undefined;
+  }
+
   async recordEmailUndelivered(deliveryId: string): Promise<void> {
     await this.db
       .update(alertEmailDeliveries)
