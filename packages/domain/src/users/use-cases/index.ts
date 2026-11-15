@@ -1,5 +1,10 @@
 export type { ReplenishedUser } from "../model/replenished-user.js";
 export type {
+  AlertEmailOptInStore,
+  AlertEmailOptInStoreTransaction,
+  RecipientsChangedAlert,
+} from "./alert-email-opt-in-store.js";
+export type {
   BranchUser,
   BranchUserActiveScope,
   BranchUserFacts,
@@ -61,6 +66,12 @@ export type {
   ReactivateUserPorts,
 } from "./reactivate-user.js";
 export { reactivateUser } from "./reactivate-user.js";
+export type {
+  RecordOwnAlertEmailOptInInput,
+  RecordOwnAlertEmailOptInOutcome,
+  RecordOwnAlertEmailOptInPorts,
+} from "./record-own-alert-email-opt-in.js";
+export { recordOwnAlertEmailOptIn } from "./record-own-alert-email-opt-in.js";
 export type { RegisterBranchUsers } from "./register-branch-users.js";
 export type {
   AssignableRole,
