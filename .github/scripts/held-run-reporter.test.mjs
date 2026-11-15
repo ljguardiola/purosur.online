@@ -11,8 +11,6 @@ function fakeVitest({
   watch = false,
   openPages = {},
   pagesNeverConnected = {},
-  providerContexts = {},
-  providerPages = {},
   unhandledErrors = [],
   reporters = [],
 } = {}) {
@@ -22,10 +20,6 @@ function fakeVitest({
       name in openPages || name in pagesNeverConnected
         ? {
             vite: { httpServer: new EventEmitter() },
-            provider: {
-              contexts: new Map((providerContexts[name] ?? []).map((id) => [id, {}])),
-              pages: new Map((providerPages[name] ?? []).map((id) => [id, {}])),
-            },
             state: {
               orchestrators: new Map((openPages[name] ?? []).map((id) => [id, {}])),
               testers: new Map(),
@@ -83,6 +77,27 @@ function connectOrchestrator(vitest, sessionId) {
   browserOf(vitest).vite.httpServer.emit("upgrade", {
     url: `/__vitest_browser_api__?type=orchestrator&rpcId=${sessionId}&sessionId=${sessionId}&projectName=browser`,
   });
+}
+
+class FakeBrowserProvider {
+  async createContext() {
+    return {};
+  }
+
+  async openBrowserPage(sessionId) {
+    await this.createContext(sessionId);
+    return {};
+  }
+}
+
+function trackedBrowserProvider(reporter, vitest) {
+  return reporter
+    .trackBrowserPages({
+      name: "fake",
+      options: {},
+      providerFactory: () => new FakeBrowserProvider(),
+    })
+    .providerFactory(vitest.projects.find((project) => project.name === "browser"));
 }
 
 function connectTimeout(sessionId, project = "browser") {
@@ -641,18 +656,12 @@ test("stops watching once the run ends", async (t) => {
   assert.deepEqual(lines, []);
 });
 
-async function stepNamedAtRunEnd({
-  contexts = [],
-  pages = [],
-  requested = false,
-  connected = false,
-}) {
-  const vitest = fakeVitest({
-    pagesNeverConnected: { browser: ["s1"] },
-    providerContexts: { browser: contexts },
-    providerPages: { browser: pages },
-  });
+async function stepNamedAtRunEnd({ reached, requested = false, connected = false }) {
+  const vitest = fakeVitest({ pagesNeverConnected: { browser: ["s1"] } });
   const { reporter, lines } = await startedReporter(vitest, [spec("browser", "a.test.tsx")]);
+  const provider = trackedBrowserProvider(reporter, vitest);
+  if (reached === "context") await provider.createContext("s1");
+  if (reached === "page") await provider.openBrowserPage("s1");
   if (requested) requestOrchestrator(vitest, "s1");
   if (connected) connectOrchestrator(vitest, "s1");
   reporter.onTestRunEnd([], [connectTimeout("s1")], "failed");
@@ -667,34 +676,31 @@ test("names a browser page whose context was never created when its session time
 });
 
 test("names a browser page that never opened in its context when its session timed out", async () => {
-  assert.deepEqual(await stepNamedAtRunEnd({ contexts: ["s1"] }), [
+  assert.deepEqual(await stepNamedAtRunEnd({ reached: "context" }), [
     'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
       "its browser context was created and the page never opened in it",
   ]);
 });
 
 test("names a browser page that never requested its orchestrator when its session timed out", async () => {
-  assert.deepEqual(await stepNamedAtRunEnd({ contexts: ["s1"], pages: ["s1"] }), [
+  assert.deepEqual(await stepNamedAtRunEnd({ reached: "page" }), [
     'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
       "the page opened and never requested its orchestrator",
   ]);
 });
 
 test("names a browser page whose orchestrator never opened its socket when its session timed out", async () => {
-  assert.deepEqual(await stepNamedAtRunEnd({ contexts: ["s1"], pages: ["s1"], requested: true }), [
+  assert.deepEqual(await stepNamedAtRunEnd({ reached: "page", requested: true }), [
     'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
       "the page requested its orchestrator and the orchestrator never opened its socket",
   ]);
 });
 
 test("names a browser page whose orchestrator connected and never reported ready when its session timed out", async () => {
-  assert.deepEqual(
-    await stepNamedAtRunEnd({ contexts: ["s1"], pages: ["s1"], requested: true, connected: true }),
-    [
-      'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
-        "its orchestrator opened its socket and never reported ready",
-    ],
-  );
+  assert.deepEqual(await stepNamedAtRunEnd({ reached: "page", requested: true, connected: true }), [
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "its orchestrator opened its socket and never reported ready",
+  ]);
 });
 
 test("names no browser page when the run ends with an unhandled error other than a connection timeout", async () => {
@@ -713,5 +719,63 @@ test("names a timed out browser page even when its project opened no browser", a
   assert.deepEqual(lines, [
     'held-run: browser page s9 of "other" did not connect within the timeout: ' +
       "its browser context was never created",
+  ]);
+});
+
+test("names the step a timed out browser page reached after its project's browser provider closed", async () => {
+  const vitest = fakeVitest({ pagesNeverConnected: { browser: ["s1"] } });
+  const { reporter, lines } = await startedReporter(vitest, [spec("browser", "a.test.tsx")]);
+  await trackedBrowserProvider(reporter, vitest).openBrowserPage("s1");
+  browserOf(vitest).provider = { contexts: new Map(), pages: new Map() };
+
+  reporter.onTestRunEnd([], [connectTimeout("s1")], "failed");
+
+  assert.deepEqual(lines, [
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "the page opened and never requested its orchestrator",
+  ]);
+});
+
+test("names the step a timed out browser page reached when it ends a held run", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({
+    pagesNeverConnected: { browser: ["s1"] },
+    unhandledErrors: [connectTimeout("s1")],
+  });
+  const { reporter, lines } = await startedReporter(vitest, [spec("browser", "a.test.tsx")]);
+  await trackedBrowserProvider(reporter, vitest).createContext("s1");
+
+  reporter.onTestModuleEnd(finishedModule("browser", "a.test.tsx"));
+  t.mock.timers.tick(GRACE_MS);
+  await settle();
+
+  assert.deepEqual(lines, [
+    "held-run: every test file reported 60s ago and Vitest has not ended. no browser page is open",
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "its browser context was created and the page never opened in it",
+    "held-run: ending with the tests' own result: failed (1 files, 0 failed, 1 unhandled error)",
+  ]);
+});
+
+test("names the step a timed out browser page reached when it ends a stalled run", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  const vitest = fakeVitest({
+    pagesNeverConnected: { browser: ["s1"] },
+    unhandledErrors: [connectTimeout("s1")],
+  });
+  const { lines } = await startedReporter(vitest, [spec("browser", "a.test.tsx")]);
+  requestOrchestrator(vitest, "s1");
+
+  t.mock.timers.tick(STALL_MS);
+  await settle();
+
+  assert.deepEqual(lines, [
+    "held-run: no test finished and no test file started in the last 300s",
+    'held-run: 1 "browser" file still to report: a.test.tsx; ' +
+      '"browser" has 1 browser page whose orchestrator never connected: s1; ' +
+      "no test frame was requested for it",
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "the page requested its orchestrator and the orchestrator never opened its socket",
+    "held-run: ending with a failure (0 files reported, 1 still to report)",
   ]);
 });
