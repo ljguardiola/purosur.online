@@ -90,7 +90,7 @@ describe("sendDueAlertEmails", () => {
     await send();
 
     expect(lanes.log).toEqual([
-      "dueEmailDeliveries:held=true",
+      "pendingEmailDeliveries:held=true",
       "recordEmailAttempt:delivery-1",
       "send:delivery-1:held=true",
       "recordEmailSent:delivery-1",

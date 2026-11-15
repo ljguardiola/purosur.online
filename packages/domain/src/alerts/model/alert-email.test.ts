@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALERT_EMAIL_SEND_ATTEMPTS,
   alertEmailBranchName,
+  isAlertEmailDue,
   isAlertEmailRecipient,
   nextAlertEmailAttemptAt,
   sendsAlertEmailAt,
@@ -146,5 +147,22 @@ describe("alertEmailBranchName", () => {
 
   it("names the recipient's branch when the alert belongs to no branch", () => {
     expect(alertEmailBranchName(null, "Casa Central")).toBe("Casa Central");
+  });
+});
+
+describe("isAlertEmailDue", () => {
+  const now = new Date("2026-10-01T12:00:00.000Z");
+
+  it("is due when no attempt has been scheduled yet", () => {
+    expect(isAlertEmailDue({ nextAttemptAt: null }, now)).toBe(true);
+  });
+
+  it("is due once its next attempt has come, including the very moment", () => {
+    expect(isAlertEmailDue({ nextAttemptAt: new Date(now.getTime() - 1) }, now)).toBe(true);
+    expect(isAlertEmailDue({ nextAttemptAt: new Date(now) }, now)).toBe(true);
+  });
+
+  it("is not due before its next attempt", () => {
+    expect(isAlertEmailDue({ nextAttemptAt: new Date(now.getTime() + 1) }, now)).toBe(false);
   });
 });

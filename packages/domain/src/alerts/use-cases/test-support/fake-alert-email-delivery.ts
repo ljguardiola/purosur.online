@@ -7,12 +7,11 @@ import type {
   AlertEmailSender,
   AlertEmailSendResult,
   AlertEmailSent,
-  DueAlertEmailDelivery,
+  PendingAlertEmailDelivery,
 } from "../alert-email-delivery-ports.js";
 
-export interface FakeEmailDelivery extends DueAlertEmailDelivery {
+export interface FakeEmailDelivery extends PendingAlertEmailDelivery {
   status: "pending" | "sent" | "failed";
-  nextAttemptAt: Date | null;
   error: string | null;
   providerMessageId: string | null;
   sentAt: Date | null;
@@ -57,23 +56,12 @@ export class FakeAlertEmailDeliveryStore implements AlertEmailDeliveryStore {
     return found;
   }
 
-  async dueEmailDeliveries(now: Date): Promise<DueAlertEmailDelivery[]> {
-    this.log.push(`dueEmailDeliveries:held=${this.lanes.held}`);
+  async pendingEmailDeliveries(): Promise<PendingAlertEmailDelivery[]> {
+    this.log.push(`pendingEmailDeliveries:held=`);
     return this.deliveries
-      .filter(
-        (delivery) =>
-          delivery.status === "pending" &&
-          (delivery.nextAttemptAt === null || delivery.nextAttemptAt <= now),
-      )
-      .map(
-        ({
-          status: _status,
-          nextAttemptAt: _next,
-          error: _e,
-          providerMessageId: _p,
-          sentAt: _s,
-          ...due
-        }) => structuredClone(due),
+      .filter((delivery) => delivery.status === "pending")
+      .map(({ status: _status, error: _e, providerMessageId: _p, sentAt: _s, ...pending }) =>
+        structuredClone(pending),
       );
   }
 
