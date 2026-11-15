@@ -14,6 +14,10 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PostgresJsQueryResultHKT } from "drizzle-orm/postgres-js";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAlertCloseRoute } from "./alerts/alert-close-route.js";
+import {
+  type AlertEmailDeliveryNotificationRouteOptions,
+  registerAlertEmailDeliveryNotificationRoute,
+} from "./alerts/alert-email-delivery-notification-route.js";
 import { registerAlertReadRoute } from "./alerts/alert-read-route.js";
 import type { AlertsRouteOptions } from "./alerts/alerts-list-route.js";
 import { registerAlertsListRoute } from "./alerts/alerts-list-route.js";
@@ -353,6 +357,9 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
     Omit<MercadoPagoOrderRoutesOptions<TQueryResult>, keyof DeviceTokensOptions<TQueryResult>>
   >;
   mercadoPagoNotifications?: WithoutClock<MercadoPagoNotificationRoutesOptions<TQueryResult>>;
+  alertEmailDeliveryNotifications?: WithoutClock<
+    AlertEmailDeliveryNotificationRouteOptions<TQueryResult>
+  >;
   registerUpdateFeed?: RegisterUpdateFeed;
   registerSnapshotUrls?: RegisterSnapshotUrls;
   health?: WithoutClock<HealthArcaOptions<TQueryResult>>;
@@ -376,6 +383,7 @@ type DatabaseRouteOptions<TQueryResult extends PgQueryResultHKT> = Required<
     | "restoredOrphanSweep"
     | "mercadoPagoOrders"
     | "mercadoPagoNotifications"
+    | "alertEmailDeliveryNotifications"
     | "registerUpdateFeed"
     | "registerSnapshotUrls"
   >
@@ -948,6 +956,13 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.mercadoPagoNotifications) {
         registerMercadoPagoNotificationRoutes(api, { ...options.mercadoPagoNotifications, now });
+      }
+
+      if (options.alertEmailDeliveryNotifications) {
+        registerAlertEmailDeliveryNotificationRoute(api, {
+          ...options.alertEmailDeliveryNotifications,
+          now,
+        });
       }
 
       if (options.firstPinCodes) {

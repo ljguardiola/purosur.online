@@ -31,6 +31,7 @@ import {
   arcaCertificateExpiryJobs,
   enqueueArcaCertificateExpiryCheck,
 } from "./alerts/arca-certificate-expiry-task.js";
+import { createResendAlertEmailStatusQuery } from "./alerts/resend-alert-email-status-query.js";
 import { selectAlertEmailSender } from "./alerts/select-alert-email-sender.js";
 import { unverifiedOffsiteDumpJobs } from "./alerts/unverified-offsite-dump-task.js";
 import {
@@ -136,6 +137,7 @@ export interface ServerEnv {
   DEVICE_TOKEN_ROTATION_KEY?: string | undefined;
   INSTALLATION_KEYS_ENCRYPTION_KEY?: string | undefined;
   RESEND_API_KEY?: string | undefined;
+  RESEND_WEBHOOK_SECRET?: string | undefined;
   RECOVERY_EMAIL_FROM?: string | undefined;
   RECOVERY_EMAIL_REPLY_TO?: string | undefined;
   BACKOFFICE_ORIGIN?: string | undefined;
@@ -943,6 +945,18 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             connections: database.backgroundJobs.connections,
             ...(mercadoPago && mercadoPagoConfig
               ? { mercadoPago, webhookSecret: mercadoPagoConfig.webhookSecret }
+              : {}),
+          },
+          alertEmailDeliveryNotifications: {
+            db: database.backgroundJobs.db,
+            ...(env.RESEND_WEBHOOK_SECRET &&
+            database.setUpBackgroundJobsEnv.emailSender.transport === "resend"
+              ? {
+                  webhookSecret: env.RESEND_WEBHOOK_SECRET,
+                  statusQuery: createResendAlertEmailStatusQuery({
+                    apiKey: database.setUpBackgroundJobsEnv.emailSender.resendApiKey,
+                  }),
+                }
               : {}),
           },
         }
