@@ -66,7 +66,7 @@ async function expectTabs(screen: Awaited<ReturnType<typeof render>>, names: str
   }
 }
 
-test("opens Compras with the tabs Compras and Fletes for a person with purchases and freights", async () => {
+test("opens Compras with the tabs Compras registradas and Fletes for a person with purchases and freights", async () => {
   const services = purchasesServices(["purchases", "freights"]);
   window.history.pushState(null, "", "/purchases");
 
@@ -75,8 +75,10 @@ test("opens Compras with the tabs Compras and Fletes for a person with purchases
   await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   expect(document.title).toBe("Compras · Puro Sur");
   expect(shownEyebrow()).toBeNull();
-  await expect.element(screen.getByRole("tab", { name: "Compras", selected: true })).toBeVisible();
-  await expectTabs(screen, ["Compras", "Fletes"]);
+  await expect
+    .element(screen.getByRole("tab", { name: "Compras registradas", selected: true }))
+    .toBeVisible();
+  await expectTabs(screen, ["Compras registradas", "Fletes"]);
   await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
   expect(screen.getByRole("heading", { level: 1 }).elements()).toHaveLength(1);
 });
@@ -93,7 +95,7 @@ test("opens Fletes from its tab", async () => {
   expect(screen.getByRole("heading", { level: 1 }).elements()).toHaveLength(1);
 });
 
-test("opens on Fletes, without the Compras tab, for a person with only freights", async () => {
+test("opens on Fletes, without the Compras registradas tab, for a person with only freights", async () => {
   const services = purchasesServices(["freights"]);
   window.history.pushState(null, "", "/purchases");
 
@@ -114,19 +116,17 @@ test("sends a person with only purchases away from Fletes to Compras", async () 
 
   await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
   await expect.poll(location).toBe("/purchases");
-  await expectTabs(screen, ["Compras"]);
+  await expectTabs(screen, ["Compras registradas"]);
 });
 
-test("shows one Compras item in the Compras column, active on both tabs", async () => {
+test("shows no section column beside the Compras tabs", async () => {
   const services = purchasesServices(["purchases", "freights"]);
   window.history.pushState(null, "", "/purchases/freights");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const links = screen.getByRole("navigation", { name: "Compras" }).getByRole("link");
-  await expect.element(links.first()).toBeVisible();
-  expect(links.elements().map((link) => link.textContent)).toEqual(["Compras"]);
-  await expect.element(links.first()).toHaveAttribute("aria-current", "page");
+  await expectTabs(screen, ["Compras registradas", "Fletes"]);
+  expect(screen.getByRole("navigation", { name: "Compras", exact: true }).query()).toBeNull();
 });
 
 test("redirects the old Flete address to its tab, keeping its search", async () => {

@@ -2,8 +2,9 @@ import { actionsColumn, dataColumn, FloatingNotification, Table, useTableModel }
 import { Check, LockOpen, PackageX, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
+import type { AreaTab } from "../shell/area-tabs";
+import { SettingsFrame } from "../shell/settings-frame";
+import type { SettingsTab } from "../shell/settings-tabs";
 import {
   quarantinedDateTimeText,
   quarantinedEventColumnText,
@@ -17,6 +18,7 @@ import { ReleaseQuarantinedEventModal } from "./release-quarantined-event-modal"
 import { useQuarantinedEventsQuery, useRefreshSync } from "./sync-queries";
 
 export type QuarantinedEventsScreenProps = {
+  settingsTabs: readonly AreaTab<SettingsTab>[];
   onSessionEnded: () => void;
   services: QuarantinedEventsScreenServices;
 };
@@ -77,6 +79,7 @@ function columnsFor(openRelease: (event: QuarantinedEvent) => void) {
 }
 
 export function QuarantinedEventsScreen({
+  settingsTabs,
   onSessionEnded,
   services,
 }: QuarantinedEventsScreenProps) {
@@ -101,17 +104,7 @@ export function QuarantinedEventsScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Cambios de cajas retenidos</ScreenTitle>
-            </div>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <SettingsFrame tabs={settingsTabs} selected="held-register-changes">
         <p className="max-w-3xl text-body text-text">
           Eventos que la nube recibió de las cajas y no pudo aplicar después de agotar los intentos.
           Cuando su causa esté resuelta, liberá uno: la nube vuelve a intentarlo y, si se aplica,
@@ -127,7 +120,7 @@ export function QuarantinedEventsScreen({
             variant: "blank",
           }}
         />
-      </ScreenLayout>
+      </SettingsFrame>
       <ReleaseQuarantinedEventModal
         target={releaseTarget}
         onClose={() => setReleaseTarget(null)}

@@ -6,6 +6,7 @@ import { userEvent } from "vitest/browser";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { shownEyebrow } from "../shell/test-support/eyebrow";
 import { render } from "../shell/test-support/render-with-router";
 import { NewPurchaseScreen } from "./new-purchase-screen";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
@@ -130,13 +131,13 @@ const avenaLine = {
   expiresOn: null,
 } as const;
 
-test("shows the breadcrumb, the heading and the header fields, with today as the purchase date", async () => {
+test("shows the heading with nothing above it and the header fields, with today as the purchase date", async () => {
   const screen = await opened();
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Registrar compra", level: 1 }))
     .toBeVisible();
+  expect(shownEyebrow()).toBeNull();
   await expect.element(screen.getByRole("button", { name: /Tipo de comprobante/ })).toBeVisible();
   await expect
     .element(screen.getByRole("textbox", { name: /^Número de comprobante/ }))

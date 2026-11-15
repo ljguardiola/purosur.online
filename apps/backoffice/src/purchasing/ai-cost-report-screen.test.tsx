@@ -6,6 +6,7 @@ import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { periodSegments, typePeriodEnd, typePeriodStart } from "../shell/test-support/report-dates";
+import { settingsTabs } from "../shell/test-support/settings-tabs";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { type AiCostReportFilters, aiCostReportFilters } from "./ai-cost-report-filters";
 import { AiCostReportScreen } from "./ai-cost-report-screen";
@@ -49,6 +50,7 @@ function ControlledScreen({
     <FieldSizeProvider size="backoffice">
       <main>
         <AiCostReportScreen
+          settingsTabs={settingsTabs}
           services={services}
           filters={filters}
           onFiltersChange={(next) => {

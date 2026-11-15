@@ -61,13 +61,13 @@ const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, true,
   linkedAutomatically: 12,
 });
 
-test("shows the supplier's name in the title, under Compras", async () => {
+test("shows the supplier's name in the title, with nothing above it", async () => {
   const screen = await loaded(createServices(), extracted);
 
   await expect
     .element(screen.getByRole("heading", { name: "Lista de Distribuidora Andina", level: 1 }))
     .toBeVisible();
-  expect(shownEyebrow()).toBe("Compras");
+  expect(shownEyebrow()).toBeNull();
 });
 
 test("shows each item with its code, presentation and source page, and its price as printed", async () => {

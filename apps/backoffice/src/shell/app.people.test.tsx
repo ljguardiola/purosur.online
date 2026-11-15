@@ -6,7 +6,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { shownEyebrow } from "./test-support/eyebrow";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/products"]);
@@ -62,31 +62,39 @@ function location() {
   return window.location.pathname + window.location.search;
 }
 
-test("opens Personas on its Usuarios tab, with the Roles tab and the assistant's button for an Administrator", async () => {
+test("opens Configuración on its Usuarios tab, with the single tab row and the assistant's button for an Administrator", async () => {
   window.history.pushState(null, "", "/people");
   const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expectOneNavigationLevel(screen, "Configuración", [
+    "Usuarios",
+    "Roles",
+    "Sucursal",
+    "Cambios de cajas retenidos",
+    "Costo de IA",
+  ]);
   await expect.element(screen.getByRole("tab", { name: "Usuarios", selected: true })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Roles" })).toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Ante una sospecha de compromiso" }))
     .toBeVisible();
   expect(location()).toBe("/people/users");
   await expect.poll(() => document.title).toBe("Personas · Puro Sur");
-  expect(shownEyebrow()).toBe("Configuración");
-  const personas = screen.getByRole("link", { name: "Personas" }).element();
-  expect(personas.getAttribute("aria-current")).toBe("page");
   const config = screen.getByRole("link", { name: "Configuración" }).element();
   expect(config.getAttribute("aria-current")).toBe("page");
 });
 
-test("the settings menu has no Usuarios, Mi cuenta, Roles or Ante una sospecha de compromiso item", async () => {
+test("the settings area has no Personas, Mi cuenta or Ante una sospecha de compromiso link", async () => {
   window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
-  await expect.element(screen.getByRole("link", { name: "Personas" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Usuarios" })).toBeVisible();
 
-  for (const name of ["Usuarios", "Mi cuenta", "Roles", "Ante una sospecha de compromiso"]) {
+  for (const name of [
+    "Personas",
+    "Usuarios",
+    "Mi cuenta",
+    "Roles",
+    "Ante una sospecha de compromiso",
+  ]) {
     expect(screen.getByRole("link", { name }).query()).toBeNull();
   }
 });
@@ -144,7 +152,9 @@ test("redirects /users to /people/users keeping the state filter", async () => {
   window.history.pushState(null, "", "/users?state=inactive");
   const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
   expect(location()).toBe("/people/users?state=inactive");
 });
 

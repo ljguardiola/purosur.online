@@ -36,7 +36,9 @@ test("announces the design system's screen-reader texts in Spanish whatever the 
   });
   window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
 
   switchBrowserLanguage("de-DE");
   await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
