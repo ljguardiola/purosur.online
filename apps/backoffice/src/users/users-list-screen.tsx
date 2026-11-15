@@ -289,6 +289,7 @@ function NewUserModal({
               {(field) => (
                 <field.ComboBox
                   label="Rol"
+                  placeholder="Elegí un rol"
                   options={offeredOptions}
                   required
                   {...(RoleCreation
