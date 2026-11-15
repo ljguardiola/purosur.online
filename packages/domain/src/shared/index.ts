@@ -32,6 +32,10 @@ export {
   SALE_RETURNED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
 } from "./outbox-event.js";
+export {
+  hasValidPasskeyAuthorization,
+  PASSKEY_AUTHORIZATION_WINDOW_MS,
+} from "./passkey-authorization-window.js";
 export type { RegisterIdentity } from "./register-identity.js";
 export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";
 export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";

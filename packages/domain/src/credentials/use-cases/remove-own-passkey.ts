@@ -1,4 +1,4 @@
-import { hasValidPasskeyAuthorization } from "../model/passkey-authorization-window.js";
+import { hasValidPasskeyAuthorization } from "../../shared/index.js";
 import type { PasskeyRemovalStore } from "./passkey-removal-store.js";
 
 export interface RemoveOwnPasskeyPorts {
