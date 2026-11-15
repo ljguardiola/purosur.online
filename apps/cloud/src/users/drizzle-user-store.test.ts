@@ -341,6 +341,32 @@ describe("recording what changed", () => {
     });
   });
 
+  it("records an opt-in to alerts by email as the change of the moment it was given", async () => {
+    const optedInAt = new Date("2026-10-01T12:00:00.000Z");
+
+    const row = await auditRow((tx) =>
+      tx.recordUserChange(actorId, actorId, { kind: "alert_email_opted_in", optedInAt }),
+    );
+
+    expect(row).toMatchObject({
+      previousValue: { alertEmailOptedInAt: null },
+      newValue: { alertEmailOptedInAt: "2026-10-01T12:00:00.000Z" },
+    });
+  });
+
+  it("records the withdrawal of an opt-in with the moment it had been given", async () => {
+    const optedInAt = new Date("2026-10-01T12:00:00.000Z");
+
+    const row = await auditRow((tx) =>
+      tx.recordUserChange(actorId, actorId, { kind: "alert_email_opt_in_withdrawn", optedInAt }),
+    );
+
+    expect(row).toMatchObject({
+      previousValue: { alertEmailOptedInAt: "2026-10-01T12:00:00.000Z" },
+      newValue: { alertEmailOptedInAt: null },
+    });
+  });
+
   it("records a deactivation and a reactivation as the change of the active flag", async () => {
     await store().transaction(async (tx) => {
       await tx.recordUserChange(actorId, actorId, { kind: "deactivated" });

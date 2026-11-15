@@ -59,6 +59,7 @@ async function insertUser(input: {
   roleId: string;
   locationId?: string;
   active?: boolean;
+  alertEmailOptedInAt?: Date;
 }): Promise<string> {
   const [user] = await db
     .insert(users)
@@ -68,6 +69,7 @@ async function insertUser(input: {
       email: input.email,
       locationId: input.locationId ?? branch,
       active: input.active ?? true,
+      alertEmailOptedInAt: input.alertEmailOptedInAt,
     })
     .returning({ id: users.id });
   if (!user) {
@@ -133,6 +135,7 @@ describe("drizzleBranchUsers", () => {
           roleName: null,
           roleIsAdministrator: true,
           passkeyCount: 0,
+          alertEmailOptedInAt: null,
         },
         {
           id: zoe,
@@ -144,8 +147,25 @@ describe("drizzleBranchUsers", () => {
           roleName: "Cajero",
           roleIsAdministrator: false,
           passkeyCount: 2,
+          alertEmailOptedInAt: null,
         },
       ]);
+    });
+
+    it("lists since when each user receives alerts by email", async () => {
+      const cashier = await insertRole("Cajero");
+      const optedInAt = new Date("2026-10-01T12:00:00.000Z");
+      await insertUser({
+        firstName: "Ana",
+        email: "ana@example.test",
+        roleId: cashier,
+        alertEmailOptedInAt: optedInAt,
+      });
+      await insertUser({ firstName: "Zoe", email: "zoe@example.test", roleId: cashier });
+
+      const listed = await drizzleBranchUsers(db).branchUsers(branch, "any");
+
+      expect(listed.map((user) => user.alertEmailOptedInAt)).toEqual([optedInAt, null]);
     });
 
     it("lists users with numbers by value, case and accents ignored and ñ after n", async () => {
