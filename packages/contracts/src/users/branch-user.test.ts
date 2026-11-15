@@ -15,6 +15,7 @@ const ana = {
   may_deactivate: true,
   may_reactivate: false,
   may_remove_passkey: true,
+  alert_email_opted_in_at: "2026-09-01T10:00:00.000Z",
 };
 const { active: _active, ...withoutActive } = ana;
 const administrator = {
@@ -27,6 +28,7 @@ const administrator = {
   may_deactivate: false,
   may_reactivate: false,
   may_remove_passkey: true,
+  alert_email_opted_in_at: null,
 };
 
 describe("branchUserSchema", () => {
@@ -63,6 +65,7 @@ describe("branchUserSchema", () => {
     "may_deactivate",
     "may_reactivate",
     "may_remove_passkey",
+    "alert_email_opted_in_at",
   ])("requires %s", (field) => {
     const { [field as keyof typeof ana]: _omitted, ...rest } = ana;
 
@@ -103,6 +106,9 @@ describe("branchUserSchema", () => {
     ["may_reactivate", null],
     ["may_remove_passkey", "true"],
     ["may_remove_passkey", null],
+    ["alert_email_opted_in_at", 1],
+    ["alert_email_opted_in_at", "yesterday"],
+    ["alert_email_opted_in_at", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(branchUserSchema.safeParse({ ...ana, [field]: value }).success).toBe(false);
   });
