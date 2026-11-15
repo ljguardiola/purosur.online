@@ -141,7 +141,10 @@ test.each([
     const title = screen.getByText(message).first().element();
     const container = screen.container.firstElementChild as HTMLElement;
     const origin = screen.getByRole("columnheader", { name: "Origen" }).element();
+    const region = screen.getByRole("region", { name: "Lotes" }).element() as HTMLElement;
 
+    region.scrollLeft = region.scrollWidth;
+    await expect.poll(() => region.scrollLeft).toBeGreaterThan(0);
     expect(title.getBoundingClientRect().left).toBeGreaterThanOrEqual(
       container.getBoundingClientRect().left,
     );
@@ -150,5 +153,65 @@ test.each([
     );
     expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(96 + 6 + 6);
     await expectNoAccessibilityViolations(screen.container);
+  },
+);
+
+const squeezableColumns: TableColumns<Lot> = [
+  dataColumn({ id: "name", header: "Lote", width: 120, render: (lot: Lot) => lot.name }),
+  dataColumn({ id: "origin", header: "Origen", render: (lot: Lot) => lot.origin }),
+  dataColumn({
+    id: "cost",
+    header: "Costo unitario",
+    width: 120,
+    align: "end",
+    render: (lot: Lot) => lot.cost,
+  }),
+];
+
+function FilledLotsTable({ items, failed }: { items: Lot[]; failed: boolean }) {
+  const table = useTableModel({ items, id: (lot) => lot.id, columns: squeezableColumns });
+  return failed ? (
+    <Table
+      table={table}
+      aria-label="Lotes"
+      fill
+      failureKeepsHeaders
+      failure={{
+        icon: <CircleAlert />,
+        title: "No se pudieron cargar los lotes",
+        onRetry: () => {},
+      }}
+    />
+  ) : (
+    <Table
+      table={table}
+      aria-label="Lotes"
+      fill
+      emptyKeepsHeaders
+      empty={{ icon: <Package />, title: "No hay lotes con saldo", variant: "blank" }}
+    />
+  );
+}
+
+test.each([
+  ["rows", lots, false],
+  ["empty state kept under its headers", [], false],
+  ["load failure kept under its headers", [], true],
+] as const)(
+  "squeezes the columns of a filling table narrower than its columns to fit its container, showing its %s",
+  async (_, items, failed) => {
+    const screen = await render(
+      <div style={{ width: "320px", height: "400px" }}>
+        <FilledLotsTable items={[...items]} failed={failed} />
+      </div>,
+    );
+    const container = screen.container.firstElementChild as HTMLElement;
+    const lastHeader = screen
+      .getByRole("columnheader", { name: "Costo unitario" })
+      .element() as HTMLElement;
+
+    expect(lastHeader.getBoundingClientRect().right).toBeLessThanOrEqual(
+      container.getBoundingClientRect().right,
+    );
   },
 );
