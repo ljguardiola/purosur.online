@@ -2,7 +2,7 @@ import { Button } from "@purosur/ui";
 import { getRouteApi, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 import { type ReactElement, Suspense } from "react";
-import { AreaTabs } from "./area-tabs";
+import { AreaTabs } from "./area-tab-row";
 import { AreaTopBar } from "./area-top-bar";
 import { canManageUsers } from "./backoffice-access";
 import { useDocumentTitle } from "./document-title";

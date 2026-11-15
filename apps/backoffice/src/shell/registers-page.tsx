@@ -1,6 +1,6 @@
 import { getRouteApi, Outlet, useMatchRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { AreaTabs } from "./area-tabs";
+import { AreaTabs } from "./area-tab-row";
 import { AreaTopBar } from "./area-top-bar";
 import { useDocumentTitle } from "./document-title";
 import type { RegistersTab } from "./registers-tabs";

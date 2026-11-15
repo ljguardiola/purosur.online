@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { type AreaTab, AreaTabs } from "../shell/area-tabs";
+import { AreaTabs } from "../shell/area-tab-row";
+import type { AreaTab } from "../shell/area-tabs";
 import type { PurchasingTab } from "./purchasing-area-tabs";
 
 export type PurchasingTabsProps = {

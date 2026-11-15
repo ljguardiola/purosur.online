@@ -1,7 +1,7 @@
 import { CollapsibleSegmentedControl } from "@purosur/ui";
 import { getRouteApi, Outlet, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { AreaTabs } from "./area-tabs";
+import { AreaTabs } from "./area-tab-row";
 import { AreaTopBar } from "./area-top-bar";
 import { ReadBranchTermChange } from "./branch-term-change";
 import { defaultBranchTermServices } from "./branch-term-services";

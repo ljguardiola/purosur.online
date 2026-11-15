@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { type AreaTab, AreaTabs } from "./area-tabs";
+import { AreaTabs } from "./area-tab-row";
+import type { AreaTab } from "./area-tabs";
 import { AreaTopBar } from "./area-top-bar";
 import { ScreenLayout } from "./screen-layout";
 import type { SettingsTab } from "./settings-tabs";
