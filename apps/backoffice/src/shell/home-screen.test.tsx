@@ -294,6 +294,7 @@ test("reads the open alerts by level and the list again once an alert is closed 
         open: true,
         closing: "by_hand",
         deliveries: [],
+        emailDeliveries: [],
       },
     }),
     fetchPermissionCatalog: vi.fn(),
