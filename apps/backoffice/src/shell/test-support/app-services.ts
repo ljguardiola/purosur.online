@@ -378,6 +378,7 @@ export function createAppServices(
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
       deactivateUser: vi.fn(),
       reactivateUser: vi.fn(),
+      withdrawUserAlertEmailOptIn: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

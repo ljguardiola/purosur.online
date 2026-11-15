@@ -9,7 +9,7 @@ import {
   Tabs,
 } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { Pencil, UserCheck, UserX } from "lucide-react";
+import { MailX, Pencil, UserCheck, UserX } from "lucide-react";
 import { type ComponentType, Suspense, useEffect, useState } from "react";
 import type { BranchUserRole } from "../platform/branch-users-api";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -31,6 +31,7 @@ import {
   useRolesQuery,
   useUserQuery,
 } from "./users-queries";
+import { WithdrawUserAlertEmailOptInModal } from "./withdraw-user-alert-email-opt-in-modal";
 
 export type UserCredentialSectionsProps = {
   userId: string;
@@ -126,6 +127,7 @@ function UserPanelView({
   const [modalOpen, setModalOpen] = useState(false);
   const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
   const [reactivateModalOpen, setReactivateModalOpen] = useState(false);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
   const user = userRead?.kind === "found" ? userRead.user : undefined;
   const notFound = userRead?.kind === "not_found";
@@ -207,6 +209,23 @@ function UserPanelView({
                           Editar
                         </Button>
                       ) : null}
+                    </div>
+                  ) : null}
+                  {user &&
+                  canManageUsers(access) &&
+                  !isOwnAccount &&
+                  user.alertEmailOptedInAt !== null ? (
+                    <div>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        destructive
+                        icon={<MailX />}
+                        dataStatus={data.status}
+                        onPress={() => setWithdrawModalOpen(true)}
+                      >
+                        Dejar de recibir alertas por email
+                      </Button>
                     </div>
                   ) : null}
                 </>
@@ -306,6 +325,23 @@ function UserPanelView({
           }}
           onVanished={() => {
             setDeactivateModalOpen(false);
+            void refreshUsers();
+          }}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+      ) : null}
+      {user ? (
+        <WithdrawUserAlertEmailOptInModal
+          open={withdrawModalOpen}
+          user={user}
+          onClose={() => setWithdrawModalOpen(false)}
+          onWithdrawn={() => {
+            setWithdrawModalOpen(false);
+            void refreshUsers();
+          }}
+          onVanished={() => {
+            setWithdrawModalOpen(false);
             void refreshUsers();
           }}
           onSessionEnded={onSessionEnded}
