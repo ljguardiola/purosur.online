@@ -358,6 +358,32 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the detail of a changed recipient set naming the role whose permissions changed or that was assigned", () => {
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "role_permissions_changed"; roleName: string; actorId: string };
+    }>().toExtend<OpenAlertInput>();
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "role_assigned"; roleName: string | null; actorId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a role change of the recipient set that names no role, and a role permission change naming no role's name", () => {
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "role_assigned"; actorId: string };
+    }>().not.toExtend<OpenAlertInput>();
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "role_permissions_changed"; roleName: null; actorId: string };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a changed recipient set that names no change or an unknown one", () => {
     expectTypeOf<{
       kind: "alert_recipients_changed";

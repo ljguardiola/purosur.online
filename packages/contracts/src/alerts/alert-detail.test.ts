@@ -561,6 +561,45 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
     });
 
+    it.each([
+      ["role_permissions_changed", "Cajero"],
+      ["role_assigned", "Cajero"],
+      ["role_assigned", null],
+    ])(
+      "accepts a changed recipient set alert of a %s change naming the role %s",
+      (change, roleName) => {
+        const alert = {
+          ...base,
+          kind: "alert_recipients_changed",
+          detail: { change, roleName, actorId: "user-1", actorName: "Marcela" },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it("refuses a changed recipient set alert of a role change naming no role", () => {
+      for (const change of ["role_permissions_changed", "role_assigned"]) {
+        expect(
+          alertDetailSchema.safeParse({
+            ...base,
+            kind: "alert_recipients_changed",
+            detail: { change, actorId: "user-1" },
+          }).success,
+        ).toBe(false);
+      }
+    });
+
+    it("refuses a changed recipient set alert of a role permission change naming no role's name", () => {
+      expect(
+        alertDetailSchema.safeParse({
+          ...base,
+          kind: "alert_recipients_changed",
+          detail: { change: "role_permissions_changed", roleName: null, actorId: "user-1" },
+        }).success,
+      ).toBe(false);
+    });
+
     it.each(["opted_in", "withdrawn"])(
       "accepts a changed recipient set alert of a %s change",
       (change) => {
