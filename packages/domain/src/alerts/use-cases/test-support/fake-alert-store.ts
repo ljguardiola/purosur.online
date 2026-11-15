@@ -1,7 +1,9 @@
 import type { Clock } from "../../../shared/index.js";
 import type { AlertKind, AlertLevel } from "../../model/alert-catalog.js";
+import type { AlertEmailStage } from "../../model/alert-kind-policy.js";
 import type {
   AlertClosure,
+  AlertEmailDelivery,
   AlertEscalation,
   AlertRecipientCandidate,
   AlertStore,
@@ -24,7 +26,7 @@ export interface FakeAlert extends Omit<NewAlert, "detail"> {
   detail: Record<string, unknown>;
 }
 
-export interface FakeAlertViewer extends AlertRecipientCandidate {
+interface FakeAlertViewer extends AlertRecipientCandidate {
   active: boolean;
 }
 
@@ -33,16 +35,29 @@ interface FakeAlertDelivery {
   recipientUserId: string;
 }
 
+interface FakeAlertEmailDelivery {
+  alertId: string;
+  recipientUserId: string;
+  stage: AlertEmailStage;
+  level: AlertLevel;
+  occurredAt: Date;
+}
+
+export type SeededAlertViewer = Omit<FakeAlertViewer, "email" | "alertEmailOptedIn"> &
+  Partial<Pick<FakeAlertViewer, "email" | "alertEmailOptedIn">>;
+
 export interface FakeAlertState {
   alerts: FakeAlert[];
   viewers: FakeAlertViewer[];
   deliveries: FakeAlertDelivery[];
+  emailDeliveries: FakeAlertEmailDelivery[];
   nextId: number;
 }
 
 export type AlertWriteOperation =
   | "insertAlert"
   | "recordBackofficeDeliveries"
+  | "recordEmailDeliveries"
   | "recordClosure"
   | "recordEscalation"
   | "recordConditionCleared"
@@ -111,6 +126,23 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
     }
   }
 
+  async recordEmailDeliveries(
+    alertId: string,
+    delivery: AlertEmailDelivery,
+    recipientUserIds: readonly string[],
+  ): Promise<void> {
+    this.beforeWrite("recordEmailDeliveries");
+    for (const recipientUserId of recipientUserIds) {
+      this.state.emailDeliveries.push({
+        alertId,
+        recipientUserId,
+        stage: delivery.stage,
+        level: delivery.level,
+        occurredAt: new Date(delivery.occurredAt),
+      });
+    }
+  }
+
   async lockAlert(alertId: string): Promise<LockedAlert | undefined> {
     this.record("lockAlert");
     const alert = this.state.alerts.find((row) => row.id === alertId);
@@ -132,6 +164,8 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
       .filter((row) => row.resolvedAt === null)
       .map((row) => ({
         alertId: row.id,
+        kind: row.kind,
+        locationId: row.locationId,
         level: row.level,
         resolvedAt: null,
         escalateAt: row.escalateAt && new Date(row.escalateAt),
@@ -162,6 +196,7 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
       alert && {
         alertId: alert.id,
         level: alert.level,
+        locationId: alert.locationId,
         detail: structuredClone(alert.detail),
         conditionClearedAt: alert.conditionClearedAt && new Date(alert.conditionClearedAt),
       }
@@ -192,6 +227,8 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
               alertId: row.id,
               kind: row.kind,
               scope: row.scope,
+              level: row.level,
+              locationId: row.locationId,
               detail: structuredClone(row.detail),
               conditionClearedAt: new Date(row.conditionClearedAt),
             },
@@ -222,7 +259,13 @@ class FakeAlertStoreTransaction implements AlertStoreTransaction {
 }
 
 export class FakeAlertStore implements AlertStore {
-  private state: FakeAlertState = { alerts: [], viewers: [], deliveries: [], nextId: 1 };
+  private state: FakeAlertState = {
+    alerts: [],
+    viewers: [],
+    deliveries: [],
+    emailDeliveries: [],
+    nextId: 1,
+  };
 
   failingWrites = new Set<AlertWriteOperation>();
   loseDedupRace = false;
@@ -230,8 +273,12 @@ export class FakeAlertStore implements AlertStore {
   operationOrder: string[] = [];
   operationsByTransaction: string[][] = [];
 
-  seedViewer(viewer: FakeAlertViewer): void {
-    this.state.viewers.push(structuredClone(viewer));
+  seedViewer(viewer: SeededAlertViewer): void {
+    this.state.viewers.push({
+      email: `${viewer.userId}@example.test`,
+      alertEmailOptedIn: false,
+      ...structuredClone(viewer),
+    });
   }
 
   seedAlert(alert: Omit<FakeAlert, "id"> & { id?: string }): string {

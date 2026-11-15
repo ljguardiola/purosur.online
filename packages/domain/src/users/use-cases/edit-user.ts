@@ -1,4 +1,4 @@
-import { increasesAccess } from "../../permissions/index.js";
+import { alertSightKindOf, increasesAccess } from "../../permissions/index.js";
 import type { Clock } from "../../shared/index.js";
 import { isLastActiveAdministrator } from "../model/last-active-administrator.js";
 import type { BranchUser } from "./branch-users.js";
@@ -115,6 +115,15 @@ export async function editUser(
               isAdministrator: previousRole.isAdministrator,
             },
             newRole: { name: newRole.name, isAdministrator: newRole.isAdministrator },
+            actorId: input.actorId,
+            openedAt: clock.now(),
+          });
+        }
+        if (alertSightKindOf(previousRole) !== alertSightKindOf(newRole)) {
+          await tx.openUserAlert({
+            kind: "recipients_changed",
+            userId: input.id,
+            roleName: newRole.name,
             actorId: input.actorId,
             openedAt: clock.now(),
           });

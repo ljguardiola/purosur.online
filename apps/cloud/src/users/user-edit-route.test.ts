@@ -1019,3 +1019,67 @@ describe("PUT /users/:id and the alert for increased access", () => {
     expect(await accessIncreasedAlerts()).toHaveLength(0);
   });
 });
+
+describe("PUT /users/:id and the alert of a changed recipient set", () => {
+  let targetId: string;
+
+  async function insertRoleWithPermissions(
+    name: string,
+    permissionKeys: string[],
+  ): Promise<string> {
+    const roleId = await insertCashierRole(name);
+    await db
+      .insert(rolePermissions)
+      .values(permissionKeys.map((permissionKey) => ({ roleId, permissionKey })));
+    return roleId;
+  }
+
+  async function assignRole(userId: string, roleId: string, version = 1) {
+    const [row] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
+    return editUser(userId, await insertSession(administratorId), {
+      email: row?.email,
+      role_id: roleId,
+      version,
+    });
+  }
+
+  async function recipientsChangedAlerts() {
+    return db.select().from(alerts).where(eq(alerts.kind, "alert_recipients_changed"));
+  }
+
+  beforeEach(async () => {
+    targetId = await insertUser({
+      firstName: "Grace Villalba",
+      email: "grace@example.com",
+      roleId: await insertRoleWithPermissions("Cajera", ["sell_and_charge"]),
+      locationId: await seededLocationId(db),
+    });
+  });
+
+  it("opens one alert naming the new role and who assigned it when the user starts seeing alerts", async () => {
+    const response = await assignRole(
+      targetId,
+      await insertRoleWithPermissions("Encargada", ["sell_and_charge", "view_branch_alerts"]),
+    );
+
+    expect(response.statusCode).toBe(200);
+    const opened = await recipientsChangedAlerts();
+    expect(opened).toHaveLength(1);
+    expect(opened[0]).toMatchObject({
+      scope: targetId,
+      audience: "all",
+      resolvedAt: null,
+      detail: { change: "role_assigned", roleName: "Encargada", actorId: administratorId },
+    });
+  });
+
+  it("opens no alert when the new role leaves the user seeing the same alerts", async () => {
+    const response = await assignRole(
+      targetId,
+      await insertRoleWithPermissions("Repositora", ["sell_and_charge", "void_sale"]),
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(await recipientsChangedAlerts()).toHaveLength(0);
+  });
+});

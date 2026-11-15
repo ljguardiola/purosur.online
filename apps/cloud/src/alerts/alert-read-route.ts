@@ -11,7 +11,12 @@ import {
   isOpenAlert,
   type ZoneRules,
 } from "@purosur/domain";
-import type { AlertDelivery, AlertDetailView } from "@purosur/domain/alerts/use-cases";
+import type {
+  AlertDelivery,
+  AlertDetailView,
+  AlertEmailDeliveryView,
+  AlertReader,
+} from "@purosur/domain/alerts/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
@@ -103,6 +108,25 @@ function toAlertDelivery(row: AlertDelivery): AlertDetail["deliveries"][number] 
   };
 }
 
+function toAlertEmailDelivery(row: AlertEmailDeliveryView): AlertDetail["emailDeliveries"][number] {
+  return {
+    stage: row.stage,
+    status: row.status,
+    error: row.error,
+    createdAt: row.createdAt.toISOString(),
+    sentAt: row.sentAt?.toISOString() ?? null,
+    recipient: {
+      id: row.recipientId,
+      firstName: row.recipientFirstName,
+      role: {
+        id: row.recipientRoleId,
+        name: row.recipientRoleName,
+        isAdministrator: row.recipientRoleIsAdministrator,
+      },
+    },
+  };
+}
+
 function detailWithoutSourceAddressHash(alert: AlertDetailView): Record<string, unknown> {
   if (!holdsOnlySourceAddressHash(alert)) {
     return alert.detail;
@@ -114,6 +138,7 @@ function detailWithoutSourceAddressHash(alert: AlertDetailView): Record<string, 
 export function toAlertDetailBody(
   alert: AlertDetailView,
   deliveries: AlertDelivery[],
+  emailDeliveries: AlertEmailDeliveryView[],
   namesById: ReadonlyMap<string, string>,
   now: Date,
   viewer: { locationId: string },
@@ -146,6 +171,7 @@ export function toAlertDetailBody(
     open: isOpenAlert(alert),
     closing: alertClosing(alert.kind),
     deliveries: deliveries.map(toAlertDelivery),
+    emailDeliveries: emailDeliveries.map(toAlertEmailDelivery),
   });
 }
 
@@ -175,7 +201,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
         return;
       }
 
-      const reader = new DrizzleAlertReader(options.db);
+      const reader: AlertReader = new DrizzleAlertReader(options.db);
       const alert = await reader.findVisibleAlert(sight, ids.id);
       if (!alert) {
         await reply.code(404).send(ALERT_NOT_FOUND_RESPONSE);
@@ -183,6 +209,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const deliveries = await reader.deliveriesOf(alert.id);
+      const emailDeliveries = await reader.emailDeliveriesOf(alert.id);
       const namesById = await reader.displayNames(alertNamedRecordIds(alert));
       await reply
         .code(200)
@@ -190,6 +217,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
           toAlertDetailBody(
             alert,
             deliveries,
+            emailDeliveries,
             namesById,
             now(),
             openSession,

@@ -200,8 +200,8 @@ test("describes the register_disk_space_low alert", () => {
   );
 });
 
-test("describes a change of who receives alerts by email", () => {
+test("describes a change of who receives alerts by email or which ones, without claiming someone started or stopped receiving them", () => {
   expect(alertKindDescription("alert_recipients_changed")).toBe(
-    "Alguien empezó o dejó de recibir las alertas por email.",
+    "Cambió quién recibe las alertas por email o cuáles recibe.",
   );
 });

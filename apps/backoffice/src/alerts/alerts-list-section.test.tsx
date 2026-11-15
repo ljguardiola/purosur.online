@@ -397,6 +397,7 @@ const passkeyDetail: AlertDetail = {
   open: true,
   closing: "by_hand",
   deliveries: [],
+  emailDeliveries: [],
 };
 
 test("the eye action opens the detail modal for that alert", async () => {
@@ -411,6 +412,72 @@ test("the eye action opens the detail modal for that alert", async () => {
 
   await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
   expect(fetchAlert).toHaveBeenCalledWith("alert-1");
+});
+
+test("opens the detail modal of the alert its filters name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
+  services.alertDetailModal = { fetchAlert, fetchPermissionCatalog: vi.fn(), closeAlert: vi.fn() };
+
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters: { ...alertsListFilters.parse({}), alert: "alert-1" },
+  });
+
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+  expect(fetchAlert).toHaveBeenCalledWith("alert-1");
+});
+
+test("opens the detail modal when the route starts naming an alert", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
+  services.alertDetailModal = { fetchAlert, fetchPermissionCatalog: vi.fn(), closeAlert: vi.fn() };
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Passkey")).toBeVisible();
+
+  await screen.rerender(
+    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+      filters: { ...alertsListFilters.parse({}), alert: "alert-1" },
+    }),
+  );
+
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+});
+
+test("keeps the alert opened from the list out of the filters it reports, also after its detail closes", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
+  services.alertDetailModal = { fetchAlert, fetchPermissionCatalog: vi.fn(), closeAlert: vi.fn() };
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, { onFiltersChange });
+  await expect.element(screen.getByText("Passkey")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta/ }));
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(screen.getByText("Se registró una passkey")).not.toBeInTheDocument();
+
+  expect(onFiltersChange).not.toHaveBeenCalled();
+});
+
+test("drops the alert its filters name once that alert's detail closes", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+  const fetchAlert = vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail });
+  services.alertDetailModal = { fetchAlert, fetchPermissionCatalog: vi.fn(), closeAlert: vi.fn() };
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, {
+    filters: { ...alertsListFilters.parse({}), alert: "alert-1" },
+    onFiltersChange,
+  });
+  await expect.element(screen.getByText("Se registró una passkey")).toBeVisible();
+  expect(onFiltersChange).not.toHaveBeenCalled();
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.poll(() => onFiltersChange.mock.lastCall).toEqual([alertsListFilters.parse({})]);
 });
 
 test("ends the session when the alerts request comes back unauthenticated", async () => {

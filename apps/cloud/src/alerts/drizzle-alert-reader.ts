@@ -1,6 +1,7 @@
 import {
   type AlertKind,
   alertKindsWithScope,
+  isAlertEmailFailureReason,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   SALES_DENIED_REASONS,
   type SalesDeniedReason,
@@ -9,6 +10,7 @@ import {
 import type {
   AlertDelivery,
   AlertDetailView,
+  AlertEmailDeliveryView,
   AlertListFilters,
   AlertListPage,
   AlertReader,
@@ -21,6 +23,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { containsText } from "../platform/contains-pattern.js";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   fiscalAddresses,
   registerInstallations,
@@ -183,6 +186,32 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .where(eq(alertDeliveries.alertId, alertId))
       .orderBy(asc(alertDeliveries.createdAt), asc(alertDeliveries.id));
+  }
+
+  async emailDeliveriesOf(alertId: string): Promise<AlertEmailDeliveryView[]> {
+    const rows = await this.db
+      .select({
+        stage: alertEmailDeliveries.stage,
+        status: alertEmailDeliveries.status,
+        error: alertEmailDeliveries.error,
+        createdAt: alertEmailDeliveries.createdAt,
+        sentAt: alertEmailDeliveries.sentAt,
+        recipientId: users.id,
+        recipientFirstName: users.firstName,
+        recipientRoleId: roles.id,
+        recipientRoleName: roles.name,
+        recipientRoleIsAdministrator: roles.isAdministrator,
+      })
+      .from(alertEmailDeliveries)
+      .innerJoin(users, eq(users.id, alertEmailDeliveries.recipientUserId))
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
+      .where(eq(alertEmailDeliveries.alertId, alertId))
+      .orderBy(asc(alertEmailDeliveries.stage), asc(users.firstName), asc(users.id));
+    return rows.map(({ error, ...row }) => ({
+      ...row,
+      error: error !== null && isAlertEmailFailureReason(error) ? error : null,
+    }));
   }
 
   async displayNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {

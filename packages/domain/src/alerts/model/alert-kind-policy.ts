@@ -27,6 +27,10 @@ type AlertEscalationRule =
   | { kind: "afterSubjectOpening"; delayMs: number }
   | { kind: "beforeDeadline"; leadMs: number };
 
+export const ALERT_EMAIL_STAGES = ["opened", "escalated", "resolved"] as const;
+
+export type AlertEmailStage = (typeof ALERT_EMAIL_STAGES)[number];
+
 export interface AlertKindPolicy {
   level: AlertLevel;
   escalation: AlertEscalationRule | null;
@@ -34,6 +38,8 @@ export interface AlertKindPolicy {
   scopeKind: AlertScopeKind;
   deduplicates: boolean;
   resolvesAfterStableClear: boolean;
+  emailStages: readonly AlertEmailStage[];
+  reachesLocalAlertViewers: boolean;
 }
 
 export const ALERT_ESCALATION_DELAY_MS = 24 * 60 * 60 * 1000;
@@ -54,6 +60,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "user",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   backoffice_recovery_requested: {
     level: "warning",
@@ -62,6 +70,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "user",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   user_email_changed: {
     level: "warning",
@@ -70,6 +80,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "user",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   alert_recipients_changed: {
     level: "warning",
@@ -78,6 +90,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "user",
     deduplicates: false,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   backoffice_sign_in_lockout: {
     level: "warning",
@@ -86,6 +100,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "sourceAddress",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   user_access_increased: {
     level: "critical",
@@ -94,6 +110,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "user",
     deduplicates: false,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   register_enrolled: {
     level: "warning",
@@ -102,6 +120,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: false,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   events_quarantined: {
     level: "warning",
@@ -110,6 +130,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "syncDevice",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   event_invariant_violated: {
     level: "warning",
@@ -118,6 +140,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "event",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   arca_certificate_expiring: {
     level: "warning",
@@ -126,6 +150,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "environment",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ["escalated"],
+    reachesLocalAlertViewers: false,
   },
   arca_wsaa_ticket_held: {
     level: "warning",
@@ -134,6 +160,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "environment",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   update_required: {
     level: "critical",
@@ -142,6 +170,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   register_silent: {
     level: "critical",
@@ -150,6 +180,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   sales_denied: {
     level: "critical",
@@ -158,6 +190,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: true,
   },
   fiscal_rejected: {
     level: "critical",
@@ -166,6 +200,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleDocumentType",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   offline_authorization_code_missing: {
     level: "informational",
@@ -174,6 +210,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "registerFortnight",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   late_payment_refund: {
     level: "warning",
@@ -182,6 +220,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "refund",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   refund_task: {
     level: "warning",
@@ -190,6 +230,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "refund",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   fiscal_unknown: {
     level: "warning",
@@ -198,6 +240,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "fiscalDocument",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   fiscal_emission_stopped: {
     level: "critical",
@@ -206,6 +250,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: true,
   },
   clock_drift: {
     level: "critical",
@@ -214,6 +260,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   register_replenishment_failed: {
     level: "critical",
@@ -222,6 +270,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   tz_rules_mismatch: {
     level: "warning",
@@ -230,6 +280,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   on_battery: {
     level: "critical",
@@ -238,6 +290,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   battery_missing: {
     level: "warning",
@@ -246,6 +300,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   battery_health_low: {
     level: "warning",
@@ -254,6 +310,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   wal_oversized: {
     level: "warning",
@@ -262,6 +320,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   register_disk_space_low: {
     level: "warning",
@@ -270,6 +330,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   outbox_chain_broken: {
     level: "warning",
@@ -278,6 +340,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "syncDevice",
     deduplicates: false,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   lots_expiring: {
     level: "informational",
@@ -286,6 +350,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "branch",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   offsite_dump_unverified: {
     level: "critical",
@@ -294,6 +360,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "environment",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   fortnight_report_pending: {
     level: "warning",
@@ -302,6 +370,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleFortnight",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   fortnight_report_overdue: {
     level: "critical",
@@ -310,6 +380,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleFortnight",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   external_billing: {
     level: "critical",
@@ -318,6 +390,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleDocumentNumber",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   clock_corrected: {
     level: "critical",
@@ -326,6 +400,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: false,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   invoice_already_credited: {
     level: "critical",
@@ -334,6 +410,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleDocumentNumber",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   fortnight_report_needs_regularization: {
     level: "critical",
@@ -342,6 +420,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleFortnight",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   fortnight_report_owed_elsewhere: {
     level: "critical",
@@ -350,6 +430,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleFortnight",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   register_backup_overdue: {
     level: "critical",
@@ -358,6 +440,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "register",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   fortnight_report_document_rejected: {
     level: "critical",
@@ -366,6 +450,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "pointOfSaleFortnight",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: ALERT_EMAIL_STAGES,
+    reachesLocalAlertViewers: false,
   },
   deferred_sale_due: {
     level: "warning",
@@ -374,6 +460,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "deferredSale",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   exception_share_breach: {
     level: "critical",
@@ -382,6 +470,8 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "fiscalAddressMonth",
     deduplicates: true,
     resolvesAfterStableClear: false,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
   second_non_compliant_month_at_risk: {
     level: "warning",
@@ -390,11 +480,23 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "fiscalAddressMonth",
     deduplicates: true,
     resolvesAfterStableClear: true,
+    emailStages: [],
+    reachesLocalAlertViewers: false,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {
   return ALERT_KIND_POLICIES[kind];
+}
+
+export type EmailedAlertKind = {
+  [Kind in AlertKind]: (typeof ALERT_KIND_POLICIES)[Kind]["emailStages"] extends readonly []
+    ? never
+    : Kind;
+}[AlertKind];
+
+export function isEmailedAlertKind(kind: AlertKind): kind is EmailedAlertKind {
+  return ALERT_KIND_POLICIES[kind].emailStages.length > 0;
 }
 
 export function alertKindsWithScope(scopeKind: AlertScopeKind): AlertKind[] {

@@ -3,7 +3,7 @@ import {
   alertDetailSchema,
   type PermissionCatalogWire,
 } from "@purosur/contracts";
-import type { AlertLevel } from "@purosur/domain";
+import type { AlertEmailFailureReason, AlertLevel } from "@purosur/domain";
 import {
   Button,
   ButtonLink,
@@ -48,6 +48,7 @@ import {
   LifeBuoy,
   Mail,
   MailCheck,
+  MailX,
   PackageX,
   ShieldAlert,
   ShieldPlus,
@@ -664,15 +665,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
         ? ""
         : `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
     }
-    case "alert_recipients_changed": {
-      const { change, actorName } = alert.detail;
-      if (actorName === undefined) {
-        return "";
-      }
-      return change === "opted_in"
-        ? `${actorName} registró que ${targetName} recibe alertas por email.`
-        : `${actorName} registró que ${targetName} dejó de recibir alertas por email.`;
-    }
+    case "alert_recipients_changed":
+      return recipientsChangedDescription(alert.detail, targetName);
     case "user_access_increased":
       return accessIncreaseDescription(alert.detail, targetName, catalog);
     case "register_enrolled":
@@ -986,6 +980,60 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
   return <LocalAlertExplanation kind={alert.kind} />;
 }
 
+function recipientsChangedDescription(
+  detail: Extract<AlertDetail, { kind: "alert_recipients_changed" }>["detail"],
+  targetName: string,
+): string {
+  const { actorName } = detail;
+  if (actorName === undefined) {
+    return "";
+  }
+  switch (detail.change) {
+    case "opted_in":
+      return `${actorName} registró que ${targetName} recibe alertas por email.`;
+    case "withdrawn":
+      return `${actorName} registró que ${targetName} dejó de recibir alertas por email.`;
+    case "role_permissions_changed":
+      return `${actorName} cambió los permisos del rol ${detail.roleName}, y cambió qué alertas recibe ${targetName} por email.`;
+    case "role_assigned":
+      return `${actorName} le asignó a ${targetName} el rol ${detail.roleName ?? "Administrador"}, y cambió qué alertas recibe por email.`;
+  }
+}
+
+const EMAIL_STAGE_LABELS = {
+  opened: "Al abrirse",
+  escalated: "Al escalar",
+  resolved: "Al resolverse",
+} as const;
+
+const EMAIL_STATUS_TONE = {
+  pending: "neutral",
+  sent: "success",
+  failed: "error",
+  skipped: "neutral",
+} as const;
+
+const EMAIL_FAILURE_REASON_TEXTS: Record<AlertEmailFailureReason, string> = {
+  provider_refused: "el proveedor de email rechazó el envío",
+  provider_unreachable: "el proveedor de email no respondió",
+  provider_unconfirmed: "el proveedor de email no confirmó el envío",
+};
+
+function emailDeliveryStatusText(delivery: AlertDetail["emailDeliveries"][number]): string {
+  switch (delivery.status) {
+    case "pending":
+      return "Pendiente";
+    case "sent":
+      return "Enviado";
+    case "failed":
+      return delivery.error === null
+        ? "No se pudo enviar"
+        : `No se pudo enviar: ${EMAIL_FAILURE_REASON_TEXTS[delivery.error]}`;
+    case "skipped":
+      return "No se envió: ya no recibe alertas por email";
+  }
+}
+
 export function AlertDetailModal(props: AlertDetailModalProps) {
   const { alertId, ...rest } = props;
   return alertId === null ? null : (
@@ -1183,6 +1231,38 @@ function OpenAlertDetailModal({
                   </div>
                 ))}
               </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="font-bold text-text text-detail">Aviso por email</p>
+              {alert.emailDeliveries.length === 0 ? (
+                <EmptyState
+                  icon={<MailX />}
+                  title="Nadie recibió esta alerta por email"
+                  variant="blank"
+                />
+              ) : (
+                <div className="flex flex-col gap-1 rounded-lg border border-border text-left text-detail">
+                  {alert.emailDeliveries.map((delivery) => (
+                    <div
+                      key={`${delivery.recipient.id}-${delivery.stage}`}
+                      className="flex items-center justify-between gap-2 border-border border-b px-3 py-2 last:border-b-0"
+                    >
+                      <span className="flex flex-col">
+                        <span>
+                          {delivery.recipient.firstName}
+                          {delivery.recipient.role.name ? ` · ${delivery.recipient.role.name}` : ""}
+                        </span>
+                        <span className="text-text-subtle">
+                          {EMAIL_STAGE_LABELS[delivery.stage]}
+                        </span>
+                      </span>
+                      <StatusIndicator tone={EMAIL_STATUS_TONE[delivery.status]}>
+                        {emailDeliveryStatusText(delivery)}
+                      </StatusIndicator>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {alert.open && closingNote(alert) !== null ? (
               <p className="text-text-subtle text-detail">{closingNote(alert)}</p>

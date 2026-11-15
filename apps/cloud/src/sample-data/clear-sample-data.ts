@@ -4,6 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   auditLog,
   branchHours,
@@ -289,6 +290,14 @@ async function clearSampleDataInTransaction<TQueryResult extends PgQueryResultHK
         or(
           inArray(alertDeliveries.alertId, sampleAlertIds),
           inArray(alertDeliveries.recipientUserId, sampleUserIds),
+        ),
+      );
+    await tx
+      .delete(alertEmailDeliveries)
+      .where(
+        or(
+          inArray(alertEmailDeliveries.alertId, sampleAlertIds),
+          inArray(alertEmailDeliveries.recipientUserId, sampleUserIds),
         ),
       );
     const deletedAlerts = await tx

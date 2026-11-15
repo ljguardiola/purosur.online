@@ -27,6 +27,24 @@ function fixture({ target = { id: "u-1", version: 3 }, others = [] }: Seed = {})
     isAdministrator: false,
     permissionKeys: ["sell_and_charge", "view_sales_history"],
   });
+  store.seedRole({
+    id: "role-branch-alerts",
+    name: "Encargado",
+    isAdministrator: false,
+    permissionKeys: ["view_branch_alerts"],
+  });
+  store.seedRole({
+    id: "role-cashier-with-branch-alerts",
+    name: "Cajero con alertas",
+    isAdministrator: false,
+    permissionKeys: ["sell_and_charge", "view_branch_alerts"],
+  });
+  store.seedRole({
+    id: "role-all-alerts",
+    name: "Auditor",
+    isAdministrator: false,
+    permissionKeys: ["view_all_alerts"],
+  });
   store.seedRole({ id: "role-admin", name: null, isAdministrator: true, permissionKeys: [] });
   store.seedUser(target.roleIsAdministrator ? administrator(target) : user(target));
   for (const other of others) {
@@ -279,9 +297,84 @@ describe("editUser", () => {
 
     await edit({ roleId: "role-admin" });
 
-    expect(store.snapshot().alerts).toMatchObject([
-      { kind: "role_assigned", newRole: { isAdministrator: true } },
-    ]);
+    expect(store.snapshot().alerts).toContainEqual(
+      expect.objectContaining({
+        kind: "role_assigned",
+        newRole: { name: null, isAdministrator: true },
+      }),
+    );
+  });
+
+  describe("when the new role changes which alerts the user receives", () => {
+    const recipientsChanged = (roleName: string | null) => ({
+      kind: "recipients_changed",
+      userId: "u-1",
+      roleName,
+      actorId: "actor-1",
+      openedAt: NOW,
+    });
+
+    it.each([
+      ["none to local", "role-cashier", "role-branch-alerts", "Encargado"],
+      ["none to all", "role-cashier", "role-all-alerts", "Auditor"],
+      ["local to all", "role-branch-alerts", "role-all-alerts", "Auditor"],
+      ["all to local", "role-all-alerts", "role-branch-alerts", "Encargado"],
+      ["local to none", "role-branch-alerts", "role-cashier", "Cajero"],
+      ["all to none", "role-all-alerts", "role-cashier", "Cajero"],
+      ["none to all through the Administrator role", "role-cashier", "role-admin", null],
+    ])(
+      "alerts naming the new role when the sight goes from %s",
+      async (_change, from, to, roleName) => {
+        const { store, edit } = fixture({
+          target: { id: "u-1", roleId: from, version: 3 },
+        });
+
+        await edit({ roleId: to });
+
+        expect(store.snapshot().alerts).toContainEqual(recipientsChanged(roleName));
+      },
+    );
+
+    it("alerts only that the recipient set changed when the role grants no more access", async () => {
+      const { store, edit } = fixture({
+        target: { id: "u-1", roleId: "role-cashier-with-branch-alerts", version: 3 },
+      });
+
+      await edit({ roleId: "role-cashier" });
+
+      expect(store.snapshot().alerts).toEqual([recipientsChanged("Cajero")]);
+    });
+
+    it("opens it after the alert of the access it increases", async () => {
+      const { store, edit } = fixture();
+
+      await edit({ roleId: "role-all-alerts" });
+
+      expect(store.snapshot().alerts.map(({ kind }) => kind)).toEqual([
+        "role_assigned",
+        "recipients_changed",
+      ]);
+    });
+
+    it("does not alert when the sight stays the same", async () => {
+      const { store, edit } = fixture({
+        target: { id: "u-1", roleId: "role-all-alerts", version: 3 },
+      });
+
+      await edit({ roleId: "role-admin" });
+
+      expect(store.snapshot().alerts.map(({ kind }) => kind)).not.toContain("recipients_changed");
+    });
+
+    it("does not alert when only the email changes", async () => {
+      const { store, edit } = fixture({
+        target: { id: "u-1", roleId: "role-all-alerts", version: 3 },
+      });
+
+      await edit({ email: "new@example.test" });
+
+      expect(store.snapshot().alerts.map(({ kind }) => kind)).toEqual(["email_changed"]);
+    });
   });
 
   it("refuses an email another user holds and leaves nothing behind", async () => {

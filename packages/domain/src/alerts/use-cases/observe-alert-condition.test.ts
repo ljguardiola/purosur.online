@@ -4,7 +4,7 @@ import { ALERT_CONDITION_STABLE_CLEAR_MS } from "../model/alert-condition-resolu
 import type { OpenAlertInput } from "../model/alert-details.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
 import { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
-import { NOW, seededAlert } from "./test-support/alert-fixtures.js";
+import { NOW, seedEmailViewers, seededAlert } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock, PrefixHasher } from "./test-support/fake-alert-store.js";
 
 const UPDATE_REQUIRED: Extract<OpenAlertInput, { kind: "update_required" }> = {
@@ -127,9 +127,10 @@ describe("observeAlertCondition when the condition holds", () => {
 
     await observe(store, HOLDS);
 
-    expect(store.operationOrder.slice(0, 3)).toEqual([
+    expect(store.operationOrder.slice(0, 4)).toEqual([
       "lockOpenAlertOfKey",
       "recordClosure",
+      "listActiveAlertViewers",
       "insertAlert",
     ]);
   });
@@ -580,5 +581,94 @@ describe("observeAlertCondition for lots nearing expiry", () => {
     });
 
     expect(store.snapshot().alerts[0]?.resolvedAt).toEqual(later);
+  });
+});
+
+describe("observeAlertCondition by email", () => {
+  function storeWithEmailViewers(): FakeAlertStore {
+    const store = new FakeAlertStore();
+    seedEmailViewers(store);
+    return store;
+  }
+
+  const recipients = (store: FakeAlertStore) =>
+    store.snapshot().emailDeliveries.map(({ stage, recipientUserId }) => [stage, recipientUserId]);
+
+  it("records the opened emails of the alert it opens", async () => {
+    const store = storeWithEmailViewers();
+
+    await observe(store, HOLDS);
+
+    expect(store.snapshot().emailDeliveries).toEqual(
+      ["administrator", "view-all"].map((recipientUserId) => ({
+        alertId: "alert-1",
+        recipientUserId,
+        stage: "opened",
+        level: "critical",
+        occurredAt: NOW,
+      })),
+    );
+  });
+
+  it("records the escalated emails when the level it holds at rises, at the new level", async () => {
+    const store = storeWithEmailViewers();
+    store.seedAlert(
+      seededAlert({
+        id: "alert-9",
+        kind: "update_required",
+        scope: "register-1",
+        level: "warning",
+        escalateAt: null,
+        detail: { deviceId: "device-1", appVersion: "0.9.0" },
+      }),
+    );
+
+    await observe(store, { ...HOLDS, level: "critical" });
+
+    expect(store.snapshot().emailDeliveries).toEqual(
+      ["administrator", "view-all"].map((recipientUserId) => ({
+        alertId: "alert-9",
+        recipientUserId,
+        stage: "escalated",
+        level: "critical",
+        occurredAt: NOW,
+      })),
+    );
+  });
+
+  it("records no escalated email when the level it holds at does not rise", async () => {
+    const store = storeWithEmailViewers();
+    seedOpenUpdateRequired(store);
+
+    await observe(store, { ...HOLDS, level: "warning" });
+
+    expect(store.snapshot().emailDeliveries).toEqual([]);
+  });
+
+  it("records the resolved emails of the alert whose condition stayed cleared and then the opened emails of the new one", async () => {
+    const store = storeWithEmailViewers();
+    seedOpenUpdateRequired(store, STABLY_CLEARED_AT);
+
+    await observe(store, HOLDS);
+
+    expect(recipients(store)).toEqual([
+      ["resolved", "administrator"],
+      ["resolved", "view-all"],
+      ["opened", "administrator"],
+      ["opened", "view-all"],
+    ]);
+    expect(store.snapshot().emailDeliveries[0]).toMatchObject({
+      alertId: "alert-9",
+      level: "critical",
+    });
+  });
+
+  it("records no email when the alert is only marked as cleared", async () => {
+    const store = storeWithEmailViewers();
+    seedOpenUpdateRequired(store);
+
+    await observe(store, CLEARED);
+
+    expect(store.snapshot().emailDeliveries).toEqual([]);
   });
 });

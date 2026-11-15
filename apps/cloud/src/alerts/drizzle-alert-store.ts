@@ -2,6 +2,7 @@ import { ALERT_KINDS, type AlertKind, isAlertKind } from "@purosur/domain";
 import {
   AlertAlreadyOpenError,
   type AlertClosure,
+  type AlertEmailDelivery,
   type AlertEscalation,
   type AlertRecipientCandidate,
   type AlertStore,
@@ -17,6 +18,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   auditLog,
   rolePermissions,
@@ -84,6 +86,8 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     const rows = await this.tx
       .select({
         userId: users.id,
+        email: users.email,
+        alertEmailOptedInAt: users.alertEmailOptedInAt,
         locationId: users.locationId,
         roleId: roles.id,
         isAdministrator: roles.isAdministrator,
@@ -113,6 +117,8 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
       const existing = viewers.get(row.userId);
       viewers.set(row.userId, {
         userId: row.userId,
+        email: row.email,
+        alertEmailOptedIn: row.alertEmailOptedInAt !== null,
         locationId: row.locationId,
         isAdministrator: (existing?.isAdministrator ?? false) || row.isAdministrator,
         permissionKeys: [...new Set([...(existing?.permissionKeys ?? []), ...permissionKeys])],
@@ -136,6 +142,35 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
     );
   }
 
+  async recordEmailDeliveries(
+    alertId: string,
+    delivery: AlertEmailDelivery,
+    recipientUserIds: readonly string[],
+  ): Promise<void> {
+    if (recipientUserIds.length === 0) {
+      return;
+    }
+    await this.tx
+      .insert(alertEmailDeliveries)
+      .values(
+        recipientUserIds.map((recipientUserId) => ({
+          alertId,
+          recipientUserId,
+          stage: delivery.stage,
+          level: delivery.level,
+          occurredAt: delivery.occurredAt,
+          createdAt: this.now(),
+        })),
+      )
+      .onConflictDoNothing({
+        target: [
+          alertEmailDeliveries.alertId,
+          alertEmailDeliveries.recipientUserId,
+          alertEmailDeliveries.stage,
+        ],
+      });
+  }
+
   async lockAlert(alertId: string): Promise<LockedAlert | undefined> {
     const [row] = await this.tx
       .select({
@@ -143,6 +178,7 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
         level: alerts.level,
         escalatedAt: alerts.escalatedAt,
         scope: alerts.scope,
+        locationId: alerts.locationId,
         detail: alerts.detail,
         resolvedAt: alerts.resolvedAt,
       })
@@ -180,11 +216,19 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async lockOpenAlerts(): Promise<LockedOpenAlert[]> {
     const rows = await this.tx
-      .select({ alertId: alerts.id, level: alerts.level, escalateAt: alerts.escalateAt })
+      .select({
+        alertId: alerts.id,
+        kind: alerts.kind,
+        locationId: alerts.locationId,
+        level: alerts.level,
+        escalateAt: alerts.escalateAt,
+      })
       .from(alerts)
-      .where(openAlertCondition())
+      .where(and(openAlertCondition(), inArray(alerts.kind, [...ALERT_KINDS])))
       .for("update");
-    return rows.map((row) => ({ ...row, resolvedAt: null }));
+    return rows.flatMap((row) =>
+      isAlertKind(row.kind) ? [{ ...row, kind: row.kind, resolvedAt: null }] : [],
+    );
   }
 
   async recordEscalation(alertIds: readonly string[], escalation: AlertEscalation): Promise<void> {
@@ -202,6 +246,7 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .select({
         alertId: alerts.id,
         level: alerts.level,
+        locationId: alerts.locationId,
         detail: alerts.detail,
         conditionClearedAt: alerts.conditionClearedAt,
       })
@@ -232,6 +277,8 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
         alertId: alerts.id,
         kind: alerts.kind,
         scope: alerts.scope,
+        level: alerts.level,
+        locationId: alerts.locationId,
         detail: alerts.detail,
         conditionClearedAt: sql`${alerts.conditionClearedAt}`.mapWith(alerts.conditionClearedAt),
       })

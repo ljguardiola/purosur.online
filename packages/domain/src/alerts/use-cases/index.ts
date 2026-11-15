@@ -1,8 +1,25 @@
 export type { Clock } from "../../shared/index.js";
 export type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 export type {
+  AlertEmail,
+  AlertEmailAttempt,
+  AlertEmailBranchReader,
+  AlertEmailDeliveryStore,
+  AlertEmailFailure,
+  AlertEmailLaneRun,
+  AlertEmailLanes,
+  AlertEmailRecipient,
+  AlertEmailRecipientReader,
+  AlertEmailSender,
+  AlertEmailSendResult,
+  AlertEmailSent,
+  PendingAlertEmailDelivery,
+  SendDueAlertEmailsPorts,
+} from "./alert-email-delivery-ports.js";
+export type {
   AlertDelivery,
   AlertDetailView,
+  AlertEmailDeliveryView,
   AlertListFilters,
   AlertListPage,
   AlertReader,
@@ -13,6 +30,7 @@ export type {
 export type {
   AlertClosingPorts,
   AlertClosure,
+  AlertEmailDelivery,
   AlertEscalation,
   AlertOpeningPorts,
   AlertRecipientCandidate,
@@ -143,6 +161,8 @@ export type {
   SecondMonthRiskDetectionPorts,
   SecondMonthRiskReader,
 } from "./second-month-risk-ports.js";
+export type { SendDueAlertEmailsOutcome } from "./send-due-alert-emails.js";
+export { sendDueAlertEmails } from "./send-due-alert-emails.js";
 export type {
   UnclearDocumentWithoutAlert,
   UnclearOutcomeAlertStore,

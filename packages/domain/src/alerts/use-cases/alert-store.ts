@@ -1,6 +1,7 @@
 import type { Clock } from "../../shared/index.js";
 import type { AlertAudience, AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import type { AlertDetails } from "../model/alert-details.js";
+import type { AlertEmailStage } from "../model/alert-kind-policy.js";
 import type { AlertViewer } from "../model/alert-visibility.js";
 
 export interface SourceAddressHasher {
@@ -33,6 +34,8 @@ export interface NewAlert {
 
 export interface AlertRecipientCandidate extends AlertViewer {
   userId: string;
+  email: string;
+  alertEmailOptedIn: boolean;
 }
 
 export interface LockedAlert {
@@ -40,6 +43,7 @@ export interface LockedAlert {
   level: AlertLevel;
   escalatedAt: Date | null;
   scope: string;
+  locationId: string | null;
   detail: Record<string, unknown>;
   resolvedAt: Date | null;
 }
@@ -53,6 +57,8 @@ export interface AlertClosure {
 
 export interface LockedOpenAlert {
   alertId: string;
+  kind: AlertKind;
+  locationId: string | null;
   level: AlertLevel;
   resolvedAt: null;
   escalateAt: Date | null;
@@ -61,6 +67,7 @@ export interface LockedOpenAlert {
 export interface LockedConditionAlert {
   alertId: string;
   level: AlertLevel;
+  locationId: string | null;
   detail: Record<string, unknown>;
   conditionClearedAt: Date | null;
 }
@@ -69,8 +76,16 @@ export interface ClearedConditionAlert {
   alertId: string;
   kind: AlertKind;
   scope: string;
+  level: AlertLevel;
+  locationId: string | null;
   detail: Record<string, unknown>;
   conditionClearedAt: Date;
+}
+
+export interface AlertEmailDelivery {
+  stage: AlertEmailStage;
+  level: AlertLevel;
+  occurredAt: Date;
 }
 
 export interface AlertEscalation {
@@ -83,6 +98,11 @@ export interface AlertStoreTransaction {
   findOpenAlertId(kind: AlertKind, scope: string): Promise<string | undefined>;
   listActiveAlertViewers(): Promise<AlertRecipientCandidate[]>;
   recordBackofficeDeliveries(alertId: string, recipientUserIds: readonly string[]): Promise<void>;
+  recordEmailDeliveries(
+    alertId: string,
+    delivery: AlertEmailDelivery,
+    recipientUserIds: readonly string[],
+  ): Promise<void>;
   lockAlert(alertId: string): Promise<LockedAlert | undefined>;
   recordClosure(alertId: string, closure: AlertClosure): Promise<void>;
   lockOpenAlerts(): Promise<LockedOpenAlert[]>;

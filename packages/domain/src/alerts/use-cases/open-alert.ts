@@ -3,6 +3,7 @@ import type { OpenAlertInput } from "../model/alert-details.js";
 import { escalatesAt } from "../model/alert-escalation.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
 import { alertLocationId, canSeeAlert } from "../model/alert-visibility.js";
+import { alertEmailRecorder } from "./alert-email-recorder.js";
 import {
   AlertAlreadyOpenError,
   type AlertOpeningPorts,
@@ -59,6 +60,12 @@ export async function openAlertIn(
       recipients.map((recipient) => recipient.userId),
     );
   }
+  await alertEmailRecorder(tx, viewers)(
+    { alertId, kind: alert.kind, locationId: alert.locationId },
+    "opened",
+    alert.level,
+    openedAt,
+  );
   return { kind: "opened", alertId };
 }
 

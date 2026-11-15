@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALERT_CONDITION_STABLE_CLEAR_MS } from "../model/alert-condition-resolution.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
 import { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
-import { NOW, seededAlert } from "./test-support/alert-fixtures.js";
+import { HERE, NOW, seedEmailViewers, seededAlert } from "./test-support/alert-fixtures.js";
 import { FakeAlertStore, FixedClock, PrefixHasher } from "./test-support/fake-alert-store.js";
 
 const STABLE = new Date(NOW.getTime() - ALERT_CONDITION_STABLE_CLEAR_MS);
@@ -82,7 +82,11 @@ describe("resolveStablyClearedAlerts", () => {
 
     await resolveCleared(store);
 
-    expect(store.operationOrder).toEqual(["lockClearedConditionAlerts", "recordClosure"]);
+    expect(store.operationOrder).toEqual([
+      "lockClearedConditionAlerts",
+      "recordClosure",
+      "listActiveAlertViewers",
+    ]);
   });
 
   it("resolves nothing, writing nothing, when no alert is waiting", async () => {
@@ -169,5 +173,61 @@ describe("a condition alert's life", () => {
       resolvedAt: null,
       conditionClearedAt: null,
     });
+  });
+});
+
+describe("resolveStablyClearedAlerts by email", () => {
+  it("records the resolved emails of each alert it resolves, at the level it had, reading the viewers once", async () => {
+    const store = new FakeAlertStore();
+    seedEmailViewers(store);
+    seedConditionAlert(store, "alert-1", { conditionClearedAt: STABLE, level: "critical" });
+    seedConditionAlert(store, "alert-2", { conditionClearedAt: STABLE, level: "warning" });
+
+    await resolveCleared(store);
+
+    expect(store.snapshot().emailDeliveries).toEqual(
+      [
+        ["alert-1", "administrator", "critical"],
+        ["alert-1", "view-all", "critical"],
+        ["alert-2", "administrator", "warning"],
+        ["alert-2", "view-all", "warning"],
+      ].map(([alertId, recipientUserId, level]) => ({
+        alertId,
+        recipientUserId,
+        stage: "resolved",
+        level,
+        occurredAt: NOW,
+      })),
+    );
+    expect(store.operationOrder.filter((op) => op === "listActiveAlertViewers")).toHaveLength(1);
+  });
+
+  it("sends a holder of only view_branch_alerts the end of an alert of their branch that left a register unable to sell", async () => {
+    const store = new FakeAlertStore();
+    seedEmailViewers(store);
+    seedConditionAlert(store, "alert-1", {
+      kind: "sales_denied",
+      audience: "local",
+      locationId: HERE,
+      conditionClearedAt: STABLE,
+    });
+
+    await resolveCleared(store);
+
+    expect(store.snapshot().emailDeliveries.map(({ recipientUserId }) => recipientUserId)).toEqual([
+      "administrator",
+      "view-all",
+      "branch-here",
+    ]);
+  });
+
+  it("records no email for an alert that stays on the board", async () => {
+    const store = new FakeAlertStore();
+    seedEmailViewers(store);
+    seedConditionAlert(store, "alert-1", { kind: "battery_missing", conditionClearedAt: STABLE });
+
+    await resolveCleared(store);
+
+    expect(store.snapshot().emailDeliveries).toEqual([]);
   });
 });

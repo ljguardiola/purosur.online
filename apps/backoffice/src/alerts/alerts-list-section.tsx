@@ -145,7 +145,7 @@ export function AlertsListSection({
   const [search, setSearch] = useState(filters.search);
   const [searchQuery, setSearchQuery] = useState(filters.search.trim());
   const [page, setPage] = useState(filters.page);
-  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(filters.alert ?? null);
   const headingId = useId();
 
   const [seenFilters, setSeenFilters] = useState(filters);
@@ -159,16 +159,27 @@ export function AlertsListSection({
       setSearchQuery(filters.search.trim());
       setPage(filters.page);
     }
+    if (filters.alert !== undefined && filters.alert !== seenFilters.alert) {
+      setSelectedAlertId(filters.alert);
+    }
   }
 
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
-    const shown: AlertsListFilters = { level: levelFilter, status: statusFilter, search, page };
+    const shown: AlertsListFilters = {
+      level: levelFilter,
+      status: statusFilter,
+      search,
+      page,
+      ...(filters.alert !== undefined && filters.alert === selectedAlertId
+        ? { alert: filters.alert }
+        : {}),
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [levelFilter, statusFilter, search, page, filters]);
+  }, [levelFilter, statusFilter, search, page, selectedAlertId, filters]);
 
   useEffect(() => {
     const trimmed = search.trim();

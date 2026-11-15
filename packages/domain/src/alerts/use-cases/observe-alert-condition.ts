@@ -3,6 +3,7 @@ import type { AlertConditionObservation } from "../model/alert-condition-observa
 import { isStablyCleared } from "../model/alert-condition-resolution.js";
 import { isSameAlertDetail } from "../model/alert-detail-equality.js";
 import { alertKindPolicy } from "../model/alert-kind-policy.js";
+import { alertEmailRecorder } from "./alert-email-recorder.js";
 import type { AlertClosingPorts } from "./alert-store.js";
 import { closeStablyClearedAlert } from "./close-stably-cleared-alert.js";
 import { openAlertIn } from "./open-alert.js";
@@ -26,6 +27,7 @@ export async function observeAlertCondition(
   return store.transaction<ObserveAlertConditionOutcome>(async (tx) => {
     const now = clock.now();
     const open = await tx.lockOpenAlertOfKey(kind, scope);
+    const recordEmails = alertEmailRecorder(tx);
     if (observation.holds) {
       if (open !== undefined) {
         const stablyCleared =
@@ -45,10 +47,16 @@ export async function observeAlertCondition(
               level: observation.level,
               escalatedAt: now,
             });
+            await recordEmails(
+              { alertId: open.alertId, kind, locationId: open.locationId },
+              "escalated",
+              observation.level,
+              now,
+            );
           }
           return { kind: "kept_open", alertId: open.alertId };
         }
-        await closeStablyClearedAlert(tx, { ...open, kind, scope }, now, (address) =>
+        await closeStablyClearedAlert(tx, recordEmails, { ...open, kind, scope }, now, (address) =>
           hasher.hash(address),
         );
       }

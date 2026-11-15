@@ -1,4 +1,5 @@
 import {
+  ALERT_EMAIL_FAILURE_REASONS,
   ALERT_KINDS,
   type AlertDetails,
   type AlertKind,
@@ -18,6 +19,14 @@ const delivery = {
     firstName: "Lucía",
     role: { id: "role-1", name: "Administrador", isAdministrator: true },
   },
+};
+const emailDelivery = {
+  stage: "opened",
+  status: "sent",
+  error: null,
+  createdAt: "2026-05-04T13:10:05.000Z",
+  sentAt: "2026-05-04T13:11:00.000Z",
+  recipient: delivery.recipient,
 };
 const emailChange = {
   id: "alert-1",
@@ -39,6 +48,7 @@ const emailChange = {
   open: true,
   closing: "by_hand",
   deliveries: [delivery],
+  emailDeliveries: [emailDelivery],
 };
 
 describe("alertDetailSchema", () => {
@@ -68,6 +78,47 @@ describe("alertDetailSchema", () => {
     };
 
     expect(alertDetailSchema.safeParse(closed).data).toEqual(closed);
+  });
+
+  it("accepts an alert with no email deliveries", () => {
+    const withoutEmails = { ...emailChange, emailDeliveries: [] };
+
+    expect(alertDetailSchema.safeParse(withoutEmails).data).toEqual(withoutEmails);
+  });
+
+  it("accepts an email delivery of each stage and status, a pending or skipped one with no send time and a failed one with the reason it failed", () => {
+    const emailDeliveries = [
+      { ...emailDelivery, stage: "escalated", status: "pending", sentAt: null },
+      ...ALERT_EMAIL_FAILURE_REASONS.map((reason) => ({
+        ...emailDelivery,
+        stage: "resolved",
+        status: "failed",
+        error: reason,
+        sentAt: null,
+      })),
+      { ...emailDelivery, status: "skipped", sentAt: null },
+    ];
+
+    expect(alertDetailSchema.safeParse({ ...emailChange, emailDeliveries }).data).toEqual({
+      ...emailChange,
+      emailDeliveries,
+    });
+  });
+
+  it("strips keys it does not define, also inside an email delivery and its recipient", () => {
+    expect(
+      alertDetailSchema.safeParse({
+        ...emailChange,
+        emailDeliveries: [
+          {
+            ...emailDelivery,
+            id: "delivery-1",
+            attempts: 3,
+            recipient: { ...delivery.recipient, email: "x@example.com" },
+          },
+        ],
+      }).data,
+    ).toEqual(emailChange);
   });
 
   it("requires the kind of scope the alert's kind has", () => {
@@ -129,6 +180,8 @@ describe("alertDetailSchema", () => {
     ["closing", null],
     ["deliveries", null],
     ["deliveries", {}],
+    ["emailDeliveries", null],
+    ["emailDeliveries", {}],
   ])("refuses %s as %j", (field, value) => {
     expect(alertDetailSchema.safeParse({ ...emailChange, [field]: value }).success).toBe(false);
   });
@@ -157,6 +210,36 @@ describe("alertDetailSchema", () => {
     expect(
       alertDetailSchema.safeParse({ ...emailChange, deliveries: [{ ...delivery, [field]: value }] })
         .success,
+    ).toBe(false);
+  });
+
+  const emailDeliveryFields = ["stage", "status", "error", "createdAt", "sentAt", "recipient"];
+  it.each(emailDeliveryFields)("requires an email delivery's %s", (field) => {
+    const { [field as keyof typeof emailDelivery]: _omitted, ...rest } = emailDelivery;
+
+    expect(alertDetailSchema.safeParse({ ...emailChange, emailDeliveries: [rest] }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["stage", "closed"],
+    ["stage", null],
+    ["status", "bounced"],
+    ["status", null],
+    ["error", undefined],
+    ["error", 1],
+    ["error", "Resend API responded 500"],
+    ["createdAt", 1],
+    ["sentAt", undefined],
+    ["sentAt", 1],
+    ["recipient", null],
+  ])("refuses an email delivery's %s as %j", (field, value) => {
+    expect(
+      alertDetailSchema.safeParse({
+        ...emailChange,
+        emailDeliveries: [{ ...emailDelivery, [field]: value }],
+      }).success,
     ).toBe(false);
   });
 
@@ -559,6 +642,45 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it.each([
+      ["role_permissions_changed", "Cajero"],
+      ["role_assigned", "Cajero"],
+      ["role_assigned", null],
+    ])(
+      "accepts a changed recipient set alert of a %s change naming the role %s",
+      (change, roleName) => {
+        const alert = {
+          ...base,
+          kind: "alert_recipients_changed",
+          detail: { change, roleName, actorId: "user-1", actorName: "Marcela" },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it("refuses a changed recipient set alert of a role change naming no role", () => {
+      for (const change of ["role_permissions_changed", "role_assigned"]) {
+        expect(
+          alertDetailSchema.safeParse({
+            ...base,
+            kind: "alert_recipients_changed",
+            detail: { change, actorId: "user-1" },
+          }).success,
+        ).toBe(false);
+      }
+    });
+
+    it("refuses a changed recipient set alert of a role permission change naming no role's name", () => {
+      expect(
+        alertDetailSchema.safeParse({
+          ...base,
+          kind: "alert_recipients_changed",
+          detail: { change: "role_permissions_changed", roleName: null, actorId: "user-1" },
+        }).success,
+      ).toBe(false);
     });
 
     it.each(["opted_in", "withdrawn"])(

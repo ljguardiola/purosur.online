@@ -4,6 +4,7 @@ import {
   type RoleAccessIncrease,
   type RoleChange,
   RoleNameConflict,
+  type RoleRecipientsChange,
   type RoleRewrite,
   type RoleStore,
   type RoleStoreTransaction,
@@ -142,6 +143,22 @@ class DrizzleRoleStoreTransaction<TQueryResult extends PgQueryResultHKT>
         },
       },
       { now: () => increase.openedAt },
+    );
+  }
+
+  async openRecipientsChangedAlert(change: RoleRecipientsChange): Promise<void> {
+    await openAlert(
+      this.tx,
+      {
+        kind: "alert_recipients_changed",
+        scope: change.holderId,
+        detail: {
+          change: "role_permissions_changed",
+          roleName: change.roleName,
+          actorId: change.actorId,
+        },
+      },
+      { now: () => change.openedAt },
     );
   }
 

@@ -46,6 +46,13 @@ export interface RoleAccessIncrease {
   openedAt: Date;
 }
 
+export interface RoleRecipientsChange {
+  holderId: string;
+  roleName: string;
+  actorId: string;
+  openedAt: Date;
+}
+
 export interface RoleStore {
   transaction<TOutcome>(work: (tx: RoleStoreTransaction) => Promise<TOutcome>): Promise<TOutcome>;
 }
@@ -59,4 +66,5 @@ export interface RoleStoreTransaction {
   recordRoleChange(change: RoleChange): Promise<void>;
   activeRoleHolders(roleId: string): Promise<RoleHolder[]>;
   openAccessIncreasedAlert(increase: RoleAccessIncrease): Promise<void>;
+  openRecipientsChangedAlert(change: RoleRecipientsChange): Promise<void>;
 }

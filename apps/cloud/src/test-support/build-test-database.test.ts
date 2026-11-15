@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi }
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   arcaInvoicingEvidence,
   arcaVitalityChecks,
@@ -730,6 +731,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       recipientUserId: user.id,
       channel: "backoffice",
       status: "sent",
+    });
+    await db.insert(alertEmailDeliveries).values({
+      alertId: alert.id,
+      recipientUserId: user.id,
+      stage: "opened",
+      level: "warning",
+      occurredAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db
       .insert(arcaVitalityChecks)

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isValidCuit, type ZoneRulesSource } from "@purosur/domain";
+import type { AlertEmailSender } from "@purosur/domain/alerts/use-cases";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import type {
   MercadoPagoOrders,
@@ -24,11 +25,13 @@ import { makeWorkerUtils, type WorkerUtils } from "graphile-worker";
 import pg from "pg";
 import postgres from "postgres";
 import { alertConditionResolutionJobs } from "./alerts/alert-condition-resolution-task.js";
+import { alertEmailDeliveryJobs } from "./alerts/alert-email-delivery-task.js";
 import { alertEscalationJobs } from "./alerts/alert-escalation-task.js";
 import {
   arcaCertificateExpiryJobs,
   enqueueArcaCertificateExpiryCheck,
 } from "./alerts/arca-certificate-expiry-task.js";
+import { selectAlertEmailSender } from "./alerts/select-alert-email-sender.js";
 import { unverifiedOffsiteDumpJobs } from "./alerts/unverified-offsite-dump-task.js";
 import {
   type BackofficeErrorReporting,
@@ -520,6 +523,8 @@ export async function closeBackgroundJobResources({
 export interface SetUpBackgroundJobsDeps {
   /** Only an integration test injects a fake sender, to run this against a real Postgres without sending real email. */
   emailSender?: AccessEmailSender;
+  /** Only an integration test injects a fake sender, to run this against a real Postgres without sending real email. */
+  alertEmailSender?: AlertEmailSender;
   /** Lets a test give the job-queue pool a `pg.Pool` with no idle reaper, so it doesn't race pg-pool's own idle timeout. */
   createJobQueuePool?: CreateBackgroundJobQueuePoolDeps["createPool"];
   schedules?: StartBackgroundJobRunnerOptions["schedules"];
@@ -545,12 +550,21 @@ export async function setUpBackgroundJobs(
       emailFrom: backgroundJobsEnv.emailFrom,
       emailReplyTo: backgroundJobsEnv.emailReplyTo,
     });
+  const alertEmailSender =
+    deps.alertEmailSender ??
+    selectAlertEmailSender({
+      emailSender: backgroundJobsEnv.emailSender,
+      emailFrom: backgroundJobsEnv.emailFrom,
+      emailReplyTo: backgroundJobsEnv.emailReplyTo,
+      backofficeOrigin: backgroundJobsEnv.backofficeOrigin,
+    });
   const worker = await startBackgroundJobRunner({
     databaseUrl: backgroundJobsEnv.databaseUrl,
     ...(deps.schedules === undefined ? {} : { schedules: deps.schedules }),
     jobs: [
       accessEmailJobs({ now, backofficeOrigin: backgroundJobsEnv.backofficeOrigin, emailSender }),
       alertEscalationJobs({ now }),
+      alertEmailDeliveryJobs({ now, sender: alertEmailSender, db, connections }),
       alertConditionResolutionJobs({ now, zoneRules }),
       arcaCertificateExpiryJobs({ now, ...backgroundJobsEnv.arcaCertificate }),
       ...(backgroundJobsEnv.offsiteDumpCheck

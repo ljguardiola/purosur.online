@@ -1,5 +1,6 @@
 import type { AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import { isOpenAlert } from "../model/open-alert-state.js";
+import { alertEmailRecorder } from "./alert-email-recorder.js";
 import type { AlertClosingPorts } from "./alert-store.js";
 import { keptAfterClosure } from "./kept-after-closure.js";
 
@@ -40,6 +41,12 @@ export async function closeAlert(
     const closedAt = clock.now();
     const kept = keptAfterClosure(alert, (address) => hasher.hash(address));
     await tx.recordClosure(input.alertId, { closedAt, closedBy: input.closedBy, ...kept });
+    await alertEmailRecorder(tx)(
+      { alertId: input.alertId, kind: alert.kind, locationId: alert.locationId },
+      "resolved",
+      alert.level,
+      closedAt,
+    );
     return {
       kind: "closed",
       alert: {

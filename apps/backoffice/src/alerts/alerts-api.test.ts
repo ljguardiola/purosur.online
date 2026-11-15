@@ -143,6 +143,7 @@ const alertDetail: AlertDetail = {
       },
     },
   ],
+  emailDeliveries: [],
 };
 
 test("fetchAlert shows one alert's detail on 200", async () => {

@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   locations,
   registers,
@@ -349,6 +350,67 @@ describe("GET /alerts/:id", () => {
       response.json() as { deliveries: { recipient: { firstName: string } }[] }
     ).deliveries.map((delivery) => delivery.recipient.firstName);
     expect(recipientNames).toEqual(["Primera", "Segunda", "Tercera"]);
+  });
+
+  it("lists the emails of the alert with their state, in the order of its stages", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const alertId = await insertAlert({ audience: "all" });
+    const sentAt = new Date(NOON.getTime() + 5_000);
+    await db.insert(alertEmailDeliveries).values([
+      {
+        alertId,
+        recipientUserId: viewerId,
+        stage: "escalated",
+        level: "critical",
+        occurredAt: NOON,
+        status: "failed",
+        error: "provider_refused",
+        createdAt: NOON,
+      },
+      {
+        alertId,
+        recipientUserId: viewerId,
+        stage: "opened",
+        level: "warning",
+        occurredAt: NOON,
+        status: "sent",
+        sentAt,
+        createdAt: NOON,
+      },
+    ]);
+
+    const response = await getAlert(rawSessionId, alertId);
+
+    expect(response.statusCode).toBe(200);
+    const recipient = {
+      id: viewerId,
+      firstName: "Grace",
+      role: {
+        id: viewerRoleId,
+        name: expect.stringContaining("supervisor"),
+        isAdministrator: false,
+      },
+    };
+    expect((response.json() as { emailDeliveries: unknown }).emailDeliveries).toEqual([
+      {
+        stage: "opened",
+        status: "sent",
+        error: null,
+        createdAt: NOON.toISOString(),
+        sentAt: sentAt.toISOString(),
+        recipient,
+      },
+      {
+        stage: "escalated",
+        status: "failed",
+        error: "provider_refused",
+        createdAt: NOON.toISOString(),
+        sentAt: null,
+        recipient,
+      },
+    ]);
   });
 
   it("never sends a closed lockout alert's stored address hash", async () => {

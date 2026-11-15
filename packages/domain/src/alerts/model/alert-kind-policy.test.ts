@@ -1,14 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { ALERT_KINDS } from "./alert-catalog.js";
 import {
   ALERT_CLOSINGS,
+  ALERT_EMAIL_STAGES,
   ALERT_ESCALATION_DELAY_MS,
   ARCA_CERTIFICATE_EXPIRY_ESCALATION_MS,
   alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
+  type EmailedAlertKind,
   FISCAL_UNKNOWN_ALERT_OPENING_DELAY_MS,
   FISCAL_UNKNOWN_ESCALATION_DELAY_MS,
+  isEmailedAlertKind,
   LATE_PAYMENT_REFUND_ESCALATION_DELAY_MS,
   REFUND_TASK_ALERT_OPENING_DELAY_MS,
   REFUND_TASK_ESCALATION_DELAY_MS,
@@ -164,6 +167,103 @@ describe("alertKindPolicy", () => {
     for (const kind of ALERT_KINDS) {
       expect(alertKindPolicy(kind)).toBeDefined();
     }
+  });
+});
+
+describe("the alerts that go by email", () => {
+  const ALL_STAGES = ["opened", "escalated", "resolved"];
+
+  it("lists the stages of an alert an email can be sent at", () => {
+    expect(ALERT_EMAIL_STAGES).toEqual(ALL_STAGES);
+  });
+
+  it("sends by email, at every stage, the alerts someone away from the backoffice must act on soon", () => {
+    const sentAtEveryStage = ALERT_KINDS.filter(
+      (kind) => alertKindPolicy(kind).emailStages.length === ALL_STAGES.length,
+    );
+
+    expect(sentAtEveryStage).toEqual([
+      "backoffice_passkey_changed",
+      "backoffice_recovery_requested",
+      "user_email_changed",
+      "alert_recipients_changed",
+      "backoffice_sign_in_lockout",
+      "user_access_increased",
+      "register_enrolled",
+      "events_quarantined",
+      "update_required",
+      "register_silent",
+      "sales_denied",
+      "fiscal_rejected",
+      "fiscal_unknown",
+      "fiscal_emission_stopped",
+      "clock_drift",
+      "register_replenishment_failed",
+      "on_battery",
+      "outbox_chain_broken",
+      "offsite_dump_unverified",
+      "fortnight_report_overdue",
+      "register_backup_overdue",
+      "fortnight_report_document_rejected",
+    ]);
+    for (const kind of sentAtEveryStage) {
+      expect(alertKindPolicy(kind).emailStages).toEqual(ALL_STAGES);
+    }
+  });
+
+  it("sends the expiring ARCA certificate by email only when it escalates", () => {
+    expect(alertKindPolicy("arca_certificate_expiring").emailStages).toEqual(["escalated"]);
+  });
+
+  it("never sends any other kind by email", () => {
+    const sentByEmail = ALERT_KINDS.filter((kind) => alertKindPolicy(kind).emailStages.length > 0);
+
+    expect(sentByEmail).toHaveLength(23);
+    expect(sentByEmail).toContain("arca_certificate_expiring");
+  });
+
+  it("reaches the holders of only view_branch_alerts with the alerts that leave a register unable to sell or to issue a fiscal document", () => {
+    expect(ALERT_KINDS.filter((kind) => alertKindPolicy(kind).reachesLocalAlertViewers)).toEqual([
+      "sales_denied",
+      "fiscal_emission_stopped",
+    ]);
+  });
+});
+
+describe("isEmailedAlertKind", () => {
+  it("holds for exactly the kinds that go by email at some stage", () => {
+    expect(ALERT_KINDS.filter(isEmailedAlertKind)).toEqual([
+      "backoffice_passkey_changed",
+      "backoffice_recovery_requested",
+      "user_email_changed",
+      "alert_recipients_changed",
+      "backoffice_sign_in_lockout",
+      "user_access_increased",
+      "register_enrolled",
+      "events_quarantined",
+      "arca_certificate_expiring",
+      "update_required",
+      "register_silent",
+      "sales_denied",
+      "fiscal_rejected",
+      "fiscal_unknown",
+      "fiscal_emission_stopped",
+      "clock_drift",
+      "register_replenishment_failed",
+      "on_battery",
+      "outbox_chain_broken",
+      "offsite_dump_unverified",
+      "fortnight_report_overdue",
+      "register_backup_overdue",
+      "fortnight_report_document_rejected",
+    ]);
+  });
+
+  it("types as emailed a kind that goes by email at some stage, and never one that stays on the board", () => {
+    expectTypeOf<"sales_denied">().toExtend<EmailedAlertKind>();
+    expectTypeOf<"arca_certificate_expiring">().toExtend<EmailedAlertKind>();
+    expectTypeOf<"lots_expiring">().not.toExtend<EmailedAlertKind>();
+    expectTypeOf<"refund_task">().not.toExtend<EmailedAlertKind>();
   });
 });
 

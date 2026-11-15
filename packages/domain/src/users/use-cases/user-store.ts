@@ -65,6 +65,13 @@ export type UserAlert =
       newRole: { name: string | null; isAdministrator: boolean };
       actorId: string;
       openedAt: Date;
+    }
+  | {
+      kind: "recipients_changed";
+      userId: string;
+      roleName: string | null;
+      actorId: string;
+      openedAt: Date;
     };
 
 export interface UserStore {

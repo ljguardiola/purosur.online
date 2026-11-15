@@ -45,19 +45,38 @@ export type {
   SignInLockoutDetail,
 } from "./model/alert-details.js";
 export { FORTNIGHT_REPORT_PENDING_REASONS } from "./model/alert-details.js";
+export type { AlertEmailFailureReason } from "./model/alert-email.js";
+export {
+  ALERT_EMAIL_FAILURE_REASONS,
+  ALERT_EMAIL_SEND_ATTEMPTS,
+  alertEmailBranchName,
+  isAlertEmailDue,
+  isAlertEmailFailureReason,
+  isAlertEmailRecipient,
+  nextAlertEmailAttemptAt,
+  sendsAlertEmailAt,
+  stillReceivesAlertEmails,
+} from "./model/alert-email.js";
 export {
   ALERT_ESCALATION_CHECK_INTERVAL_MS,
   ESCALATED_LEVEL,
   escalatesAt,
   isDueForEscalation,
 } from "./model/alert-escalation.js";
-export type { AlertKindPolicy, AlertScopeKind } from "./model/alert-kind-policy.js";
+export type {
+  AlertEmailStage,
+  AlertKindPolicy,
+  AlertScopeKind,
+  EmailedAlertKind,
+} from "./model/alert-kind-policy.js";
 export {
   ALERT_CLOSINGS,
+  ALERT_EMAIL_STAGES,
   ALERT_ESCALATION_DELAY_MS,
   alertClosing,
   alertKindPolicy,
   alertKindsWithScope,
+  isEmailedAlertKind,
 } from "./model/alert-kind-policy.js";
 export {
   alertActorId,
