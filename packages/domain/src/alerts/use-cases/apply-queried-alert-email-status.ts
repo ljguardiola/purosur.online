@@ -18,9 +18,9 @@ export async function applyQueriedAlertEmailStatus(
   { store, statusQuery }: ApplyQueriedAlertEmailStatusPorts,
   { providerMessageId }: ApplyQueriedAlertEmailStatusInput,
 ): Promise<ApplyQueriedAlertEmailStatusOutcome> {
-  const sendInFlight = await store.hasAlertEmailSendInFlight();
+  const sendRunning = await store.isAlertEmailSendRunning();
   const sent = await store.sentAlertEmailOfProviderMessage(providerMessageId);
-  if (sent === undefined && !sendInFlight) {
+  if (sent === undefined && !sendRunning) {
     return { kind: "not_an_alert_email" };
   }
   const answer = await statusQuery.queriedAlertEmailStatus(providerMessageId);

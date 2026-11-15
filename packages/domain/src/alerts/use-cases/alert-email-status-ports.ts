@@ -11,7 +11,7 @@ export interface SentAlertEmail {
 }
 
 export interface AlertEmailStatusStore {
-  hasAlertEmailSendInFlight(): Promise<boolean>;
+  isAlertEmailSendRunning(): Promise<boolean>;
   sentAlertEmailOfProviderMessage(providerMessageId: string): Promise<SentAlertEmail | undefined>;
   isAlertEmailDeliveryPending(deliveryId: string): Promise<boolean>;
   recordEmailUndelivered(deliveryId: string): Promise<void>;
