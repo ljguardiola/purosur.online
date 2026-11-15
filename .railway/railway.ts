@@ -137,6 +137,7 @@ export default defineRailway((ctx) => {
   const arcaPrivateKey = requireEnv("ARCA_PRIVATE_KEY");
   const mercadoPago = resolveMercadoPagoConfig(process.env);
   const anthropicApiKey = process.env["ANTHROPIC_API_KEY"];
+  const resendWebhookSecret = process.env["RESEND_WEBHOOK_SECRET"];
   const environment = ctx.environment;
   if (!environment) {
     throw new Error(".railway/railway.ts: the CLI gave no target environment name");
@@ -235,6 +236,7 @@ export default defineRailway((ctx) => {
         "SECRET_ACCESS_KEY",
       ),
       ...(anthropicApiKey ? { ANTHROPIC_API_KEY: anthropicApiKey } : {}),
+      ...(resendWebhookSecret ? { RESEND_WEBHOOK_SECRET: resendWebhookSecret } : {}),
       ...(mercadoPago
         ? {
             MERCADOPAGO_ACCESS_TOKEN: mercadoPago.accessToken,
