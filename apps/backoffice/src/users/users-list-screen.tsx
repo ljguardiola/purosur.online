@@ -129,7 +129,6 @@ function NewUserModal({
   startAuthentication,
 }: NewUserModalProps) {
   const sendToOwnAccount = useSendToOwnAccount();
-  const options = roles.length > 0 ? roleOptions(roles) : undefined;
   const [notice, setNotice] = useState<FormNotice | null>(null);
   const [deactivatedConflict, setDeactivatedConflict] = useState<{
     id: string;
@@ -142,7 +141,7 @@ function NewUserModal({
     services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
   });
   const { form, submit, submitting, reset, values } = useRequestForm({
-    defaultValues: { firstName: "", email: "", roleId: options?.[0].value ?? "" },
+    defaultValues: { firstName: "", email: "", roleId: "" },
     request: {
       schema: userCreationBodySchema,
       from: ({ firstName, email, roleId }) => ({
@@ -211,7 +210,7 @@ function NewUserModal({
   };
 
   const startNewUser = useEffectEvent(() => {
-    reset({ firstName: "", email: "", roleId: options?.[0].value ?? "" });
+    reset({ firstName: "", email: "", roleId: "" });
     roleCreation.reset();
     setNotice(null);
     setDeactivatedConflict(null);
