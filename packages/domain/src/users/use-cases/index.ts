@@ -92,3 +92,9 @@ export type {
   WithdrawOwnAlertEmailOptInPorts,
 } from "./withdraw-own-alert-email-opt-in.js";
 export { withdrawOwnAlertEmailOptIn } from "./withdraw-own-alert-email-opt-in.js";
+export type {
+  WithdrawUserAlertEmailOptInInput,
+  WithdrawUserAlertEmailOptInOutcome,
+  WithdrawUserAlertEmailOptInPorts,
+} from "./withdraw-user-alert-email-opt-in.js";
+export { withdrawUserAlertEmailOptIn } from "./withdraw-user-alert-email-opt-in.js";
