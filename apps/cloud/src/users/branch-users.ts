@@ -41,5 +41,6 @@ export function toBranchUserWire(
     may_deactivate: mayDeactivateUser(actor, target),
     may_reactivate: mayReactivateUser(actor, target),
     may_remove_passkey: mayRemoveUserPasskey(actor, target),
+    alert_email_opted_in_at: row.alertEmailOptedInAt?.toISOString() ?? null,
   });
 }
