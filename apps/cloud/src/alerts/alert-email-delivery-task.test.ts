@@ -51,14 +51,16 @@ function runner(sender: FakeAlertEmailSender) {
 }
 
 async function seedDelivery(
-  overrides: Partial<typeof alertEmailDeliveries.$inferInsert> = {},
+  overrides: Partial<typeof alertEmailDeliveries.$inferInsert> & { optedOut?: boolean } = {},
 ): Promise<string> {
+  const { optedOut = false, ...deliveryOverrides } = overrides;
   const [user] = await db
     .insert(users)
     .values({
       firstName: "Ada",
       email: "ada@example.com",
       locationId: await seededLocationId(db),
+      alertEmailOptedInAt: optedOut ? null : NOW,
     })
     .returning({ id: users.id });
   const [alert] = await db
@@ -83,7 +85,7 @@ async function seedDelivery(
       stage: "opened",
       level: "warning",
       occurredAt: NOW,
-      ...overrides,
+      ...deliveryOverrides,
     })
     .returning({ id: alertEmailDeliveries.id });
   if (!delivery) {
@@ -128,7 +130,9 @@ describe("alertEmailDeliveryJobs", () => {
       sentAt: NOW,
       providerMessageId: "msg-9",
     });
-    expect(logs.map((line) => line.message).join("\n")).toContain("1 sent, 0 retrying, 0 failed");
+    expect(logs.map((line) => line.message).join("\n")).toContain(
+      "1 sent, 0 retrying, 0 failed, 0 skipped",
+    );
   });
 
   it("keeps a failed delivery pending with its error, to try again a minute later", async () => {
@@ -169,5 +173,18 @@ describe("alertEmailDeliveryJobs", () => {
 
     expect(sender.sent).toEqual([]);
     expect(await storedDelivery(deliveryId)).toMatchObject({ status: "pending", attempts: 1 });
+  });
+
+  it("skips a delivery whose recipient withdrew the opt-in since, without calling the sender, and logs it", async () => {
+    const deliveryId = await seedDelivery({ optedOut: true });
+    const sender = new FakeAlertEmailSender();
+
+    const logs = await runner(sender)();
+
+    expect(sender.sent).toEqual([]);
+    expect(await storedDelivery(deliveryId)).toMatchObject({ status: "skipped", attempts: 0 });
+    expect(logs.map((line) => line.message).join("\n")).toContain(
+      "0 sent, 0 retrying, 0 failed, 1 skipped",
+    );
   });
 });

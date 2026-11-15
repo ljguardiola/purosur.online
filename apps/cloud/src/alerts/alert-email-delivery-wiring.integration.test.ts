@@ -44,7 +44,12 @@ describe("the background worker the server sets up on a real Postgres", () => {
     const [location] = await sql<{ id: string }[]>`select id from locations limit 1`;
     const [recipient] = await db
       .insert(users)
-      .values({ firstName: "Ada", email: "ada@example.com", locationId: location?.id ?? "" })
+      .values({
+        firstName: "Ada",
+        email: "ada@example.com",
+        locationId: location?.id ?? "",
+        alertEmailOptedInAt: NOW,
+      })
       .returning({ id: users.id });
     const [alert] = await db
       .insert(alerts)

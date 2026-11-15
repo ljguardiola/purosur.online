@@ -85,7 +85,7 @@ describe("alertDetailSchema", () => {
     expect(alertDetailSchema.safeParse(withoutEmails).data).toEqual(withoutEmails);
   });
 
-  it("accepts an email delivery of each stage and status, a pending one with no send time and a failed one with its error", () => {
+  it("accepts an email delivery of each stage and status, a pending or skipped one with no send time and a failed one with its error", () => {
     const emailDeliveries = [
       { ...emailDelivery, stage: "escalated", status: "pending", sentAt: null },
       {
@@ -95,6 +95,7 @@ describe("alertDetailSchema", () => {
         error: "Resend API responded 500",
         sentAt: null,
       },
+      { ...emailDelivery, status: "skipped", sentAt: null },
     ];
 
     expect(alertDetailSchema.safeParse({ ...emailChange, emailDeliveries }).data).toEqual({

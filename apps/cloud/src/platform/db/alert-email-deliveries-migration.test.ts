@@ -92,4 +92,19 @@ describe("the migration that records the email deliveries of alerts, over a data
     await expect(insert("closed", "pending")).rejects.toThrow(/alert_email_stage/);
     await expect(insert("opened", "bounced")).rejects.toThrow(/alert_email_delivery_status/);
   });
+
+  it("accepts a delivery recorded as skipped", async () => {
+    const database = await databaseBeforeMigration("_alert_email_deliveries");
+    const { alertId, userId } = await alertAndRecipientOver(database);
+    const migrated = await database.applyMigration();
+
+    await migrated.query(
+      `insert into alert_email_deliveries (alert_id, recipient_user_id, stage, level, occurred_at, status)
+       values ($1, $2, 'opened', 'warning', now(), 'skipped')`,
+      [alertId, userId],
+    );
+
+    const { rows } = await migrated.query("select status from alert_email_deliveries");
+    expect(rows).toEqual([{ status: "skipped" }]);
+  });
 });

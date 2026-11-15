@@ -89,6 +89,23 @@ describe("alertEmailContent", () => {
     expect(text).toContain('Sucursal: Tienda <b>"A" & B');
   });
 
+  it("names no branch in the subject, the text or the HTML when there is none", () => {
+    const { subject, text, html } = alertEmailContent(email({ branchName: null }), ORIGIN);
+
+    expect(subject).toBe("Alerta abierta: Caja sin sincronizar");
+    expect(text).toBe(
+      [
+        "Una caja dejó de sincronizar",
+        "",
+        "Nivel: Advertencia",
+        "Abierta el 01/10/2026 · 12:30",
+        "",
+        `Ver la alerta: ${ORIGIN}/?alert=alert-1`,
+      ].join("\n"),
+    );
+    expect(html).not.toContain("Sucursal");
+  });
+
   it("refuses an alert of a kind that never goes by email", () => {
     expect(() => alertEmailContent(email({ kind: "lots_expiring" }), ORIGIN)).toThrow(
       "alert kind lots_expiring is not sent by email",

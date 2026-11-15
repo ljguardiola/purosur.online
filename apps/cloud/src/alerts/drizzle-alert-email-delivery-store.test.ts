@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { alertEmailDeliveries, alerts, users } from "../platform/db/schema.js";
+import { alertEmailDeliveries, alerts, branchSettings, users } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleAlertEmailDeliveryStore } from "./drizzle-alert-email-delivery-store.js";
@@ -108,15 +108,16 @@ describe("DrizzleAlertEmailDeliveryStore pendingEmailDeliveries", () => {
         stage: "escalated",
         level: "critical",
         occurredAt: NOON,
-        alertBranchName: null,
-        recipientBranchName: expect.any(String),
+        alertBranchAddress: null,
+        recipientActive: true,
+        recipientAlertEmailOptedIn: false,
         attemptsMade: 2,
         nextAttemptAt: new Date(NOON.getTime() + 60_000),
       },
     ]);
   });
 
-  it("names the alert's branch only for an alert of a branch", async () => {
+  it("gives the address of the alert's branch, and none for an alert of no branch", async () => {
     const recipientId = await insertRecipient();
     const allAlert = await insertAlert();
     const localAlert = await insertAlert({
@@ -125,14 +126,31 @@ describe("DrizzleAlertEmailDeliveryStore pendingEmailDeliveries", () => {
       audience: "local",
       locationId: await seededLocationId(db),
     });
+    await db
+      .update(branchSettings)
+      .set({ address: "Av. Siempreviva 742" })
+      .where(eq(branchSettings.locationId, await seededLocationId(db)));
     await insertDelivery(allAlert, recipientId);
     await insertDelivery(localAlert, recipientId);
 
     const pending = await new DrizzleAlertEmailDeliveryStore(db).pendingEmailDeliveries();
 
     const byAlert = new Map(pending.map((delivery) => [delivery.alertId, delivery]));
-    expect(byAlert.get(allAlert)?.alertBranchName).toBeNull();
-    expect(byAlert.get(localAlert)?.alertBranchName).toEqual(expect.any(String));
+    expect(byAlert.get(allAlert)?.alertBranchAddress).toBeNull();
+    expect(byAlert.get(localAlert)?.alertBranchAddress).toBe("Av. Siempreviva 742");
+  });
+
+  it("answers whether the recipient is still active and still has an opt-in recorded", async () => {
+    const recipientId = await insertRecipient();
+    await db
+      .update(users)
+      .set({ alertEmailOptedInAt: NOON, active: false })
+      .where(eq(users.id, recipientId));
+    await insertDelivery(await insertAlert(), recipientId);
+
+    const [pending] = await new DrizzleAlertEmailDeliveryStore(db).pendingEmailDeliveries();
+
+    expect(pending).toMatchObject({ recipientActive: false, recipientAlertEmailOptedIn: true });
   });
 
   it("leaves out a delivery already sent or given up on", async () => {
@@ -209,6 +227,28 @@ describe("DrizzleAlertEmailDeliveryStore recordEmailSent", () => {
       providerMessageId: "msg-1",
       error: null,
     });
+  });
+});
+
+describe("DrizzleAlertEmailDeliveryStore recordEmailSkipped", () => {
+  it("marks only the delivery it names as skipped", async () => {
+    const recipientId = await insertRecipient();
+    const target = await insertDelivery(await insertAlert({ scope: "a" }), recipientId);
+    const other = await insertDelivery(await insertAlert({ scope: "b" }), recipientId);
+
+    await new DrizzleAlertEmailDeliveryStore(db).recordEmailSkipped(target);
+
+    expect(await stored(target)).toMatchObject({ status: "skipped", attempts: 0 });
+    expect(await stored(other)).toMatchObject({ status: "pending" });
+  });
+
+  it("no longer lists a skipped delivery as pending", async () => {
+    const deliveryId = await insertDelivery(await insertAlert(), await insertRecipient());
+    const store = new DrizzleAlertEmailDeliveryStore(db);
+
+    await store.recordEmailSkipped(deliveryId);
+
+    expect(await store.pendingEmailDeliveries()).toEqual([]);
   });
 });
 
