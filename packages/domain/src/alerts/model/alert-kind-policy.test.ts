@@ -43,6 +43,7 @@ describe("alertKindPolicy", () => {
     ["backoffice_passkey_changed", "warning", afterOpening, "all", "user", true],
     ["backoffice_recovery_requested", "warning", afterOpening, "all", "user", true],
     ["user_email_changed", "warning", afterOpening, "all", "user", true],
+    ["alert_recipients_changed", "warning", afterOpening, "all", "user", false],
     ["backoffice_sign_in_lockout", "warning", afterOpening, "all", "sourceAddress", true],
     ["user_access_increased", "critical", null, "all", "user", false],
     ["register_enrolled", "warning", afterOpening, "all", "register", false],
@@ -174,6 +175,7 @@ describe("alertClosing", () => {
       backoffice_passkey_changed: "by_hand",
       backoffice_recovery_requested: "by_hand",
       user_email_changed: "by_hand",
+      alert_recipients_changed: "by_hand",
       backoffice_sign_in_lockout: "by_hand",
       user_access_increased: "by_hand",
       register_enrolled: "by_hand",
@@ -233,6 +235,7 @@ describe("alertKindsWithScope", () => {
       "backoffice_passkey_changed",
       "backoffice_recovery_requested",
       "user_email_changed",
+      "alert_recipients_changed",
       "user_access_increased",
     ]);
     expect(alertKindsWithScope("sourceAddress")).toEqual(["backoffice_sign_in_lockout"]);

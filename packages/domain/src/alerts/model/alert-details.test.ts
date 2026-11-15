@@ -345,6 +345,32 @@ describe("OpenAlertInput", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
+  it("accepts the detail of a changed recipient set, opted in or withdrawn", () => {
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "opted_in"; actorId: string };
+    }>().toExtend<OpenAlertInput>();
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "withdrawn"; actorId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a changed recipient set that names no change or an unknown one", () => {
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { actorId: string };
+    }>().not.toExtend<OpenAlertInput>();
+    expectTypeOf<{
+      kind: "alert_recipients_changed";
+      scope: string;
+      detail: { change: "granted"; actorId: string };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses the detail of another kind", () => {
     expectTypeOf<{
       kind: "user_email_changed";

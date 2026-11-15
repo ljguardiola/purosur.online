@@ -61,6 +61,16 @@ describe("alertNamedRecordIds", () => {
     ).toEqual([SCOPE, ACTOR_ID]);
   });
 
+  it("names the user and the actor of a changed recipient set", () => {
+    expect(
+      alertNamedRecordIds({
+        kind: "alert_recipients_changed",
+        scope: SCOPE,
+        detail: { change: "opted_in", actorId: ACTOR_ID },
+      }),
+    ).toEqual([SCOPE, ACTOR_ID]);
+  });
+
   it("names the actor of an alert scoped to a source address on its own", () => {
     expect(
       alertNamedRecordIds({
