@@ -166,6 +166,7 @@ export const users = pgTable(
       .notNull()
       .references(() => locations.id),
     version: integer("version").notNull().default(1),
+    alertEmailOptedInAt: timestamp("alert_email_opted_in_at", { withTimezone: true }),
   },
   (table) => [uniqueIndex("users_email_key").on(table.email)],
 );
