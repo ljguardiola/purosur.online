@@ -268,16 +268,36 @@ describe("stepStates", () => {
 describe("itemStates", () => {
   it("lists every item in order with when it was done", () => {
     const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
       { key: "claude_api_key", at: T2 },
-      { key: "notify", at: T3 },
     ];
 
     expect(itemStates(completions)).toEqual(
       COMPROMISE_RESPONSE_ITEMS.map((item) => ({
         item,
         step: stepOfItem(item),
-        done: item === "claude_api_key" || item === "notify",
-        doneAt: item === "claude_api_key" ? T2 : item === "notify" ? T3 : null,
+        done: item === "claude_api_key",
+        doneAt: item === "claude_api_key" ? T2 : null,
+      })),
+    );
+  });
+
+  it("leaves out of a completed runbook a secret added to the list since, which it has no record of", () => {
+    const completions: CompromiseResponseCompletion[] = [
+      ...ACTION_STEPS_DONE,
+      ...EXTERNAL_SECRET_ITEMS.filter((key) => key !== "resend_api_key").map((key) => ({
+        key,
+        at: T3,
+      })),
+      { key: "notify", at: T5 },
+    ];
+
+    expect(itemStates(completions)).toEqual(
+      COMPROMISE_RESPONSE_ITEMS.filter((item) => item !== "resend_api_key").map((item) => ({
+        item,
+        step: stepOfItem(item),
+        done: true,
+        doneAt: item === "notify" ? T5 : T3,
       })),
     );
   });
