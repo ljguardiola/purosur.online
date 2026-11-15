@@ -57,7 +57,7 @@ export function Table<T extends RowData>({
   inactive = false,
 }: TableProps<T>): ReactElement {
   const tableId = useId();
-  const scrollRegion = useKeyboardScrollableRegion(tableId);
+  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(tableId);
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
   const displayMode = tableDisplayMode(
@@ -217,9 +217,9 @@ export function Table<T extends RowData>({
             <div className="min-h-0 flex-1 overflow-y-auto">{tableElement}</div>
           ) : (
             <div
-              ref={scrollRegion.observeOverflow}
-              {...scrollRegion.regionProps}
-              className={`@container overflow-x-auto ${scrollRegion.focusClassName}`}
+              ref={observeOverflow}
+              {...regionProps}
+              className={`@container overflow-x-auto ${focusClassName}`}
             >
               {tableElement}
             </div>
