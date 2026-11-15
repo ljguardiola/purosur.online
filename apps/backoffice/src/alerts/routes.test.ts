@@ -27,3 +27,10 @@ test("falls back to each alerts list default for a value the list does not offer
     alertsListFilters.parse({}),
   );
 });
+
+test("keeps the alert a URL asks to open, and has none by default", () => {
+  expect(alertsListFilters.parse({ alert: "alert-1" }).alert).toBe("alert-1");
+  expect(alertsListFilters.parse({}).alert).toBeUndefined();
+  expect(alertsListFilters.parse({ alert: "" }).alert).toBeUndefined();
+  expect(alertsListFilters.parse({ alert: {} }).alert).toBeUndefined();
+});

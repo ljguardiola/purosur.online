@@ -343,6 +343,82 @@ test("shows who stopped receiving alerts by email", async () => {
     .toBeVisible();
 });
 
+test("names a role's changed permissions as the reason someone's alerts by email changed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "alert_recipients_changed",
+        detail: {
+          change: "role_permissions_changed",
+          roleName: "Cajera",
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Ada cambió los permisos del rol Cajera, y cambió qué alertas recibe Lucía Pérez por email.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("names the role assigned as the reason someone's alerts by email changed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "alert_recipients_changed",
+        detail: {
+          change: "role_assigned",
+          roleName: "Cajera",
+          actorId: "admin-1",
+          actorName: "Ada",
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Ada le asignó a Lucía Pérez el rol Cajera, y cambió qué alertas recibe por email.",
+      ),
+    )
+    .toBeVisible();
+});
+
+test("names the Administrator role when the role assigned has no name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "alert_recipients_changed",
+        detail: { change: "role_assigned", roleName: null, actorId: "admin-1", actorName: "Ada" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Ada le asignó a Lucía Pérez el rol Administrador, y cambió qué alertas recibe por email.",
+      ),
+    )
+    .toBeVisible();
+});
+
 test("shows no description of a change of who receives alerts by email without the actor's name", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
@@ -3516,4 +3592,84 @@ test("tells how much disk a register has free", async () => {
       ),
     )
     .toBeVisible();
+});
+
+const emailRecipient = (id: string, firstName: string, roleName: string) => ({
+  id,
+  firstName,
+  role: { id: `role-${id}`, name: roleName, isAdministrator: false },
+});
+
+const emailDelivery = (
+  overrides: Partial<AlertDetail["emailDeliveries"][number]>,
+): AlertDetail["emailDeliveries"][number] => ({
+  stage: "opened",
+  status: "sent",
+  error: null,
+  createdAt: "2026-01-05T12:00:00.000Z",
+  sentAt: "2026-01-05T12:01:00.000Z",
+  recipient: emailRecipient("user-2", "Grace", "Cajera"),
+  ...overrides,
+});
+
+test("shows each email's recipient, stage and status in the email notice section", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        emailDeliveries: [
+          emailDelivery({ stage: "opened", status: "sent" }),
+          emailDelivery({
+            stage: "escalated",
+            status: "pending",
+            sentAt: null,
+            recipient: emailRecipient("user-3", "Linus", "Gerente"),
+          }),
+          emailDelivery({
+            stage: "resolved",
+            status: "failed",
+            error: "mailbox full",
+            sentAt: null,
+            recipient: emailRecipient("user-4", "Hedy", "Supervisora"),
+          }),
+        ],
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Aviso por email")).toBeVisible();
+  await expect.element(screen.getByText("Grace · Cajera")).toBeVisible();
+  await expect.element(screen.getByText("Al abrirse")).toBeVisible();
+  await expect.element(screen.getByText("Enviado")).toBeVisible();
+  await expect.element(screen.getByText("Linus · Gerente")).toBeVisible();
+  await expect.element(screen.getByText("Al escalar")).toBeVisible();
+  await expect.element(screen.getByText("Pendiente")).toBeVisible();
+  await expect.element(screen.getByText("Hedy · Supervisora")).toBeVisible();
+  await expect.element(screen.getByText("Al resolverse")).toBeVisible();
+  await expect.element(screen.getByText("No se pudo enviar: mailbox full")).toBeVisible();
+});
+
+test("shows an email skipped because its recipient no longer receives alerts by email", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(baseDetail({ emailDeliveries: [emailDelivery({ status: "skipped", sentAt: null })] })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("No se envió: ya no recibe alertas por email"))
+    .toBeVisible();
+});
+
+test("says nobody received the alert by email when it has no email deliveries", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Aviso por email")).toBeVisible();
+  await expect.element(screen.getByText("Nadie recibió esta alerta por email.")).toBeVisible();
 });
