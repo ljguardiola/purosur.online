@@ -85,7 +85,7 @@ export function Table<T extends RowData>({
         aria-label={ariaLabel}
         aria-busy={loading ? true : undefined}
         className="w-full table-fixed"
-        style={{ minWidth: `${tableMinWidthPx(table, variant)}px` }}
+        style={fill ? undefined : { minWidth: `${tableMinWidthPx(table, variant)}px` }}
       >
         <TableColumnWidths table={table} variant={variant} />
         <thead>
@@ -214,7 +214,7 @@ export function Table<T extends RowData>({
         ) : (
           (messageElement ??
           (fill ? (
-            <div className="min-h-0 flex-1 overflow-auto">{tableElement}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto">{tableElement}</div>
           ) : (
             <div
               ref={scrollRegion.observeOverflow}
