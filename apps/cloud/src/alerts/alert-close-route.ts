@@ -80,6 +80,7 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
         resolvedBy: closedBy,
       };
       const deliveries = await reader.deliveriesOf(alert.id);
+      const emailDeliveries = await reader.emailDeliveriesOf(alert.id);
       const namesById = await reader.displayNames(alertNamedRecordIds(closed));
       await reply
         .code(200)
@@ -87,6 +88,7 @@ export function registerAlertCloseRoute<TQueryResult extends PgQueryResultHKT>(
           toAlertDetailBody(
             closed,
             deliveries,
+            emailDeliveries,
             namesById,
             now(),
             openSession,

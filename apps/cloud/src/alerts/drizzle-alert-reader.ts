@@ -1,4 +1,5 @@
 import {
+  type AlertEmailStage,
   type AlertKind,
   alertKindsWithScope,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
@@ -21,6 +22,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { containsText } from "../platform/contains-pattern.js";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   fiscalAddresses,
   registerInstallations,
@@ -33,6 +35,19 @@ import { closedAlertCondition, openAlertCondition } from "./open-alert-condition
 import { openAlertsOverviewOf } from "./open-alerts-overview.js";
 
 export const ALERTS_PAGE_SIZE = 25;
+
+export interface AlertEmailDeliveryRow {
+  stage: AlertEmailStage;
+  status: "pending" | "sent" | "failed";
+  error: string | null;
+  createdAt: Date;
+  sentAt: Date | null;
+  recipientId: string;
+  recipientFirstName: string;
+  recipientRoleId: string;
+  recipientRoleName: string | null;
+  recipientRoleIsAdministrator: boolean;
+}
 
 function sightCondition(sight: VisibleAlertSight): SQL | undefined {
   if (sight.kind === "all") {
@@ -183,6 +198,28 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .innerJoin(roles, eq(roles.id, userRoles.roleId))
       .where(eq(alertDeliveries.alertId, alertId))
       .orderBy(asc(alertDeliveries.createdAt), asc(alertDeliveries.id));
+  }
+
+  async emailDeliveriesOf(alertId: string): Promise<AlertEmailDeliveryRow[]> {
+    return this.db
+      .select({
+        stage: alertEmailDeliveries.stage,
+        status: alertEmailDeliveries.status,
+        error: alertEmailDeliveries.error,
+        createdAt: alertEmailDeliveries.createdAt,
+        sentAt: alertEmailDeliveries.sentAt,
+        recipientId: users.id,
+        recipientFirstName: users.firstName,
+        recipientRoleId: roles.id,
+        recipientRoleName: roles.name,
+        recipientRoleIsAdministrator: roles.isAdministrator,
+      })
+      .from(alertEmailDeliveries)
+      .innerJoin(users, eq(users.id, alertEmailDeliveries.recipientUserId))
+      .innerJoin(userRoles, eq(userRoles.userId, users.id))
+      .innerJoin(roles, eq(roles.id, userRoles.roleId))
+      .where(eq(alertEmailDeliveries.alertId, alertId))
+      .orderBy(asc(alertEmailDeliveries.stage), asc(users.firstName), asc(users.id));
   }
 
   async displayNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>> {

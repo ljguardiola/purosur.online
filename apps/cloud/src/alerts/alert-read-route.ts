@@ -26,7 +26,7 @@ import {
 import { visibleSightOf } from "./alert-route-sight.js";
 import { holdsOnlySourceAddressHash, scopeDisplay, wireScope } from "./alert-scope-wire.js";
 import type { AlertsRouteOptions } from "./alerts-list-route.js";
-import { DrizzleAlertReader } from "./drizzle-alert-reader.js";
+import { type AlertEmailDeliveryRow, DrizzleAlertReader } from "./drizzle-alert-reader.js";
 
 export const ALERT_NOT_FOUND_RESPONSE = {
   code: "not_found",
@@ -103,6 +103,25 @@ function toAlertDelivery(row: AlertDelivery): AlertDetail["deliveries"][number] 
   };
 }
 
+function toAlertEmailDelivery(row: AlertEmailDeliveryRow): AlertDetail["emailDeliveries"][number] {
+  return {
+    stage: row.stage,
+    status: row.status,
+    error: row.error,
+    createdAt: row.createdAt.toISOString(),
+    sentAt: row.sentAt?.toISOString() ?? null,
+    recipient: {
+      id: row.recipientId,
+      firstName: row.recipientFirstName,
+      role: {
+        id: row.recipientRoleId,
+        name: row.recipientRoleName,
+        isAdministrator: row.recipientRoleIsAdministrator,
+      },
+    },
+  };
+}
+
 function detailWithoutSourceAddressHash(alert: AlertDetailView): Record<string, unknown> {
   if (!holdsOnlySourceAddressHash(alert)) {
     return alert.detail;
@@ -114,6 +133,7 @@ function detailWithoutSourceAddressHash(alert: AlertDetailView): Record<string, 
 export function toAlertDetailBody(
   alert: AlertDetailView,
   deliveries: AlertDelivery[],
+  emailDeliveries: AlertEmailDeliveryRow[],
   namesById: ReadonlyMap<string, string>,
   now: Date,
   viewer: { locationId: string },
@@ -146,6 +166,7 @@ export function toAlertDetailBody(
     open: isOpenAlert(alert),
     closing: alertClosing(alert.kind),
     deliveries: deliveries.map(toAlertDelivery),
+    emailDeliveries: emailDeliveries.map(toAlertEmailDelivery),
   });
 }
 
@@ -183,6 +204,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
       }
 
       const deliveries = await reader.deliveriesOf(alert.id);
+      const emailDeliveries = await reader.emailDeliveriesOf(alert.id);
       const namesById = await reader.displayNames(alertNamedRecordIds(alert));
       await reply
         .code(200)
@@ -190,6 +212,7 @@ export function registerAlertReadRoute<TQueryResult extends PgQueryResultHKT>(
           toAlertDetailBody(
             alert,
             deliveries,
+            emailDeliveries,
             namesById,
             now(),
             openSession,
