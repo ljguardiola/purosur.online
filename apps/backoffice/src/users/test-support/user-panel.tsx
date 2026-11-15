@@ -47,6 +47,7 @@ export function createServices(overrides: Partial<UserPanelServices> = {}): User
     fetchRoles: vi.fn(),
     deactivateUser: vi.fn(),
     reactivateUser: vi.fn(),
+    withdrawUserAlertEmailOptIn: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
