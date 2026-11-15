@@ -76,6 +76,7 @@ describe("reportPeriodOf", () => {
     ).toEqual({
       from: "2026-10-01",
       to: "2026-10-03",
+      today: "2026-10-06",
     });
   });
 
@@ -85,6 +86,7 @@ describe("reportPeriodOf", () => {
     ).toEqual({
       from: "2026-10-06",
       to: "2026-10-06",
+      today: "2026-10-06",
     });
   });
 
@@ -94,6 +96,7 @@ describe("reportPeriodOf", () => {
       expect(reportPeriodOf(asked, now, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
         from: "2026-10-06",
         to: "2026-10-06",
+        today: "2026-10-06",
       });
     },
   );
@@ -116,6 +119,16 @@ describe("report periods under given rules", () => {
   it("asks for that day when no range is asked", () => {
     expect(
       reportPeriodOf({ from: undefined, to: undefined }, lateEvening, fixedOffsetZoneRules(0)),
-    ).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    ).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
+  });
+
+  it("answers the day it was asked on beside an asked range", () => {
+    expect(
+      reportPeriodOf(
+        { from: "2026-09-01", to: "2026-09-30" },
+        lateEvening,
+        fixedOffsetZoneRules(0),
+      ),
+    ).toEqual({ from: "2026-09-01", to: "2026-09-30", today: "2026-10-07" });
   });
 });
