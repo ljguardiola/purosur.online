@@ -19,9 +19,8 @@ export type CompromiseResponseAction = (typeof COMPROMISE_RESPONSE_ACTION_STEPS)
 
 export const EXTERNAL_SECRET_ITEMS = [
   "mercado_pago_webhook_secret",
-  "whatsapp_webhook_token",
-  "whatsapp_webhook_secret",
   "claude_api_key",
+  "resend_api_key",
   "postgres_credentials",
   "ci_deployment_credentials",
   "storage_bucket_credentials",
