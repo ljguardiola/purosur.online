@@ -8,16 +8,20 @@ import {
   canSeePricesArea,
 } from "./backoffice-access";
 
-export type ProductsTab = "products" | "prices" | "promotions" | "assemblies" | "classification";
+export type ProductsTab =
+  | "products"
+  | "prices"
+  | "promotions"
+  | "recipes"
+  | "batches"
+  | "classification";
 
 export const PRODUCTS_TABS: readonly PagePart<BackofficeAccess, ProductsTab>[] = [
   { key: "products", isVisibleTo: canManageProductsAndCategories },
   { key: "prices", isVisibleTo: canSeePricesArea },
   { key: "promotions", isVisibleTo: canManagePromotions },
-  {
-    key: "assemblies",
-    isVisibleTo: (access) => canManageRecipes(access) || canManageBatches(access),
-  },
+  { key: "recipes", isVisibleTo: canManageRecipes },
+  { key: "batches", isVisibleTo: canManageBatches },
   { key: "classification", isVisibleTo: canManageProductsAndCategories },
 ];
 
@@ -25,6 +29,7 @@ export const PRODUCTS_TAB_TARGETS = {
   products: "/products",
   prices: "/products/prices",
   promotions: "/products/promotions",
-  assemblies: "/products/assemblies",
+  recipes: "/products/recipes",
+  batches: "/products/batches",
   classification: "/products/classification",
 } as const;

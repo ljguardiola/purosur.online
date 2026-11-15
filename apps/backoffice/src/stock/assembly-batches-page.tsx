@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { AssemblyBatchesScreen } from "./assembly-batches-screen";
 import { defaultAssemblyBatchesScreenServices } from "./assembly-batches-services";
 
-const route = getRouteApi("/signed-in/products-area/products/assemblies/batches");
+const route = getRouteApi("/signed-in/products-area/products/batches");
 
 export function AssemblyBatchesPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

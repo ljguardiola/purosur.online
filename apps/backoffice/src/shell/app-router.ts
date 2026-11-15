@@ -94,9 +94,10 @@ import {
 } from "../sales/routes";
 import { legacyCompromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
-  assembliesRoute,
   assemblyBatchesRoute,
   expiringLotsRoute,
+  legacyAssembliesRoute,
+  legacyAssemblyBatchesInProductsRoute,
   legacyAssemblyBatchesRoute,
   legacyCurrentStockReportRoute,
   legacyExpiringLotsReportRoute,
@@ -156,7 +157,10 @@ const routeTree = rootRoute.addChildren([
         productsListRoute,
         pricesListRoute,
         discountsListRoute,
-        assembliesRoute.addChildren([recipesListRoute, assemblyBatchesRoute]),
+        recipesListRoute,
+        assemblyBatchesRoute,
+        legacyAssembliesRoute,
+        legacyAssemblyBatchesInProductsRoute,
         classificationRoute.addChildren([categoriesListRoute, brandsListRoute, tagsListRoute]),
       ]),
     ]),
