@@ -67,7 +67,7 @@ function location() {
 }
 
 async function expectTabs(screen: Awaited<ReturnType<typeof render>>, names: string[]) {
-  const tabs = screen.getByRole("tablist", { name: "Secciones de Pedidos" }).getByRole("tab");
+  const tabs = screen.getByRole("tablist", { name: "Secciones de Compras" }).getByRole("tab");
   await expect.element(tabs.first()).toBeVisible();
   expect(tabs.elements()).toHaveLength(names.length);
   for (const [index, name] of names.entries()) {
@@ -86,9 +86,9 @@ test("opens Pedidos with its three tabs for a person with every purchasing capab
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Pedidos", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   expect(document.title).toBe("Pedidos · Puro Sur");
-  expect(shownEyebrow()).toBe("Compras");
+  expect(shownEyebrow()).toBeNull();
   await expect.element(screen.getByRole("tab", { name: "Pedidos", selected: true })).toBeVisible();
   await expectTabs(screen, ["Pedidos", "Sugerir pedido", "Comparar precios"]);
   await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
@@ -118,7 +118,7 @@ test("opens on Sugerir pedido, without the Pedidos tab, for a person with only p
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Pedidos", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
   await expect
     .element(screen.getByRole("tab", { name: "Sugerir pedido", selected: true }))
     .toBeVisible();
@@ -138,16 +138,17 @@ test("sends a person with only purchase_order_reads away from the price tabs to 
   await expectTabs(screen, ["Pedidos"]);
 });
 
-test("shows one Pedidos item in the Compras column, active on every tab", async () => {
+test("shows no section column beside the Compras tabs, with Pedidos kept selected on every order tab", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads", "price_comparison"]);
   window.history.pushState(null, "", "/purchase-orders/comparison");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const links = screen.getByRole("navigation", { name: "Compras" }).getByRole("link");
-  await expect.element(links.first()).toBeVisible();
-  expect(links.elements().map((link) => link.textContent)).toEqual(["Pedidos"]);
-  await expect.element(links.first()).toHaveAttribute("aria-current", "page");
+  await expectTabs(screen, ["Pedidos", "Sugerir pedido", "Comparar precios"]);
+  expect(screen.getByRole("navigation", { name: "Compras", exact: true }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("tab", { name: "Comparar precios", selected: true }))
+    .toBeVisible();
 });
 
 test("opens an order's panel from its row, keeping the list and the tabs in view", async () => {

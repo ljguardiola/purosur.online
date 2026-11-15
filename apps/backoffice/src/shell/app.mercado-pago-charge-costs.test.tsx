@@ -15,9 +15,7 @@ test("opens the report at its address and reads it from the cloud", async () => 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Comisión de Mercado Pago").first()).toBeVisible();
   expect(services.mercadoPagoChargeCostsScreen.fetchMercadoPagoChargeCosts).toHaveBeenCalledWith(
     {},
@@ -31,9 +29,7 @@ test("leaves the report out of Rentabilidad without its permission", async () =>
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(screen.getByRole("radio", { name: "Costos de Mercado Pago" }).query()).toBeNull();
 });
 

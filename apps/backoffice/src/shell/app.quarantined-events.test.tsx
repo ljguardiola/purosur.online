@@ -7,6 +7,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/help", "/held-register-changes"]);
@@ -17,7 +18,7 @@ function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });
 }
 
-test("shows the Cambios de cajas retenidos item under Diagnóstico to a user holding quarantined_events, opening its screen, titled after it, from the Configuración rail", async () => {
+test("shows the Cambios de cajas retenidos tab to a user holding quarantined_events, opening its screen under Configuración from the rail", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
@@ -34,22 +35,12 @@ test("shows the Cambios de cajas retenidos item under Diagnóstico to a user hol
 
   await userEvent.click(screen.getByRole("link", { name: "Configuración" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
-    .toBeVisible();
+  await expectOneNavigationLevel(screen, "Configuración", ["Cambios de cajas retenidos"]);
   expect(window.location.pathname).toBe("/held-register-changes");
   expect(document.title).toBe("Cambios de cajas retenidos · Puro Sur");
-  const sections = screen.getByRole("navigation", { name: "Configuración" });
   await expect
-    .element(sections.getByRole("heading", { name: "Diagnóstico", level: 3 }))
+    .element(screen.getByRole("tab", { name: "Cambios de cajas retenidos", selected: true }))
     .toBeVisible();
-  await expect
-    .element(
-      sections
-        .getByRole("list", { name: "Diagnóstico" })
-        .getByRole("link", { name: "Cambios de cajas retenidos" }),
-    )
-    .toHaveAttribute("aria-current", "page");
 });
 
 test("hides the Cambios de cajas retenidos item from a user without quarantined_events", async () => {
@@ -76,9 +67,7 @@ test("redirects the old /quarantined-events address to /held-register-changes", 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
-    .toBeVisible();
+  await expectOneNavigationLevel(screen, "Configuración", ["Cambios de cajas retenidos"]);
   expect(window.location.pathname).toBe("/held-register-changes");
 });
 
@@ -150,9 +139,7 @@ test("follows a quarantined event's alert to the quarantined events list", async
   );
   await userEvent.click(screen.getByRole("link", { name: "Ver cambios de cajas retenidos" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Cambios de cajas retenidos", level: 1 }))
-    .toBeVisible();
+  await expectOneNavigationLevel(screen, "Configuración", ["Cambios de cajas retenidos"]);
   expect(window.location.pathname).toBe("/held-register-changes");
   await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 });

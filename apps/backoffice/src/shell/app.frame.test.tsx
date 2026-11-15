@@ -65,7 +65,9 @@ test("a rail item is a real link to its screen, and a plain click opens that scr
   expect(configItem.element().getAttribute("href")).toBe("/people");
   await userEvent.click(configItem);
 
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
   expect(window.location.pathname).toBe("/people/users");
 
   window.history.back();
@@ -91,14 +93,12 @@ test("a rail item leaves a modifier click to the browser", async () => {
   expect(screen.getByRole("heading", { name: "Personas" }).query()).toBeNull();
 });
 
-test("renders the shell's area rail and section column landmarks", async () => {
+test("renders the shell's area rail as its only navigation landmark", async () => {
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  await expect
-    .element(screen.getByRole("navigation", { name: "Secciones de ayuda" }))
-    .toBeVisible();
+  expect(screen.getByRole("navigation").elements()).toHaveLength(1);
 });
 
 test("provides the backoffice field size at the root, so a screen never has to ask for it", async () => {
@@ -180,25 +180,28 @@ test.each([
   ["/stock", "Stock"],
   ["/reports/sales-by-day", "Reportes"],
   ["/people/users", "Configuración"],
-])("opens %s with its column titled like the %s rail area", async (path, area) => {
-  window.history.pushState(null, "", path);
-  const services = createAppServices();
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
+])(
+  "opens %s under the one title of the %s rail area, with no column beside it",
+  async (path, area) => {
+    window.history.pushState(null, "", path);
+    const services = createAppServices();
+    vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const column = screen.getByRole("navigation", { name: area, exact: true });
-  await expect.element(column.getByRole("heading", { name: area, level: 2 })).toBeVisible();
-  await expect
-    .element(
-      screen
-        .getByRole("navigation", { name: "Áreas" })
-        .getByRole("link", { name: area, exact: true }),
-    )
-    .toHaveTextContent(area);
-});
+    await expect.element(screen.getByRole("heading", { name: area, level: 1 })).toBeVisible();
+    expect(screen.getByRole("navigation", { name: area, exact: true }).query()).toBeNull();
+    await expect
+      .element(
+        screen
+          .getByRole("navigation", { name: "Áreas" })
+          .getByRole("link", { name: area, exact: true }),
+      )
+      .toHaveTextContent(area);
+  },
+);
 
 test.each(["/help", "/users", "/products/classification", "/products"])(
   "lists Productos above Configuración in the rail on %s",
