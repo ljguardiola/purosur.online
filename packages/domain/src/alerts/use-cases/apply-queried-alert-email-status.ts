@@ -18,18 +18,22 @@ export async function applyQueriedAlertEmailStatus(
   { store, statusQuery }: ApplyQueriedAlertEmailStatusPorts,
   { providerMessageId }: ApplyQueriedAlertEmailStatusInput,
 ): Promise<ApplyQueriedAlertEmailStatusOutcome> {
+  const sendInFlight = await store.hasAlertEmailSendInFlight();
+  const sent = await store.sentAlertEmailOfProviderMessage(providerMessageId);
+  if (sent === undefined && !sendInFlight) {
+    return { kind: "not_an_alert_email" };
+  }
   const answer = await statusQuery.queriedAlertEmailStatus(providerMessageId);
   if (answer.kind === "unavailable") {
     return { kind: "provider_unavailable" };
   }
-  const { alertDeliveryId } = answer;
-  if (alertDeliveryId !== null && (await store.isAlertEmailDeliveryPending(alertDeliveryId))) {
-    return { kind: "send_not_yet_recorded" };
-  }
-  const sent = await store.sentAlertEmailOfProviderMessage(providerMessageId);
   if (sent === undefined) {
-    return alertDeliveryId === null
-      ? { kind: "not_an_alert_email" }
+    const { alertDeliveryId } = answer;
+    if (alertDeliveryId === null) {
+      return { kind: "not_an_alert_email" };
+    }
+    return (await store.isAlertEmailDeliveryPending(alertDeliveryId))
+      ? { kind: "send_not_yet_recorded" }
       : { kind: "not_a_sent_alert_email" };
   }
   const meaning = alertEmailProviderStatusMeaning(answer.status);
