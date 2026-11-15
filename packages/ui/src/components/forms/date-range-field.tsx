@@ -171,6 +171,7 @@ export function DateRangeField(props: DateRangeFieldProps) {
         isDisabled={disabled}
         isInvalid={invalid}
         isRequired={required}
+        shouldForceLeadingZeros
         {...(errorMessageId !== undefined ? { "aria-describedby": errorMessageId } : {})}
         minValue={minValue}
         maxValue={maxValue}
