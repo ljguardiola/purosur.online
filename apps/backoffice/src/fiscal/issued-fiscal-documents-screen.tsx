@@ -208,72 +208,74 @@ export function IssuedFiscalDocumentsScreen({
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
-      <div className="flex flex-wrap items-end gap-3">
-        <SearchField
-          value={numberText}
-          onChange={changeNumber}
-          placeholder="Buscar por número"
-          icon={<Search />}
-        />
-        <ListFilter
-          name="kind"
-          label="Tipo:"
-          options={KIND_OPTIONS}
-          value={filters.kind}
-          onChange={(kind) => changeFilters({ ...filters, kind })}
-        />
-        <ReportFilters
-          filters={filters}
-          onFiltersChange={changeFilters}
-          answeredPeriod={shown?.range}
-          registerFilter={registerFilter}
-          onRegisterLabelChange={setRegisterLabel}
-          trailing={
-            <RegisterReportDownload
-              dataStatus={reportRead.status}
-              registerLabel={registerLabel}
-              workbook={(label) =>
-                shownReport
-                  ? issuedFiscalDocumentsReportSpreadsheet(shownReport, shownReport.rows, label)
-                  : null
-              }
-              fileName={
-                shownReport ? reportFileName("Comprobantes emitidos", shownReport.range) : ""
-              }
-            />
+    <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+        <div className="flex flex-wrap items-end gap-3">
+          <SearchField
+            value={numberText}
+            onChange={changeNumber}
+            placeholder="Buscar por número"
+            icon={<Search />}
+          />
+          <ListFilter
+            name="kind"
+            label="Tipo:"
+            options={KIND_OPTIONS}
+            value={filters.kind}
+            onChange={(kind) => changeFilters({ ...filters, kind })}
+          />
+          <ReportFilters
+            filters={filters}
+            onFiltersChange={changeFilters}
+            answeredPeriod={shown?.range}
+            registerFilter={registerFilter}
+            onRegisterLabelChange={setRegisterLabel}
+            trailing={
+              <RegisterReportDownload
+                dataStatus={reportRead.status}
+                registerLabel={registerLabel}
+                workbook={(label) =>
+                  shownReport
+                    ? issuedFiscalDocumentsReportSpreadsheet(shownReport, shownReport.rows, label)
+                    : null
+                }
+                fileName={
+                  shownReport ? reportFileName("Comprobantes emitidos", shownReport.range) : ""
+                }
+              />
+            }
+          />
+        </div>
+        <Table
+          aria-label="Comprobantes y notas de crédito"
+          table={table}
+          {...cloudTableState(data, "los comprobantes")}
+          empty={{
+            icon: <FileText />,
+            title: filtered
+              ? "No hay comprobantes que coincidan con los filtros"
+              : "No hay comprobantes en este período",
+            variant: filtered ? "filtered" : "blank",
+          }}
+          footer={
+            shown === undefined || shown.total === 0 ? undefined : (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-text-subtle text-detail">
+                  {documentsCountText(shown.total, shown.range)}
+                </p>
+                {pageCount > 1 ? (
+                  <Pagination
+                    page={filters.page}
+                    pageCount={pageCount}
+                    onPageChange={(page) => changeFilters({ ...filters, page })}
+                    label="Páginas de comprobantes"
+                  />
+                ) : null}
+              </div>
+            )
           }
         />
       </div>
-      <Table
-        aria-label="Comprobantes y notas de crédito"
-        table={table}
-        {...cloudTableState(data, "los comprobantes")}
-        empty={{
-          icon: <FileText />,
-          title: filtered
-            ? "No hay comprobantes que coincidan con los filtros"
-            : "No hay comprobantes en este período",
-          variant: filtered ? "filtered" : "blank",
-        }}
-        footer={
-          shown === undefined || shown.total === 0 ? undefined : (
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-text-subtle text-detail">
-                {documentsCountText(shown.total, shown.range)}
-              </p>
-              {pageCount > 1 ? (
-                <Pagination
-                  page={filters.page}
-                  pageCount={pageCount}
-                  onPageChange={(page) => changeFilters({ ...filters, page })}
-                  label="Páginas de comprobantes"
-                />
-              ) : null}
-            </div>
-          )
-        }
-      />
       {openDocument === undefined ? null : (
         <IssuedFiscalDocumentPanel
           voucher={voucherOfKey(openDocument)}
