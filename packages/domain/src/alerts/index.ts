@@ -39,6 +39,7 @@ export type {
   OffsiteDumpUnverifiedDetail,
   OpenAlertInput,
   PasskeyChangedDetail,
+  RecipientsChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   SignInLockoutDetail,

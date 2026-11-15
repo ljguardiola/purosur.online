@@ -17,6 +17,7 @@ export type {
   OffsiteDumpUnverifiedReason,
   OpenAlertInput,
   PasskeyChangedDetail,
+  RecipientsChangedDetail,
   RecoveryRequestedDetail,
   RegisterEnrolledDetail,
   RegisterOwnCondition,

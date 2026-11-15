@@ -71,6 +71,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  alert_recipients_changed: {
+    level: "warning",
+    escalation: AFTER_OPENING,
+    audience: "all",
+    scopeKind: "user",
+    deduplicates: false,
+    resolvesAfterStableClear: false,
+  },
   backoffice_sign_in_lockout: {
     level: "warning",
     escalation: AFTER_OPENING,
