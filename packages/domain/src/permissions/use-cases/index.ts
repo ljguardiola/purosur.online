@@ -17,6 +17,7 @@ export type {
   NewRole,
   RoleAccessIncrease,
   RoleChange,
+  RoleRecipientsChange,
   RoleRewrite,
   RoleSnapshot,
   RoleStore,

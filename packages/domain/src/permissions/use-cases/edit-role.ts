@@ -1,4 +1,5 @@
 import type { Clock } from "../../shared/index.js";
+import { alertSightKindOf } from "../model/alert-sight-kind.js";
 import { grantedPermissionKeys, increasesAccess } from "../model/access-increase.js";
 import { heldPermissionKeys } from "../model/holds-permission.js";
 import {
@@ -99,6 +100,17 @@ export async function editRole(
             holderId: holder.id,
             roleName: input.name,
             addedPermissionKeys,
+            actorId: input.actorId,
+            openedAt: clock.now(),
+          });
+        }
+      }
+
+      if (alertSightKindOf(before) !== alertSightKindOf(after)) {
+        for (const holder of holders) {
+          await tx.openRecipientsChangedAlert({
+            holderId: holder.id,
+            roleName: input.name,
             actorId: input.actorId,
             openedAt: clock.now(),
           });
