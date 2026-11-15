@@ -162,6 +162,24 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
+test("writes each end of the period as dd/mm/yyyy", async () => {
+  const screen = await render(
+    <Harness
+      initial={{ start: new CalendarDate(2026, 9, 1), end: new CalendarDate(2026, 9, 30) }}
+    />,
+  );
+  const group = fieldGroup(screen, "Period");
+
+  expect(segmentsOf(group).map((segment) => segment.textContent)).toEqual([
+    "01",
+    "09",
+    "2026",
+    "30",
+    "09",
+    "2026",
+  ]);
+});
+
 test("reads a period typed day by day, the start first and then the end", async () => {
   const screen = await render(<Harness />);
   const group = fieldGroup(screen, "Period");
