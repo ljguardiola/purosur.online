@@ -61,9 +61,8 @@ describe("readCurrentCompromiseResponse", () => {
     }
     expect(outcome.response.items.map(({ item }) => item)).toEqual([
       "mercado_pago_webhook_secret",
-      "whatsapp_webhook_token",
-      "whatsapp_webhook_secret",
       "claude_api_key",
+      "resend_api_key",
       "postgres_credentials",
       "ci_deployment_credentials",
       "storage_bucket_credentials",

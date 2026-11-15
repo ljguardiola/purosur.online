@@ -1,0 +1,3 @@
+ALTER TABLE "compromise_response_completions" DROP CONSTRAINT "compromise_response_completions_key_check";--> statement-breakpoint
+DELETE FROM "compromise_response_completions" WHERE "key" IN ('whatsapp_webhook_token', 'whatsapp_webhook_secret');--> statement-breakpoint
+ALTER TABLE "compromise_response_completions" ADD CONSTRAINT "compromise_response_completions_key_check" CHECK ("compromise_response_completions"."key" in ('revoke_every_installation', 'end_sessions_and_remove_passkeys', 'force_pin_resets', 'mercado_pago_webhook_secret', 'claude_api_key', 'resend_api_key', 'postgres_credentials', 'ci_deployment_credentials', 'storage_bucket_credentials', 'arca_certificate_and_private_key', 'notify'));

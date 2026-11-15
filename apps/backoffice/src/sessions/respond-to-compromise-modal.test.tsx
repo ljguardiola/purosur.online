@@ -141,9 +141,8 @@ test("offers to start another runbook once the running one is completed", async 
     ["revoke_every_installation", "end_sessions_and_remove_passkeys", "force_pin_resets"],
     [
       "mercado_pago_webhook_secret",
-      "whatsapp_webhook_token",
-      "whatsapp_webhook_secret",
       "claude_api_key",
+      "resend_api_key",
       "postgres_credentials",
       "ci_deployment_credentials",
       "storage_bucket_credentials",
@@ -324,9 +323,8 @@ test("marks the notification as done", async () => {
       ["revoke_every_installation", "end_sessions_and_remove_passkeys", "force_pin_resets"],
       [
         "mercado_pago_webhook_secret",
-        "whatsapp_webhook_token",
-        "whatsapp_webhook_secret",
         "claude_api_key",
+        "resend_api_key",
         "postgres_credentials",
         "ci_deployment_credentials",
         "storage_bucket_credentials",

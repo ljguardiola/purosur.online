@@ -1,5 +1,5 @@
 {
-  "id": "16d85d83-03e6-47ba-a9a1-78af8e2afa6f",
+  "id": "042cf146-851b-424d-8b13-e1e0e50b90d3",
   "prevId": "6eb32808-2526-4594-a528-ba9666c99568",
   "version": "7",
   "dialect": "postgresql",
@@ -1971,7 +1971,7 @@
       "checkConstraints": {
         "compromise_response_completions_key_check": {
           "name": "compromise_response_completions_key_check",
-          "value": "\"compromise_response_completions\".\"key\" in ('revoke_every_installation', 'end_sessions_and_remove_passkeys', 'force_pin_resets', 'mercado_pago_webhook_secret', 'whatsapp_webhook_token', 'whatsapp_webhook_secret', 'claude_api_key', 'postgres_credentials', 'ci_deployment_credentials', 'storage_bucket_credentials', 'arca_certificate_and_private_key', 'notify')"
+          "value": "\"compromise_response_completions\".\"key\" in ('revoke_every_installation', 'end_sessions_and_remove_passkeys', 'force_pin_resets', 'mercado_pago_webhook_secret', 'claude_api_key', 'resend_api_key', 'postgres_credentials', 'ci_deployment_credentials', 'storage_bucket_credentials', 'arca_certificate_and_private_key', 'notify')"
         }
       },
       "isRLSEnabled": false
@@ -13499,12 +13499,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
-        },
-        "alert_email_opted_in_at": {
-          "name": "alert_email_opted_in_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {

@@ -16,9 +16,8 @@ const STEPS: Step[] = [
 
 const ITEMS: Item[] = [
   "mercado_pago_webhook_secret",
-  "whatsapp_webhook_token",
-  "whatsapp_webhook_secret",
   "claude_api_key",
+  "resend_api_key",
   "postgres_credentials",
   "ci_deployment_credentials",
   "storage_bucket_credentials",
@@ -28,9 +27,8 @@ const ITEMS: Item[] = [
 
 const ITEM_STEPS: Record<Item, Step> = {
   mercado_pago_webhook_secret: "rotate_external_secrets",
-  whatsapp_webhook_token: "rotate_external_secrets",
-  whatsapp_webhook_secret: "rotate_external_secrets",
   claude_api_key: "rotate_external_secrets",
+  resend_api_key: "rotate_external_secrets",
   postgres_credentials: "rotate_external_secrets",
   ci_deployment_credentials: "rotate_external_secrets",
   storage_bucket_credentials: "rotate_external_secrets",
