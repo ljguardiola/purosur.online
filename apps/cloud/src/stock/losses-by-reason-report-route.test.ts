@@ -109,7 +109,7 @@ describe("GET /reports/losses-by-reason", () => {
     const response = await lossesReport(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-12", to: "2026-10-12" },
+      range: { from: "2026-10-12", to: "2026-10-12", today: "2026-10-12" },
       reasons: [],
     });
   });
@@ -141,7 +141,7 @@ describe("GET /reports/losses-by-reason", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      range: { from: "2026-10-06", to: "2026-10-06" },
+      range: { from: "2026-10-06", to: "2026-10-06", today: "2026-10-12" },
       reasons: [
         {
           reason: "spoiled",
