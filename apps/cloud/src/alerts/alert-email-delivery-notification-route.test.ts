@@ -139,8 +139,22 @@ describe("POST /alerts/email-deliveries/notifications", () => {
       expect(await route.deliveryOf(deliveryId)).toMatchObject({ status: "sent" });
     });
 
-    it("answers that the email's sending is not yet recorded, to be sent again, when the provider holds it as a pending delivery's", async () => {
+    it("acknowledges the notification of an email no delivery sent without asking the provider while deliveries only wait for their retry and the provider cannot be asked", async () => {
+      const deliveryId = await route.deliveryWaitingForItsRetry();
+      route.statusQuery.answer = { kind: "unavailable" };
+
+      const response = await route.notify({
+        rawBody: notificationBody("email.bounced", "an-access-email-id"),
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(route.statusQuery.queried).toEqual([]);
+      expect(await route.deliveryOf(deliveryId)).toMatchObject({ status: "pending" });
+    });
+
+    it("answers that the email's sending is not yet recorded, to be sent again, when the provider holds it as the delivery's of a running send", async () => {
       const deliveryId = await route.pendingDelivery();
+      await route.alertEmailSendRunning();
       providerAnswers("bounced", deliveryId);
 
       const response = await route.notify({ rawBody: BOUNCED });

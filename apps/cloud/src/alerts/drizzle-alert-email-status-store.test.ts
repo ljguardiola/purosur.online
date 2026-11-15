@@ -148,27 +148,6 @@ describe("DrizzleAlertEmailStatusStore isAlertEmailDeliveryPending", () => {
   });
 });
 
-describe("DrizzleAlertEmailStatusStore hasAlertEmailSendInFlight", () => {
-  it("tells an alert email is being sent while a delivery is pending", async () => {
-    await insertDelivery();
-    await insertDelivery({ status: "pending", providerMessageId: null }, "user-2");
-
-    await expect(new DrizzleAlertEmailStatusStore(db).hasAlertEmailSendInFlight()).resolves.toBe(
-      true,
-    );
-  });
-
-  it("tells no alert email is being sent while no delivery is pending", async () => {
-    await insertDelivery();
-    await insertDelivery({ status: "failed", error: "provider_refused" }, "user-2");
-    await insertDelivery({ status: "skipped", providerMessageId: null }, "user-3");
-
-    await expect(new DrizzleAlertEmailStatusStore(db).hasAlertEmailSendInFlight()).resolves.toBe(
-      false,
-    );
-  });
-});
-
 describe("DrizzleAlertEmailStatusStore recordEmailUndelivered", () => {
   it("fails the sent delivery with the reason that the provider could not deliver it", async () => {
     const deliveryId = await insertDelivery();

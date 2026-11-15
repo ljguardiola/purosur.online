@@ -10,6 +10,7 @@ export class FakeAlertEmailStatusStore implements AlertEmailStatusStore {
   readonly reads: string[] = [];
   private readonly sentByProviderMessageId = new Map<string, SentAlertEmail>();
   private readonly pendingDeliveryIds = new Set<string>();
+  private sendRunning = false;
 
   seedSent(providerMessageId: string, deliveryId: string): void {
     this.sentByProviderMessageId.set(providerMessageId, { deliveryId });
@@ -19,6 +20,10 @@ export class FakeAlertEmailStatusStore implements AlertEmailStatusStore {
     this.pendingDeliveryIds.add(deliveryId);
   }
 
+  seedSendRunning(): void {
+    this.sendRunning = true;
+  }
+
   async sentAlertEmailOfProviderMessage(
     providerMessageId: string,
   ): Promise<SentAlertEmail | undefined> {
@@ -26,9 +31,9 @@ export class FakeAlertEmailStatusStore implements AlertEmailStatusStore {
     return this.sentByProviderMessageId.get(providerMessageId);
   }
 
-  async hasAlertEmailSendInFlight(): Promise<boolean> {
-    this.reads.push("hasAlertEmailSendInFlight");
-    return this.pendingDeliveryIds.size > 0;
+  async isAlertEmailSendRunning(): Promise<boolean> {
+    this.reads.push("isAlertEmailSendRunning");
+    return this.sendRunning;
   }
 
   async isAlertEmailDeliveryPending(deliveryId: string): Promise<boolean> {

@@ -3,7 +3,7 @@ import type {
   AlertEmailStatusQuery,
   QueriedAlertEmailStatus,
 } from "@purosur/domain/alerts/use-cases";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import Fastify, { type FastifyInstance, type LightMyRequestResponse } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, type Mock, vi } from "vitest";
 import { alertEmailDeliveries, alerts, users } from "../../platform/db/schema.js";
@@ -12,6 +12,7 @@ import { registerRouteAccess } from "../../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { registerAlertEmailDeliveryNotificationRoute } from "../alert-email-delivery-notification-route.js";
+import { alertEmailLaneLockKey } from "../drizzle-alert-email-lanes.js";
 
 export const WEBHOOK_SECRET = `whsec_${Buffer.from("test-only-resend-webhook-secret").toString("base64")}`;
 export const SIGNED_AT = new Date("2026-10-01T12:00:00.000Z");
@@ -63,6 +64,8 @@ export interface AlertEmailDeliveryNotificationRouteUnderTest {
   }): Promise<void>;
   sentDelivery(): Promise<string>;
   pendingDelivery(): Promise<string>;
+  deliveryWaitingForItsRetry(): Promise<string>;
+  alertEmailSendRunning(): Promise<void>;
   deliveryOf(deliveryId: string): Promise<{ status: string; error: string | null }>;
   notify(request: {
     rawBody: string;
@@ -96,7 +99,7 @@ export function alertEmailDeliveryNotificationRouteUnderTest(): AlertEmailDelive
   async function insertDelivery(
     delivery: Pick<
       typeof alertEmailDeliveries.$inferInsert,
-      "status" | "sentAt" | "providerMessageId"
+      "status" | "sentAt" | "providerMessageId" | "attempts" | "nextAttemptAt" | "error"
     >,
   ): Promise<string> {
     const { db } = testDatabase;
@@ -153,6 +156,7 @@ export function alertEmailDeliveryNotificationRouteUnderTest(): AlertEmailDelive
 
   afterEach(async () => {
     await app.close();
+    await testDatabase.db.execute(sql`select pg_advisory_unlock_all()`);
   });
 
   return {
@@ -175,6 +179,17 @@ export function alertEmailDeliveryNotificationRouteUnderTest(): AlertEmailDelive
     },
     pendingDelivery() {
       return insertDelivery({ status: "pending" });
+    },
+    deliveryWaitingForItsRetry() {
+      return insertDelivery({
+        status: "pending",
+        attempts: 1,
+        nextAttemptAt: new Date(SIGNED_AT.getTime() + 60_000),
+        error: "provider_unavailable",
+      });
+    },
+    async alertEmailSendRunning() {
+      await testDatabase.db.execute(sql`select pg_advisory_lock(${alertEmailLaneLockKey})`);
     },
     async deliveryOf(deliveryId) {
       const [row] = await testDatabase.db

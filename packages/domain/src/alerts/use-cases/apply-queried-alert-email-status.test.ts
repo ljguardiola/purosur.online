@@ -25,19 +25,30 @@ describe("applyQueriedAlertEmailStatus", () => {
     expect(store.undelivered).toEqual([]);
   });
 
+  it("acknowledges an email no delivery sent without asking the provider while deliveries only wait for their retry", async () => {
+    const { store, statusQuery, apply } = setup();
+    store.seedPending("delivery-3");
+    statusQuery.answer = { kind: "unavailable" };
+
+    await expect(apply("someone-elses-email")).resolves.toEqual({ kind: "not_an_alert_email" });
+
+    expect(statusQuery.queried).toEqual([]);
+  });
+
   it("checks whether an alert email is being sent before looking up the sent delivery", async () => {
     const { store, apply } = setup();
 
     await apply("email-1");
 
     expect(store.reads.slice(0, 2)).toEqual([
-      "hasAlertEmailSendInFlight",
+      "isAlertEmailSendRunning",
       "sentAlertEmailOfProviderMessage",
     ]);
   });
 
   it("acknowledges an email the provider holds as no alert email's while an alert email is being sent", async () => {
     const { store, statusQuery, apply } = setup();
+    store.seedSendRunning();
     store.seedPending("delivery-3");
     statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId: null };
 
@@ -49,6 +60,7 @@ describe("applyQueriedAlertEmailStatus", () => {
 
   it("reports the provider unavailable for an email no delivery sent while an alert email is being sent", async () => {
     const { store, statusQuery, apply } = setup();
+    store.seedSendRunning();
     store.seedPending("delivery-3");
     statusQuery.answer = { kind: "unavailable" };
 
@@ -59,6 +71,7 @@ describe("applyQueriedAlertEmailStatus", () => {
 
   it("asks to be told again later about an alert email whose sending is not yet recorded", async () => {
     const { store, statusQuery, apply } = setup();
+    store.seedSendRunning();
     store.seedPending("delivery-2");
     statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId: "delivery-2" };
 
@@ -69,6 +82,7 @@ describe("applyQueriedAlertEmailStatus", () => {
 
   it("acknowledges an alert email whose delivery is no longer sent with that email", async () => {
     const { store, statusQuery, apply } = setup();
+    store.seedSendRunning();
     store.seedPending("delivery-3");
     statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId: "delivery-2" };
 
