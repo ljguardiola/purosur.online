@@ -10,6 +10,7 @@ export interface BranchUserFacts {
   roleName: string | null;
   roleIsAdministrator: boolean;
   passkeyCount: number;
+  alertEmailOptedInAt: Date | null;
 }
 
 export interface BranchUser extends BranchUserFacts {

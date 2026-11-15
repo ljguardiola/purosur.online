@@ -87,6 +87,7 @@ export function createUser(
         roleName: role.name,
         roleIsAdministrator: role.isAdministrator,
         passkeyCount: 0,
+        alertEmailOptedInAt: null,
         isLastActiveAdministrator: isLastActiveAdministrator(
           { holdsAdministratorRole: role.isAdministrator },
           activeAdministratorCount,
