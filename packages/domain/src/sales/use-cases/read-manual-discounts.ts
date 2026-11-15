@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -22,7 +22,7 @@ export interface ReadManualDiscountsInput {
 }
 
 export interface ManualDiscountsReport {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   rows: ManualDiscountRow[];
   totals: ManualDiscountTotals;
   authorizers: DiscountAuthorizer[];

@@ -1,7 +1,7 @@
 import {
+  type AnsweredReportPeriod,
   averageTicket,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -14,7 +14,7 @@ export interface ReadSalesByPaymentMethodInput {
 }
 
 export interface SalesByPaymentMethodReport {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   methods: SalesPaidByMethod[];
   totals: { salesCount: number; total: number; averageTicket: number | null };
 }
