@@ -52,6 +52,11 @@ export type {
 } from "./alert-store.js";
 export { AlertAlreadyOpenError } from "./alert-store.js";
 export type {
+  ApplyQueriedAlertEmailStatusInput,
+  ApplyQueriedAlertEmailStatusOutcome,
+} from "./apply-queried-alert-email-status.js";
+export { applyQueriedAlertEmailStatus } from "./apply-queried-alert-email-status.js";
+export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,
   ArcaCertificateExpiryStoreTransaction,

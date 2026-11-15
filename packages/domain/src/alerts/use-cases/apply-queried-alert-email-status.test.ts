@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyQueriedAlertEmailStatus } from "./apply-queried-alert-email-status.js";
 import type { QueriedAlertEmailStatus } from "./alert-email-status-ports.js";
+import { applyQueriedAlertEmailStatus } from "./apply-queried-alert-email-status.js";
 import {
   FakeAlertEmailStatusQuery,
   FakeAlertEmailStatusStore,
