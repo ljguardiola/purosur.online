@@ -27,6 +27,8 @@ export class HeldRunReporter {
   #finished = [];
   #testFrames = new Map();
   #testFrameOfPage = new Map();
+  #contextsCreated = new Set();
+  #pagesOpened = new Set();
   #orchestratorsRequested = new Set();
   #orchestratorsConnected = new Set();
   #observedServers = new WeakSet();
@@ -54,6 +56,28 @@ export class HeldRunReporter {
         guard.#watch(files);
         return super.sort(files);
       }
+    };
+  }
+
+  trackBrowserPages(browserProvider) {
+    const guard = this;
+    return {
+      ...browserProvider,
+      providerFactory(project) {
+        const provider = browserProvider.providerFactory(project);
+        const { createContext, openBrowserPage } = provider;
+        provider.createContext = async function (sessionId, ...rest) {
+          const context = await createContext.call(this, sessionId, ...rest);
+          guard.#contextsCreated.add(sessionId);
+          return context;
+        };
+        provider.openBrowserPage = async function (sessionId, ...rest) {
+          const page = await openBrowserPage.call(this, sessionId, ...rest);
+          guard.#pagesOpened.add(sessionId);
+          return page;
+        };
+        return provider;
+      },
     };
   }
 
@@ -147,29 +171,31 @@ export class HeldRunReporter {
 
   onTestRunEnd(_testModules, unhandledErrors = []) {
     this.#stop();
+    this.#nameTimedOutPages(unhandledErrors);
+  }
+
+  #nameTimedOutPages(unhandledErrors) {
     for (const error of unhandledErrors) {
       const [, sessionId, projectName] = CONNECT_TIMEOUT.exec(error?.message ?? "") ?? [];
       if (sessionId == null) continue;
       this.#log(
         `held-run: browser page ${sessionId} of "${projectName}" did not connect within the timeout: ` +
-          this.#connectStep(sessionId, projectName),
+          this.#connectStep(sessionId),
       );
     }
   }
 
-  #connectStep(sessionId, projectName) {
+  #connectStep(sessionId) {
     if (this.#orchestratorsConnected.has(sessionId)) {
       return "its orchestrator opened its socket and never reported ready";
     }
     if (this.#orchestratorsRequested.has(sessionId)) {
       return "the page requested its orchestrator and the orchestrator never opened its socket";
     }
-    const provider = this.#vitest.projects.find((project) => project.name === projectName)?.browser
-      ?.provider;
-    if (provider?.pages?.has(sessionId)) {
+    if (this.#pagesOpened.has(sessionId)) {
       return "the page opened and never requested its orchestrator";
     }
-    if (provider?.contexts?.has(sessionId)) {
+    if (this.#contextsCreated.has(sessionId)) {
       return "its browser context was created and the page never opened in it";
     }
     return "its browser context was never created";
@@ -236,6 +262,7 @@ export class HeldRunReporter {
           this.#startingStep(project, moduleIds),
       );
     }
+    this.#nameTimedOutPages(this.#vitest.state.getUnhandledErrors());
     await this.#reportRunEnd("failed");
     this.#log(
       `held-run: ending with a failure (${this.#finished.length} files reported, ` +
@@ -309,6 +336,7 @@ export class HeldRunReporter {
         (openPages.length > 0 ? openPages.join("; ") : "no browser page is open"),
     );
     const errors = this.#vitest.state.getUnhandledErrors();
+    this.#nameTimedOutPages(errors);
     const failed = this.#finished.filter((testModule) => testModule.state() === "failed").length;
     const state = failed > 0 || errors.length > 0 ? "failed" : "passed";
     await this.#reportRunEnd(state);

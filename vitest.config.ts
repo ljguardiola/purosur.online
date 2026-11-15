@@ -202,7 +202,9 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright({ connectOptions: playwrightServerConnectOptions() }),
+            provider: heldRunReporter.trackBrowserPages(
+              playwright({ connectOptions: playwrightServerConnectOptions() }),
+            ),
             connectTimeout: BROWSER_CONNECT_TIMEOUT_MS,
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
@@ -223,13 +225,15 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright({
-              connectOptions: playwrightServerConnectOptions(),
-              contextOptions: {
-                reducedMotion: "reduce",
-                deviceScaleFactor: 1,
-              },
-            }),
+            provider: heldRunReporter.trackBrowserPages(
+              playwright({
+                connectOptions: playwrightServerConnectOptions(),
+                contextOptions: {
+                  reducedMotion: "reduce",
+                  deviceScaleFactor: 1,
+                },
+              }),
+            ),
             connectTimeout: BROWSER_CONNECT_TIMEOUT_MS,
             viewport: { width: 1280, height: 800 },
             instances: [{ browser: "chromium", name: "catalog-visual" }],
