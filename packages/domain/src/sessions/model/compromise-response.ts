@@ -151,9 +151,13 @@ export function stepStates(
 export function itemStates(
   completions: readonly CompromiseResponseCompletion[],
 ): CompromiseResponseItemState[] {
-  return COMPROMISE_RESPONSE_ITEMS.map((item) => {
+  const completed = isResponseCompleted(completions);
+  return COMPROMISE_RESPONSE_ITEMS.flatMap((item) => {
     const doneAt = completionAt(completions, item);
-    return { item, step: stepOfItem(item), done: doneAt !== null, doneAt };
+    if (completed && doneAt === null) {
+      return [];
+    }
+    return [{ item, step: stepOfItem(item), done: doneAt !== null, doneAt }];
   });
 }
 
