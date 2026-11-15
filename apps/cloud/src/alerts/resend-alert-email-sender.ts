@@ -11,6 +11,8 @@ export interface ResendAlertEmailSenderOptions {
   warn?: (message: string) => void;
 }
 
+export const ALERT_EMAIL_DELIVERY_TAG = "alert_email_delivery";
+
 const ALERT_SENDER_NAME = "Puro Sur Alertas";
 const ALERT_SENDER_LOCAL_PART = "alertas";
 
@@ -57,6 +59,7 @@ export function createResendAlertEmailSender(
             subject: content.subject,
             text: content.text,
             html: content.html,
+            tags: [{ name: ALERT_EMAIL_DELIVERY_TAG, value: email.deliveryId }],
           },
           { "Idempotency-Key": `alert-email/${email.deliveryId}` },
         );

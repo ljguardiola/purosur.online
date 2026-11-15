@@ -2763,6 +2763,50 @@ describe("wiring the alerts routes", () => {
   });
 });
 
+describe("wiring the alert email delivery notification route", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not register POST /api/alerts/email-deliveries/notifications when no alertEmailDeliveryNotifications option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/alerts/email-deliveries/notifications",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers it when the option is given, refusing and logging, behind the edge, a notification without a signature", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      alertEmailDeliveryNotifications: {
+        db: testDatabase.db,
+        webhookSecret: "whsec_fictional-signing-secret-of-the-tests",
+        statusQuery: { queriedAlertEmailStatus: async () => ({ kind: "unavailable" }) },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/alerts/email-deliveries/notifications",
+      headers: { "content-type": "application/json" },
+      payload: "{}",
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "discarded an alert email delivery notification with an invalid signature",
+      { reason: "missing_headers" },
+    );
+  });
+});
+
 describe("the route access inventory", () => {
   it("covers every route the production wiring registers, each with one access level", async () => {
     const app = productionWiredApp();

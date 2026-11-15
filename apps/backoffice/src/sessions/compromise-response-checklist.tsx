@@ -6,6 +6,7 @@ const ITEM_TEXT: Record<CompromiseResponseItem, { label: string; detail?: string
   mercado_pago_webhook_secret: { label: "Secreto del webhook de Mercado Pago" },
   claude_api_key: { label: "Clave de la API de Claude" },
   resend_api_key: { label: "Clave de la API de Resend" },
+  resend_webhook_secret: { label: "Secreto del webhook de Resend" },
   postgres_credentials: { label: "Credenciales de Postgres" },
   ci_deployment_credentials: { label: "Credenciales de despliegue de CI" },
   storage_bucket_credentials: { label: "Credenciales del bucket" },

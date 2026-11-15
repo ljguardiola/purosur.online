@@ -9,13 +9,13 @@ import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { reportError } from "../platform/error-reporting.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
+import { ReportedNotifications } from "../platform/reported-notifications.js";
 import { resolveSourceAddress } from "../platform/source-address.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzlePaymentNotificationAdmission } from "./drizzle-payment-notification-admission.js";
 import { DrizzlePaymentTransactionDirectory } from "./drizzle-payment-transaction-directory.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";
 import { verifyMercadoPagoNotificationSignature } from "./mercado-pago-notification-signature.js";
-import { ReportedNotifications } from "./reported-notifications.js";
 
 export interface MercadoPagoNotificationRoutesOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

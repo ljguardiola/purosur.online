@@ -10,12 +10,12 @@ export class ResendRefusalError extends Error {}
 // those two slots and delay every other email.
 const RESEND_TIMEOUT_MS = 10_000;
 
-// fetch resolves on any HTTP status, but callers retry or roll back only on a rejected send, so a
-// non-2xx response rejects.
-export async function postResendEmail(
+// fetch resolves on any HTTP status, but callers retry or roll back only on a rejected request, so
+// a non-2xx response rejects.
+async function requestResend(
   options: ResendApiOptions,
-  message: Record<string, unknown>,
-  headers: Record<string, string> = {},
+  url: string,
+  init: { method: string; headers: Record<string, string>; body?: string },
 ): Promise<string> {
   const doFetch = options.fetch ?? globalThis.fetch;
   const abort = new AbortController();
@@ -24,15 +24,10 @@ export async function postResendEmail(
     RESEND_TIMEOUT_MS,
   );
   try {
-    const response = await doFetch(RESEND_API_URL, {
-      method: "POST",
+    const response = await doFetch(url, {
+      ...init,
       signal: abort.signal,
-      headers: {
-        Authorization: `Bearer ${options.apiKey}`,
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      body: JSON.stringify(message),
+      headers: { Authorization: `Bearer ${options.apiKey}`, ...init.headers },
     });
     const responseBody = await response.text();
     if (!response.ok) {
@@ -42,4 +37,23 @@ export async function postResendEmail(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export function postResendEmail(
+  options: ResendApiOptions,
+  message: Record<string, unknown>,
+  headers: Record<string, string> = {},
+): Promise<string> {
+  return requestResend(options, RESEND_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(message),
+  });
+}
+
+export function getResendEmail(options: ResendApiOptions, emailId: string): Promise<string> {
+  return requestResend(options, `${RESEND_API_URL}/${encodeURIComponent(emailId)}`, {
+    method: "GET",
+    headers: {},
+  });
 }

@@ -1,5 +1,6 @@
 export type { AlertDetail } from "./alerts/alert-detail.js";
 export { alertDetailSchema } from "./alerts/alert-detail.js";
+export { alertEmailDeliveryNotificationSchema } from "./alerts/alert-email-delivery-notification.js";
 export type { AlertListPage, AlertSummary } from "./alerts/alert-summary.js";
 export { alertListPageSchema, alertSummarySchema } from "./alerts/alert-summary.js";
 export type { AlertsOverview } from "./alerts/alerts-overview.js";

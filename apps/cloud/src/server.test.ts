@@ -1019,6 +1019,7 @@ describe("startServer", () => {
         db: fakeBackgroundJobs.db,
         connections: fakeBackgroundJobs.connections,
       },
+      alertEmailDeliveryNotifications: { db: fakeBackgroundJobs.db },
     });
 
     await fakeApp.close();
@@ -2029,6 +2030,81 @@ describe("startServer creating Mercado Pago QR orders", () => {
       "MERCADOPAGO_WEBHOOK_SECRET must be set when MERCADOPAGO_ACCESS_TOKEN is set",
     );
     expect(buildApp).not.toHaveBeenCalled();
+  });
+});
+
+describe("startServer wiring the alert email delivery notification route", () => {
+  const env = {
+    DATABASE_URL: "postgres://user:pass@db/purosur",
+    RESEND_API_KEY: "re_test_key",
+    RECOVERY_EMAIL_FROM: FICTIONAL_RECOVERY_SENDER,
+    RECOVERY_EMAIL_REPLY_TO: FICTIONAL_RECOVERY_REPLY_TO,
+    BACKOFFICE_ORIGIN: "https://staging.purosur.online",
+    EDGE_ORIGIN_SECRET: "edge-secret",
+    ARCA_CERTIFICATE: VALID_ARCA_CERTIFICATE,
+    ARCA_ENVIRONMENT: "homologation",
+    DEVICE_TOKEN_ROTATION_KEY: ROTATION_KEY,
+    INSTALLATION_KEYS_ENCRYPTION_KEY: KEYS_ENCRYPTION_KEY,
+  };
+
+  async function optionsGivenToTheApp(startEnv: Record<string, string>) {
+    const backgroundJobs = {
+      db: {},
+      connections: { withConnection: vi.fn() },
+      jobQueue: { enqueueRecoveryRequest: vi.fn() },
+      backofficeOrigin: "https://staging.purosur.online",
+      worker: { stop: vi.fn() },
+      workerUtils: { addJob: vi.fn() },
+      close: vi.fn(),
+    };
+    const buildApp = vi.fn().mockReturnValue(appListeningBy(vi.fn()));
+    await startServer(startEnv, {
+      arcaEndpoints: arcaEndpointsOf,
+      initSentry: vi.fn(),
+      buildApp,
+      setUpBackgroundJobs: vi.fn().mockResolvedValue(backgroundJobs),
+      recordAuthorizedCuit: vi.fn().mockResolvedValue(undefined),
+      publishZoneRules: vi.fn().mockResolvedValue(undefined),
+      enqueueBuyerTaxStatusFetch: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingTaxAuthorityCounts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingUnclearOutcomes: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingNumberingConflicts: vi.fn().mockResolvedValue(undefined),
+      enqueueMissingCreditNotes: vi.fn().mockResolvedValue(undefined),
+    });
+    const [options] = buildApp.mock.calls[0] as [BuildAppOptions];
+    return { options, backgroundJobs };
+  }
+
+  it("gives the app the signing secret and a way to query the provider when the secret is set", async () => {
+    const { options, backgroundJobs } = await optionsGivenToTheApp({
+      ...env,
+      RESEND_WEBHOOK_SECRET: "whsec_fictional-signing-secret-of-the-tests",
+    });
+
+    expect(options.alertEmailDeliveryNotifications).toEqual({
+      db: backgroundJobs.db,
+      statusQuery: { queriedAlertEmailStatus: expect.any(Function) },
+      webhookSecret: "whsec_fictional-signing-secret-of-the-tests",
+    });
+  });
+
+  it("gives the app neither when the signing secret is not set", async () => {
+    const { options, backgroundJobs } = await optionsGivenToTheApp(env);
+
+    expect(options.alertEmailDeliveryNotifications).toEqual({ db: backgroundJobs.db });
+  });
+
+  it("gives the app no way to query the provider with the log transport, which never calls it", async () => {
+    const { RESEND_API_KEY: _unused, ...withoutApiKey } = env;
+
+    const { options, backgroundJobs } = await optionsGivenToTheApp({
+      ...withoutApiKey,
+      BACKOFFICE_ORIGIN: "http://localhost:5173",
+      RECOVERY_EMAIL_TRANSPORT: "log",
+      RESEND_WEBHOOK_SECRET: "whsec_fictional-signing-secret-of-the-tests",
+    });
+
+    expect(options.alertEmailDeliveryNotifications).toEqual({ db: backgroundJobs.db });
   });
 });
 

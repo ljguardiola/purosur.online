@@ -17,6 +17,13 @@ export type {
   SendDueAlertEmailsPorts,
 } from "./alert-email-delivery-ports.js";
 export type {
+  AlertEmailStatusQuery,
+  AlertEmailStatusStore,
+  ApplyQueriedAlertEmailStatusPorts,
+  QueriedAlertEmailStatus,
+  SentAlertEmail,
+} from "./alert-email-status-ports.js";
+export type {
   AlertDelivery,
   AlertDetailView,
   AlertEmailDeliveryView,
@@ -44,6 +51,11 @@ export type {
   SourceAddressHasher,
 } from "./alert-store.js";
 export { AlertAlreadyOpenError } from "./alert-store.js";
+export type {
+  ApplyQueriedAlertEmailStatusInput,
+  ApplyQueriedAlertEmailStatusOutcome,
+} from "./apply-queried-alert-email-status.js";
+export { applyQueriedAlertEmailStatus } from "./apply-queried-alert-email-status.js";
 export type {
   ArcaCertificateExpiryPorts,
   ArcaCertificateExpiryStore,

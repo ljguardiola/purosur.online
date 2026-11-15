@@ -56,7 +56,7 @@ describe("alertSenderOf", () => {
 });
 
 describe("createResendAlertEmailSender", () => {
-  it("posts the email from the alerts' sender with the recovery emails' reply-to and its idempotency key", async () => {
+  it("posts the email from the alerts' sender with the recovery emails' reply-to, its idempotency key and the tag of its delivery", async () => {
     const fetch = fakeFetch({ ok: true, status: 200, body: '{"id":"msg-1"}' });
 
     await senderWith(fetch).sendAlertEmail(EMAIL);
@@ -75,6 +75,7 @@ describe("createResendAlertEmailSender", () => {
       subject: content.subject,
       text: content.text,
       html: content.html,
+      tags: [{ name: "alert_email_delivery", value: "delivery-1" }],
     });
   });
 
