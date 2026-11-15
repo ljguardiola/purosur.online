@@ -17,6 +17,13 @@ export type {
   SendDueAlertEmailsPorts,
 } from "./alert-email-delivery-ports.js";
 export type {
+  AlertEmailStatusQuery,
+  AlertEmailStatusStore,
+  ApplyQueriedAlertEmailStatusPorts,
+  QueriedAlertEmailStatus,
+  SentAlertEmail,
+} from "./alert-email-status-ports.js";
+export type {
   AlertDelivery,
   AlertDetailView,
   AlertEmailDeliveryView,
