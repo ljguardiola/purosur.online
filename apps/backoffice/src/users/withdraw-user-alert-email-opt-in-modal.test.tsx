@@ -69,7 +69,7 @@ test("asks whether to stop alerting the user by email, saying the user stays as 
   await expect
     .element(
       dialog.getByText(
-        "Lucía deja de recibir alertas por email. Sigue activa y su historial queda igual.",
+        "Lucía deja de recibir alertas por email. Su usuario sigue activo y su historial queda igual.",
       ),
     )
     .toBeVisible();
