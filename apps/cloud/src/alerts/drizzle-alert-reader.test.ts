@@ -5,6 +5,7 @@ import { insertEnrolledInstallation } from "../installation/test-support/enrolle
 import { aPendingLatePaymentRefund } from "../payments/test-support/late-payment-refund-fixtures.js";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   fiscalAddresses,
   locations,
@@ -501,6 +502,84 @@ describe("DrizzleAlertReader deliveriesOf", () => {
       recipientRoleId: adminRoleId,
       recipientRoleIsAdministrator: true,
     });
+  });
+});
+
+describe("DrizzleAlertReader emailDeliveriesOf", () => {
+  it("lists each email by the stage of the alert's life, then by the recipient's name, with its state and the recipient's role", async () => {
+    const alertId = await insertAlert();
+    const adminRoleId = await seededAdministratorRoleId();
+    const ada = await insertUser("Ada", adminRoleId);
+    const grace = await insertUser("Grace", adminRoleId);
+    const sentAt = new Date(NOON.getTime() + 5_000);
+    await db.insert(alertEmailDeliveries).values([
+      {
+        alertId,
+        recipientUserId: grace,
+        stage: "resolved",
+        level: "warning",
+        occurredAt: NOON,
+      },
+      {
+        alertId,
+        recipientUserId: grace,
+        stage: "opened",
+        level: "warning",
+        occurredAt: NOON,
+        status: "failed",
+        error: "Resend API responded 500",
+        createdAt: NOON,
+      },
+      {
+        alertId,
+        recipientUserId: ada,
+        stage: "opened",
+        level: "warning",
+        occurredAt: NOON,
+        status: "sent",
+        sentAt,
+        createdAt: NOON,
+      },
+    ]);
+
+    const deliveries = await new DrizzleAlertReader(db).emailDeliveriesOf(alertId);
+
+    expect(deliveries.map((d) => [d.stage, d.recipientFirstName])).toEqual([
+      ["opened", "Ada"],
+      ["opened", "Grace"],
+      ["resolved", "Grace"],
+    ]);
+    expect(deliveries[0]).toMatchObject({
+      status: "sent",
+      error: null,
+      sentAt,
+      createdAt: NOON,
+      recipientId: ada,
+      recipientRoleId: adminRoleId,
+      recipientRoleName: null,
+      recipientRoleIsAdministrator: true,
+    });
+    expect(deliveries[1]).toMatchObject({
+      status: "failed",
+      error: "Resend API responded 500",
+      sentAt: null,
+    });
+    expect(deliveries[2]).toMatchObject({ status: "pending", error: null });
+  });
+
+  it("answers only the emails of the alert asked for", async () => {
+    const alertId = await insertAlert();
+    const otherAlertId = await insertAlert();
+    const recipient = await insertUser("Ada", await seededAdministratorRoleId());
+    await db.insert(alertEmailDeliveries).values({
+      alertId: otherAlertId,
+      recipientUserId: recipient,
+      stage: "opened",
+      level: "warning",
+      occurredAt: NOON,
+    });
+
+    expect(await new DrizzleAlertReader(db).emailDeliveriesOf(alertId)).toEqual([]);
   });
 });
 
