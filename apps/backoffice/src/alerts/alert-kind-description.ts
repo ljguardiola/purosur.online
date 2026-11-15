@@ -5,6 +5,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   backoffice_passkey_changed: "Se registró o dio de baja una passkey",
   backoffice_recovery_requested: "Se pidió el enlace de acceso",
   user_email_changed: "Se cambió una dirección de correo",
+  alert_recipients_changed: "Alguien empezó o dejó de recibir las alertas por email.",
   backoffice_sign_in_lockout: "Demasiados intentos fallidos de ingreso",
   user_access_increased: "Se amplió el acceso de un usuario",
   register_enrolled: "Se dio de alta o se revocó una instalación de caja",

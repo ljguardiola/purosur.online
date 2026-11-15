@@ -81,6 +81,7 @@ import type { ReviewInitialInventoryModalServices } from "../stock/review-initia
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
 import type { QuarantinedEventsScreenServices } from "../sync/quarantined-events-services";
+import type { OwnAlertEmailOptInSectionServices } from "../users/own-alert-email-opt-in-section-services";
 import type { UserCredentialSectionsProps } from "../users/user-panel";
 import type { UserPanelServices } from "../users/user-panel-services";
 import type { UsersListEndEverySessionSectionProps } from "../users/users-list-screen";
@@ -110,6 +111,7 @@ export type AppServices = {
   accountRecoveryScreen: AccountRecoveryScreenServices;
   registerPasskeyScreen: RegisterPasskeyScreenServices;
   ownCredentialsSection: OwnCredentialsSectionServices;
+  ownAlertEmailOptInSection: OwnAlertEmailOptInSectionServices;
   usersListScreen: UsersListScreenServices;
   userPanel: UserPanelServices;
   usersListEndEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;

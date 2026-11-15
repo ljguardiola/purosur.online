@@ -13,6 +13,7 @@ export function user(overrides: Partial<FakeBranchUser> & { id: string }): FakeB
     roleName: "Cajero",
     roleIsAdministrator: false,
     passkeyCount: 0,
+    alertEmailOptedInAt: null,
     ...overrides,
   };
 }

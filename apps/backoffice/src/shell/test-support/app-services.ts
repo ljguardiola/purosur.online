@@ -65,6 +65,14 @@ export function createAppServices(
       startRegistration: vi.fn(),
       signalUnknownCredential: vi.fn(),
     },
+    ownAlertEmailOptInSection: {
+      fetchOwnAlertEmailOptIn: vi.fn().mockReturnValue(new Promise(() => {})),
+      recordOwnAlertEmailOptIn: vi.fn(),
+      withdrawOwnAlertEmailOptIn: vi.fn(),
+      fetchSessionAuthorizationOptions: vi.fn(),
+      authorizeSession: vi.fn(),
+      startAuthentication: vi.fn(),
+    },
     usersListScreen: {
       fetchUsers: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -370,6 +378,7 @@ export function createAppServices(
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
       deactivateUser: vi.fn(),
       reactivateUser: vi.fn(),
+      withdrawUserAlertEmailOptIn: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),

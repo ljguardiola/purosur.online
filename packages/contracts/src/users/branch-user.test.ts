@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { branchUserListSchema, branchUserSchema } from "./branch-user.js";
 
@@ -15,6 +16,8 @@ const ana = {
   may_deactivate: true,
   may_reactivate: false,
   may_remove_passkey: true,
+  may_withdraw_alert_email_opt_in: true,
+  alert_email_opted_in_at: "2026-09-01T10:00:00.000Z",
 };
 const { active: _active, ...withoutActive } = ana;
 const administrator = {
@@ -27,6 +30,8 @@ const administrator = {
   may_deactivate: false,
   may_reactivate: false,
   may_remove_passkey: true,
+  may_withdraw_alert_email_opt_in: false,
+  alert_email_opted_in_at: null,
 };
 
 describe("branchUserSchema", () => {
@@ -38,6 +43,12 @@ describe("branchUserSchema", () => {
     });
     expect(branchUserSchema.safeParse(withoutActive).data).toEqual(withoutActive);
     expect(branchUserSchema.safeParse(administrator).data).toEqual(administrator);
+  });
+
+  it("shows the moment of the opt-in in Argentina's time zone", () => {
+    expect(branchUserSchema.shape.alert_email_opted_in_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("keeps the active flag absent instead of filling it in", () => {
@@ -63,6 +74,8 @@ describe("branchUserSchema", () => {
     "may_deactivate",
     "may_reactivate",
     "may_remove_passkey",
+    "may_withdraw_alert_email_opt_in",
+    "alert_email_opted_in_at",
   ])("requires %s", (field) => {
     const { [field as keyof typeof ana]: _omitted, ...rest } = ana;
 
@@ -103,6 +116,11 @@ describe("branchUserSchema", () => {
     ["may_reactivate", null],
     ["may_remove_passkey", "true"],
     ["may_remove_passkey", null],
+    ["may_withdraw_alert_email_opt_in", "true"],
+    ["may_withdraw_alert_email_opt_in", null],
+    ["alert_email_opted_in_at", 1],
+    ["alert_email_opted_in_at", "yesterday"],
+    ["alert_email_opted_in_at", undefined],
   ])("refuses %s as %j", (field, value) => {
     expect(branchUserSchema.safeParse({ ...ana, [field]: value }).success).toBe(false);
   });

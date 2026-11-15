@@ -30,12 +30,14 @@ const sofia: BranchUser = {
     name: "Responsable de turno",
   },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: false,
   mayDeactivate: false,
   mayReactivate: true,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 beforeEach(() => {

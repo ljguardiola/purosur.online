@@ -30,6 +30,11 @@ export interface EmailChangedDetail {
   actorId: string;
 }
 
+export interface RecipientsChangedDetail {
+  change: "opted_in" | "withdrawn";
+  actorId: string;
+}
+
 export interface SignInLockoutDetail {
   sourceAddress: string;
   failureCount: number;
@@ -300,6 +305,7 @@ export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
   user_email_changed: EmailChangedDetail;
+  alert_recipients_changed: RecipientsChangedDetail;
   backoffice_sign_in_lockout: SignInLockoutDetail;
   user_access_increased: AccessIncreasedDetail;
   register_enrolled: RegisterEnrolledDetail;

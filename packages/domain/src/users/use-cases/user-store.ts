@@ -44,7 +44,9 @@ export type UserChange =
   | { kind: "email_changed"; previousEmail: string; email: string }
   | { kind: "role_changed"; previousRoleId: string; roleId: string }
   | { kind: "deactivated" }
-  | { kind: "reactivated" };
+  | { kind: "reactivated" }
+  | { kind: "alert_email_opted_in"; optedInAt: Date }
+  | { kind: "alert_email_opt_in_withdrawn"; optedInAt: Date };
 
 export type UserAlert =
   | { kind: "created_as_administrator"; userId: string; actorId: string; openedAt: Date }

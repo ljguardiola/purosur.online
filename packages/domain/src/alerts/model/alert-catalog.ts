@@ -2,6 +2,7 @@ const ALERT_KIND_LIST = [
   "backoffice_passkey_changed",
   "backoffice_recovery_requested",
   "user_email_changed",
+  "alert_recipients_changed",
   "backoffice_sign_in_lockout",
   "user_access_increased",
   "register_enrolled",

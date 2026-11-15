@@ -65,7 +65,14 @@ describe("listBranchUsers", () => {
 
   it("keeps every fact the store gave about each user", async () => {
     const users = new FakeBranchUsers();
-    users.seedUser(user({ id: "u-1", passkeyCount: 2, version: 5 }));
+    users.seedUser(
+      user({
+        id: "u-1",
+        passkeyCount: 2,
+        version: 5,
+        alertEmailOptedInAt: new Date("2026-09-01T10:00:00.000Z"),
+      }),
+    );
 
     const [listed] = await listIn(users);
 
@@ -79,6 +86,7 @@ describe("listBranchUsers", () => {
       roleName: "Cajero",
       roleIsAdministrator: false,
       passkeyCount: 2,
+      alertEmailOptedInAt: new Date("2026-09-01T10:00:00.000Z"),
       isLastActiveAdministrator: false,
     });
   });

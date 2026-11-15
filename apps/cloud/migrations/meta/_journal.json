@@ -1289,6 +1289,13 @@
       "when": 1794710446617,
       "tag": "0190_compromise_response_resend_api_key",
       "breakpoints": true
+    },
+    {
+      "idx": 191,
+      "version": "7",
+      "when": 1794722862335,
+      "tag": "0191_users_alert_email_opted_in_at",
+      "breakpoints": true
     }
   ]
 }

@@ -54,6 +54,7 @@ import {
   canReactivateUser,
   canSeeRolesArea,
 } from "../shell/backoffice-access";
+import { alertEmailOptInText } from "./alert-email-opt-in-text";
 import { roleOptions, withCreatedRole } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
@@ -462,6 +463,11 @@ function UsersListView({
               one: "1 registrada",
               other: `${formatNumber(item.passkeyCount)} registradas`,
             }),
+    }),
+    dataColumn({
+      id: "alertEmail",
+      header: "Notificaciones",
+      render: (item: BranchUser) => alertEmailOptInText(item.alertEmailOptedInAt),
     }),
   ] as const;
   const stateColumn = dataColumn({

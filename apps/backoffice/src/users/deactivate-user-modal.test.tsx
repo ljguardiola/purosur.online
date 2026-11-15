@@ -30,12 +30,14 @@ const lucia: BranchUser = {
     name: "Responsable de turno",
   },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const authorizationOptions = { challenge: "session-auth" } as never;

@@ -178,6 +178,12 @@ describe("alertDetailSchema", () => {
       AlertDetails["user_email_changed"] & Named
     >();
     expectTypeOf<AlertDetails["user_email_changed"]>().toExtend<WireDetail<"user_email_changed">>();
+    expectTypeOf<WireDetail<"alert_recipients_changed">>().toExtend<
+      AlertDetails["alert_recipients_changed"] & Named
+    >();
+    expectTypeOf<AlertDetails["alert_recipients_changed"]>().toExtend<
+      WireDetail<"alert_recipients_changed">
+    >();
     expectTypeOf<WireDetail<"user_access_increased">>().toExtend<
       AlertDetails["user_access_increased"]
     >();
@@ -371,6 +377,7 @@ describe("alertDetailSchema", () => {
         expiresAt: "2026-05-04T13:15:00.000Z",
       },
       user_email_changed: emailChange.detail,
+      alert_recipients_changed: { change: "opted_in", actorId: "user-1", actorName: "Marcela" },
       backoffice_sign_in_lockout: {
         sourceAddress: "203.0.113.5",
         failureCount: 6,
@@ -552,6 +559,29 @@ describe("alertDetailSchema", () => {
       const { [field]: _omitted, ...detail } = detailOf[kind] as Record<string, unknown>;
 
       expect(alertDetailSchema.safeParse({ ...base, kind, detail }).success).toBe(false);
+    });
+
+    it.each(["opted_in", "withdrawn"])(
+      "accepts a changed recipient set alert of a %s change",
+      (change) => {
+        const alert = {
+          ...base,
+          kind: "alert_recipients_changed",
+          detail: { ...detailOf.alert_recipients_changed, change },
+        };
+
+        expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+      },
+    );
+
+    it("refuses a changed recipient set alert of an unknown change", () => {
+      const alert = {
+        ...base,
+        kind: "alert_recipients_changed",
+        detail: { ...detailOf.alert_recipients_changed, change: "invited" },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it("accepts an overdue-backup alert of a register that never had a verified generation", () => {

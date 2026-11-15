@@ -221,6 +221,8 @@ describe("POST /users", () => {
       may_deactivate: true,
       may_reactivate: false,
       may_remove_passkey: true,
+      may_withdraw_alert_email_opt_in: false,
+      alert_email_opted_in_at: null,
     });
 
     const [createdUser] = await db.select().from(users).where(eq(users.id, body.id));

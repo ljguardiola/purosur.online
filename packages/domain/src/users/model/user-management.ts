@@ -21,6 +21,22 @@ export function mayRemoveUserPasskey(
   );
 }
 
+export function mayWithdrawAlertEmailOptInOf(actorId: string, target: { id: string }): boolean {
+  return target.id !== actorId;
+}
+
+export function mayWithdrawUserAlertEmailOptIn(
+  actor: Actor,
+  target: { id: string; active: boolean; alertEmailOptedInAt: Date | null },
+): boolean {
+  return (
+    target.active &&
+    target.alertEmailOptedInAt !== null &&
+    grantsCapability(actor, "manage_users") &&
+    mayWithdrawAlertEmailOptInOf(actor.id, target)
+  );
+}
+
 export function mayDeactivateUser(
   actor: Actor,
   target: { id: string; isAdministrator: boolean; active: boolean },

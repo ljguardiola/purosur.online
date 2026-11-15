@@ -156,6 +156,8 @@ describe("GET /users/:id", () => {
       may_deactivate: false,
       may_reactivate: false,
       may_remove_passkey: false,
+      may_withdraw_alert_email_opt_in: false,
+      alert_email_opted_in_at: null,
     });
   });
 
@@ -204,6 +206,8 @@ describe("GET /users/:id", () => {
       may_deactivate: false,
       may_reactivate: false,
       may_remove_passkey: false,
+      may_withdraw_alert_email_opt_in: false,
+      alert_email_opted_in_at: null,
     });
   });
 
@@ -269,6 +273,8 @@ describe("GET /users/:id", () => {
       may_deactivate: false,
       may_reactivate: true,
       may_remove_passkey: false,
+      may_withdraw_alert_email_opt_in: false,
+      alert_email_opted_in_at: null,
     });
   });
 
@@ -371,7 +377,12 @@ describe("GET /users/:id", () => {
   describe("what the viewer may do with the user", () => {
     async function answersFor(
       viewer: { permissionKeys: string[]; administrator?: boolean },
-      target: { role: "cashier" | "administrator"; active?: boolean; self?: boolean },
+      target: {
+        role: "cashier" | "administrator";
+        active?: boolean;
+        self?: boolean;
+        optedInAt?: Date;
+      },
     ): Promise<Record<string, unknown>> {
       const locationId = await seededLocationId(db);
       const viewerRoleId = viewer.administrator
@@ -397,6 +408,12 @@ describe("GET /users/:id", () => {
       if (target.active === false) {
         await db.update(users).set({ active: false }).where(eq(users.id, targetId));
       }
+      if (target.optedInAt) {
+        await db
+          .update(users)
+          .set({ alertEmailOptedInAt: target.optedInAt })
+          .where(eq(users.id, targetId));
+      }
       const rawSessionId = await insertSession(viewerId);
 
       const response = await getUser(targetId, rawSessionId);
@@ -417,6 +434,20 @@ describe("GET /users/:id", () => {
         may_deactivate: true,
         may_reactivate: false,
         may_remove_passkey: true,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
+      });
+    });
+
+    it("lets an Administrator stop the alert emails of another active user who receives them", async () => {
+      expect(
+        await answersFor(ADMINISTRATOR, {
+          role: "cashier",
+          optedInAt: new Date("2026-10-01T12:00:00.000Z"),
+        }),
+      ).toMatchObject({
+        alert_email_opted_in_at: "2026-10-01T12:00:00.000Z",
+        may_withdraw_alert_email_opt_in: true,
       });
     });
 
@@ -426,6 +457,8 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -435,6 +468,8 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: true,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -444,6 +479,8 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: true,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -455,6 +492,8 @@ describe("GET /users/:id", () => {
         may_deactivate: true,
         may_reactivate: false,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       });
     });
 
@@ -469,6 +508,8 @@ describe("GET /users/:id", () => {
         may_deactivate: false,
         may_reactivate: true,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       });
     });
 

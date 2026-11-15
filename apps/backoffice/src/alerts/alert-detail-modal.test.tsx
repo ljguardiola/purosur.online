@@ -305,6 +305,60 @@ test("shows the email-changed description", async () => {
     .toBeVisible();
 });
 
+test("shows who started receiving alerts by email", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "alert_recipients_changed",
+        detail: { change: "opted_in", actorId: "admin-1", actorName: "Ada" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Cambió quién recibe alertas por email")).toBeVisible();
+  await expect
+    .element(screen.getByText("Ada registró que Lucía Pérez recibe alertas por email."))
+    .toBeVisible();
+});
+
+test("shows who stopped receiving alerts by email", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "alert_recipients_changed",
+        detail: { change: "withdrawn", actorId: "admin-1", actorName: "Ada" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Ada registró que Lucía Pérez dejó de recibir alertas por email."))
+    .toBeVisible();
+});
+
+test("shows no description of a change of who receives alerts by email without the actor's name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "alert_recipients_changed",
+        detail: { change: "opted_in", actorId: "admin-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+  await expect.element(screen.getByText("Cambió quién recibe alertas por email")).toBeVisible();
+
+  expect(screen.getByText(/recibe alertas por email\./).query()).toBeNull();
+});
+
 test("shows the sign-in lockout description, scoped to the source address", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

@@ -4,6 +4,7 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { fetchRoles, RoleSummary } from "../platform/roles-api";
 import { useSendToOwnAccount } from "../platform/send-to-own-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import type { AlertEmailOptIn, fetchOwnAlertEmailOptIn } from "./alert-email-opt-in-api";
 import type { fetchUser } from "./users-api";
 
 const usersKey = ["users"] as const;
@@ -11,6 +12,7 @@ const usersKey = ["users"] as const;
 const usersKeys = {
   list: [...usersKey, "list"] as const,
   roles: [...usersKey, "roles"] as const,
+  ownAlertEmailOptIn: [...usersKey, "own-alert-email-opt-in"] as const,
   user: (id: string) => [...usersKey, "user", id] as const,
 };
 
@@ -90,4 +92,17 @@ export function useMarkUsersStale(): () => Promise<void> {
 export function useRefreshUsers(): () => Promise<void> {
   const client = useQueryClient();
   return () => client.invalidateQueries({ queryKey: usersKey });
+}
+
+export function useOwnAlertEmailOptInQuery(params: {
+  fetchOwnAlertEmailOptIn: typeof fetchOwnAlertEmailOptIn;
+  onSessionEnded: () => void;
+}) {
+  const sendToOwnAccount = useSendToOwnAccount();
+  return useCloudQuery<AlertEmailOptIn>({
+    queryKey: usersKeys.ownAlertEmailOptIn,
+    read: params.fetchOwnAlertEmailOptIn,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToOwnAccount,
+  });
 }

@@ -21,12 +21,14 @@ const martina = {
   active: true,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 function servicesFor(capabilities?: Capability[]): AppServices {
@@ -276,6 +278,33 @@ test("the own account panel shows Datos with users_area, reading the person's ow
   await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
   await expect.element(screen.getByText("martina@example.com")).toBeVisible();
   expect(services.userPanel.fetchUser).toHaveBeenCalledWith("user-1");
+});
+
+test("the own account panel offers Alertas por email to a person with no capability, reading the person's own opt-in", async () => {
+  window.history.pushState(null, "", "/help?account=alerts");
+  const services = servicesFor([]);
+  vi.mocked(services.ownAlertEmailOptInSection.fetchOwnAlertEmailOptIn).mockResolvedValue({
+    kind: "ok",
+    value: { optedInAt: "2026-03-14T15:00:00.000Z" },
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Alertas por email", selected: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText("Recibe alertas por email desde 14/03/2026")).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Datos" }).query()).toBeNull();
+});
+
+test("the own account panel lists Alertas por email after Passkeys y PIN", async () => {
+  window.history.pushState(null, "", "/help?account=credentials");
+
+  const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Alertas por email" })).toBeVisible();
+  await userEvent.click(screen.getByRole("tab", { name: "Alertas por email" }));
+  expect(location()).toBe("/help?account=alerts");
 });
 
 test("the own account panel survives the page's own search, and shows only Passkeys y PIN without users_area", async () => {

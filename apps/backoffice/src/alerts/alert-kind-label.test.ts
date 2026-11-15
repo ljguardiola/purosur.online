@@ -123,3 +123,7 @@ test("names the register_disk_space_low alert", () => {
     "Poco espacio libre en el disco de la caja",
   );
 });
+
+test("names the alert of a changed set of people who receive alerts by email", () => {
+  expect(alertKindLabel("alert_recipients_changed")).toBe("Cambió quién recibe alertas por email");
+});

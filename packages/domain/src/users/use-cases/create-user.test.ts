@@ -49,6 +49,7 @@ describe("createUser", () => {
         roleName: "Cajero",
         roleIsAdministrator: false,
         passkeyCount: 0,
+        alertEmailOptedInAt: null,
         isLastActiveAdministrator: false,
       },
     });
@@ -64,6 +65,7 @@ describe("createUser", () => {
         roleName: "Cajero",
         roleIsAdministrator: false,
         passkeyCount: 0,
+        alertEmailOptedInAt: null,
       },
     ]);
   });

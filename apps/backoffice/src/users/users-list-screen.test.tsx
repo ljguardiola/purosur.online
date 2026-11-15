@@ -26,12 +26,14 @@ const administrator: BranchUser = {
   version: 1,
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 2,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: true,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const martina: BranchUser = {
@@ -41,12 +43,14 @@ const martina: BranchUser = {
   version: 1,
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const tomas: BranchUser = {
@@ -60,12 +64,14 @@ const tomas: BranchUser = {
     name: "Atención de caja",
   },
   passkeyCount: 0,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const sofia: BranchUser = {
@@ -80,12 +86,14 @@ const sofia: BranchUser = {
     name: "Atención de caja",
   },
   passkeyCount: 0,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: false,
   mayDeactivate: false,
   mayReactivate: true,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -141,6 +149,20 @@ test("shows each user's passkey count as plain text, with the plural, singular a
   await expect.element(screen.getByText("2 registradas")).toBeVisible();
   await expect.element(screen.getByText("1 registrada")).toBeVisible();
   await expect.element(screen.getByText("—")).toBeVisible();
+});
+
+test("shows, for each user, whether they receive alerts by email and since when", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...administrator, alertEmailOptedInAt: "2026-03-14T15:00:00.000Z" }, martina],
+  });
+
+  const screen = await renderUsersList(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Notificaciones" })).toBeVisible();
+  await expect.element(screen.getByText("Recibe alertas por email desde 14/03/2026")).toBeVisible();
+  await expect.element(screen.getByText("No recibe alertas por email")).toBeVisible();
 });
 
 test("shows no passkey helper line: a single passkey is a normal state and nothing knows who only uses the register", async () => {
@@ -1266,6 +1288,7 @@ test("shows the user count and a passkey count with the thousands separator", as
     firstName: `Usuario ${index}`,
     email: `usuario${index}@example.com`,
     passkeyCount: 1000,
+    alertEmailOptedInAt: null,
   }));
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: manyUsers });
 

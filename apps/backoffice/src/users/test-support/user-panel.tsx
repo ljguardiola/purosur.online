@@ -47,6 +47,7 @@ export function createServices(overrides: Partial<UserPanelServices> = {}): User
     fetchRoles: vi.fn(),
     deactivateUser: vi.fn(),
     reactivateUser: vi.fn(),
+    withdrawUserAlertEmailOptIn: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -68,12 +69,14 @@ export const lucia: BranchUser = {
   version: 1,
   role: shiftRole,
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 export function CredentialSectionsStub(props: UserCredentialSectionsProps) {
@@ -150,12 +153,14 @@ export const adminTarget: BranchUser = {
   version: 1,
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 export const REACTIVATE_USERS_ACCESS = accessWith("users_area", "reactivate_users");
@@ -168,12 +173,14 @@ export const sofia: BranchUser = {
   active: false,
   role: shiftRole,
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: false,
   mayEdit: false,
   mayDeactivate: false,
   mayReactivate: true,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 export async function openEditModal(screen: Screen) {

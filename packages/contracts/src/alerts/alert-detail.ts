@@ -75,6 +75,12 @@ const emailChangedDetailSchema = z.object({
   actorName,
 });
 
+const recipientsChangedDetailSchema = z.object({
+  change: z.enum(["opted_in", "withdrawn"]),
+  actorId: z.string(),
+  actorName,
+});
+
 const signInLockoutDetailSchema = z.object({
   sourceAddress: z.string().optional(),
   failureCount: z.number(),
@@ -380,6 +386,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("user_email_changed" satisfies AlertKind),
     detail: emailChangedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("alert_recipients_changed" satisfies AlertKind),
+    detail: recipientsChangedDetailSchema,
   }),
   z.object({
     ...alertBase,

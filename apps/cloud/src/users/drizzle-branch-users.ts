@@ -29,6 +29,7 @@ const BRANCH_USER_SELECTION = {
   roleName: roles.name,
   roleIsAdministrator: roles.isAdministrator,
   passkeyCount: sql<number>`count(${passkeys.id})::int`.as("passkey_count"),
+  alertEmailOptedInAt: users.alertEmailOptedInAt,
 };
 
 const BRANCH_USER_GROUP_BY = [
@@ -37,6 +38,7 @@ const BRANCH_USER_GROUP_BY = [
   users.email,
   users.version,
   users.active,
+  users.alertEmailOptedInAt,
   roles.id,
   roles.name,
   roles.isAdministrator,

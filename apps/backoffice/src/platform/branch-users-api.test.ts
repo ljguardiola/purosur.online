@@ -23,12 +23,14 @@ const administratorRow = {
   version: 1,
   role: { id: "role-admin", is_administrator: true, name: null },
   passkey_count: 2,
+  alert_email_opted_in_at: null,
   is_last_active_administrator: false,
   may_emit_pin_code: true,
   may_edit: true,
   may_deactivate: false,
   may_reactivate: false,
   may_remove_passkey: true,
+  may_withdraw_alert_email_opt_in: false,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -37,12 +39,14 @@ const administrator: BranchUser = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 2,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 test("fetchUsers lists the branch's users on 200", async () => {
@@ -74,6 +78,21 @@ test("fetchUsers maps each user's passkeyCount from the wire", async () => {
   expect(outcome.kind === "ok" && outcome.value[0]?.passkeyCount).toBe(5);
 });
 
+test("fetchUsers maps the moment each user opted in to alerts by email from the wire", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      { ...administratorRow, alert_email_opted_in_at: "2026-03-14T15:00:00.000Z" },
+    ]),
+  );
+
+  const outcome = await fetchUsers();
+
+  expect(outcome.kind).toBe("ok");
+  expect(outcome.kind === "ok" && outcome.value[0]?.alertEmailOptedInAt).toBe(
+    "2026-03-14T15:00:00.000Z",
+  );
+});
+
 test("fetchUsers maps each user's isLastActiveAdministrator from the wire", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, [{ ...administratorRow, is_last_active_administrator: true }]),
@@ -101,6 +120,7 @@ test.each([
   ["may_deactivate", "mayDeactivate"],
   ["may_reactivate", "mayReactivate"],
   ["may_remove_passkey", "mayRemovePasskey"],
+  ["may_withdraw_alert_email_opt_in", "mayWithdrawAlertEmailOptIn"],
 ] as const)("fetchUsers maps each user's %s from the wire to %s", async (field, mapped) => {
   for (const answer of [true, false]) {
     vi.mocked(fetch).mockResolvedValue(

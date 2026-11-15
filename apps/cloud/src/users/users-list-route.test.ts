@@ -142,6 +142,28 @@ describe("GET /users", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  it("shows since when a user receives alerts by email", async () => {
+    const locationId = await seededLocationId(db);
+    const roleId = await insertCashierRole("Encargada", ["deactivate_users"]);
+    const userId = await insertUser({
+      firstName: "Ada Lucero",
+      email: "ada@example.com",
+      roleId,
+      locationId,
+    });
+    await db
+      .update(users)
+      .set({ alertEmailOptedInAt: new Date("2026-10-01T12:00:00.000Z") })
+      .where(eq(users.id, userId));
+    const rawSessionId = await insertSession(userId);
+
+    const response = await getUsers(rawSessionId);
+
+    expect(response.json()).toMatchObject([
+      { alert_email_opted_in_at: "2026-10-01T12:00:00.000Z" },
+    ]);
+  });
+
   it("lists users for a holder of deactivate_users though not an Administrator", async () => {
     const locationId = await seededLocationId(db);
     const roleId = await insertCashierRole("Encargada", ["deactivate_users"]);
@@ -170,6 +192,8 @@ describe("GET /users", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       },
     ]);
   });
@@ -227,6 +251,8 @@ describe("GET /users", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       },
     ]);
   });
@@ -268,6 +294,8 @@ describe("GET /users", () => {
         may_deactivate: false,
         may_reactivate: true,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       },
       {
         id: administratorId,
@@ -283,6 +311,8 @@ describe("GET /users", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       },
     ]);
   });
@@ -366,6 +396,8 @@ describe("GET /users", () => {
         may_deactivate: true,
         may_reactivate: false,
         may_remove_passkey: true,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       },
       {
         id: administratorId,
@@ -381,6 +413,8 @@ describe("GET /users", () => {
         may_deactivate: false,
         may_reactivate: false,
         may_remove_passkey: false,
+        may_withdraw_alert_email_opt_in: false,
+        alert_email_opted_in_at: null,
       },
     ]);
   });

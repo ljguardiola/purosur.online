@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "alert_email_opted_in_at" timestamp with time zone;

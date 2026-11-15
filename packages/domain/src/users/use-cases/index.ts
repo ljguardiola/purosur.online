@@ -1,4 +1,10 @@
 export type { ReplenishedUser } from "../model/replenished-user.js";
+export type { AlertEmailOptInReads } from "./alert-email-opt-in-reads.js";
+export type {
+  AlertEmailOptInStore,
+  AlertEmailOptInStoreTransaction,
+  RecipientsChangedAlert,
+} from "./alert-email-opt-in-store.js";
 export type {
   BranchUser,
   BranchUserActiveScope,
@@ -41,6 +47,11 @@ export type {
 } from "./find-deactivatable-user.js";
 export { findDeactivatableUser } from "./find-deactivatable-user.js";
 export type {
+  FindOwnAlertEmailOptInInput,
+  FindOwnAlertEmailOptInPorts,
+} from "./find-own-alert-email-opt-in.js";
+export { findOwnAlertEmailOptIn } from "./find-own-alert-email-opt-in.js";
+export type {
   FindUncoveredRegisterPermissionsInput,
   FindUncoveredRegisterPermissionsPorts,
 } from "./find-uncovered-register-permissions.js";
@@ -61,6 +72,12 @@ export type {
   ReactivateUserPorts,
 } from "./reactivate-user.js";
 export { reactivateUser } from "./reactivate-user.js";
+export type {
+  RecordOwnAlertEmailOptInInput,
+  RecordOwnAlertEmailOptInOutcome,
+  RecordOwnAlertEmailOptInPorts,
+} from "./record-own-alert-email-opt-in.js";
+export { recordOwnAlertEmailOptIn } from "./record-own-alert-email-opt-in.js";
 export type { RegisterBranchUsers } from "./register-branch-users.js";
 export type {
   AssignableRole,
@@ -75,3 +92,15 @@ export type {
   UserStoreTransaction,
 } from "./user-store.js";
 export { UserEmailConflict } from "./user-store.js";
+export type {
+  WithdrawOwnAlertEmailOptInInput,
+  WithdrawOwnAlertEmailOptInOutcome,
+  WithdrawOwnAlertEmailOptInPorts,
+} from "./withdraw-own-alert-email-opt-in.js";
+export { withdrawOwnAlertEmailOptIn } from "./withdraw-own-alert-email-opt-in.js";
+export type {
+  WithdrawUserAlertEmailOptInInput,
+  WithdrawUserAlertEmailOptInOutcome,
+  WithdrawUserAlertEmailOptInPorts,
+} from "./withdraw-user-alert-email-opt-in.js";
+export { withdrawUserAlertEmailOptIn } from "./withdraw-user-alert-email-opt-in.js";

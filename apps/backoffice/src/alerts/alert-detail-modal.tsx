@@ -47,6 +47,7 @@ import {
   Laptop,
   LifeBuoy,
   Mail,
+  MailCheck,
   PackageX,
   ShieldAlert,
   ShieldPlus,
@@ -151,6 +152,8 @@ function alertIcon(kind: string): Icon {
       return <LifeBuoy />;
     case "user_email_changed":
       return <Mail />;
+    case "alert_recipients_changed":
+      return <MailCheck />;
     case "backoffice_sign_in_lockout":
       return <ShieldAlert />;
     case "user_access_increased":
@@ -586,6 +589,7 @@ function alertTitle(alert: AlertDetail): string {
       return alertKindLabel(alert.kind);
     case "refund_task":
       return "Reembolso pendiente de confirmar";
+    case "alert_recipients_changed":
     case "lots_expiring":
     case "offsite_dump_unverified":
     case "fortnight_report_pending":
@@ -659,6 +663,15 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
       return actorName === undefined
         ? ""
         : `El Administrador ${actorName} cambió el correo de ${targetName} de ${previousEmail} a ${newEmail}.`;
+    }
+    case "alert_recipients_changed": {
+      const { change, actorName } = alert.detail;
+      if (actorName === undefined) {
+        return "";
+      }
+      return change === "opted_in"
+        ? `${actorName} registró que ${targetName} recibe alertas por email.`
+        : `${actorName} registró que ${targetName} dejó de recibir alertas por email.`;
     }
     case "user_access_increased":
       return accessIncreaseDescription(alert.detail, targetName, catalog);

@@ -24,12 +24,14 @@ const administratorRow = {
   version: 1,
   role: { id: "role-admin", is_administrator: true, name: null },
   passkey_count: 2,
+  alert_email_opted_in_at: null,
   is_last_active_administrator: false,
   may_emit_pin_code: true,
   may_edit: true,
   may_deactivate: false,
   may_reactivate: false,
   may_remove_passkey: true,
+  may_withdraw_alert_email_opt_in: false,
 };
 const administrator: BranchUser = {
   id: "user-1",
@@ -38,12 +40,14 @@ const administrator: BranchUser = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 2,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const creationInput = {

@@ -40,12 +40,14 @@ const lucia: BranchUser = {
   version: 1,
   role: shiftRole,
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: true,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 function createServices(overrides: Partial<EditUserModalServices> = {}): EditUserModalServices {
@@ -168,6 +170,7 @@ function openLastAdministratorEditModal() {
     mayDeactivate: true,
     mayReactivate: false,
     mayRemovePasskey: true,
+    mayWithdrawAlertEmailOptIn: false,
   };
   return renderModal(createServices(), {}, lastAdmin);
 }

@@ -11,12 +11,14 @@ const administrator: BranchUser = {
   version: 1,
   role: { id: "00000000-0000-4000-8000-000000000001", isAdministrator: true, name: null },
   passkeyCount: 2,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: true,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: true,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 beforeEach(() => {

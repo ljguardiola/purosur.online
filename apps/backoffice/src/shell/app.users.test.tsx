@@ -19,12 +19,14 @@ const lucas = {
   version: 1,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: true,
   mayEmitPinCode: true,
   mayEdit: true,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 const sofia = {
@@ -39,12 +41,14 @@ const sofia = {
     name: "Atención de caja",
   },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: false,
   mayEdit: false,
   mayDeactivate: false,
   mayReactivate: false,
   mayRemovePasskey: false,
+  mayWithdrawAlertEmailOptIn: false,
 };
 
 function servicesListing(

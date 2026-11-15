@@ -1,9 +1,5 @@
 export { CHALLENGE_TTL_MS, challengeExpiryWindowStart } from "./model/challenge-lifetime.js";
 export {
-  hasValidPasskeyAuthorization,
-  PASSKEY_AUTHORIZATION_WINDOW_MS,
-} from "./model/passkey-authorization-window.js";
-export {
   isPasskeyNameTooLong,
   PASSKEY_NAME_MAX_LENGTH,
   passkeyNameLength,

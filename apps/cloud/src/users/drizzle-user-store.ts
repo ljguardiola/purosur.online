@@ -16,10 +16,11 @@ import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { auditLog, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
+import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 import { revokeSessions } from "../sessions/revoke-sessions.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { drizzleBranchUsers } from "./drizzle-branch-users.js";
+import { recordUserChange } from "./record-user-change.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]
@@ -38,27 +39,6 @@ function violatesUserEmailIndex(error: unknown): boolean {
   return postgresErrorChain(error).some(
     (link) => link.code === UNIQUE_VIOLATION && link.constraint === USER_EMAIL_UNIQUE_INDEX,
   );
-}
-
-function auditValues(change: UserChange): { previousValue: unknown; newValue: unknown } {
-  switch (change.kind) {
-    case "created":
-      return {
-        previousValue: null,
-        newValue: { firstName: change.firstName, email: change.email, roleId: change.roleId },
-      };
-    case "email_changed":
-      return { previousValue: { email: change.previousEmail }, newValue: { email: change.email } };
-    case "role_changed":
-      return {
-        previousValue: { roleId: change.previousRoleId },
-        newValue: { roleId: change.roleId },
-      };
-    case "deactivated":
-      return { previousValue: { active: true }, newValue: { active: false } };
-    case "reactivated":
-      return { previousValue: { active: false }, newValue: { active: true } };
-  }
 }
 
 class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
@@ -219,13 +199,7 @@ class DrizzleUserStoreTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async recordUserChange(userId: string, actorId: string, change: UserChange): Promise<void> {
-    await this.tx.insert(auditLog).values({
-      entity: "user",
-      entityId: userId,
-      actorId,
-      ...auditValues(change),
-      at: this.now(),
-    });
+    await recordUserChange(this.tx, this.now(), userId, actorId, change);
   }
 
   async openUserAlert(alert: UserAlert): Promise<void> {
