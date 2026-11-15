@@ -5,6 +5,7 @@ const ALERT_KIND_LABELS = {
   backoffice_passkey_changed: "Passkey",
   backoffice_recovery_requested: "Recuperación de acceso",
   user_email_changed: "Correo",
+  alert_recipients_changed: "Cambió quién recibe alertas por email",
   backoffice_sign_in_lockout: "Bloqueo de ingreso",
   user_access_increased: "Acceso ampliado",
   register_enrolled: "Cambio de instalación de caja",
