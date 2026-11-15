@@ -2,12 +2,12 @@ import { Radio as AriaRadio, RadioGroup as AriaRadioGroup } from "react-aria-com
 import { Tag } from "../data-display/tag";
 import { iconSlotClassName } from "../shared/icon";
 import { ReservedWidthLabel } from "../shared/reserved-width-label";
-import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
+import { isOptionValue, type NarrowedOption, type OptionalOptionChoiceProps } from "./option";
 
 export type SegmentedControlSize = "large" | "medium";
 type SegmentedControlVariant = "outlined" | "field";
 
-export type SegmentedControlProps<V extends string> = OptionChoiceProps<
+export type SegmentedControlProps<V extends string> = OptionalOptionChoiceProps<
   V,
   NarrowedOption<V, never, "icon" | "status">
 > & {
