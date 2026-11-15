@@ -19,7 +19,7 @@ export const PROVIDER_MESSAGE_ID = "4ef9a417-02e9-4d39-ad75-9611e0fcc33c";
 
 export class FakeAlertEmailStatusQuery implements AlertEmailStatusQuery {
   readonly queried: string[] = [];
-  answer: QueriedAlertEmailStatus = { kind: "in_transit" };
+  answer: QueriedAlertEmailStatus = { kind: "answered", status: "sent", alertDeliveryId: null };
 
   async queriedAlertEmailStatus(providerMessageId: string): Promise<QueriedAlertEmailStatus> {
     this.queried.push(providerMessageId);
@@ -62,6 +62,7 @@ export interface AlertEmailDeliveryNotificationRouteUnderTest {
     webhookSecret?: string | undefined;
   }): Promise<void>;
   sentDelivery(): Promise<string>;
+  pendingDelivery(): Promise<string>;
   deliveryOf(deliveryId: string): Promise<{ status: string; error: string | null }>;
   notify(request: {
     rawBody: string;
@@ -90,6 +91,49 @@ export function alertEmailDeliveryNotificationRouteUnderTest(): AlertEmailDelive
       ...(configuration.statusQuery ? { statusQuery: configuration.statusQuery } : {}),
       ...(configuration.webhookSecret ? { webhookSecret: configuration.webhookSecret } : {}),
     });
+  }
+
+  async function insertDelivery(
+    delivery: Pick<
+      typeof alertEmailDeliveries.$inferInsert,
+      "status" | "sentAt" | "providerMessageId"
+    >,
+  ): Promise<string> {
+    const { db } = testDatabase;
+    const [recipient] = await db
+      .insert(users)
+      .values({
+        firstName: "Ada",
+        email: "ada@example.com",
+        locationId: await seededLocationId(db),
+      })
+      .returning({ id: users.id });
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "backoffice_passkey_changed",
+        scope: "user-1",
+        level: "warning",
+        audience: "all",
+        detail: {},
+        openedAt: SIGNED_AT,
+      })
+      .returning({ id: alerts.id });
+    const [inserted] = await db
+      .insert(alertEmailDeliveries)
+      .values({
+        alertId: alert?.id ?? "",
+        recipientUserId: recipient?.id ?? "",
+        stage: "opened",
+        level: "warning",
+        occurredAt: SIGNED_AT,
+        ...delivery,
+      })
+      .returning({ id: alertEmailDeliveries.id });
+    if (!inserted) {
+      throw new Error("test setup: inserting the delivery returned no row");
+    }
+    return inserted.id;
   }
 
   beforeAll(async () => {
@@ -122,44 +166,15 @@ export function alertEmailDeliveryNotificationRouteUnderTest(): AlertEmailDelive
       return report;
     },
     serveWith: serve,
-    async sentDelivery() {
-      const { db } = testDatabase;
-      const [recipient] = await db
-        .insert(users)
-        .values({
-          firstName: "Ada",
-          email: "ada@example.com",
-          locationId: await seededLocationId(db),
-        })
-        .returning({ id: users.id });
-      const [alert] = await db
-        .insert(alerts)
-        .values({
-          kind: "backoffice_passkey_changed",
-          scope: "user-1",
-          level: "warning",
-          audience: "all",
-          detail: {},
-          openedAt: SIGNED_AT,
-        })
-        .returning({ id: alerts.id });
-      const [delivery] = await db
-        .insert(alertEmailDeliveries)
-        .values({
-          alertId: alert?.id ?? "",
-          recipientUserId: recipient?.id ?? "",
-          stage: "opened",
-          level: "warning",
-          occurredAt: SIGNED_AT,
-          status: "sent",
-          sentAt: SIGNED_AT,
-          providerMessageId: PROVIDER_MESSAGE_ID,
-        })
-        .returning({ id: alertEmailDeliveries.id });
-      if (!delivery) {
-        throw new Error("test setup: inserting the delivery returned no row");
-      }
-      return delivery.id;
+    sentDelivery() {
+      return insertDelivery({
+        status: "sent",
+        sentAt: SIGNED_AT,
+        providerMessageId: PROVIDER_MESSAGE_ID,
+      });
+    },
+    pendingDelivery() {
+      return insertDelivery({ status: "pending" });
     },
     async deliveryOf(deliveryId) {
       const [row] = await testDatabase.db

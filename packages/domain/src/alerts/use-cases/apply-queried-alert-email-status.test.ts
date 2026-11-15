@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { QueriedAlertEmailStatus } from "./alert-email-status-ports.js";
 import { applyQueriedAlertEmailStatus } from "./apply-queried-alert-email-status.js";
 import {
   FakeAlertEmailStatusQuery,
@@ -16,36 +15,63 @@ function setup() {
 }
 
 describe("applyQueriedAlertEmailStatus", () => {
-  it("acknowledges an email that is not a sent alert email without asking the provider about it", async () => {
+  it("acknowledges an email the provider holds as no alert email's and no delivery sent", async () => {
     const { store, statusQuery, apply } = setup();
+    statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId: null };
 
     await expect(apply("someone-elses-email")).resolves.toEqual({ kind: "not_an_alert_email" });
 
-    expect(statusQuery.queried).toEqual([]);
+    expect(statusQuery.queried).toEqual(["someone-elses-email"]);
     expect(store.undelivered).toEqual([]);
   });
 
-  it("marks the delivery undelivered when the provider says it could not deliver it", async () => {
+  it("asks to be told again later about an alert email whose sending is not yet recorded", async () => {
     const { store, statusQuery, apply } = setup();
-    statusQuery.answer = { kind: "undelivered" };
+    store.seedPending("delivery-2");
+    statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId: "delivery-2" };
 
-    await expect(apply("email-1")).resolves.toEqual({
-      kind: "marked_undelivered",
-      deliveryId: "delivery-1",
-    });
+    await expect(apply("email-2")).resolves.toEqual({ kind: "send_not_yet_recorded" });
 
-    expect(statusQuery.queried).toEqual(["email-1"]);
-    expect(store.undelivered).toEqual(["delivery-1"]);
+    expect(store.undelivered).toEqual([]);
+  });
+
+  it("acknowledges an alert email whose delivery is no longer sent with that email", async () => {
+    const { store, statusQuery, apply } = setup();
+    statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId: "delivery-2" };
+
+    await expect(apply("email-2")).resolves.toEqual({ kind: "not_a_sent_alert_email" });
+
+    expect(store.undelivered).toEqual([]);
   });
 
   it.each([
-    ["delivered", { kind: "delivered" }],
-    ["in_transit", { kind: "in_transit" }],
-  ] as [string, QueriedAlertEmailStatus][])(
-    "names a %s answer and leaves the delivery as it is",
-    async (kind, answer) => {
+    ["the provider holds it as the delivery's", "delivery-1"],
+    ["the provider holds it as no delivery's", null],
+  ])(
+    "marks the sent delivery undelivered when the provider says it could not deliver it and %s",
+    async (_case, alertDeliveryId) => {
       const { store, statusQuery, apply } = setup();
-      statusQuery.answer = answer;
+      statusQuery.answer = { kind: "answered", status: "bounced", alertDeliveryId };
+
+      await expect(apply("email-1")).resolves.toEqual({
+        kind: "marked_undelivered",
+        deliveryId: "delivery-1",
+      });
+
+      expect(statusQuery.queried).toEqual(["email-1"]);
+      expect(store.undelivered).toEqual(["delivery-1"]);
+    },
+  );
+
+  it.each([
+    ["opened", "delivered"],
+    ["delivery_delayed", "unchanged"],
+    ["a_future_status", "unchanged"],
+  ])(
+    "names the provider's %s answer as %s and leaves the delivery as it is",
+    async (status, kind) => {
+      const { store, statusQuery, apply } = setup();
+      statusQuery.answer = { kind: "answered", status, alertDeliveryId: "delivery-1" };
 
       await expect(apply("email-1")).resolves.toEqual({ kind });
 

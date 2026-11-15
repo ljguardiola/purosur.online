@@ -64,6 +64,7 @@ describe("cloudErrorStatus", () => {
     ["payment_provider_refused", 502],
     ["alert_email_provider_not_configured", 503],
     ["alert_email_provider_unavailable", 503],
+    ["alert_email_send_not_yet_recorded", 503],
     ["update_feed_unavailable", 503],
     ["snapshot_backups_unavailable", 503],
   ] as const)("answers %s with HTTP %i", (code, status) => {
@@ -83,6 +84,7 @@ describe("isRetryableCloudError", () => {
     ["update_feed_unavailable", true],
     ["snapshot_backups_unavailable", true],
     ["alert_email_provider_unavailable", true],
+    ["alert_email_send_not_yet_recorded", true],
     ["alert_email_provider_not_configured", false],
     ["payment_provider_not_configured", false],
     ["payment_provider_refused", false],

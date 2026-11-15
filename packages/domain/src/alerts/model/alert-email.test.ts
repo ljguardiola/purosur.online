@@ -3,6 +3,7 @@ import {
   ALERT_EMAIL_FAILURE_REASONS,
   ALERT_EMAIL_SEND_ATTEMPTS,
   alertEmailBranchName,
+  alertEmailProviderStatusMeaning,
   isAlertEmailDue,
   isAlertEmailFailureReason,
   isAlertEmailRecipient,
@@ -204,5 +205,33 @@ describe("the reasons an alert email could not be sent", () => {
 
   it.each(["", "mailbox full", "Provider_refused"])("recognizes %j as none of them", (text) => {
     expect(isAlertEmailFailureReason(text)).toBe(false);
+  });
+});
+
+describe("alertEmailProviderStatusMeaning", () => {
+  it.each(["bounced", "failed", "suppressed", "canceled"])(
+    "tells that an email the provider answers is %s was not delivered",
+    (status) => {
+      expect(alertEmailProviderStatusMeaning(status)).toBe("undelivered");
+    },
+  );
+
+  it.each(["delivered", "opened", "clicked", "complained"])(
+    "tells that an email the provider answers is %s was delivered",
+    (status) => {
+      expect(alertEmailProviderStatusMeaning(status)).toBe("delivered");
+    },
+  );
+
+  it.each([
+    "sent",
+    "queued",
+    "scheduled",
+    "delivery_delayed",
+    "a_future_status",
+    "",
+    "constructor",
+  ])("tells that the provider answering %j changes nothing", (status) => {
+    expect(alertEmailProviderStatusMeaning(status)).toBe("unchanged");
   });
 });

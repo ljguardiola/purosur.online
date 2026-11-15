@@ -24,8 +24,8 @@ describe("createResendAlertEmailStatusQuery", () => {
     expect(init.headers).toMatchObject({ Authorization: "Bearer re_test_key" });
   });
 
-  it.each(["bounced", "failed", "suppressed", "canceled"])(
-    "answers undelivered for an email whose last event is %s",
+  it.each(["bounced", "delivered", "delivery_delayed", "a_future_event"])(
+    "hands over the last event %s the provider answers for the email",
     async (lastEvent) => {
       const fetch = fakeFetch({
         ok: true,
@@ -34,40 +34,52 @@ describe("createResendAlertEmailStatusQuery", () => {
       });
 
       await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
-        kind: "undelivered",
+        kind: "answered",
+        status: lastEvent,
+        alertDeliveryId: null,
       });
     },
   );
 
-  it.each(["delivered", "opened", "clicked", "complained"])(
-    "answers delivered for an email whose last event is %s",
-    async (lastEvent) => {
-      const fetch = fakeFetch({
-        ok: true,
-        status: 200,
-        body: JSON.stringify({ last_event: lastEvent }),
-      });
+  it("hands over the alert delivery the provider holds the email as sent for", async () => {
+    const fetch = fakeFetch({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({
+        last_event: "bounced",
+        tags: [
+          { name: "category", value: "alert" },
+          { name: "alert_email_delivery", value: "delivery-1" },
+        ],
+      }),
+    });
 
-      await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
-        kind: "delivered",
-      });
-    },
-  );
+    await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
+      kind: "answered",
+      status: "bounced",
+      alertDeliveryId: "delivery-1",
+    });
+  });
 
-  it.each(["sent", "queued", "scheduled", "delivery_delayed", "a_future_event"])(
-    "answers in transit for an email whose last event is %s",
-    async (lastEvent) => {
-      const fetch = fakeFetch({
-        ok: true,
-        status: 200,
-        body: JSON.stringify({ last_event: lastEvent }),
-      });
+  it.each([
+    ["no tags", null],
+    ["tags that are not a list", { alert_email_delivery: "delivery-1" }],
+    ["no alert delivery tag", [{ name: "category", value: "alert" }]],
+    ["an alert delivery tag whose value is not text", [{ name: "alert_email_delivery", value: 7 }]],
+    ["a tag that is not an object", ["alert_email_delivery"]],
+  ])("answers the email is of no alert delivery when it carries %s", async (_case, tags) => {
+    const fetch = fakeFetch({
+      ok: true,
+      status: 200,
+      body: JSON.stringify({ last_event: "bounced", tags }),
+    });
 
-      await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
-        kind: "in_transit",
-      });
-    },
-  );
+    await expect(queryWith(fetch).queriedAlertEmailStatus("msg-1")).resolves.toEqual({
+      kind: "answered",
+      status: "bounced",
+      alertDeliveryId: null,
+    });
+  });
 
   it.each([
     ["the Resend API refuses the request", { ok: false, status: 404, body: "not found" }],

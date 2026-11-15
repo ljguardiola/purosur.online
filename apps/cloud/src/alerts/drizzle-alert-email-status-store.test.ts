@@ -117,6 +117,37 @@ describe("DrizzleAlertEmailStatusStore sentAlertEmailOfProviderMessage", () => {
   );
 });
 
+describe("DrizzleAlertEmailStatusStore isAlertEmailDeliveryPending", () => {
+  it("tells a delivery still to be sent is pending", async () => {
+    const deliveryId = await insertDelivery({ status: "pending", providerMessageId: null });
+
+    await expect(
+      new DrizzleAlertEmailStatusStore(db).isAlertEmailDeliveryPending(deliveryId),
+    ).resolves.toBe(true);
+  });
+
+  it.each(["sent", "failed", "skipped"] as const)(
+    "tells a delivery that is %s is not pending",
+    async (status) => {
+      const deliveryId = await insertDelivery({ status });
+
+      await expect(
+        new DrizzleAlertEmailStatusStore(db).isAlertEmailDeliveryPending(deliveryId),
+      ).resolves.toBe(false);
+    },
+  );
+
+  it("tells a delivery that does not exist is not pending", async () => {
+    await insertDelivery({ status: "pending" });
+
+    await expect(
+      new DrizzleAlertEmailStatusStore(db).isAlertEmailDeliveryPending(
+        "00000000-0000-4000-8000-000000000000",
+      ),
+    ).resolves.toBe(false);
+  });
+});
+
 describe("DrizzleAlertEmailStatusStore recordEmailUndelivered", () => {
   it("fails the sent delivery with the reason that the provider could not deliver it", async () => {
     const deliveryId = await insertDelivery();
