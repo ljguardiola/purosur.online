@@ -1,6 +1,6 @@
 import type { Clock } from "../../shared/index.js";
-import { alertSightKindOf } from "../model/alert-sight-kind.js";
 import { grantedPermissionKeys, increasesAccess } from "../model/access-increase.js";
+import { alertSightKindOf } from "../model/alert-sight-kind.js";
 import { heldPermissionKeys } from "../model/holds-permission.js";
 import {
   type EditableRoleDetail,
