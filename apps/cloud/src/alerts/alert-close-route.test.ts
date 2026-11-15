@@ -306,6 +306,38 @@ describe("PUT /alerts/:id/closure", () => {
     });
   });
 
+  it("answers the emails of the alert, the one of its closing among them, for the recipients who opted in", async () => {
+    const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
+    const userId = await insertUserWithRole("Grace", roleId);
+    await db.update(users).set({ alertEmailOptedInAt: NOON }).where(eq(users.id, userId));
+    const rawSessionId = await insertSession(userId);
+    const opened = await db.transaction((tx) =>
+      openAlert(
+        tx,
+        {
+          kind: "alert_recipients_changed",
+          scope: userId,
+          detail: { change: "opted_in", actorId: userId },
+        },
+        { now: () => NOON },
+      ),
+    );
+    if (opened.kind !== "opened") throw new Error("test setup: opening the alert failed");
+
+    const response = await closeAlertRequest(rawSessionId, opened.alertId);
+
+    expect(response.statusCode).toBe(200);
+    const { emailDeliveries } = response.json() as {
+      emailDeliveries: { stage: string; status: string; recipient: { id: string } }[];
+    };
+    expect(
+      emailDeliveries.map(({ stage, status, recipient }) => [stage, status, recipient.id]),
+    ).toEqual([
+      ["opened", "pending", userId],
+      ["resolved", "pending", userId],
+    ]);
+  });
+
   it("answers a closed alert of lots nearing expiry of another branch as about another branch", async () => {
     const roleId = await insertRole("closer", ["dismiss_alerts_manually", "view_all_alerts"]);
     const userId = await insertUserWithRole("Grace", roleId);
