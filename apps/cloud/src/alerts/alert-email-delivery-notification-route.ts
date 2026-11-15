@@ -5,8 +5,8 @@ import {
 } from "@purosur/domain/alerts/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { ReportedNotifications } from "../payments/reported-notifications.js";
 import { reportError } from "../platform/error-reporting.js";
+import { ReportedNotifications } from "../platform/reported-notifications.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleAlertEmailStatusStore } from "./drizzle-alert-email-status-store.js";
 import { verifyResendWebhookSignature } from "./resend-webhook-signature.js";
