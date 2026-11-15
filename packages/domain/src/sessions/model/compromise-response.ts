@@ -21,6 +21,7 @@ export const EXTERNAL_SECRET_ITEMS = [
   "mercado_pago_webhook_secret",
   "claude_api_key",
   "resend_api_key",
+  "resend_webhook_secret",
   "postgres_credentials",
   "ci_deployment_credentials",
   "storage_bucket_credentials",
