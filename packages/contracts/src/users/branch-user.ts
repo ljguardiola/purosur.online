@@ -19,6 +19,7 @@ export const branchUserSchema = z.object({
   may_deactivate: z.boolean(),
   may_reactivate: z.boolean(),
   may_remove_passkey: z.boolean(),
+  may_withdraw_alert_email_opt_in: z.boolean(),
   alert_email_opted_in_at: z.iso.datetime().nullable().meta({ timeZone: ARGENTINA_TIME_ZONE }),
 });
 

@@ -86,16 +86,8 @@ export function registerAlertEmailOptInRoutes<TQueryResult extends PgQueryResult
         await reply.code(404).send(USER_NOT_FOUND_RESPONSE);
         return;
       }
-      if (outcome.kind === "recorded") {
-        await reply.code(200).send(toWire(outcome.optedInAt));
-        return;
-      }
 
-      const stored = await findOwnAlertEmailOptIn(
-        { reads: drizzleAlertEmailOptInReads(options.db) },
-        { userId: openSession.userId, locationId: openSession.locationId },
-      );
-      await reply.code(200).send(toWire(stored?.optedInAt ?? null));
+      await reply.code(200).send(toWire(outcome.optedInAt));
     },
   );
 

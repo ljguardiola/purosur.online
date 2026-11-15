@@ -15,7 +15,7 @@ export interface RecordOwnAlertEmailOptInInput {
 export type RecordOwnAlertEmailOptInOutcome =
   | { kind: "authorization_required" }
   | { kind: "not_found" }
-  | { kind: "already_recorded" }
+  | { kind: "already_recorded"; optedInAt: Date }
   | { kind: "recorded"; optedInAt: Date };
 
 export function recordOwnAlertEmailOptIn(
@@ -31,7 +31,7 @@ export function recordOwnAlertEmailOptIn(
       return { kind: "not_found" };
     }
     if (current.optedInAt) {
-      return { kind: "already_recorded" };
+      return { kind: "already_recorded", optedInAt: current.optedInAt };
     }
     await tx.recordOptIn(input.userId, input.at);
     await tx.recordUserChange(input.userId, input.userId, {

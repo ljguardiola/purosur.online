@@ -74,7 +74,6 @@ export function OwnAlertEmailOptInSection({
   return (
     <>
       <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
-        <h2 className="text-subheading text-text-accent">Alertas por email</h2>
         {data.status === "loading" && <LoadingPlaceholder variant="card" lines={2} />}
         {data.status === "failed" && (
           <LoadFailure {...cloudLoadFailure(data, "tus alertas por email")} />
@@ -93,29 +92,29 @@ export function OwnAlertEmailOptInSection({
             description={retryAfterDetail(refusal.retryAfterSeconds)}
           />
         )}
-        <div>
-          {receives ? (
-            <Button
-              variant="secondary"
-              icon={<MailX />}
-              dataStatus={data.status}
-              disabled={submitting}
-              onPress={() => void change(withdrawing, withdrawOwnAlertEmailOptIn)}
-            >
-              Dejar de recibir alertas por email
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              icon={<Mail />}
-              dataStatus={data.status}
-              disabled={submitting}
-              onPress={() => void change(recording, recordOwnAlertEmailOptIn)}
-            >
-              Recibir alertas por email
-            </Button>
-          )}
-        </div>
+        {data.status === "loaded" && (
+          <div>
+            {receives ? (
+              <Button
+                variant="secondary"
+                icon={<MailX />}
+                disabled={submitting}
+                onPress={() => void change(withdrawing, withdrawOwnAlertEmailOptIn)}
+              >
+                Dejar de recibir alertas por email
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                icon={<Mail />}
+                disabled={submitting}
+                onPress={() => void change(recording, recordOwnAlertEmailOptIn)}
+              >
+                Recibir alertas por email
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       {recording.modal}
       {withdrawing.modal}

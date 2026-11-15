@@ -211,10 +211,7 @@ function UserPanelView({
                       ) : null}
                     </div>
                   ) : null}
-                  {user &&
-                  canManageUsers(access) &&
-                  !isOwnAccount &&
-                  user.alertEmailOptedInAt !== null ? (
+                  {user?.mayWithdrawAlertEmailOptIn === true ? (
                     <div>
                       <Button
                         variant="secondary"

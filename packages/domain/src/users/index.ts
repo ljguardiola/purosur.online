@@ -6,4 +6,5 @@ export {
   mayReactivateUser,
   mayRemovePasskeyOf,
   mayRemoveUserPasskey,
+  mayWithdrawUserAlertEmailOptIn,
 } from "./model/user-management.js";

@@ -31,6 +31,7 @@ export function branchUserFromWire(row: BranchUserWire) {
     mayDeactivate: row.may_deactivate,
     mayReactivate: row.may_reactivate,
     mayRemovePasskey: row.may_remove_passkey,
+    mayWithdrawAlertEmailOptIn: row.may_withdraw_alert_email_opt_in,
   };
 }
 

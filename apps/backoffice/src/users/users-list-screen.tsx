@@ -466,7 +466,7 @@ function UsersListView({
     }),
     dataColumn({
       id: "alertEmail",
-      header: "Alertas por email",
+      header: "Notificaciones",
       render: (item: BranchUser) => alertEmailOptInText(item.alertEmailOptedInAt),
     }),
   ] as const;

@@ -1,4 +1,5 @@
 import { hasValidPasskeyAuthorization } from "../../shared/index.js";
+import { mayWithdrawAlertEmailOptInOf } from "../model/user-management.js";
 import type { AlertEmailOptInStore } from "./alert-email-opt-in-store.js";
 import { withdrawAlertEmailOptIn } from "./alert-email-opt-in-withdrawal.js";
 
@@ -28,7 +29,7 @@ export async function withdrawUserAlertEmailOptIn(
   if (!hasValidPasskeyAuthorization({ passkeyAuthorizedAt: input.passkeyAuthorizedAt }, input.at)) {
     return { kind: "authorization_required" };
   }
-  if (input.targetUserId === input.administratorId) {
+  if (!mayWithdrawAlertEmailOptInOf(input.administratorId, { id: input.targetUserId })) {
     return { kind: "own_account" };
   }
   const outcome = await withdrawAlertEmailOptIn(store, {

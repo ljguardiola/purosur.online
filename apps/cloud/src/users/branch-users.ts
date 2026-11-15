@@ -6,6 +6,7 @@ import {
   mayEmitPinCode,
   mayReactivateUser,
   mayRemoveUserPasskey,
+  mayWithdrawUserAlertEmailOptIn,
 } from "@purosur/domain";
 import type { BranchUser } from "@purosur/domain/users/use-cases";
 import type { OpenSession } from "../sessions/open-session.js";
@@ -26,7 +27,12 @@ export function toBranchUserWire(
     isAdministrator: session.isAdministrator,
     permissionKeys: session.permissionKeys,
   };
-  const target = { id: row.id, isAdministrator: row.roleIsAdministrator, active: row.active };
+  const target = {
+    id: row.id,
+    isAdministrator: row.roleIsAdministrator,
+    active: row.active,
+    alertEmailOptedInAt: row.alertEmailOptedInAt,
+  };
   return branchUserSchema.parse({
     id: row.id,
     first_name: row.firstName,
@@ -41,6 +47,7 @@ export function toBranchUserWire(
     may_deactivate: mayDeactivateUser(actor, target),
     may_reactivate: mayReactivateUser(actor, target),
     may_remove_passkey: mayRemoveUserPasskey(actor, target),
+    may_withdraw_alert_email_opt_in: mayWithdrawUserAlertEmailOptIn(actor, target),
     alert_email_opted_in_at: row.alertEmailOptedInAt?.toISOString() ?? null,
   });
 }

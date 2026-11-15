@@ -1198,4 +1198,5 @@ export {
   mayEditUser,
   mayReactivateUser,
   mayRemoveUserPasskey,
+  mayWithdrawUserAlertEmailOptIn,
 } from "./users/index.js";
