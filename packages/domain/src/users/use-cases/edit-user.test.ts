@@ -34,6 +34,12 @@ function fixture({ target = { id: "u-1", version: 3 }, others = [] }: Seed = {})
     permissionKeys: ["view_branch_alerts"],
   });
   store.seedRole({
+    id: "role-cashier-with-branch-alerts",
+    name: "Cajero con alertas",
+    isAdministrator: false,
+    permissionKeys: ["sell_and_charge", "view_branch_alerts"],
+  });
+  store.seedRole({
     id: "role-all-alerts",
     name: "Auditor",
     isAdministrator: false,
@@ -331,7 +337,7 @@ describe("editUser", () => {
 
     it("alerts only that the recipient set changed when the role grants no more access", async () => {
       const { store, edit } = fixture({
-        target: { id: "u-1", roleId: "role-branch-alerts", version: 3 },
+        target: { id: "u-1", roleId: "role-cashier-with-branch-alerts", version: 3 },
       });
 
       await edit({ roleId: "role-cashier" });
