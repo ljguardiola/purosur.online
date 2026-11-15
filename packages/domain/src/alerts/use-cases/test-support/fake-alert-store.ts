@@ -26,7 +26,7 @@ export interface FakeAlert extends Omit<NewAlert, "detail"> {
   detail: Record<string, unknown>;
 }
 
-export interface FakeAlertViewer extends AlertRecipientCandidate {
+interface FakeAlertViewer extends AlertRecipientCandidate {
   active: boolean;
 }
 
@@ -35,7 +35,7 @@ interface FakeAlertDelivery {
   recipientUserId: string;
 }
 
-export interface FakeAlertEmailDelivery {
+interface FakeAlertEmailDelivery {
   alertId: string;
   recipientUserId: string;
   stage: AlertEmailStage;
