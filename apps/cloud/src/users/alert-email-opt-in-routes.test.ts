@@ -61,11 +61,14 @@ async function roleId(administrator: boolean): Promise<string> {
   const [role] = await db
     .insert(roles)
     .values({ name: "Cajera", isAdministrator: false })
+    .onConflictDoNothing()
     .returning({ id: roles.id });
-  if (!role) {
+  const found =
+    role ?? (await db.select({ id: roles.id }).from(roles).where(eq(roles.name, "Cajera")))[0];
+  if (!found) {
     throw new Error("test setup: seeding the role returned no row");
   }
-  return role.id;
+  return found.id;
 }
 
 async function insertUser(

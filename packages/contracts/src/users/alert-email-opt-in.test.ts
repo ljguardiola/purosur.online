@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { alertEmailOptInSchema } from "./alert-email-opt-in.js";
 
@@ -11,6 +12,12 @@ describe("alertEmailOptInSchema", () => {
   it("accepts no moment for a user who does not receive them", () => {
     expect(alertEmailOptInSchema.safeParse({ opted_in_at: null }).data).toEqual({
       opted_in_at: null,
+    });
+  });
+
+  it("shows the moment in Argentina's time zone", () => {
+    expect(alertEmailOptInSchema.shape.opted_in_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
     });
   });
 

@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { branchUserListSchema, branchUserSchema } from "./branch-user.js";
 
@@ -40,6 +41,12 @@ describe("branchUserSchema", () => {
     });
     expect(branchUserSchema.safeParse(withoutActive).data).toEqual(withoutActive);
     expect(branchUserSchema.safeParse(administrator).data).toEqual(administrator);
+  });
+
+  it("shows the moment of the opt-in in Argentina's time zone", () => {
+    expect(branchUserSchema.shape.alert_email_opted_in_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("keeps the active flag absent instead of filling it in", () => {
