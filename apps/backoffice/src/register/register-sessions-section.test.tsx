@@ -23,11 +23,16 @@ function renderSection(
   {
     period = NO_PERIOD,
     onPeriodChange = () => {},
-  }: { period?: ReportPeriodFilters; onPeriodChange?: (period: ReportPeriodFilters) => void } = {},
+    width,
+  }: {
+    period?: ReportPeriodFilters;
+    onPeriodChange?: (period: ReportPeriodFilters) => void;
+    width?: number;
+  } = {},
 ) {
   const services: RegisterSessionsSectionServices = { fetchCashSessionCloses: read };
   return render(
-    <main>
+    <main style={width === undefined ? undefined : { width: `${width}px` }}>
       <ControlledSection
         initialPeriod={period}
         onPeriodChange={onPeriodChange}
@@ -174,4 +179,28 @@ test("has no accessibility violations once loaded", async () => {
   await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+function paintedLineCount(element: Element): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size;
+}
+
+const REGISTER_PANEL_WIDTH = 325;
+
+test("keeps each amount on one line in a container as narrow as the register panel", async () => {
+  const { screen } = await renderSection(undefined, undefined, { width: REGISTER_PANEL_WIDTH });
+
+  await expect.element(screen.getByRole("columnheader", { name: "Esperado" })).toBeVisible();
+  const table = screen.getByRole("table");
+  await expect.poll(() => table.getByRole("row").all().length).toBeGreaterThan(1);
+  const amounts = table
+    .getByRole("cell")
+    .elements()
+    .filter((cell) => /\$/.test(cell.textContent ?? ""));
+  expect(amounts.length).toBeGreaterThan(0);
+  expect(amounts.map((cell) => [cell.textContent, paintedLineCount(cell)])).toEqual(
+    amounts.map((cell) => [cell.textContent, 1]),
+  );
 });
