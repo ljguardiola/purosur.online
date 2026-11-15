@@ -57,9 +57,9 @@ describe("postResendEmail", () => {
   it("gives up on a request that never answers after ten seconds", async () => {
     vi.useFakeTimers();
     const fetch = vi.fn(
-      (_url: string, init: RequestInit) =>
+      (_url: string | URL | Request, init?: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
-          init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
         }),
     );
     const rejection = expect(
