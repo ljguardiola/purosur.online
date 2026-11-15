@@ -117,6 +117,7 @@ class FakeUserStoreTransaction implements UserStoreTransaction {
       roleName: null,
       roleIsAdministrator: false,
       passkeyCount: 0,
+      alertEmailOptedInAt: null,
     });
     return created;
   }
