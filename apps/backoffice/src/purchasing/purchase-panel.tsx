@@ -104,11 +104,11 @@ function LineFacts({ line }: { line: PurchaseLine }) {
       : [{ label: "Vencimiento", value: formatDisplayDate(line.expiresOn) }]),
   ];
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2">
+    <dl className="flex flex-wrap gap-x-6 gap-y-2">
       {facts.map(({ label, value }) => (
-        <div key={label}>
+        <div key={label} className="flex-1 basis-36">
           <dt className="text-detail text-text-subtle">{label}</dt>
-          <dd>{value}</dd>
+          <dd className="whitespace-nowrap">{value}</dd>
         </div>
       ))}
     </dl>

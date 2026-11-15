@@ -138,7 +138,7 @@ test.each([
     const screen = await render(
       inside(320, <LotsTable columns={wideColumns} variant="nested" items={[]} failed={failed} />),
     );
-    const title = screen.getByText(message).element();
+    const title = screen.getByText(message).first().element();
     const container = screen.container.firstElementChild as HTMLElement;
     const origin = screen.getByRole("columnheader", { name: "Origen" }).element();
 

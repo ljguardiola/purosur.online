@@ -23,6 +23,18 @@ const CELL_INNER_PADDING_PX = 6;
 
 // table-fixed reads a column's width from its <col>, ahead of any group header row, and the cell's
 // padding shares that width, so it has to be added on top of the content width here.
+export function columnWidthPx(
+  contentWidth: number,
+  first: boolean,
+  last: boolean,
+  variant: TableVariant,
+): number {
+  const edgePadding = variant === "nested" ? 0 : CELL_EDGE_PADDING_PX;
+  const leftPadding = first ? edgePadding : CELL_INNER_PADDING_PX;
+  const rightPadding = last ? edgePadding : CELL_INNER_PADDING_PX;
+  return contentWidth + leftPadding + rightPadding;
+}
+
 export function headerColumnWidthStyle(
   contentWidth: number | undefined,
   first: boolean,
@@ -32,10 +44,7 @@ export function headerColumnWidthStyle(
   if (contentWidth === undefined) {
     return undefined;
   }
-  const edgePadding = variant === "nested" ? 0 : CELL_EDGE_PADDING_PX;
-  const leftPadding = first ? edgePadding : CELL_INNER_PADDING_PX;
-  const rightPadding = last ? edgePadding : CELL_INNER_PADDING_PX;
-  return { width: `${contentWidth + leftPadding + rightPadding}px` };
+  return { width: `${columnWidthPx(contentWidth, first, last, variant)}px` };
 }
 
 export function actionsContentWidth(actionCount: 1 | 2 | 3 | 4 | 5 | 6): number {

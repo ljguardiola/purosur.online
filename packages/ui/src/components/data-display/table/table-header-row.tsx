@@ -1,6 +1,6 @@
 import type { RowData } from "@tanstack/react-table";
 import { Lock } from "lucide-react";
-import { actionsContentWidth, headerColumnWidthStyle } from "./table-actions";
+import { actionsContentWidth, columnWidthPx, headerColumnWidthStyle } from "./table-actions";
 import { columnActionCount, columnAlign, columnTitle, type TableColumnOf } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
@@ -51,6 +51,24 @@ function leafColumnWidthStyle<T extends RowData>(
     last,
     variant,
   );
+}
+
+const FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX = 96;
+
+// Below this width a table scrolls sideways instead of crushing a column it gave no width.
+export function tableMinWidthPx<T extends RowData>(
+  table: TableModel<T>,
+  variant: TableVariant,
+): number {
+  const columns = table.getAllLeafColumns();
+  return columns.reduce((total, column, index) => {
+    const actionCount = columnActionCount(column);
+    const contentWidth =
+      actionCount === undefined
+        ? (column.columnDef.meta?.width ?? FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX)
+        : actionsContentWidth(actionCount);
+    return total + columnWidthPx(contentWidth, index === 0, index === columns.length - 1, variant);
+  }, 0);
 }
 
 export function TableColumnWidths<T extends RowData>({

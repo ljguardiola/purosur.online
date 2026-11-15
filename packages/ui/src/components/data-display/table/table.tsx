@@ -1,10 +1,11 @@
 import type { RowData } from "@tanstack/react-table";
-import { Fragment, type ReactElement } from "react";
+import { Fragment, type ReactElement, useId } from "react";
 import { EmptyState } from "../../feedback/empty-state";
 import { LoadFailure } from "../../feedback/load-failure";
+import { useKeyboardScrollableRegion } from "../../shared/keyboard-scrollable-region";
 import { KeyLegend } from "../key-legend";
 import { TableCell } from "./table-cell";
-import { TableColumnWidths, TableHeaderRows } from "./table-header-row";
+import { TableColumnWidths, TableHeaderRows, tableMinWidthPx } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
 import {
   pressableRowClassName,
@@ -55,6 +56,8 @@ export function Table<T extends RowData>({
   locked,
   inactive = false,
 }: TableProps<T>): ReactElement {
+  const tableId = useId();
+  const scrollRegion = useKeyboardScrollableRegion(tableId);
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
   const displayMode = tableDisplayMode(
@@ -78,9 +81,11 @@ export function Table<T extends RowData>({
       {/* table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
             table-shaped drops these tags' implicit ARIA roles in some engines. */}
       <table
+        id={tableId}
         aria-label={ariaLabel}
         aria-busy={loading ? true : undefined}
         className="w-full table-fixed"
+        style={{ minWidth: `${tableMinWidthPx(table, variant)}px` }}
       >
         <TableColumnWidths table={table} variant={variant} />
         <thead>
@@ -97,15 +102,19 @@ export function Table<T extends RowData>({
           {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
           {failure !== undefined && !failureBelowHeaders && (
             <tr>
-              <td colSpan={columns.length} className="h-70 p-4 align-top">
-                <LoadFailure {...failure} />
+              <td colSpan={columns.length} className="h-70 align-top">
+                <div className="sticky left-0 w-scroll-region p-4">
+                  <LoadFailure {...failure} />
+                </div>
               </td>
             </tr>
           )}
           {showEmptyState && empty !== undefined && (
             <tr>
               <td colSpan={columns.length} className="h-70 align-middle">
-                <EmptyState {...empty} />
+                <div className="sticky left-0 w-scroll-region">
+                  <EmptyState {...empty} />
+                </div>
               </td>
             </tr>
           )}
@@ -205,9 +214,15 @@ export function Table<T extends RowData>({
         ) : (
           (messageElement ??
           (fill ? (
-            <div className="min-h-0 flex-1 overflow-y-auto">{tableElement}</div>
+            <div className="min-h-0 flex-1 overflow-auto">{tableElement}</div>
           ) : (
-            tableElement
+            <div
+              ref={scrollRegion.observeOverflow}
+              {...scrollRegion.regionProps}
+              className={`@container overflow-x-auto ${scrollRegion.focusClassName}`}
+            >
+              {tableElement}
+            </div>
           )))
         )}
         {legend === undefined || locked !== undefined ? null : (

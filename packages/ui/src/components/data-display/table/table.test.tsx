@@ -64,6 +64,10 @@ function paintedTextRight(element: HTMLElement): number {
   return Math.max(...rects.map((rect) => rect.right));
 }
 
+function frameOf(table: Element): HTMLElement {
+  return table.parentElement?.parentElement as HTMLElement;
+}
+
 test("paintedTextRight throws for an element that paints no text, instead of silently passing", async () => {
   const screen = await render(<span style={{ display: "none" }}>hidden</span>);
   const hidden = screen.container.querySelector("span") as HTMLElement;
@@ -152,7 +156,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
   );
   await settleScroll();
   const table = screen.getByRole("table").element() as HTMLElement;
-  const container = table.parentElement as HTMLElement;
+  const container = frameOf(table);
   const rect = container.getBoundingClientRect();
   // 1.5px lands on the antialiased blend between the backdrop and the container's border.
   const headerBone = rgbTuple(tokenRgb("surface-subtle"));
@@ -183,7 +187,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
 
 test("renders a white container with an 8px radius and a 1px line border", async () => {
   const screen = await render(<TestTable {...commonProps} columns={columns} />);
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
   const style = getComputedStyle(container);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface"));
@@ -387,7 +391,7 @@ test("skips its own bottom divider on the last row, since the container's own bo
   const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const lastCell = screen.getByRole("cell", { name: "8" }).element() as HTMLElement;
   const lastRow = lastCell.parentElement as HTMLElement;
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
 
   const rowRect = lastRow.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
@@ -414,7 +418,7 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
   const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
   const lastPlaceholderRow = placeholderRows[placeholderRows.length - 1] as HTMLElement;
   const otherPlaceholderRow = placeholderRows[0] as HTMLElement;
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
 
   const rowRect = lastPlaceholderRow.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
@@ -1502,8 +1506,7 @@ test("paints the sortable header's own focus ring inside the container, never pa
   );
   await settleScroll();
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
-  const container = (screen.getByRole("table").element() as HTMLElement)
-    .parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
 
   const scrollYBeforeFocus = window.scrollY;
   await userEvent.tab();
@@ -1885,7 +1888,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   expect(table.getAttribute("aria-busy")).toBe("true");
 
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = table.parentElement?.previousElementSibling as HTMLElement;
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(bar.getBoundingClientRect().height).toBe(3);
@@ -1903,7 +1906,7 @@ test("does not intercept a click landing on the header underneath the loading ba
     />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = table.parentElement?.previousElementSibling as HTMLElement;
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
   const barRect = bar.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();
@@ -1936,7 +1939,7 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     );
     await settleScroll();
     const table = screen.getByRole("table").element() as HTMLElement;
-    const bar = table.previousElementSibling as HTMLElement;
+    const bar = table.parentElement?.previousElementSibling as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
     const button = screen.getByRole("button", { name: "Stock" }).element() as HTMLElement;
     const buttonRect = button.getBoundingClientRect();
@@ -1983,7 +1986,7 @@ test("keeps the header's own title text below the loading bar's 3px band", async
     />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = table.parentElement?.previousElementSibling as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
 
   expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(
@@ -2097,7 +2100,7 @@ test("reads the focused header's own ring color at the same probe point when the
 test("slides the updating bar's segment left to right in a loop", async () => {
   const screen = await render(<TestTable {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = table.parentElement?.previousElementSibling as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
 
   const style = getComputedStyle(segment);
@@ -2113,7 +2116,7 @@ test("slides the updating bar's segment exactly from off the left edge to off th
     </div>,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = table.parentElement?.previousElementSibling as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
 
   const [animation] = segment.getAnimations();
@@ -2145,7 +2148,7 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
       <TestTable {...commonProps} columns={columns} loading="updating" />,
     );
     const table = screen.getByRole("table").element() as HTMLElement;
-    const bar = table.previousElementSibling as HTMLElement;
+    const bar = table.parentElement?.previousElementSibling as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
 
     await expect.poll(() => getComputedStyle(segment).animationName).toBe("none");
@@ -2613,7 +2616,7 @@ test("draws a nested table with no frame of its own, on its container's backgrou
   const screen = await render(
     <TestTable {...commonProps} columns={columns} variant="nested" sort={NO_SORT} />,
   );
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
   const style = getComputedStyle(container);
   const header = screen.getByRole("columnheader", { name: "Producto" }).element()
     .parentElement as HTMLElement;
@@ -2648,7 +2651,7 @@ test("lines a nested table's cells up with the edges of its container, with no p
   const screen = await render(
     <TestTable {...commonProps} columns={columns} variant="nested" sort={NO_SORT} />,
   );
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
   const firstCell = screen.getByRole("cell", { name: "Coffee" }).element();
   const lastCell = screen.getByRole("cell", { name: "12" }).element();
   const firstHeader = screen.getByRole("columnheader", { name: "Producto" }).element();

@@ -214,6 +214,12 @@
   min-width: var(--trigger-width);
 }
 
+/* The width of the nearest scrolling region declared with @container, so content pinned with sticky
+   inside a wider scrolled box stays exactly as wide as what shows of it. */
+@utility w-scroll-region {
+  width: 100cqw;
+}
+
 @utility badge-text-offset {
   margin-top: calc((var(--spacing) * 7 - var(--leading-lg) * 1em) / 2);
 }
