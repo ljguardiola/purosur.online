@@ -2,7 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { periodSegments } from "../shell/test-support/report-dates";
@@ -69,7 +69,7 @@ function ControlledScreen({
   const [openDocument, setOpenDocument] = useState(initialDocument);
   return (
     <FieldSizeProvider size="backoffice">
-      <main>
+      <main className="flex h-screen flex-col">
         <IssuedFiscalDocumentsScreen
           services={services}
           filters={filters}
@@ -212,6 +212,30 @@ test("shows the panel of the open voucher, asking the cloud for it", async () =>
     number: 1247,
   });
 });
+
+test.each([1440, 2048])(
+  "shows the panel of the open voucher beside the list, in view, at %i px",
+  async (width) => {
+    await page.viewport(width, 900);
+    const services = createServices();
+    vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
+      kind: "ok",
+      value: authorizedReceiptDetail,
+    });
+    const screen = await renderScreen(services, { openDocument: "11-3-1247" });
+
+    const panel = screen.getByRole("complementary", { name: /Factura C 00003-00001247/ });
+    await expect.element(panel.getByText("Sin notas de crédito asociadas.")).toBeInTheDocument();
+    const list = screen
+      .getByRole("table", { name: "Comprobantes y notas de crédito" })
+      .element()
+      .getBoundingClientRect();
+    const panelBox = panel.element().getBoundingClientRect();
+    expect(panelBox.left).toBeGreaterThanOrEqual(list.right);
+    expect(panelBox.top).toBeLessThanOrEqual(list.top);
+    expect(panelBox.bottom).toBeLessThanOrEqual(window.innerHeight);
+  },
+);
 
 test("closes the panel and keeps the list", async () => {
   const services = createServices();
