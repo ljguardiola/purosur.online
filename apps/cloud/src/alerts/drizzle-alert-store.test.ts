@@ -4,6 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {
   alertDeliveries,
+  alertEmailDeliveries,
   alerts,
   auditLog,
   locations,
@@ -254,6 +255,26 @@ describe("DrizzleAlertStore listActiveAlertViewers", () => {
     expect(byId.get(cashierId)).toMatchObject({ isAdministrator: false, permissionKeys: [] });
   });
 
+  it("lists each user's email and whether they opted in to alerts by email", async () => {
+    const optedInId = await insertUser("Ada", await seededAdministratorRoleId());
+    const otherId = await insertUser("Grace", await insertRole("Viewer", ["view_all_alerts"]));
+    await db.update(users).set({ alertEmailOptedInAt: NOON }).where(eq(users.id, optedInId));
+
+    const viewers = await new DrizzleAlertStore(db, () => NOON).transaction((tx) =>
+      tx.listActiveAlertViewers(),
+    );
+
+    const byId = new Map(viewers.map((viewer) => [viewer.userId, viewer]));
+    expect(byId.get(optedInId)).toMatchObject({
+      email: "ada@example.com",
+      alertEmailOptedIn: true,
+    });
+    expect(byId.get(otherId)).toMatchObject({
+      email: "grace@example.com",
+      alertEmailOptedIn: false,
+    });
+  });
+
   it("leaves out a deactivated user", async () => {
     const roleId = await insertRole("Viewer", ["view_all_alerts"]);
     await insertUser("Inactive", roleId, { active: false });
@@ -296,6 +317,73 @@ describe("DrizzleAlertStore recordBackofficeDeliveries", () => {
   });
 });
 
+describe("DrizzleAlertStore recordEmailDeliveries", () => {
+  const OPENED = { stage: "opened", level: "warning", occurredAt: NOON } as const;
+
+  it("writes a pending delivery with no attempt for each recipient, with the stage, level and moment", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const first = await insertUser("Ada", await seededAdministratorRoleId());
+    const second = await insertUser("Grace", await insertRole("Viewer", ["view_all_alerts"]));
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    await store.transaction((tx) => tx.recordEmailDeliveries(alertId, OPENED, [first, second]));
+
+    const rows = await db.select().from(alertEmailDeliveries);
+    expect(rows.map((row) => row.recipientUserId).sort()).toEqual([first, second].sort());
+    expect(rows).toSatisfy((all: typeof rows) =>
+      all.every(
+        (row) =>
+          row.alertId === alertId &&
+          row.stage === "opened" &&
+          row.level === "warning" &&
+          row.occurredAt.getTime() === NOON.getTime() &&
+          row.status === "pending" &&
+          row.attempts === 0 &&
+          row.nextAttemptAt === null,
+      ),
+    );
+  });
+
+  it("keeps the delivery it already holds when the same recipient is recorded again for the same stage", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const recipient = await insertUser("Ada", await seededAdministratorRoleId());
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    await store.transaction((tx) => tx.recordEmailDeliveries(alertId, OPENED, [recipient]));
+    await db.update(alertEmailDeliveries).set({ status: "sent" });
+
+    await store.transaction((tx) =>
+      tx.recordEmailDeliveries(alertId, { ...OPENED, level: "critical" }, [recipient]),
+    );
+
+    expect(await db.select().from(alertEmailDeliveries)).toMatchObject([
+      { status: "sent", level: "warning" },
+    ]);
+  });
+
+  it("records another stage of the same alert for the same recipient", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const recipient = await insertUser("Ada", await seededAdministratorRoleId());
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    await store.transaction((tx) => tx.recordEmailDeliveries(alertId, OPENED, [recipient]));
+
+    await store.transaction((tx) =>
+      tx.recordEmailDeliveries(alertId, { ...OPENED, stage: "resolved" }, [recipient]),
+    );
+
+    const stages = (await db.select().from(alertEmailDeliveries)).map((row) => row.stage);
+    expect(stages.sort()).toEqual(["opened", "resolved"]);
+  });
+
+  it("writes nothing when there is no recipient", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const alertId = await store.transaction((tx) => tx.insertAlert(newAlert()));
+
+    await store.transaction((tx) => tx.recordEmailDeliveries(alertId, OPENED, []));
+
+    expect(await db.select().from(alertEmailDeliveries)).toEqual([]);
+  });
+});
+
 describe("DrizzleAlertStore lockAlert", () => {
   it("answers the alert's kind, level, escalation, scope, detail and resolution", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);
@@ -312,9 +400,22 @@ describe("DrizzleAlertStore lockAlert", () => {
       level: "critical",
       escalatedAt: NOON,
       scope: "user-1",
+      locationId: null,
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       resolvedAt: null,
     });
+  });
+
+  it("answers the branch of an alert of a branch", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const locationId = await seededLocationId(db);
+    const alertId = await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ audience: "local", locationId })),
+    );
+
+    const locked = await store.transaction((tx) => tx.lockAlert(alertId));
+
+    expect(locked?.locationId).toBe(locationId);
   });
 
   it("answers nothing for an unknown alert", async () => {
@@ -384,7 +485,18 @@ describe("DrizzleAlertStore recordClosure by no person", () => {
 describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
   it("lists only open alerts with their level and escalation time", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);
-    const open = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const locationId = await seededLocationId(db);
+    const open = await store.transaction((tx) =>
+      tx.insertAlert(
+        newAlert({
+          kind: "sales_denied",
+          level: "informational",
+          audience: "local",
+          locationId,
+          detail: { registerId: "register-1" } as NewAlert["detail"],
+        }),
+      ),
+    );
     const closed = await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
     await db.update(alerts).set({ resolvedAt: NOON }).where(eq(alerts.id, closed));
 
@@ -393,7 +505,9 @@ describe("DrizzleAlertStore lockOpenAlerts and recordEscalation", () => {
     expect(locked).toEqual([
       {
         alertId: open,
-        level: "warning",
+        kind: "sales_denied",
+        locationId,
+        level: "informational",
         resolvedAt: null,
         escalateAt: new Date(NOON.getTime() + 60_000),
       },
@@ -432,9 +546,22 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
     expect(locked).toEqual({
       alertId: id,
       level: "warning",
+      locationId: null,
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       conditionClearedAt: clearedAt,
     });
+  });
+
+  it("answers the branch of an alert of a branch", async () => {
+    const store = new DrizzleAlertStore(db, () => NOON);
+    const locationId = await seededLocationId(db);
+    await store.transaction((tx) => tx.insertAlert(newAlert({ audience: "local", locationId })));
+
+    const locked = await store.transaction((tx) =>
+      tx.lockOpenAlertOfKey("user_email_changed", "user-1"),
+    );
+
+    expect(locked?.locationId).toBe(locationId);
   });
 
   it("answers no moment for an alert whose condition has not cleared", async () => {
@@ -448,6 +575,7 @@ describe("DrizzleAlertStore lockOpenAlertOfKey", () => {
     expect(locked).toEqual({
       alertId: id,
       level: "warning",
+      locationId: null,
       detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
       conditionClearedAt: null,
     });
@@ -528,7 +656,9 @@ describe("DrizzleAlertStore recordConditionDetail", () => {
 describe("DrizzleAlertStore lockClearedConditionAlerts", () => {
   it("lists only the open alerts whose condition cleared, with what a resolution keeps", async () => {
     const store = new DrizzleAlertStore(db, () => NOON);
-    const waiting = await store.transaction((tx) => tx.insertAlert(newAlert()));
+    const waiting = await store.transaction((tx) =>
+      tx.insertAlert(newAlert({ level: "critical" })),
+    );
     await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-2" })));
     const closed = await store.transaction((tx) => tx.insertAlert(newAlert({ scope: "user-3" })));
     await db.update(alerts).set({ conditionClearedAt: NOON }).where(eq(alerts.id, waiting));
@@ -544,6 +674,8 @@ describe("DrizzleAlertStore lockClearedConditionAlerts", () => {
         alertId: waiting,
         kind: "user_email_changed",
         scope: "user-1",
+        level: "critical",
+        locationId: null,
         detail: { previousEmail: "a@example.com", newEmail: "b@example.com", actorId: "actor-1" },
         conditionClearedAt: NOON,
       },
