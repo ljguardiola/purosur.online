@@ -21,6 +21,7 @@ const martina = {
   active: true,
   role: { id: "role-admin", isAdministrator: true, name: null },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,

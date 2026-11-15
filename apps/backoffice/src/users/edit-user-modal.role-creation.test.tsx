@@ -22,6 +22,7 @@ const lucia: BranchUser = {
   version: 1,
   role: shiftRole,
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,

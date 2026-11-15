@@ -30,6 +30,7 @@ const lucia: BranchUser = {
     name: "Responsable de turno",
   },
   passkeyCount: 1,
+  alertEmailOptedInAt: null,
   isLastActiveAdministrator: false,
   mayEmitPinCode: true,
   mayEdit: true,

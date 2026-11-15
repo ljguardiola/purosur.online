@@ -49,6 +49,7 @@ export function account(
     version: 1,
     role: { id: "role-cashier", isAdministrator: false, name: "Cajero" },
     passkeyCount: 1,
+    alertEmailOptedInAt: null,
     isLastActiveAdministrator: false,
     mayEmitPinCode: true,
     mayEdit: true,
