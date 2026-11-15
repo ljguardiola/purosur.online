@@ -1,15 +1,13 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useState } from "react";
 import { expect, test, vi } from "vitest";
-import { ReportFilters, type ReportFiltersProps } from "./report-filters";
+import type { ReportFiltersProps } from "./report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
   reportFiltersSearch,
 } from "./report-filters-search";
-import { choosePeriodShortcut } from "./test-support/period-shortcuts";
-import { render } from "./test-support/render-with-router";
+import { choosePeriodShortcut, periodShortcuts } from "./test-support/period-shortcuts";
 import { periodSegments, typePeriodEnd } from "./test-support/report-dates";
+import { renderReportFilters } from "./test-support/report-filters";
 
 const TODAY = "2026-10-15";
 
@@ -22,48 +20,23 @@ type Options = {
   onFiltersChange?: (filters: ReportFiltersValue) => void;
 };
 
-function ControlledFilters({
-  filters: initial = reportFiltersSearch.parse({}),
-  answeredPeriod,
-  periodShortcuts = true,
-  onFiltersChange = () => {},
-}: Options) {
-  const [filters, setFilters] = useState(initial);
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ReportFilters
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          answeredPeriod={
-            answeredPeriod === undefined && filters.from !== ""
-              ? { from: filters.from, to: filters.to, today: TODAY }
-              : answeredPeriod
-          }
-          {...(periodShortcuts ? { periodShortcuts: true } : {})}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-function renderFilters(options: Options = {}) {
-  return render(<ControlledFilters {...options} />);
+function renderFilters({ answeredPeriod, periodShortcuts = true, ...options }: Options = {}) {
+  return renderReportFilters({
+    ...options,
+    answeredPeriodOf: (filters) =>
+      answeredPeriod === undefined && filters.from !== ""
+        ? { from: filters.from, to: filters.to, today: TODAY }
+        : answeredPeriod,
+    ...(periodShortcuts ? { periodShortcuts: true } : {}),
+  });
 }
 
 const SHORTCUTS = ["Hoy", "Últimos 7 días", "Este mes", "Mes anterior"];
 
-function shortcuts(screen: Awaited<ReturnType<typeof renderFilters>>) {
-  return screen.getByRole("radiogroup", { name: "Atajos de período" });
-}
-
 function chosenShortcuts(screen: Awaited<ReturnType<typeof renderFilters>>) {
   return SHORTCUTS.filter(
     (name) =>
-      (shortcuts(screen).getByRole("radio", { name }).element() as HTMLInputElement).checked,
+      (periodShortcuts(screen).getByRole("radio", { name }).element() as HTMLInputElement).checked,
   );
 }
 
@@ -71,7 +44,7 @@ test("offers the four shortcuts with today chosen when the URL names no period",
   const screen = await renderFilters({ answeredPeriod: ANSWERED_TODAY });
 
   for (const name of SHORTCUTS) {
-    await expect.element(shortcuts(screen).getByRole("radio", { name })).toBeInTheDocument();
+    await expect.element(periodShortcuts(screen).getByRole("radio", { name })).toBeInTheDocument();
   }
   await expect.poll(() => chosenShortcuts(screen)).toEqual(["Hoy"]);
   await expectNoAccessibilityViolations(screen.container);
@@ -119,7 +92,7 @@ test("leaves no shortcut chosen once a day is typed by hand", async () => {
 test("keeps the shortcuts disabled until the cloud has answered which day is today", async () => {
   const screen = await renderFilters({ answeredPeriod: undefined });
 
-  await expect.element(shortcuts(screen)).toHaveAttribute("aria-disabled", "true");
+  await expect.element(periodShortcuts(screen)).toHaveAttribute("aria-disabled", "true");
   expect(chosenShortcuts(screen)).toEqual([]);
 });
 

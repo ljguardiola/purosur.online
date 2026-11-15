@@ -15,6 +15,7 @@ import {
   typePeriodEnd,
   typePeriodStart,
 } from "./test-support/report-dates";
+import { renderReportFilters } from "./test-support/report-filters";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 const ANSWERED = { from: "2026-10-01", to: "2026-10-07" };
@@ -38,30 +39,12 @@ type Handlers = {
   onFiltersChange?: (filters: ReportFiltersValue) => void;
 };
 
-function ControlledFilters({
-  filters: initial = reportFiltersSearch.parse({}),
-  onFiltersChange = () => {},
-}: Handlers) {
-  const [filters, setFilters] = useState(initial);
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ReportFilters
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          answeredPeriod={ANSWERED}
-          registerFilter={(field) => <RegisterFilterStub {...field} />}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
 function renderFilters(handlers: Handlers = {}) {
-  return render(<ControlledFilters {...handlers} />);
+  return renderReportFilters({
+    ...handlers,
+    answeredPeriodOf: () => ANSWERED,
+    registerFilter: (field) => <RegisterFilterStub {...field} />,
+  });
 }
 
 test("shows the period the cloud answered while the URL names none", async () => {

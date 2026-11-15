@@ -18,9 +18,9 @@ const REPORT_PATHS = [
   "/reports/hand-typed-weights",
   "/reports/margin",
   "/reports/mercado-pago-charge-costs",
-];
+] as const;
 
-opensOnlyScreens(REPORT_PATHS);
+opensOnlyScreens([...REPORT_PATHS]);
 
 beforeEach(resetPageState);
 
