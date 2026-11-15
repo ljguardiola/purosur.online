@@ -522,6 +522,9 @@ test("opens the create modal with no role chosen, and cancel closes it without c
 
   await expect.element(dialog.getByRole("heading", { name: "Nuevo usuario" })).toBeVisible();
   await expect.element(dialog.getByRole("combobox", { name: /^Rol/ })).toHaveValue("");
+  await expect
+    .element(dialog.getByRole("combobox", { name: /^Rol/ }))
+    .toHaveAttribute("placeholder", "Elegí un rol");
   expect(dialog.getByText("Se pide tu passkey para confirmar.").query()).toBeNull();
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
