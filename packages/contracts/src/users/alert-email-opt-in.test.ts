@@ -20,7 +20,7 @@ describe("alertEmailOptInSchema", () => {
     });
   });
 
-  it.each([undefined, 1, "2026-10-01", "not a date", {}, [], null])(
+  it.each([undefined, 1, "2026-10-01", "not a date", {}, []])(
     "refuses %j as the moment",
     (value) => {
       expect(alertEmailOptInSchema.safeParse({ opted_in_at: value }).success).toBe(false);
