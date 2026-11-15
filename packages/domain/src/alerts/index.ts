@@ -52,6 +52,7 @@ export {
   isAlertEmailRecipient,
   nextAlertEmailAttemptAt,
   sendsAlertEmailAt,
+  stillReceivesAlertEmails,
 } from "./model/alert-email.js";
 export {
   ALERT_ESCALATION_CHECK_INTERVAL_MS,

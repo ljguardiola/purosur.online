@@ -91,6 +91,7 @@ export {
   registerZoneRulesObservation,
   sendsAlertEmailAt,
   showsAlertScope,
+  stillReceivesAlertEmails,
 } from "./alerts/index.js";
 export type {
   CloudLinkReading,

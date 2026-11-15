@@ -38,9 +38,14 @@ export function nextAlertEmailAttemptAt(failedAttempts: number, now: Date): Date
   return new Date(now.getTime() + FIRST_RETRY_DELAY_MS * 2 ** (failedAttempts - 1));
 }
 
-export function alertEmailBranchName(
-  alertBranchName: string | null,
-  recipientBranchName: string,
-): string {
-  return alertBranchName ?? recipientBranchName;
+export function alertEmailBranchName(alertBranchAddress: string | null): string | null {
+  const address = alertBranchAddress?.trim();
+  return address ? address : null;
+}
+
+export function stillReceivesAlertEmails(recipient: {
+  active: boolean;
+  alertEmailOptedIn: boolean;
+}): boolean {
+  return recipient.active && recipient.alertEmailOptedIn;
 }

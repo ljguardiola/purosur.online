@@ -10,8 +10,9 @@ export interface PendingAlertEmailDelivery {
   stage: AlertEmailStage;
   level: AlertLevel;
   occurredAt: Date;
-  alertBranchName: string | null;
-  recipientBranchName: string;
+  alertBranchAddress: string | null;
+  recipientActive: boolean;
+  recipientAlertEmailOptedIn: boolean;
   attemptsMade: number;
   nextAttemptAt: Date | null;
 }
@@ -23,7 +24,7 @@ export interface AlertEmail {
   kind: AlertKind;
   stage: AlertEmailStage;
   level: AlertLevel;
-  branchName: string;
+  branchName: string | null;
   occurredAt: Date;
 }
 
@@ -54,6 +55,7 @@ export interface AlertEmailDeliveryStore {
   pendingEmailDeliveries(): Promise<PendingAlertEmailDelivery[]>;
   recordEmailAttempt(deliveryId: string, attempt: AlertEmailAttempt): Promise<void>;
   recordEmailSent(deliveryId: string, sent: AlertEmailSent): Promise<void>;
+  recordEmailSkipped(deliveryId: string): Promise<void>;
   recordEmailFailure(deliveryId: string, failure: AlertEmailFailure): Promise<void>;
 }
 
