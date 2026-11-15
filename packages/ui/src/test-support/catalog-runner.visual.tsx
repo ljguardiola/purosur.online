@@ -1,9 +1,9 @@
 import { composeStory } from "@storybook/react-vite";
 import type { ReactElement } from "react";
 import { expect, test } from "vitest";
-import { page } from "vitest/browser";
+import { cdp, page } from "vitest/browser";
 import { cleanup } from "vitest-browser-react";
-import { type CatalogStory, renderCatalogStory } from "./catalog-runner";
+import { type CatalogStory, catalogStories, renderCatalogStory } from "./catalog-runner";
 
 function harnessStory(name: string, render: () => ReactElement): CatalogStory {
   return composeStory({ name, render }, { title: "Harness" });
@@ -100,4 +100,46 @@ test("captures a story with nothing left of the stories before it where it draws
   }
 
   expect(leftovers).toEqual([]);
+});
+
+function catalogStory(id: string): CatalogStory {
+  const entry = catalogStories.find(({ story }) => story.id === id);
+  if (entry === undefined) {
+    throw new Error(`No catalog story has the id ${id}.`);
+  }
+  return entry.story;
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function capturedPixelsOfTheWholePageRepainted(): Promise<ImageData> {
+  const root = document.documentElement;
+  root.style.backgroundColor = "black";
+  await nextFrame();
+  await nextFrame();
+  root.style.removeProperty("background-color");
+  await nextFrame();
+  return capturedPixels();
+}
+
+function samePixels(one: ImageData, other: ImageData): boolean {
+  return one.data.every((channel, index) => channel === other.data[index]);
+}
+
+test("captures a story whose play opened a tooltip by hovering as if the whole page were repainted", async () => {
+  const hoveredRemoveButton = catalogStory("components-chiplistfield--remove-button-hovered");
+  const roundsCapturedOtherwise: number[] = [];
+  for (let round = 0; round < ROUNDS; round++) {
+    await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: -1, y: -1 });
+    await cleanup();
+    await renderCatalogStory(hoveredRemoveButton);
+    const captured = await capturedPixels();
+    if (!samePixels(captured, await capturedPixelsOfTheWholePageRepainted())) {
+      roundsCapturedOtherwise.push(round);
+    }
+  }
+
+  expect(roundsCapturedOtherwise).toEqual([]);
 });
