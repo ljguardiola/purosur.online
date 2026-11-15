@@ -11,6 +11,8 @@ function fakeVitest({
   watch = false,
   openPages = {},
   pagesNeverConnected = {},
+  providerContexts = {},
+  providerPages = {},
   unhandledErrors = [],
   reporters = [],
 } = {}) {
@@ -20,6 +22,10 @@ function fakeVitest({
       name in openPages || name in pagesNeverConnected
         ? {
             vite: { httpServer: new EventEmitter() },
+            provider: {
+              contexts: new Map((providerContexts[name] ?? []).map((id) => [id, {}])),
+              pages: new Map((providerPages[name] ?? []).map((id) => [id, {}])),
+            },
             state: {
               orchestrators: new Map((openPages[name] ?? []).map((id) => [id, {}])),
               testers: new Map(),
@@ -65,6 +71,24 @@ function askToConnectTestFrame(vitest, sessionId, testerId) {
 function connectTestFrame(vitest, sessionId, testerId) {
   askToConnectTestFrame(vitest, sessionId, testerId);
   browserOf(vitest).state.testers.set(testerId, {});
+}
+
+function requestOrchestrator(vitest, sessionId) {
+  browserOf(vitest).vite.httpServer.emit("request", {
+    url: `/__vitest_test__/?sessionId=${sessionId}`,
+  });
+}
+
+function connectOrchestrator(vitest, sessionId) {
+  browserOf(vitest).vite.httpServer.emit("upgrade", {
+    url: `/__vitest_browser_api__?type=orchestrator&rpcId=${sessionId}&sessionId=${sessionId}&projectName=browser`,
+  });
+}
+
+function connectTimeout(sessionId, project = "browser") {
+  return {
+    message: `Failed to connect to the browser session "${sessionId}" [${project}] within the timeout.`,
+  };
 }
 
 function spec(project, file) {
@@ -615,4 +639,79 @@ test("stops watching once the run ends", async (t) => {
   await settle();
 
   assert.deepEqual(lines, []);
+});
+
+async function stepNamedAtRunEnd({
+  contexts = [],
+  pages = [],
+  requested = false,
+  connected = false,
+}) {
+  const vitest = fakeVitest({
+    pagesNeverConnected: { browser: ["s1"] },
+    providerContexts: { browser: contexts },
+    providerPages: { browser: pages },
+  });
+  const { reporter, lines } = await startedReporter(vitest, [spec("browser", "a.test.tsx")]);
+  if (requested) requestOrchestrator(vitest, "s1");
+  if (connected) connectOrchestrator(vitest, "s1");
+  reporter.onTestRunEnd([], [connectTimeout("s1")], "failed");
+  return lines;
+}
+
+test("names a browser page whose context was never created when its session timed out", async () => {
+  assert.deepEqual(await stepNamedAtRunEnd({}), [
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "its browser context was never created",
+  ]);
+});
+
+test("names a browser page that never opened in its context when its session timed out", async () => {
+  assert.deepEqual(await stepNamedAtRunEnd({ contexts: ["s1"] }), [
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "its browser context was created and the page never opened in it",
+  ]);
+});
+
+test("names a browser page that never requested its orchestrator when its session timed out", async () => {
+  assert.deepEqual(await stepNamedAtRunEnd({ contexts: ["s1"], pages: ["s1"] }), [
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "the page opened and never requested its orchestrator",
+  ]);
+});
+
+test("names a browser page whose orchestrator never opened its socket when its session timed out", async () => {
+  assert.deepEqual(await stepNamedAtRunEnd({ contexts: ["s1"], pages: ["s1"], requested: true }), [
+    'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+      "the page requested its orchestrator and the orchestrator never opened its socket",
+  ]);
+});
+
+test("names a browser page whose orchestrator connected and never reported ready when its session timed out", async () => {
+  assert.deepEqual(
+    await stepNamedAtRunEnd({ contexts: ["s1"], pages: ["s1"], requested: true, connected: true }),
+    [
+      'held-run: browser page s1 of "browser" did not connect within the timeout: ' +
+        "its orchestrator opened its socket and never reported ready",
+    ],
+  );
+});
+
+test("names no browser page when the run ends with an unhandled error other than a connection timeout", async () => {
+  const { reporter, lines } = await startedReporter(fakeVitest(), [spec("node", "a.test.ts")]);
+
+  reporter.onTestRunEnd([], [{ message: "boom" }, {}], "failed");
+
+  assert.deepEqual(lines, []);
+});
+
+test("names a timed out browser page even when its project opened no browser", async () => {
+  const { reporter, lines } = await startedReporter(fakeVitest(), [spec("node", "a.test.ts")]);
+
+  reporter.onTestRunEnd([], [connectTimeout("s9", "other")], "failed");
+
+  assert.deepEqual(lines, [
+    'held-run: browser page s9 of "other" did not connect within the timeout: ' +
+      "its browser context was never created",
+  ]);
 });
