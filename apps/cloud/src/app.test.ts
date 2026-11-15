@@ -1176,6 +1176,22 @@ describe("wiring the users routes", () => {
       url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const optInRead = await app.inject({ method: "GET", url: "/api/account/alert-email-opt-in" });
+    const optInRecord = await app.inject({
+      method: "PUT",
+      url: "/api/account/alert-email-opt-in",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const optInWithdraw = await app.inject({
+      method: "DELETE",
+      url: "/api/account/alert-email-opt-in",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const userOptInWithdraw = await app.inject({
+      method: "DELETE",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/alert-email-opt-in",
+      headers: { origin: "https://staging.purosur.online" },
+    });
     const deactivation = await app.inject({
       method: "PUT",
       url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
@@ -1189,6 +1205,9 @@ describe("wiring the users routes", () => {
     expect(userPasskeys.statusCode).toBe(404);
     expect(userPasskeyRemove.statusCode).toBe(404);
     expect(deactivation.statusCode).toBe(404);
+    for (const response of [optInRead, optInRecord, optInWithdraw, userOptInWithdraw]) {
+      expect(response.statusCode).toBe(404);
+    }
   });
 
   it("registers the users routes when a users option is given", async () => {
@@ -1222,6 +1241,22 @@ describe("wiring the users routes", () => {
       url: "/api/users/00000000-0000-0000-0000-000000000000/passkeys/00000000-0000-0000-0000-000000000000",
       headers: { origin: "https://staging.purosur.online" },
     });
+    const optInRead = await app.inject({ method: "GET", url: "/api/account/alert-email-opt-in" });
+    const optInRecord = await app.inject({
+      method: "PUT",
+      url: "/api/account/alert-email-opt-in",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const optInWithdraw = await app.inject({
+      method: "DELETE",
+      url: "/api/account/alert-email-opt-in",
+      headers: { origin: "https://staging.purosur.online" },
+    });
+    const userOptInWithdraw = await app.inject({
+      method: "DELETE",
+      url: "/api/users/00000000-0000-0000-0000-000000000000/alert-email-opt-in",
+      headers: { origin: "https://staging.purosur.online" },
+    });
     const deactivation = await app.inject({
       method: "PUT",
       url: "/api/users/00000000-0000-0000-0000-000000000000/deactivation",
@@ -1235,6 +1270,9 @@ describe("wiring the users routes", () => {
     expect(userPasskeys.statusCode).toBe(401);
     expect(userPasskeyRemove.statusCode).toBe(401);
     expect(deactivation.statusCode).toBe(401);
+    for (const response of [optInRead, optInRecord, optInWithdraw, userOptInWithdraw]) {
+      expect(response.statusCode).toBe(401);
+    }
   });
 });
 
@@ -2778,6 +2816,14 @@ describe("the route access inventory", () => {
         url: "/api/users/:id/passkeys",
         access: capabilityAccess("manage_users"),
       },
+      {
+        method: "DELETE",
+        url: "/api/users/:id/alert-email-opt-in",
+        access: capabilityAccess("manage_users"),
+      },
+      { method: "GET", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
+      { method: "PUT", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
+      { method: "DELETE", url: "/api/account/alert-email-opt-in", access: OPEN_SESSION_ACCESS },
       {
         method: "PUT",
         url: "/api/users/:id/deactivation",

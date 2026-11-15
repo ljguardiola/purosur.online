@@ -421,6 +421,36 @@ describe("GET /alerts/:id", () => {
     expect(body.scopeDisplay).toBe("Lucía");
     expect(body.detail.actorName).toBe("Ada");
   });
+
+  it("names the user whose alert recipients changed and who changed them", async () => {
+    const viewerRoleId = await insertRole("supervisor", ["view_all_alerts"]);
+    const viewerId = await insertUserWithRole("Grace", viewerRoleId);
+    const rawSessionId = await insertSession(viewerId);
+    const administratorRoleId = await insertRole("administrator", []);
+    const administratorId = await insertUserWithRole("Ada", administratorRoleId);
+    const targetId = await insertUserWithRole("Lucía", await insertRole("target", []));
+    const [alertRow] = await db
+      .insert(alerts)
+      .values({
+        kind: "alert_recipients_changed",
+        scope: targetId,
+        level: "warning",
+        audience: "all",
+        detail: { change: "withdrawn", actorId: administratorId },
+        openedAt: NOON,
+      })
+      .returning({ id: alerts.id });
+    if (!alertRow) throw new Error("test setup: inserting the alert returned no row");
+
+    const response = await getAlert(rawSessionId, alertRow.id);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      kind: "alert_recipients_changed",
+      scopeDisplay: "Lucía",
+      detail: { change: "withdrawn", actorId: administratorId, actorName: "Ada" },
+    });
+  });
 });
 
 describe("GET /alerts/:id for a register that lacks a fortnight's offline authorization code", () => {
