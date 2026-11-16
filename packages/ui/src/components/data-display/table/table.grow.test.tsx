@@ -44,13 +44,14 @@ const columns: TableColumns<Product> = [
   dataColumn({
     id: "netContent",
     header: "Contenido neto",
-    nowrap: true,
+    width: 80,
     render: (item: Product) => item.netContent,
   }),
-  dataColumn({ id: "unit", header: "Unidad", nowrap: true, render: (item: Product) => item.unit }),
+  dataColumn({ id: "unit", header: "Unidad", width: 90, render: (item: Product) => item.unit }),
   dataColumn({
     id: "price",
     header: "Precio",
+    width: 140,
     align: "end",
     render: (item: Product) => <TableCellAmount amount={item.amount} unit={item.perUnit} />,
   }),
