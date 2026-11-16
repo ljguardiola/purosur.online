@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { linesPaintedUnder } from "../platform/test-support/code-cells";
 import { compraDeMiel } from "./test-support/purchases";
 import {
   createServices,
@@ -164,4 +165,12 @@ test("has no accessibility violations once loaded", async () => {
   const screen = await loaded(createServices());
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps each purchase's receipt label on one line in a narrow window", async () => {
+  await page.viewport(414, 896);
+  const screen = await loaded(createServices());
+
+  const table = screen.getByRole("table", { name: "Compras" }).element() as HTMLElement;
+  await expect.poll(() => linesPaintedUnder(table, "Comprobante")).toEqual([1, 1]);
 });

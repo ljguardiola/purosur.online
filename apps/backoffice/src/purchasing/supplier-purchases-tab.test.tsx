@@ -1,6 +1,7 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
+import { linesPaintedUnder } from "../platform/test-support/code-cells";
 import { render } from "../shell/test-support/render-with-router";
 import { SupplierPurchasesTab } from "./supplier-purchases-tab";
 import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
@@ -87,4 +88,29 @@ test("has no accessibility violations", async () => {
   await expect.element(screen.getByRole("table")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("keeps each receipt's label on one line in a panel too narrow for it", async () => {
+  const services = createSupplierPanelServices();
+  vi.mocked(services.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [compraDeMiel, compraDeAvena],
+  });
+
+  const screen = await render(
+    <div style={{ width: "240px" }}>
+      <FieldSizeProvider size="backoffice">
+        <SupplierPurchasesTab
+          supplierId={SUPPLIER_ID}
+          services={services}
+          onSessionEnded={() => {}}
+        />
+      </FieldSizeProvider>
+    </div>,
+  );
+
+  const table = screen.getByRole("table", { name: "Compras del proveedor" });
+  await expect
+    .poll(() => linesPaintedUnder(table.element() as HTMLElement, "Comprobante"))
+    .toEqual([1, 1]);
 });

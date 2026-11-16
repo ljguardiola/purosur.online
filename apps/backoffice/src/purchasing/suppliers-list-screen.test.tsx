@@ -4,6 +4,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { linesPaintedUnder } from "../platform/test-support/code-cells";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -542,4 +543,12 @@ test("shows the panel's tabs by the person's access", async () => {
   });
 
   await expect.element(screen.getByRole("tab", { name: "Pedidos", selected: true })).toBeVisible();
+});
+
+test("keeps each CUIT on one line in a narrow window", async () => {
+  await page.viewport(414, 896);
+  const screen = await loaded(createServices(), [andina, cerealera]);
+
+  const table = screen.getByRole("table", { name: "Proveedores" }).element() as HTMLElement;
+  await expect.poll(() => linesPaintedUnder(table, "CUIT")).toEqual([1, 1]);
 });
