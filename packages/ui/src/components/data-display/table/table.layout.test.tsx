@@ -3,6 +3,7 @@ import { beforeEach, expect, test } from "vitest";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Table } from "./table";
+import { TableCellText } from "./table-cell-text";
 import { actionsColumn, dataColumn } from "./table-columns";
 import type { TableColumns, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
@@ -232,3 +233,99 @@ test("lets the flexible column give way to the code columns", async () => {
   const name = screen.getByRole("cell", { name: /Cuidadosamente/ }).element() as HTMLElement;
   expect(linesPainted(name)).toBeGreaterThan(1);
 });
+
+type Voucher = { id: string; number: string; detail: string };
+
+const voucherColumns: TableColumns<Voucher> = [
+  dataColumn({
+    id: "voucher",
+    header: "Comprobante",
+    code: true,
+    render: (item: Voucher) => (
+      <TableCellText description={item.detail}>{item.number}</TableCellText>
+    ),
+  }),
+];
+
+function VouchersTable() {
+  const table = useTableModel({
+    items: [
+      {
+        id: "1",
+        number: "Nota de crédito C 00003-00000041",
+        detail: "Caja principal · Anula la Factura C 00003-00000040 · en contingencia",
+      },
+    ],
+    id: (item) => item.id,
+    columns: voucherColumns,
+    sort: NO_SORT,
+    onSortChange: () => {},
+  });
+  return <Table table={table} aria-label="Comprobantes" />;
+}
+
+test("wraps the description under a code while the code itself stays on one line", async () => {
+  const screen = await render(
+    <div style={{ width: "320px" }}>
+      <VouchersTable />
+    </div>,
+  );
+
+  const number = screen.getByText("Nota de crédito C 00003-00000041").element() as HTMLElement;
+  const detail = screen.getByText(/Anula la Factura/).element() as HTMLElement;
+  expect(linesPainted(number)).toBe(1);
+  expect(linesPainted(detail)).toBeGreaterThan(1);
+  expect(screen.getByRole("group").query()).toBeNull();
+});
+
+type Priced = { id: string; name: string; price: string; sku: string };
+
+const narrowlyDeclaredColumns: TableColumns<Priced> = [
+  dataColumn({ id: "name", header: "Producto", render: (item: Priced) => item.name }),
+  dataColumn({
+    id: "price",
+    header: "Precio",
+    width: 40,
+    align: "end",
+    render: (item: Priced) => item.price,
+  }),
+  dataColumn({
+    id: "sku",
+    header: "Código",
+    width: 40,
+    code: true,
+    render: (item: Priced) => item.sku,
+  }),
+];
+
+function NarrowlyDeclaredTable() {
+  const table = useTableModel({
+    items: [{ id: "1", name: longName, price: "$ 335.328,00", sku: "SKU-001-AZUL" }],
+    id: (item) => item.id,
+    columns: narrowlyDeclaredColumns,
+    sort: NO_SORT,
+    onSortChange: () => {},
+  });
+  return <Table table={table} aria-label="Precios" />;
+}
+
+test.each(["$ 335.328,00", "SKU-001-AZUL"])(
+  "paints %s, wider than the width its column declares, inside its own cell",
+  async (value) => {
+    const screen = await render(
+      <div style={{ width: "600px" }}>
+        <NarrowlyDeclaredTable />
+      </div>,
+    );
+
+    const cell = screen.getByRole("cell", { name: value }).element() as HTMLElement;
+    const text = document.createRange();
+    text.selectNodeContents(cell);
+    expect(text.getBoundingClientRect().right).toBeLessThanOrEqual(
+      cell.getBoundingClientRect().right,
+    );
+    expect(text.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+      cell.getBoundingClientRect().left,
+    );
+  },
+);

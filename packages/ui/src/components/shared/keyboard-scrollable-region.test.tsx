@@ -9,14 +9,16 @@ import { useKeyboardScrollableRegion } from "./keyboard-scrollable-region";
 function ScrollingBox({
   shown = true,
   height = 200,
+  role,
   children,
 }: {
   shown?: boolean;
   height?: number;
+  role?: "region" | "group";
   children: ReactNode;
 }) {
   const titleId = useId();
-  const { observeOverflow, regionProps } = useKeyboardScrollableRegion(titleId);
+  const { observeOverflow, regionProps } = useKeyboardScrollableRegion(titleId, role);
   return (
     <main>
       <h2 id={titleId}>Detalle</h2>
@@ -134,6 +136,19 @@ test("is a tab stop named by its label while its content overflows it vertically
 
   await expect.element(region()).toHaveFocus();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("is a tab stop of the role it is given, named by its label, while its content overflows it", async () => {
+  await render(
+    <ScrollingBox role="group">
+      <Lines count={40} />
+    </ScrollingBox>,
+  );
+
+  await userEvent.tab();
+
+  await expect.element(page.getByRole("group", { name: "Detalle" })).toHaveFocus();
+  expect(page.getByRole("region").query()).toBeNull();
 });
 
 test("is a tab stop while its content overflows it sideways", async () => {

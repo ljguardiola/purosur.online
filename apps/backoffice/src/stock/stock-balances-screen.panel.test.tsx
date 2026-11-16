@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { linesPainted } from "../platform/test-support/code-cells";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { listed, type RenderOptions, renderScreen } from "./test-support/stock-balances-screen";
 import { almonds, honey, oats } from "./test-support/stock-fixtures";
@@ -85,19 +86,6 @@ test("shows the product's movements in the panel to a person who may count", asy
   const panel = screen.getByRole("complementary", { name: almonds.name });
   await expect.element(panel.getByText("Sin recuentos", { exact: true })).toBeVisible();
 });
-
-function linesPainted(element: HTMLElement): number {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const tops = new Set<number>();
-  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    for (const rect of range.getClientRects()) {
-      tops.add(Math.round(rect.top));
-    }
-  }
-  return tops.size;
-}
 
 test("beside the panel, gives a long product name the room the figures do not need and keeps the figures whole", async () => {
   await page.viewport(1440, 900);

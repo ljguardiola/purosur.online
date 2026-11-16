@@ -1,5 +1,6 @@
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { linesPainted } from "../platform/test-support/code-cells";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { productPanelSections } from "./test-support/product-panel-sections";
 import { almonds, honey, lavenderOil, retiredHoney } from "./test-support/products";
@@ -117,7 +118,7 @@ test("reads the products list again after the panel changes the product's price"
   await vi.waitFor(() => expect(services.fetchProducts).toHaveBeenCalledTimes(2));
 });
 
-test("beside the panel at 1440px, shows the price column whole and marks the edge where the rest of the list is cut", async () => {
+test("beside the panel at 1440px, shows the price column whole", async () => {
   await page.viewport(1440, 900);
   const { screen } = await renderWithPanel({ openProduct: honey.id });
 
@@ -130,14 +131,6 @@ test("beside the panel at 1440px, shows the price column whole and marks the edg
   await expect.element(rowOf(screen, honey.name)).toBeVisible();
   const priceCell = rowOf(screen, honey.name).element().querySelectorAll("td")[5] as HTMLElement;
   expect(priceCell.getBoundingClientRect().right).toBeLessThanOrEqual(frameRight());
-
-  const cutHeaders = table
-    .getByRole("columnheader")
-    .elements()
-    .filter((header) => header.getBoundingClientRect().right > frameRight());
-  expect(cutHeaders.length === 0 || frame.querySelector("[data-scroll-cue='end']") !== null).toBe(
-    true,
-  );
 });
 
 test("beside the panel at 1440px, fits every column of the list with no sideways scroll", async () => {
@@ -170,19 +163,6 @@ test("in a window too narrow for the list beside the panel, scrolls it and marks
 
   await expect.poll(() => frame.querySelector("[data-scroll-cue='end']")).not.toBeNull();
 });
-
-function linesPainted(element: HTMLElement): number {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const tops = new Set<number>();
-  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    for (const rect of range.getClientRects()) {
-      tops.add(Math.round(rect.top));
-    }
-  }
-  return tops.size;
-}
 
 test("squeezed beside the panel, keeps a product's barcodes and the count of the others on one line", async () => {
   await page.viewport(1000, 900);
