@@ -97,7 +97,10 @@ export function Table<T extends RowData>({
   stackWhenNarrow = false,
 }: TableProps<T>): ReactElement {
   const tableId = useId();
-  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(tableId);
+  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(
+    tableId,
+    "group",
+  );
   const { width: containerWidth, observeWidth } = useObservedWidth();
   const { clippedAtStart, clippedAtEnd, observeScrollEdges } = useScrollEdges();
   const rows = table.getRowModel().rows;
