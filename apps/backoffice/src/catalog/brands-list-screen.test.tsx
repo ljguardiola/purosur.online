@@ -136,7 +136,7 @@ test("shows each brand's state under its name, with no column of its own", async
     )
     .toEqual(["Marca", "Productos", "Acciones"]);
   const nameCell = screen.getByRole("row").nth(1).getByRole("cell").first();
-  await expect.element(nameCell).toHaveTextContent(/^Granuz/);
+  await expect.element(nameCell.getByText("Granuz", { exact: true })).toBeVisible();
   await expect.element(nameCell.getByText("Activa", { exact: true })).toBeVisible();
 });
 

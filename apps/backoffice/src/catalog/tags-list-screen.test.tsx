@@ -132,7 +132,7 @@ test("shows each tag's state under its name, with no column of its own", async (
     )
     .toEqual(["Etiqueta", "Productos", "Acciones"]);
   const nameCell = screen.getByRole("row").nth(1).getByRole("cell").first();
-  await expect.element(nameCell).toHaveTextContent(/^Sin TACC/);
+  await expect.element(nameCell.getByText("Sin TACC", { exact: true })).toBeVisible();
   await expect.element(nameCell.getByText("Activa", { exact: true })).toBeVisible();
 });
 
