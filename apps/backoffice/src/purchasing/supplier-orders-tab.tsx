@@ -67,6 +67,7 @@ export function SupplierOrdersTab({
       <Table
         aria-label="Pedidos del proveedor"
         variant="nested"
+        stackWhenNarrow
         table={table}
         {...cloudTableState(data, "los pedidos")}
         empty={{ icon: <ClipboardList />, title: "Sin pedidos", variant: "blank" }}
