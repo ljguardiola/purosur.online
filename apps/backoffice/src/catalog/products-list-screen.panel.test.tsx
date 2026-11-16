@@ -1,6 +1,6 @@
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { linesPainted } from "../platform/test-support/code-cells";
+import { linesPainted, linesPaintedUnder } from "../platform/test-support/code-cells";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { productPanelSections } from "./test-support/product-panel-sections";
 import { almonds, honey, lavenderOil, pricedAlmonds, retiredHoney } from "./test-support/products";
@@ -199,4 +199,25 @@ test("squeezed beside the panel, keeps a product's barcodes and the count of the
   const cell = screen.getByRole("cell", { name: "7790001234574 +1" });
   await expect.element(cell).toBeVisible();
   expect(linesPainted(cell.element() as HTMLElement)).toBe(1);
+});
+
+test("beside the panel in a wide window, keeps Unidad and Precio, with its unit, on one line and gives the name only what is left", async () => {
+  document.body.style.width = "2048px";
+  onTestFinished(() => {
+    document.body.style.removeProperty("width");
+  });
+  const services = createServices();
+  const longName =
+    "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregados, Envasado en Botella de Vidrio de 900 g para Gastronomía";
+  mockLoaded(services, [{ ...pricedAlmonds, name: longName }, honey]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const element = table.element() as HTMLElement;
+
+  expect(linesPaintedUnder(element, "Unidad")).toEqual([1, 1]);
+  expect(linesPaintedUnder(element, "Precio")).toEqual([1, 1]);
+  const name = element.querySelector("tbody td") as HTMLElement;
+  expect(name.getBoundingClientRect().width).toBeGreaterThan(900);
 });
