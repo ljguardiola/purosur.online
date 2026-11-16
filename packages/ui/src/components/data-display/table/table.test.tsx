@@ -2724,7 +2724,8 @@ test.each(["framed", "nested"] as const)(
     const cell = screen.getByRole("cell", { name: /Doce mil/ }).element() as HTMLElement;
 
     expect(paintedLineCount(cell)).toBeGreaterThan(1);
-    expect(paintedTextRight(cell) - cell.getBoundingClientRect().left).toBeLessThanOrEqual(150 + 16);
+    const content = cell.querySelector("div > div") as HTMLElement;
+    expect(content.getBoundingClientRect().width).toBeLessThanOrEqual(150);
   },
 );
 
