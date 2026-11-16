@@ -277,3 +277,12 @@ test("tells an outdated tab to reload because the backoffice was updated when sa
   await expect.element(screen.getByText("No se guardó el pedido")).toBeVisible();
   await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });
+
+test("lets each line span the form's whole width, with no box around the lines", async () => {
+  const screen = await renderForm();
+
+  const form = screen.getByRole("main").element().getBoundingClientRect();
+  const firstLine = line(screen, 1).element().getBoundingClientRect();
+  expect(firstLine.left).toBe(form.left);
+  expect(firstLine.right).toBe(form.right);
+});
