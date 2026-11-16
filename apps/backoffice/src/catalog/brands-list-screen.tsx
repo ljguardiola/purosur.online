@@ -9,8 +9,8 @@ import {
   ListFilter,
   Modal,
   plural,
-  StatusIndicator,
   type TableSort,
+  Tag,
   textOrder,
   useRequestForm,
   useTableModel,
@@ -521,23 +521,27 @@ export function BrandsListScreen({
       id: "brand",
       header: "Marca",
       sort: { order: brandNameOrder, firstDirection: "ascending" },
-      render: (item: BrandSummary) => item.name,
+      render: (item: BrandSummary) => (
+        <>
+          <span>{item.name}</span>
+          {item.active ? (
+            <Tag tone="success" variant="status">
+              Activa
+            </Tag>
+          ) : (
+            <Tag tone="neutral" variant="status">
+              Inactiva
+            </Tag>
+          )}
+        </>
+      ),
     }),
     dataColumn({
       id: "products",
       header: "Productos",
+      width: 120,
       sort: { order: productCountOrder, firstDirection: "descending" },
       render: (item: BrandSummary) => formatNumber(item.productCount),
-    }),
-    dataColumn({
-      id: "status",
-      header: "Estado",
-      render: (item: BrandSummary) =>
-        item.active ? (
-          <StatusIndicator tone="success">Activa</StatusIndicator>
-        ) : (
-          <StatusIndicator tone="neutral">Inactiva</StatusIndicator>
-        ),
     }),
     actionsColumn({
       id: "actions",
