@@ -355,7 +355,7 @@ test("has no accessibility violations once loaded and with each modal open", asy
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("keeps every generation's state inside its own column in a container as narrow as the register panel", async () => {
+test("stacks each generation into a list item in a container as narrow as the register panel, with its state whole inside the container", async () => {
   const screen = await renderSection(
     servicesWithBackups({
       ...backups,
@@ -365,14 +365,25 @@ test("keeps every generation's state inside its own column in a container as nar
   );
 
   await expect.element(screen.getByText("Verificando")).toBeVisible();
-  const header = screen.getByRole("columnheader", { name: "Estado" }).element();
+  expect(screen.getByRole("table").query()).toBeNull();
+  const items = screen
+    .getByRole("list", { name: "Últimas generaciones de Caja 1" })
+    .getByRole("listitem")
+    .elements();
+  expect(items).toHaveLength(3);
+  expect(
+    [...screen.getByRole("listitem").first().element().querySelectorAll("dt")].map(
+      (term) => term.textContent,
+    ),
+  ).toEqual(["Dónde", "Tamaño", "Estado"]);
+  const containerRight = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect()
+    .right;
   const states = ["Verificada", "No pasó la verificación", "Verificando"].map((text) =>
     screen.getByText(text).element(),
   );
-  const columnRight = header.getBoundingClientRect().right;
   expect(
     states
-      .filter((state) => state.getBoundingClientRect().right > columnRight)
+      .filter((state) => state.getBoundingClientRect().right > containerRight)
       .map((state) => state.textContent),
   ).toEqual([]);
   expect(states.map((state) => state.getBoundingClientRect().height)).toEqual(states.map(() => 28));

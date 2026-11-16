@@ -196,7 +196,7 @@ function paintedLineCount(element: Element): number {
 
 const REGISTER_PANEL_WIDTH = 325;
 
-test("keeps each amount on one line in a container as narrow as the register panel", async () => {
+test("keeps each amount on one line, inside the container, in a container as narrow as the register panel", async () => {
   const largeAmounts = {
     ...weekCashSessionClosesReport,
     sessions: weekCashSessionClosesReport.sessions.map((session) => ({
@@ -212,15 +212,34 @@ test("keeps each amount on one line in a container as narrow as the register pan
     .mockResolvedValue({ kind: "ok", value: largeAmounts });
   const { screen } = await renderSection(read, undefined, { width: REGISTER_PANEL_WIDTH });
 
-  await expect.element(screen.getByRole("columnheader", { name: "Esperado" })).toBeVisible();
-  const table = screen.getByRole("table");
-  await expect.poll(() => table.getByRole("row").all().length).toBeGreaterThan(1);
-  const amounts = table
-    .getByRole("cell")
+  const list = screen.getByRole("list", { name: "Cierres de caja de la caja" });
+  await expect.poll(() => list.getByRole("listitem").all().length).toBeGreaterThan(0);
+  const amounts = list
+    .getByRole("listitem")
     .elements()
-    .filter((cell) => /\$/.test(cell.textContent ?? ""));
+    .flatMap((item) => [...item.querySelectorAll("dd")])
+    .filter((value) => /\$/.test(value.textContent ?? ""));
+  const right = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect().right;
   expect(amounts.length).toBeGreaterThan(0);
-  expect(amounts.map((cell) => [cell.textContent, paintedLineCount(cell)])).toEqual(
-    amounts.map((cell) => [cell.textContent, 1]),
+  expect(amounts.map((value) => [value.textContent, paintedLineCount(value)])).toEqual(
+    amounts.map((value) => [value.textContent, 1]),
   );
+  expect(amounts.filter((value) => value.getBoundingClientRect().right > right)).toEqual([]);
+});
+
+test("stacks each closed session into a list item in a container as narrow as the register panel, with the other columns as header and value pairs", async () => {
+  const { screen } = await renderSection(undefined, undefined, { width: REGISTER_PANEL_WIDTH });
+
+  expect(screen.getByRole("table").query()).toBeNull();
+  const item = screen
+    .getByRole("list", { name: "Cierres de caja de la caja" })
+    .getByRole("listitem")
+    .first();
+  await expect.element(item).toBeVisible();
+  expect([...item.element().querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Cajero",
+    "Esperado",
+    "Contado",
+    "Diferencia",
+  ]);
 });
