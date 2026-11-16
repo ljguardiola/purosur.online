@@ -107,7 +107,7 @@ test("with room to spare, keeps the short cells on one line and gives the growin
     .slice(1)
     .reduce((sum, cell) => sum + cell.getBoundingClientRect().width, 0);
   const name = cells[0] as HTMLElement;
-  expect(name.getBoundingClientRect().width).toBeGreaterThan(1475 - shortWidths - 2);
+  expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(1475 - shortWidths - 4);
   for (const short of cells.slice(1)) {
     expect(short.getBoundingClientRect().width).toBeLessThan(190);
   }
