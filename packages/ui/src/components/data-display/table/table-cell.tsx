@@ -20,7 +20,7 @@ export function TableCell<T extends RowData>({
   const actionsColumn = columnActionCount(cell.column) !== undefined;
   const declaredWidth = cell.column.columnDef.meta?.width;
   const align = actionsColumn ? "start" : columnAlign(cell.column);
-  const figure = align === "end" && !fixedLayout;
+  const figure = (align === "end" || cell.column.columnDef.meta?.code === true) && !fixedLayout;
 
   return (
     <td

@@ -17,6 +17,7 @@ export type TableColumnMeta = {
   align?: TableColumnAlign;
   actionCount?: 1 | 2 | 3 | 4 | 5 | 6;
   width?: number;
+  code?: boolean;
 };
 
 type TableModelFeatures = typeof tableModelFeatures;
