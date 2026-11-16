@@ -17,6 +17,7 @@ import {
   StatusIndicator,
   sortedItems,
   Table,
+  TableCellAmount,
   TableCellText,
   type TableSort,
   textOrder,
@@ -33,7 +34,7 @@ import {
 } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
-import { perSaleUnit } from "../platform/per-sale-unit";
+import { saleUnitSuffix } from "../platform/per-sale-unit";
 import type { ProductPanelSections } from "../platform/product-panel-sections";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { barcodesSummary } from "./barcodes-summary";
@@ -118,10 +119,15 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return UNIT_OPTION_LABELS[saleUnit];
 }
 
-function priceText(product: ListedProduct): string {
-  return product.currentUnitPrice === null
-    ? "Sin precio"
-    : perSaleUnit(formatCents(product.currentUnitPrice), product.saleUnit);
+function priceCell(product: ListedProduct) {
+  return product.currentUnitPrice === null ? (
+    "Sin precio"
+  ) : (
+    <TableCellAmount
+      amount={formatCents(product.currentUnitPrice)}
+      unit={saleUnitSuffix(product.saleUnit)}
+    />
+  );
 }
 
 const productNameOrder = textOrder((product: ListedProduct) => product.name);
@@ -295,7 +301,8 @@ export function ProductsListScreen({
     dataColumn({
       id: "price",
       header: "Precio",
-      render: priceText,
+      align: "end",
+      render: priceCell,
     }),
     dataColumn({
       id: "status",
