@@ -13,6 +13,8 @@ import {
   weekCashSessionClosesReport,
 } from "./test-support/cash-session-closes-fixtures";
 
+const SCREEN_WIDTH = 1200;
+
 const NO_PERIOD: ReportPeriodFilters = { from: "", to: "" };
 
 function renderSection(
@@ -23,7 +25,7 @@ function renderSection(
   {
     period = NO_PERIOD,
     onPeriodChange = () => {},
-    width,
+    width = SCREEN_WIDTH,
   }: {
     period?: ReportPeriodFilters;
     onPeriodChange?: (period: ReportPeriodFilters) => void;
@@ -32,7 +34,7 @@ function renderSection(
 ) {
   const services: RegisterSessionsSectionServices = { fetchCashSessionCloses: read };
   return render(
-    <main style={width === undefined ? undefined : { width: `${width}px` }}>
+    <main style={{ width: `${width}px` }}>
       <ControlledSection
         initialPeriod={period}
         onPeriodChange={onPeriodChange}

@@ -41,9 +41,7 @@ test("shows the product's balance, cost, value and lots under its name", async (
   await expect.element(panel.getByText("12,150 kg")).toBeVisible();
   await expect.element(panel.getByText("$ 10.205,84 / kg")).toBeVisible();
   await expect.element(panel.getByText("$ 124.001,00")).toBeVisible();
-  await expect
-    .element(panel.getByRole("table", { name: `Lotes de ${almonds.name}` }))
-    .toBeVisible();
+  await expect.element(panel.getByRole("list", { name: `Lotes de ${almonds.name}` })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -83,7 +81,7 @@ test("shows no movements and reads none for a person who can neither count nor m
   const screen = await renderPanel(almonds, { services });
 
   await expect
-    .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
+    .element(screen.getByRole("list", { name: `Lotes de ${almonds.name}` }))
     .toBeVisible();
   expect(screen.getByText(/^Movimientos/).query()).toBeNull();
   expect(services.fetchStockCounts).not.toHaveBeenCalled();

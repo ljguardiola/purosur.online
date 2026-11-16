@@ -6,11 +6,12 @@ import { StockBalanceLots } from "./stock-balance-lots";
 import { almonds, crackers, honey } from "./test-support/stock-fixtures";
 
 const PANEL_WIDTH = 325;
+const SCREEN_WIDTH = 1200;
 
-function renderLots(product: typeof almonds, { width }: { width?: number } = {}) {
+function renderLots(product: typeof almonds, { width = SCREEN_WIDTH }: { width?: number } = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
-      <div style={width === undefined ? undefined : { width: `${width}px` }}>
+      <div style={{ width: `${width}px` }}>
         <StockBalanceLots product={product} />
       </div>
     </FieldSizeProvider>,
