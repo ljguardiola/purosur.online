@@ -268,6 +268,7 @@ export function ProductsListScreen({
     dataColumn({
       id: "product",
       header: "Producto",
+      grow: true,
       sort: { order: productNameOrder, firstDirection: "ascending" },
       render: (item: ListedProduct) => (
         <TableCellText description={categoryLabels.get(item.categoryId) ?? item.categoryName}>
@@ -278,12 +279,14 @@ export function ProductsListScreen({
     dataColumn({
       id: "brand",
       header: "Marca",
+      width: 120,
       render: (item: ListedProduct) =>
         item.brandId === null ? "" : (brandNames.get(item.brandId) ?? ""),
     }),
     dataColumn({
       id: "netContent",
       header: "Contenido neto",
+      width: 80,
       render: (item: ListedProduct) =>
         item.netContent === null ? "" : formatNetContent(item.netContent),
     }),
@@ -296,17 +299,20 @@ export function ProductsListScreen({
     dataColumn({
       id: "unit",
       header: "Unidad",
+      width: 90,
       render: (item: ListedProduct) => unitLabel(item.saleUnit),
     }),
     dataColumn({
       id: "price",
       header: "Precio",
+      width: 140,
       align: "end",
       render: priceCell,
     }),
     dataColumn({
       id: "status",
       header: "Estado",
+      width: 90,
       render: (item: ListedProduct) =>
         item.active ? (
           <StatusIndicator tone="success">Activo</StatusIndicator>
