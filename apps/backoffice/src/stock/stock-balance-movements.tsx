@@ -101,6 +101,7 @@ function ProductCounts({
       table={table}
       aria-label={`Recuentos de ${productName}`}
       variant="nested"
+      stackWhenNarrow
       {...cloudTableState(data, "los recuentos")}
       empty={{
         icon: <ClipboardCheck />,
@@ -133,6 +134,7 @@ function ProductMovements({
       table={table}
       aria-label={`Ajustes y pérdidas de ${productName}`}
       variant="nested"
+      stackWhenNarrow
       {...cloudTableState(data, "los ajustes y las pérdidas")}
       empty={{
         icon: <ArrowDownUp />,

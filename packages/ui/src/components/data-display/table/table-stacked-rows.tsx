@@ -1,8 +1,28 @@
 import type { RowData } from "@tanstack/react-table";
+import { Lock } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 import { columnActionCount, columnTitle, renderCell } from "./table-column";
 import { rowBoxShadowClassName, rowStateClassName } from "./table-styles";
-import type { TableModel, TableRowState, TableVariant } from "./table-types";
+import type { TableLock, TableModel, TableRowState, TableVariant } from "./table-types";
+
+export function TableStackedLock({
+  locked,
+  variant,
+}: {
+  locked: TableLock;
+  variant: TableVariant;
+}) {
+  return (
+    <div
+      className={[
+        "flex h-control-sm items-center text-text-subtle",
+        variant === "nested" ? "px-0" : "px-4",
+      ].join(" ")}
+    >
+      <Lock role="img" aria-label={locked.label} className="size-icon-md" />
+    </div>
+  );
+}
 
 export function TableStackedRows<T extends RowData>({
   table,
@@ -11,6 +31,7 @@ export function TableStackedRows<T extends RowData>({
   rowState,
   rowDetail,
   rowsDisabled,
+  busy,
 }: {
   table: TableModel<T>;
   "aria-label": string;
@@ -18,10 +39,15 @@ export function TableStackedRows<T extends RowData>({
   rowState: ((item: T) => TableRowState | undefined) | undefined;
   rowDetail: ((item: T) => ReactNode) | undefined;
   rowsDisabled: boolean;
+  busy: boolean;
 }) {
   const rows = table.getRowModel().rows;
   return (
-    <ul aria-label={ariaLabel} className={rowsDisabled ? "opacity-disabled" : ""}>
+    <ul
+      aria-label={ariaLabel}
+      aria-busy={busy ? true : undefined}
+      className={rowsDisabled ? "opacity-disabled" : ""}
+    >
       {rows.map((row, rowIndex) => {
         const state = rowState?.(row.original);
         const detail = rowDetail?.(row.original);

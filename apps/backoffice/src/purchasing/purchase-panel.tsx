@@ -245,6 +245,7 @@ export function PurchasePanel({
               <Table
                 aria-label="Fletes vinculados"
                 variant="nested"
+                stackWhenNarrow
                 table={freightsTable}
                 loading={false}
                 empty={{ icon: <Truck />, title: "Sin fletes vinculados", variant: "blank" }}

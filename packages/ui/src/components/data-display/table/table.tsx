@@ -12,7 +12,7 @@ import { KeyLegend } from "../key-legend";
 import { TableCell } from "./table-cell";
 import { TableColumnWidths, TableHeaderRows, tableMinWidthPx } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
-import { TableStackedRows } from "./table-stacked-rows";
+import { TableStackedLock, TableStackedRows } from "./table-stacked-rows";
 import {
   pressableRowClassName,
   rowBoxShadowClassName,
@@ -248,6 +248,9 @@ export function Table<T extends RowData>({
         className={tableContainerClassName(variant, fill)}
       >
         {loading === "updating" && <TableUpdatingBar />}
+        {stacked && locked !== undefined ? (
+          <TableStackedLock locked={locked} variant={variant} />
+        ) : null}
         {stacked ? (
           <StackedContent
             displayMode={displayMode}
@@ -257,6 +260,7 @@ export function Table<T extends RowData>({
             rowState={rowState}
             rowDetail={rowDetail}
             rowsDisabled={rowsDisabled}
+            busy={loading === "updating"}
             empty={empty}
             failure={failure}
           />

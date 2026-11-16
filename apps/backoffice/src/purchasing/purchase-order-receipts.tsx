@@ -107,7 +107,7 @@ function ReceiptCard({
           </Button>
         ) : null}
       </div>
-      <Table aria-label={`Recepción del ${day}`} table={table} loading={false} />
+      <Table aria-label={`Recepción del ${day}`} table={table} loading={false} stackWhenNarrow />
     </Card>
   );
 }
