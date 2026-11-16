@@ -9,11 +9,13 @@ export function TableCell<T extends RowData>({
   first,
   last,
   variant,
+  fixedLayout,
 }: {
   cell: Cell<typeof tableModelFeatures, T, unknown>;
   first: boolean;
   last: boolean;
   variant: TableVariant;
+  fixedLayout: boolean;
 }) {
   const actionsColumn = columnActionCount(cell.column) !== undefined;
   const align = actionsColumn ? "start" : columnAlign(cell.column);
@@ -21,7 +23,8 @@ export function TableCell<T extends RowData>({
   return (
     <td
       className={[
-        "h-control-4xl break-words align-middle py-2",
+        "h-control-4xl align-middle py-2",
+        fixedLayout ? "break-words" : "wrap-normal",
         cellHorizontalPaddingClassName(first, last, variant),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",

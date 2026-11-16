@@ -53,7 +53,7 @@ function leafColumnWidthStyle<T extends RowData>(
   );
 }
 
-const FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX = 96;
+const FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX = 120;
 
 // Below this width a table scrolls sideways instead of crushing a column it gave no width.
 export function tableMinWidthPx<T extends RowData>(
@@ -95,10 +95,12 @@ export function TableHeaderRows<T extends RowData>({
   table,
   variant,
   locked,
+  fixedLayout,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
   locked?: TableLock;
+  fixedLayout: boolean;
 }) {
   const groupDepths = table.getHeaderGroups().slice(0, -1);
   return (
@@ -109,6 +111,7 @@ export function TableHeaderRows<T extends RowData>({
       <TableHeaderRow
         table={table}
         variant={variant}
+        fixedLayout={fixedLayout}
         {...(locked === undefined ? {} : { locked })}
       />
     </>
@@ -119,10 +122,12 @@ function TableHeaderRow<T extends RowData>({
   table,
   variant,
   locked,
+  fixedLayout,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
   locked?: TableLock;
+  fixedLayout: boolean;
 }) {
   const headers = table.getHeaderGroups().at(-1)?.headers ?? [];
   return (
@@ -147,7 +152,7 @@ function TableHeaderRow<T extends RowData>({
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.
               variant === "nested" ? "h-control-sm" : "h-control-xl",
-              "break-words align-middle",
+              fixedLayout ? "break-words align-middle" : "wrap-normal align-middle",
               // A sortable header's hit area needs the cell's full box, so its padding
               // lives on the button instead.
               sortable ? "" : cellHorizontalPaddingClassName(first, last, variant),

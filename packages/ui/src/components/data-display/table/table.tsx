@@ -55,6 +55,7 @@ export function Table<T extends RowData>({
   failureKeepsHeaders = false,
   locked,
   inactive = false,
+  fixedColumns = false,
 }: TableProps<T>): ReactElement {
   const tableId = useId();
   const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(tableId);
@@ -66,6 +67,7 @@ export function Table<T extends RowData>({
     rows.length,
     empty !== undefined,
   );
+  const fixedLayout = fill || fixedColumns;
   const rowsDisabled = locked !== undefined || inactive;
   const emptyBelowHeaders = fill && emptyKeepsHeaders && displayMode === "empty";
   const failureBelowHeaders = fill && failureKeepsHeaders && displayMode === "failure";
@@ -84,14 +86,15 @@ export function Table<T extends RowData>({
         id={tableId}
         aria-label={ariaLabel}
         aria-busy={loading ? true : undefined}
-        className="w-full table-fixed"
-        style={fill ? undefined : { minWidth: `${tableMinWidthPx(table, variant)}px` }}
+        className={fixedLayout ? "w-full table-fixed" : "w-full table-auto"}
+        style={fixedLayout ? undefined : { minWidth: `${tableMinWidthPx(table, variant)}px` }}
       >
         <TableColumnWidths table={table} variant={variant} />
         <thead>
           <TableHeaderRows
             table={table}
             variant={variant}
+            fixedLayout={fixedLayout}
             {...(locked === undefined ? {} : { locked })}
           />
         </thead>
@@ -103,7 +106,7 @@ export function Table<T extends RowData>({
           {failure !== undefined && !failureBelowHeaders && (
             <tr>
               <td colSpan={columns.length} className="h-70 align-top">
-                <div className="sticky left-0 w-scroll-region p-4">
+                <div className={fixedColumns ? "p-4" : "sticky left-0 w-scroll-region p-4"}>
                   <LoadFailure {...failure} />
                 </div>
               </td>
@@ -112,7 +115,7 @@ export function Table<T extends RowData>({
           {showEmptyState && empty !== undefined && (
             <tr>
               <td colSpan={columns.length} className="h-70 align-middle">
-                <div className="sticky left-0 w-scroll-region">
+                <div className={fixedColumns ? undefined : "sticky left-0 w-scroll-region"}>
                   <EmptyState {...empty} />
                 </div>
               </td>
@@ -159,6 +162,7 @@ export function Table<T extends RowData>({
                         first={index === 0}
                         last={index === cells.length - 1}
                         variant={variant}
+                        fixedLayout={fixedLayout}
                       />
                     ))}
                   </tr>
@@ -215,6 +219,8 @@ export function Table<T extends RowData>({
           (messageElement ??
           (fill ? (
             <div className="min-h-0 flex-1 overflow-y-auto">{tableElement}</div>
+          ) : fixedColumns ? (
+            tableElement
           ) : (
             <div
               ref={observeOverflow}

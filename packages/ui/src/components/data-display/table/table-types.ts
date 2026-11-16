@@ -105,4 +105,7 @@ export type TableProps<T extends RowData> = {
   failureKeepsHeaders?: boolean;
   locked?: TableLock;
   inactive?: boolean;
+  // Keeps the columns at the container's width, squeezing them and breaking words that no longer
+  // fit, instead of scrolling sideways.
+  fixedColumns?: boolean;
 } & TableLoadProps;
