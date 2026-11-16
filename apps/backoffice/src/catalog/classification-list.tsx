@@ -31,7 +31,7 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
   } = props;
   return (
     <>
-      <section className="flex min-h-0 min-w-0 flex-col gap-4">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
         <div className="flex items-center gap-3">
           <h2 className="min-w-0 flex-1 text-text-accent text-subheading">{label}</h2>
           <Button
@@ -58,7 +58,7 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
           <Table
             {...props}
             aria-label={label}
-            footer={footer == null ? footer : <div className="pt-4">{footer}</div>}
+            footer={<div className="min-h-9 pt-4">{footer}</div>}
             fill
           />
         </div>
