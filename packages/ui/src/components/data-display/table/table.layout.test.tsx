@@ -153,3 +153,14 @@ test("keeps every word of the figures whole beside a long name", async () => {
 
   expect(wordsPaintedOnSeveralLines(row)).toEqual([]);
 });
+
+test("paints each figure of an end-aligned column on a single line, taking its content width", async () => {
+  const screen = await renderBeside(880);
+  const row = screen.getByRole("row").nth(1).element() as HTMLElement;
+
+  for (const figure of ["12,150 kg", "$ 27.599,00 / kg", "$ 335.328,00"]) {
+    const cell = [...row.querySelectorAll("td")].find((td) => td.textContent === figure);
+    expect(cell).toBeDefined();
+    expect(linesPainted(cell as HTMLElement)).toBe(1);
+  }
+});
