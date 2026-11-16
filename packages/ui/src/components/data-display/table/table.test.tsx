@@ -2724,6 +2724,50 @@ test.each(["framed", "nested"] as const)(
   },
 );
 
+const groupedColumns = [
+  dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+  groupColumn({
+    id: "inventory",
+    header: "Existencias",
+    columns: [
+      dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
+      dataColumn({ id: "sku", header: "Código", render: (p: Product) => p.sku ?? "" }),
+    ],
+  }),
+] as const;
+
+test("heads the columns of a group with the group's name spanning all of them", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
+
+  const group = screen.getByText("Existencias", { exact: true });
+  await expect.element(group).toBeVisible();
+  expect(group.element().getAttribute("colspan")).toBe("2");
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Stock" })).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Código" })).toBeVisible();
+});
+
+test("renders one cell per leaf column in each row of a table with a group", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
+
+  await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
+  expect(screen.container.querySelectorAll("tbody tr:first-child td")).toHaveLength(3);
+});
+
+test("has no accessibility violations with a column group", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
+
+  await expect.element(screen.getByText("Existencias", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a single header row for a table without groups", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  expect(screen.container.querySelectorAll("thead tr")).toHaveLength(1);
+});
+
 test("sizes the actions column after a group at the width of its buttons, and a column with no width takes what is left", async () => {
   const widthGroupColumns = [
     dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
