@@ -18,6 +18,7 @@ export type TableColumnMeta = {
   actionCount?: 1 | 2 | 3 | 4 | 5 | 6;
   width?: number;
   code?: boolean;
+  grow?: boolean;
 };
 
 type TableModelFeatures = typeof tableModelFeatures;
