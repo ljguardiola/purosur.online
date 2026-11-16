@@ -60,7 +60,9 @@ test("hides the assistant's button from a user who cannot manage users", async (
   window.history.pushState(null, "", "/people/users");
   const services = servicesFor(["users_area"]);
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
 
   expect(
     screen.getByRole("button", { name: "Ante una sospecha de compromiso" }).query(),
@@ -73,7 +75,9 @@ test("drops the assistant from the URL for a user who cannot manage users, witho
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Configuración", level: 1 }))
+    .toBeVisible();
   expect(screen.getByRole("dialog", { name: ASSISTANT }).query()).toBeNull();
   expect(window.location.pathname + window.location.search).toBe("/people/users");
   expect(services.respondToCompromiseModal.fetchCompromiseResponse).not.toHaveBeenCalled();

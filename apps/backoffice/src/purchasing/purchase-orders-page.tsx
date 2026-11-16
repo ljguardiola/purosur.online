@@ -1,23 +1,15 @@
-import { Tab, Tabs } from "@purosur/ui";
-import { createLink, getRouteApi, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { getRouteApi, Outlet, useMatchRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
-import { PURCHASE_ORDERS_TAB_TARGETS, type PurchaseOrdersTab } from "./purchase-orders-tabs";
+import type { PurchaseOrdersTab } from "./purchase-orders-tabs";
+import { PurchasingTabs } from "./purchasing-tabs";
 
 const route = getRouteApi("/signed-in/purchasing-area/purchase-orders");
 
-const PurchaseOrdersTabLink = createLink(Tab);
-
-const TAB_LABELS: Record<PurchaseOrdersTab, string> = {
-  orders: "Pedidos",
-  suggestion: "Sugerir pedido",
-  comparison: "Comparar precios",
-};
-
 export function PurchaseOrdersPage(): ReactElement {
-  const { purchaseOrdersTabs } = route.useRouteContext();
+  const { purchasingTabs } = route.useRouteContext();
   const matchRoute = useMatchRoute();
   useDocumentTitle("Pedidos · Puro Sur");
   const selectedTab: PurchaseOrdersTab = matchRoute({ to: "/purchase-orders/suggestion" })
@@ -27,22 +19,10 @@ export function PurchaseOrdersPage(): ReactElement {
       : "orders";
 
   return (
-    <ScreenLayout topBar={<AreaTopBar eyebrow="Compras" title="Pedidos" />} bodyClassName="p-0">
-      <Tabs
-        label="Secciones de Pedidos"
-        selectedTab={selectedTab}
-        tabs={purchaseOrdersTabs.map((key) => (
-          <PurchaseOrdersTabLink
-            key={key}
-            to={PURCHASE_ORDERS_TAB_TARGETS[key]}
-            search={key === selectedTab ? true : {}}
-            value={key}
-            label={TAB_LABELS[key]}
-          />
-        ))}
-      >
+    <ScreenLayout topBar={<AreaTopBar title="Compras" />} bodyClassName="p-0">
+      <PurchasingTabs tabs={purchasingTabs} selected={selectedTab}>
         <Outlet />
-      </Tabs>
+      </PurchasingTabs>
     </ScreenLayout>
   );
 }

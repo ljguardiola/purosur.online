@@ -1,4 +1,4 @@
-import { AreaNavItem, SectionNavItem } from "@purosur/ui";
+import { AreaNavItem } from "@purosur/ui";
 import { createLink, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import {
   Boxes,
@@ -38,8 +38,6 @@ const AreaLink = createLink(AreaNavItem);
 
 const OwnAccountPanel = lazyScreen(() => import("./own-account-panel"), "OwnAccountPanel");
 
-export const SectionLink = createLink(SectionNavItem);
-
 type Area =
   | "home"
   | "products"
@@ -52,13 +50,11 @@ type Area =
   | "help";
 
 export type AreaLayoutProps = {
-  area: Area;
-  sectionColumnLabel?: string | undefined;
-  sectionColumn?: ReactNode;
+  area: Area | null;
   children: ReactNode;
 };
 
-export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
+export function AreaLayout({ area, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
   const { account } = signedInRoute.useSearch();
   const navigate = useNavigate();
@@ -85,7 +81,6 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const stockShown = Boolean(matchRoute({ to: "/stock" }));
   return (
     <Shell
-      sectionColumnLabel={sectionColumnLabel}
       railAreas={
         <>
           <AreaLink to="/" label="Inicio" icon={<Home />} active={area === "home"} />
@@ -162,7 +157,6 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           />
         </>
       }
-      sectionColumn={sectionColumn}
     >
       <AreaTopBarUnbilledDeferredSales
         value={

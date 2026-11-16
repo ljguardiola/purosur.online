@@ -60,9 +60,7 @@ test("opens the sales by day report at its address and reads it from the cloud",
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
   expect(services.salesByDayScreen.fetchSalesReport).toHaveBeenCalledWith({});
   expect(document.title).toBe("Ventas por día o por rango · Puro Sur");
@@ -74,9 +72,7 @@ test("opens the sales by payment method report at its address and reads it from 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por medio de pago", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
   expect(document.title).toBe("Ventas por medio de pago · Puro Sur");
@@ -88,9 +84,7 @@ test("opens the sales by product and category report at its address and reads it
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por producto y por categoría", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Fiambres")).toBeVisible();
   expect(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
@@ -132,9 +126,7 @@ test("opens the sales by cashier report at its address and reads it from the clo
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
   expect(services.salesByCashierScreen.fetchSalesByCashier).toHaveBeenCalledWith({});
   expect(document.title).toBe("Ventas por cajero · Puro Sur");
@@ -173,9 +165,7 @@ test("opens the weights typed by hand report at its address and reads it from th
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Pesos tipeados a mano", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
   expect(services.handTypedWeightsScreen.fetchHandTypedWeights).toHaveBeenCalledWith({});
   expect(document.title).toBe("Pesos tipeados a mano · Puro Sur");
@@ -187,9 +177,7 @@ test("opens the discounts by promotion report at its address and reads it from t
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Descuentos por promoción", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("table").getByText("Tres por dos")).toBeVisible();
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).toHaveBeenCalledWith({});
   expect(document.title).toBe("Descuentos por promoción · Puro Sur");
@@ -228,11 +216,7 @@ test("opens the manual discounts report at its address and reads it from the clo
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(
-      screen.getByRole("heading", { name: "Descuentos manuales y sobre el total", level: 1 }),
-    )
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
   expect(services.manualDiscountsScreen.fetchManualDiscounts).toHaveBeenCalledWith({});
   expect(document.title).toBe("Descuentos manuales y sobre el total · Puro Sur");
@@ -244,9 +228,7 @@ test("opens the cash rounding report at its address and reads it from the cloud"
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Redondeo en efectivo", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("table").getByText("Caja principal")).toBeVisible();
   expect(services.cashRoundingScreen.fetchCashRounding).toHaveBeenCalledWith({});
   expect(document.title).toBe("Redondeo en efectivo · Puro Sur");
@@ -286,9 +268,7 @@ test("opens the average ticket report at its address and reads it from the cloud
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ticket promedio", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await expect
     .element(screen.getByRole("table").getByText("Del 08/10/2026 al 14/10/2026"))
     .toBeVisible();
@@ -416,9 +396,7 @@ test("shows no open alerts count in Reportes' top bar", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });

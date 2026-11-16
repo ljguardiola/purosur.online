@@ -7,10 +7,11 @@ import { defaultQuarantinedEventsScreenServices } from "./quarantined-events-ser
 const route = getRouteApi("/signed-in/settings-area/held-register-changes");
 
 export function QuarantinedEventsPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, sessionActions, settingsTabs } = route.useRouteContext();
   useDocumentTitle("Cambios de cajas retenidos · Puro Sur");
   return (
     <QuarantinedEventsScreen
+      settingsTabs={settingsTabs}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.quarantinedEventsScreen ?? defaultQuarantinedEventsScreenServices}
     />

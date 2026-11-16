@@ -17,7 +17,7 @@ test("redirects an unknown category or article to the closest page that exists",
 
   await expect.poll(() => window.location.pathname).toBe("/help");
   await expect
-    .element(screen.getByRole("heading", { name: "Elegí una sección", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Elegí una sección", level: 2 }))
     .toBeInTheDocument();
 
   window.history.pushState(null, "", "/help/getting_started/unknown");
@@ -32,7 +32,9 @@ test("moves an article reached under another category to its own category's URL"
   const screen = await render(<App help={help} services={createAppServices()} />);
 
   await expect.poll(() => window.location.pathname).toBe("/help/getting_started/intro");
-  await expect.element(screen.getByText("Ayuda · Primeros pasos")).toBeVisible();
+  await expect
+    .element(screen.getByRole("tab", { name: "Primeros pasos", selected: true }))
+    .toBeVisible();
 });
 
 test("shows the active Help item in the rail, leaving other areas in the rail unhighlighted, and the Help screen's own content", async () => {
@@ -50,7 +52,7 @@ test("shows the active Help item in the rail, leaving other areas in the rail un
   const configItem = configItemLocator.element() as HTMLAnchorElement;
   expect(configItem.getAttribute("aria-current")).toBeNull();
 
-  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 2 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Ayuda", level: 1 })).toBeVisible();
   await expect.element(screen.getByRole("searchbox", { name: "Buscar en la ayuda" })).toBeVisible();
   await expect.element(screen.getByText("Todavía no hay contenido de ayuda")).toBeVisible();
 
@@ -65,7 +67,7 @@ test("following a search result shows that article and clears the search", async
   await userEvent.click(screen.getByRole("link", { name: "Facturación básica" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Facturación básica", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Facturación básica", level: 2 }))
     .toBeVisible();
   await expect.element(screen.getByText("Cómo emitir una factura.")).toBeVisible();
   await expect
@@ -80,7 +82,7 @@ test("following a section link to the current page while searching shows that se
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar en la ayuda" }), "bienvenida");
   await expect.element(screen.getByRole("link", { name: "Bienvenida" })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Facturación", exact: true }));
+  await userEvent.click(screen.getByRole("tab", { name: "Facturación", exact: true }));
 
   await expect.element(screen.getByRole("link", { name: "Facturación básica" })).toBeVisible();
   expect(screen.getByRole("link", { name: "Bienvenida" }).query()).toBeNull();

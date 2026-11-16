@@ -3,6 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { shownEyebrow } from "./test-support/eyebrow";
 import { FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 import { reportsServices } from "./test-support/reports-services";
@@ -45,11 +46,9 @@ test("opens Ventas > Por día from the rail's Reportes item", async () => {
     screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Reportes" }),
   );
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(location()).toBe("/reports/sales-by-day");
-  expect(shownEyebrow()).toBe("Reportes");
+  expect(shownEyebrow()).toBeNull();
   await expect.element(screen.getByRole("tab", { name: "Ventas", selected: true })).toBeVisible();
   await expect.element(screen.getByRole("radio", { name: "Por día" })).toBeChecked();
 });
@@ -60,9 +59,7 @@ test("sends the address of the reports to the first view the person may see", as
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(location()).toBe("/reports/sales-by-day");
 });
 
@@ -80,16 +77,31 @@ test("shows the three tabs, in order, to a person with the reports area", async 
   await expect.element(tabs.getByRole("tab").nth(2)).toHaveAccessibleName("Rentabilidad");
 });
 
-test("holds the rail's Reportes column to a single Reportes item", async () => {
+test("shows no section column beside the report tabs, under the one title Reportes", async () => {
   const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
   window.history.pushState(null, "", "/reports/sales-by-day");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const column = screen.getByRole("navigation", { name: "Reportes" });
-  expect(column.getByRole("link").elements()).toHaveLength(1);
-  await expect.element(column.getByRole("link", { name: "Reportes" })).toBeVisible();
+  await expectOneNavigationLevel(screen, "Reportes", [
+    "Ventas",
+    "Descuentos y control",
+    "Rentabilidad",
+  ]);
   expect(screen.getByText("Todos los reportes").query()).toBeNull();
+});
+
+test("keeps the title Reportes when moving to another report", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/sales-by-day");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("radio", { name: "Por día" })).toBeChecked();
+
+  await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }), { force: true });
+
+  await expect.element(screen.getByRole("radio", { name: "Por cajero" })).toBeChecked();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).elements()).toHaveLength(1);
 });
 
 test("offers the five views of Ventas in a segmented control under the tabs", async () => {
@@ -145,9 +157,7 @@ test("replaces the segmented control with a Reporte select that opens the view i
   await userEvent.click(screen.getByRole("button", { name: "Por día Reporte" }));
   await userEvent.click(screen.getByRole("option", { name: "Por cajero" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/reports/sales-by-cashier");
   expect(searchOf(location())).toEqual({ ...PERIOD, register: FRONT_REGISTER_ID });
   await expect.element(screen.getByRole("button", { name: "Por cajero Reporte" })).toBeVisible();
@@ -203,9 +213,7 @@ test("opens the view a segmented control option names", async () => {
 
   await userEvent.click(screen.getByRole("radio", { name: "Por medio de pago" }), { force: true });
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por medio de pago", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(location()).toBe("/reports/sales-by-payment-method");
   await expect.element(screen.getByRole("radio", { name: "Por medio de pago" })).toBeChecked();
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
@@ -219,14 +227,12 @@ test("opens a tab on its first view", async () => {
 
   await userEvent.click(screen.getByRole("tab", { name: "Descuentos y control" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Descuentos por promoción", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(location()).toBe("/reports/sales-by-promotion");
   await expect
     .element(screen.getByRole("tab", { name: "Descuentos y control", selected: true }))
     .toBeVisible();
-  expect(shownEyebrow()).toBe("Reportes");
+  expect(shownEyebrow()).toBeNull();
 });
 
 test("keeps the period and the register when moving to another tab", async () => {
@@ -241,9 +247,7 @@ test("keeps the period and the register when moving to another tab", async () =>
 
   await userEvent.click(screen.getByRole("tab", { name: "Descuentos y control" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Descuentos por promoción", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/reports/sales-by-promotion");
   expect(searchOf(location())).toEqual({ ...PERIOD, register: FRONT_REGISTER_ID });
   await expect
@@ -263,9 +267,7 @@ test("keeps the period and the register when moving to another view", async () =
 
   await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }), { force: true });
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/reports/sales-by-cashier");
   expect(searchOf(location())).toEqual({ ...PERIOD, register: FRONT_REGISTER_ID });
 });
@@ -282,9 +284,7 @@ test("drops what only the view left uses when moving to another view", async () 
 
   await userEvent.click(screen.getByRole("radio", { name: "Por cajero" }), { force: true });
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por cajero", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(searchOf(location())).toEqual(PERIOD);
 });
 
@@ -295,14 +295,10 @@ test("keeps the period when moving back to the view that was left", async () => 
   await expect.element(screen.getByText("02/10/2026")).toBeVisible();
 
   await userEvent.click(screen.getByRole("tab", { name: "Rentabilidad" }));
-  await expect
-    .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   await userEvent.click(screen.getByRole("tab", { name: "Ventas" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ventas por día o por rango", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(searchOf(location())).toEqual(PERIOD);
 });
 
@@ -310,81 +306,73 @@ test.each([
   {
     path: "/reports/sales-by-day",
     tab: "Ventas",
-    title: "Ventas por día o por rango",
     option: "Por día",
   },
   {
     path: "/reports/sales-by-payment-method",
     tab: "Ventas",
-    title: "Ventas por medio de pago",
     option: "Por medio de pago",
   },
   {
     path: "/reports/sales-by-product-and-category",
     tab: "Ventas",
-    title: "Ventas por producto y por categoría",
     option: "Por producto y categoría",
   },
   {
     path: "/reports/sales-by-cashier",
     tab: "Ventas",
-    title: "Ventas por cajero",
     option: "Por cajero",
   },
   {
     path: "/reports/average-ticket",
     tab: "Ventas",
-    title: "Ticket promedio",
     option: "Ticket promedio",
   },
   {
     path: "/reports/sales-by-promotion",
     tab: "Descuentos y control",
-    title: "Descuentos por promoción",
     option: "Por promoción",
   },
   {
     path: "/reports/manual-discounts",
     tab: "Descuentos y control",
-    title: "Descuentos manuales y sobre el total",
     option: "Manuales y sobre el total",
   },
   {
     path: "/reports/cash-rounding",
     tab: "Descuentos y control",
-    title: "Redondeo en efectivo",
     option: "Redondeo en efectivo",
   },
   {
     path: "/reports/hand-typed-weights",
     tab: "Descuentos y control",
-    title: "Pesos tipeados a mano",
     option: "Pesos tipeados a mano",
   },
   {
     path: "/reports/margin",
     tab: "Rentabilidad",
-    title: "Margen por producto y por categoría",
     option: "Margen por producto y categoría",
   },
   {
     path: "/reports/mercado-pago-charge-costs",
     tab: "Rentabilidad",
-    title: "Costos de Mercado Pago",
     option: "Costos de Mercado Pago",
   },
-])("keeps $path working, under $tab, titled $title", async ({ path, tab, title, option }) => {
-  const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
-  window.history.pushState(null, "", path);
+])(
+  "keeps $path working, under the selected $tab tab with $option checked",
+  async ({ path, tab, option }) => {
+    const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
+    window.history.pushState(null, "", path);
 
-  const screen = await render(<App help={emptyHelp} services={services} />);
+    const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: title, level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe(path);
-  expect(shownEyebrow()).toBe("Reportes");
-  await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
-  await expect.element(screen.getByRole("radio", { name: option })).toBeChecked();
-});
+    await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+    expect(window.location.pathname).toBe(path);
+    expect(shownEyebrow()).toBeNull();
+    await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: option })).toBeChecked();
+  },
+);
 
 test("shows only Rentabilidad, on the charge costs, to a person with only that permission", async () => {
   const services = reportsServices(["mercado_pago_charge_costs"]);
@@ -397,11 +385,9 @@ test("shows only Rentabilidad, on the charge costs, to a person with only that p
     .toHaveAttribute("href", "/reports");
   await userEvent.click(areas.getByRole("link", { name: "Reportes", exact: true }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(location()).toBe("/reports/mercado-pago-charge-costs");
-  expect(shownEyebrow()).toBe("Reportes");
+  expect(shownEyebrow()).toBeNull();
   expect(
     screen.getByRole("tablist", { name: "Secciones de Reportes" }).getByRole("tab").elements(),
   ).toHaveLength(1);
@@ -418,9 +404,7 @@ test("sends a person with only the charge costs permission from another report t
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/reports/mercado-pago-charge-costs");
   expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
 });
@@ -431,9 +415,7 @@ test("sends a person with only the reports area from the charge costs to the fir
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/reports/margin");
   expect(services.mercadoPagoChargeCostsScreen.fetchMercadoPagoChargeCosts).not.toHaveBeenCalled();
 });
@@ -442,17 +424,13 @@ test("keeps the charge costs in the segmented control of Rentabilidad for who ho
   const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
   window.history.pushState(null, "", "/reports/margin");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect
-    .element(screen.getByRole("heading", { name: "Margen por producto y por categoría", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
 
   await userEvent.click(screen.getByRole("radio", { name: "Costos de Mercado Pago" }), {
     force: true,
   });
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/reports/mercado-pago-charge-costs");
 });
 

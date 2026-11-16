@@ -9,6 +9,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { createBranchTermServices } from "./test-support/branch-term";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
@@ -58,28 +59,23 @@ function location() {
   return window.location.pathname + window.location.search;
 }
 
-test("opens the page on Pendientes from the rail's Ventas y caja item, with both tabs, for a person who sees both", async () => {
+test("opens the page on Pendientes from the rail's Ventas y caja item, with a segmented control of both views, for a person who sees both", async () => {
   const services = refundsServices(["refunds_area", "returns_report"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("link", { name: "Ventas y caja", exact: true }));
 
+  await expectOneNavigationLevel(screen, "Ventas y caja", ["Devoluciones y reembolsos"]);
   await expect
-    .element(screen.getByRole("heading", { name: "Devoluciones y reembolsos", level: 1 }))
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
     .toBeVisible();
-  await expect.element(screen.getByText("Ventas y caja", { exact: true }).first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("tab", { name: "Pendientes", selected: true }))
-    .toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Historial" })).toBeVisible();
+  const views = screen.getByRole("radiogroup", { name: "Vista" });
+  await expect.element(views.getByRole("radio", { name: "Pendientes" })).toBeChecked();
+  await expect.element(views.getByRole("radio", { name: "Historial" })).toBeVisible();
   expect(location()).toBe("/refunds");
   await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
   expect(document.title).toBe("Devoluciones y reembolsos · Puro Sur");
-  const sections = screen.getByRole("navigation", { name: "Ventas y caja" });
-  await expect
-    .element(sections.getByRole("link", { name: "Devoluciones y reembolsos" }))
-    .toHaveAttribute("aria-current", "page");
 });
 
 test("lists Ventas y caja right after Inicio in the rail", async () => {
@@ -99,17 +95,15 @@ test("lists Ventas y caja right after Inicio in the rail", async () => {
   expect(labels.indexOf("Ventas y caja")).toBe(labels.indexOf("Inicio") + 1);
 });
 
-test("following the Historial tab opens the returns history, and Pendientes comes back", async () => {
+test("following the Historial view opens the returns history, and Pendientes comes back", async () => {
   const services = refundsServices(["refunds_area", "returns_report"]);
   window.history.pushState(null, "", "/refunds?channel=outside-mercado-pago");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("tab", { name: "Historial" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Historial" }), { force: true });
 
-  await expect
-    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("radio", { name: "Historial" })).toBeChecked();
   await expect
     .element(
       screen
@@ -120,11 +114,9 @@ test("following the Historial tab opens the returns history, and Pendientes come
   expect(location()).toBe("/refunds/history");
   expect(services.returnsHistoryScreen.fetchReturnsReport).toHaveBeenCalledWith({});
 
-  await userEvent.click(screen.getByRole("tab", { name: "Pendientes" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Pendientes" }), { force: true });
 
-  await expect
-    .element(screen.getByRole("tab", { name: "Pendientes", selected: true }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("radio", { name: "Pendientes" })).toBeChecked();
   expect(location()).toBe("/refunds");
 });
 
@@ -148,6 +140,17 @@ test("keeps the returns history's filters in the address", async () => {
     .toBe("?register=11111111-1111-4111-8111-111111111111");
 });
 
+test("links the area tab to Pendientes unfiltered while the returns history is filtered by a register", async () => {
+  const services = refundsServices(["refunds_area", "returns_report"]);
+  window.history.pushState(null, "", `/refunds/history?register=${BACK_REGISTER_ID}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("radio", { name: "Historial" })).toBeChecked();
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
+    .toHaveAttribute("href", "/refunds");
+});
+
 test("shows only Historial to a person with returns_report alone, and sends /refunds to it", async () => {
   const services = refundsServices(["returns_report"]);
   window.history.pushState(null, "", "/refunds");
@@ -155,9 +158,10 @@ test("shows only Historial to a person with returns_report alone, and sends /ref
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
     .toBeVisible();
-  expect(screen.getByRole("tab", { name: "Pendientes" }).query()).toBeNull();
+  expect(screen.getByRole("radiogroup", { name: "Vista" }).query()).toBeNull();
+  expect(screen.getByRole("radio", { name: "Pendientes" }).query()).toBeNull();
   expect(location()).toBe("/refunds/history");
   expect(services.pendingRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
 });
@@ -169,9 +173,10 @@ test("shows only Pendientes to a person with refunds_area alone, and sends /refu
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("tab", { name: "Pendientes", selected: true }))
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
     .toBeVisible();
-  expect(screen.getByRole("tab", { name: "Historial" }).query()).toBeNull();
+  expect(screen.getByRole("radiogroup", { name: "Vista" }).query()).toBeNull();
+  expect(screen.getByRole("radio", { name: "Historial" }).query()).toBeNull();
   expect(location()).toBe("/refunds");
   expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
 });
@@ -208,7 +213,7 @@ test("takes a person with returns_report alone to the returns history from the r
   await userEvent.click(screen.getByRole("link", { name: "Ventas y caja", exact: true }));
 
   await expect
-    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
     .toBeVisible();
   expect(location()).toBe("/refunds/history");
 });
@@ -286,7 +291,7 @@ test("redirects /reports/returns to /refunds/history keeping the period and the 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
     .toBeVisible();
   expect(location()).toBe(
     "/refunds/history?from=2026-10-01&register=11111111-1111-4111-8111-111111111111&to=2026-10-07",
@@ -346,7 +351,7 @@ test("keeps the register chosen in the address", async () => {
   await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
 });
 
-test("shows the days a good-condition exchange is open on both tabs, with Cambiar for who can change the branch", async () => {
+test("shows the days a good-condition exchange is open on both views, with Cambiar for who can change the branch", async () => {
   const services = refundsServices(["refunds_area", "returns_report", "branch_area"]);
   window.history.pushState(null, "", "/refunds");
 
@@ -354,7 +359,7 @@ test("shows the days a good-condition exchange is open on both tabs, with Cambia
 
   await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
-  await userEvent.click(screen.getByRole("tab", { name: "Historial" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Historial" }), { force: true });
   await expect.element(screen.getByText("Cambio en buen estado: 15 días")).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
 });

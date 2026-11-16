@@ -1,88 +1,21 @@
-import { Eyebrow } from "@purosur/ui";
-import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Bot, PackageX, Store, Users } from "lucide-react";
-import { useId } from "react";
-import { AreaLayout, SectionLink } from "./area-layout";
-import {
-  canSeeAiCostReport,
-  canSeeBranchArea,
-  canSeePeopleArea,
-  canSeeQuarantinedEvents,
-} from "./backoffice-access";
+import { createRoute, Outlet } from "@tanstack/react-router";
+import { AreaLayout } from "./area-layout";
+import { visibleAreaTabs } from "./area-tabs";
+import { SETTINGS_TABS } from "./settings-tabs";
 import { signedInRoute } from "./signed-in-route";
 
 export const settingsAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
   id: "settings-area",
+  beforeLoad: ({ context: { session } }) => ({
+    settingsTabs: visibleAreaTabs(SETTINGS_TABS, session),
+  }),
   component: SettingsArea,
 });
 
 function SettingsArea() {
-  const { session } = settingsAreaRoute.useRouteContext();
-  const matchRoute = useMatchRoute();
-  const diagnosticsHeadingId = useId();
   return (
-    <AreaLayout
-      area="settings"
-      sectionColumnLabel="Configuración"
-      sectionColumn={
-        <>
-          <h2 className="text-text-accent text-heading">Configuración</h2>
-          <div className="h-2.5" />
-          <ul className="flex flex-col gap-1">
-            {canSeePeopleArea(session) && (
-              <li>
-                <SectionLink
-                  to="/people"
-                  label="Personas"
-                  icon={<Users />}
-                  active={Boolean(matchRoute({ to: "/people", fuzzy: true }))}
-                />
-              </li>
-            )}
-            {canSeeBranchArea(session) && (
-              <li>
-                <SectionLink
-                  to="/branch"
-                  label="Sucursal"
-                  icon={<Store />}
-                  active={Boolean(matchRoute({ to: "/branch" }))}
-                />
-              </li>
-            )}
-          </ul>
-          {(canSeeQuarantinedEvents(session) || canSeeAiCostReport(session)) && (
-            <>
-              <div id={diagnosticsHeadingId} className="mt-4 mb-1 px-3">
-                <Eyebrow text="Diagnóstico" headingLevel={3} />
-              </div>
-              <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
-                {canSeeQuarantinedEvents(session) && (
-                  <li>
-                    <SectionLink
-                      to="/held-register-changes"
-                      label="Cambios de cajas retenidos"
-                      icon={<PackageX />}
-                      active={Boolean(matchRoute({ to: "/held-register-changes" }))}
-                    />
-                  </li>
-                )}
-                {canSeeAiCostReport(session) && (
-                  <li>
-                    <SectionLink
-                      to="/ai-cost"
-                      label="Costo de IA"
-                      icon={<Bot />}
-                      active={Boolean(matchRoute({ to: "/ai-cost" }))}
-                    />
-                  </li>
-                )}
-              </ul>
-            </>
-          )}
-        </>
-      }
-    >
+    <AreaLayout area="settings">
       <Outlet />
     </AreaLayout>
   );

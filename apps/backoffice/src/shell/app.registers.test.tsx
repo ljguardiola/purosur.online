@@ -17,7 +17,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { shownEyebrow } from "./test-support/eyebrow";
+import { expectOneNavigationLevel } from "./test-support/area-structure";
 import { periodSegments, typePeriodStart } from "./test-support/report-dates";
 import { BACK_REGISTER_ID, registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
@@ -100,32 +100,39 @@ test("opens the page on Cajas from the rail's Ventas y caja item, with the three
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("link", { name: "Ventas y caja", exact: true }));
 
-  await expect.element(screen.getByRole("heading", { name: "Cajas", level: 1 })).toBeVisible();
+  await expectOneNavigationLevel(screen, "Ventas y caja", [
+    "Cajas",
+    "Cierres de caja",
+    "Movimientos de efectivo",
+  ]);
   await expect.element(screen.getByRole("tab", { name: "Cajas", selected: true })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Cierres de caja" })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Movimientos de efectivo" })).toBeVisible();
   await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
   expect(location()).toBe("/registers");
   expect(document.title).toBe("Cajas · Puro Sur");
-  expect(shownEyebrow()).toBe("Ventas y caja");
-  await expect.element(screen.getByRole("tablist", { name: "Secciones de Cajas" })).toBeVisible();
 });
 
-test("lists Cajas first in Ventas y caja, active on the page", async () => {
+test("lists Cajas and Devoluciones y reembolsos in one tab row, with Cajas selected on the page", async () => {
   const services = registersServices(["registers_area", "refunds_area"]);
   window.history.pushState(null, "", "/registers");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const sections = screen.getByRole("navigation", { name: "Ventas y caja" });
+  await expectOneNavigationLevel(screen, "Ventas y caja", ["Cajas", "Devoluciones y reembolsos"]);
+  await expect.element(screen.getByRole("tab", { name: "Cajas", selected: true })).toBeVisible();
+});
+
+test("opens Devoluciones y reembolsos from the Ventas y caja tab row", async () => {
+  const services = registersServices(["registers_area", "refunds_area"]);
+  window.history.pushState(null, "", "/registers");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Devoluciones y reembolsos" }));
+
   await expect
-    .element(sections.getByRole("link", { name: "Cajas" }))
-    .toHaveAttribute("aria-current", "page");
-  const labels = sections
-    .getByRole("link")
-    .all()
-    .map((link) => link.element().textContent?.trim());
-  expect(labels).toEqual(["Cajas", "Devoluciones y reembolsos"]);
+    .element(screen.getByRole("tab", { name: "Devoluciones y reembolsos", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe("/refunds");
 });
 
 test("following the Cierres de caja and Movimientos de efectivo tabs opens each screen, and Cajas comes back", async () => {

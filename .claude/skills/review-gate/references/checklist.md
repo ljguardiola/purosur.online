@@ -170,7 +170,10 @@ how a new one is judged.
   to a screen refused while the core refuses only one action, a person sent
   back to the screen they are leaving, an action left pressable while its
   own request is out, so a second press sends it again, a navigation that
-  changes one part of the location and drops the rest, a screen-wide key
+  changes one part of the location and drops the rest, or carries one view's
+  filters into a sibling view that reads the same field (an area tab linking
+  with `search: true` from `/refunds/history?register=…` opening Pendientes
+  filtered by that register), a screen-wide key
   taken ahead of the focused control that answers the same key, or a key an
   open panel or popup does not answer, or stops answering while its request
   is out or once focus leaves the field its key is scoped to, falling
