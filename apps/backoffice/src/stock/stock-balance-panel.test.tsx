@@ -54,24 +54,24 @@ test("shows no lots table for a product without lots", async () => {
 });
 
 test.each([
-  ["counts", accessWith("stock_balances", "stock_counts"), [`Recuentos de ${almonds.name}`]],
+  ["counts", accessWith("stock_balances", "stock_counts"), ["Sin recuentos"]],
   [
     "adjustments and losses",
     accessWith("stock_balances", "stock_movements"),
-    [`Ajustes y pérdidas de ${almonds.name}`],
+    ["Sin ajustes ni pérdidas"],
   ],
   [
     "counts, adjustments and losses",
     accessWith("stock_balances", "stock_counts", "stock_movements"),
-    [`Recuentos de ${almonds.name}`, `Ajustes y pérdidas de ${almonds.name}`],
+    ["Sin recuentos", "Sin ajustes ni pérdidas"],
   ],
 ] as const)(
   "shows the product's %s to a person who may see them",
-  async (_kinds, access, tables) => {
+  async (_kinds, access, emptyTitles) => {
     const screen = await renderPanel(almonds, { access });
 
-    for (const name of tables) {
-      await expect.element(screen.getByRole("table", { name })).toBeVisible();
+    for (const title of emptyTitles) {
+      await expect.element(screen.getByText(title, { exact: true })).toBeVisible();
     }
   },
 );

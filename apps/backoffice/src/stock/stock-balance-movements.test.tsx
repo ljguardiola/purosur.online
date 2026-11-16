@@ -33,20 +33,25 @@ function withMovements(services = createServices()) {
   return services;
 }
 
+const PANEL_WIDTH = 325;
+const SCREEN_WIDTH = 1200;
+
 function renderMovements(
   services = createServices(),
-  { showsCounts = true, showsMovements = true } = {},
+  { showsCounts = true, showsMovements = true, width = SCREEN_WIDTH } = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
-      <StockBalanceMovements
-        productId={almonds.id}
-        productName={almonds.name}
-        services={services}
-        showsCounts={showsCounts}
-        showsMovements={showsMovements}
-        onSessionEnded={() => {}}
-      />
+      <div style={{ width: `${width}px` }}>
+        <StockBalanceMovements
+          productId={almonds.id}
+          productName={almonds.name}
+          services={services}
+          showsCounts={showsCounts}
+          showsMovements={showsMovements}
+          onSessionEnded={() => {}}
+        />
+      </div>
     </FieldSizeProvider>,
   );
 }
@@ -155,4 +160,34 @@ test("offers a retry when the product's counts fail to load", async () => {
       screen.getByRole("table", { name: `Recuentos de ${almonds.name}` }).getByText("15/09/2026"),
     )
     .toBeVisible();
+});
+
+test("stacks the counts and the adjustments and losses into lists in a container as narrow as a side panel, with every value inside it", async () => {
+  const screen = await renderMovements(withMovements(), { width: PANEL_WIDTH });
+
+  const counts = screen.getByRole("list", { name: `Recuentos de ${almonds.name}` });
+  const movements = screen.getByRole("list", { name: `Ajustes y pérdidas de ${almonds.name}` });
+  await expect.element(counts.getByText("15/09/2026")).toBeVisible();
+  await expect.element(movements.getByText("Corrección de una producción")).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
+  expect(screen.getByRole("region").query()).toBeNull();
+  const firstCount = counts.getByRole("listitem").first().element();
+  const firstMovement = movements.getByRole("listitem").first().element();
+  expect([...firstCount.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Contado",
+    "Diferencia",
+  ]);
+  expect([...firstMovement.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Tipo",
+    "Motivo",
+    "Cantidad",
+  ]);
+  const right = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect().right;
+  for (const value of [
+    ...firstCount.querySelectorAll("dd"),
+    ...firstMovement.querySelectorAll("dd"),
+  ]) {
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+  }
+  await expectNoAccessibilityViolations(screen.container);
 });

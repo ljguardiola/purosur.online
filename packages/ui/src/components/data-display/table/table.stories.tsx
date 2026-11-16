@@ -1035,3 +1035,37 @@ export const StackedWhenNarrow: Story = {
     </div>
   ),
 };
+
+const fixedColumns = [
+  dataColumn({ id: "name", header: "Producto", width: 120, render: (item: Product) => item.name }),
+  dataColumn({ id: "sku", header: "Código", render: (item: Product) => item.sku }),
+  dataColumn({
+    id: "stock",
+    header: "Stock disponible",
+    width: 120,
+    align: "end",
+    render: (item: Product) => item.stock,
+  }),
+] as const;
+
+export const FixedColumnsWhenNarrow: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable aria-label="Productos" columns={fixedColumns} variant="nested" fixedColumns />
+    </div>
+  ),
+};
+
+export const StackedWhenNarrowLocked: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable
+        aria-label="Productos"
+        columns={stackedColumns}
+        variant="nested"
+        stackWhenNarrow
+        locked={{ label: "Productos bloqueados" }}
+      />
+    </div>
+  ),
+};

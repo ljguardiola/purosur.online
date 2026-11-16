@@ -82,7 +82,6 @@ test("shows the product's movements in the panel to a person who may count", asy
     access: accessWith("stock_area", "stock_balances", "stock_counts"),
   });
 
-  await expect
-    .element(screen.getByRole("table", { name: `Recuentos de ${almonds.name}` }))
-    .toBeVisible();
+  const panel = screen.getByRole("complementary", { name: almonds.name });
+  await expect.element(panel.getByText("Sin recuentos", { exact: true })).toBeVisible();
 });

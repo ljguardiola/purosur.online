@@ -124,18 +124,47 @@ test("lists the freights linked to the purchase as the cloud answers them", asyn
 
   await expect.element(screen.getByRole("heading", { name: "Fletes vinculados" })).toBeVisible();
   await expect
-    .poll(() => rowTexts(screen, "Fletes vinculados"))
+    .poll(() =>
+      screen
+        .getByRole("list", { name: "Fletes vinculados" })
+        .getByRole("listitem")
+        .elements()
+        .map((item) => [
+          item.firstElementChild?.textContent,
+          ...[...item.querySelectorAll("dd")].map((value) => value.textContent),
+        ]),
+    )
     .toEqual([
-      "15/09/2026Flete de la mielTransportes del Valle$ 45.000,00",
-      "12/09/2026Viaje a buscar la mielViaje propio · costo estimado$ 12.000,00",
+      ["15/09/2026", "Flete de la mielTransportes del Valle", "$ 45.000,00"],
+      ["12/09/2026", "Viaje a buscar la mielViaje propio · costo estimado", "$ 12.000,00"],
     ]);
+});
+
+test("stacks each linked freight into a list item inside the panel, with no sideways scroll", async () => {
+  const screen = await renderPanel(createPanelServices());
+
+  const freights = screen.getByRole("list", { name: "Fletes vinculados" });
+  await expect.element(freights.getByText("Flete de la miel")).toBeVisible();
+  expect(screen.getByRole("region", { name: "Fletes vinculados" }).query()).toBeNull();
+  const items = freights.getByRole("listitem").elements();
+  expect(items).toHaveLength(2);
+  const first = items[0] as HTMLElement;
+  expect([...first.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Descripción",
+    "Importe",
+  ]);
+  const panel = screen.getByRole("complementary", { name: "Compra a Distribuidora Andina" });
+  const right = panel.element().getBoundingClientRect().right;
+  for (const value of first.querySelectorAll("dd")) {
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+  }
 });
 
 test("says the purchase has no linked freights when it has none", async () => {
   const screen = await renderPanel(createPanelServices(), { purchase: compraDeAvena });
 
-  const freights = screen.getByRole("table", { name: "Fletes vinculados" });
-  await expect.element(freights.getByText("Sin fletes vinculados")).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Fletes vinculados" })).toBeVisible();
+  await expect.element(screen.getByText("Sin fletes vinculados", { exact: true })).toBeVisible();
 });
 
 test("shows no linked freights when the cloud does not answer them", async () => {

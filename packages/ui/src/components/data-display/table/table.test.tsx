@@ -307,7 +307,6 @@ test("keeps a long, unbreakable sortable header title whole on one line, growing
     .element() as HTMLElement;
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
-  // min-w-0 only shrinks the span's box; break-words on the <th> is what actually wraps the text.
   expect(getComputedStyle(firstHeader).overflowWrap).toBe("normal");
   expect(paintedLineCount(titleSpan)).toBe(1);
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(

@@ -309,7 +309,7 @@ test("cancelling the order asks first, then cancels it and shows it cancelled", 
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
 });
 
-test("a cancelled order is read-only: its lines are shown in a table with no inputs and no actions", async () => {
+test("a cancelled order is read-only: its lines are listed with no inputs and no actions", async () => {
   const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -319,10 +319,10 @@ test("a cancelled order is read-only: its lines are shown in a table with no inp
   const screen = await loaded(services);
 
   await expect.element(screen.getByText("Cancelado")).toBeVisible();
-  const table = screen.getByRole("table", { name: "Líneas del pedido" });
-  await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
-  await expect.element(table.getByText("$ 1.850,00")).toBeVisible();
-  await expect.element(table.getByText("Sin precio de lista").first()).toBeVisible();
+  const lines = screen.getByRole("list", { name: "Líneas del pedido" });
+  await expect.element(lines.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(lines.getByText("$ 1.850,00")).toBeVisible();
+  await expect.element(lines.getByText("Sin precio de lista").first()).toBeVisible();
   expect(screen.getByRole("textbox").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
@@ -338,7 +338,7 @@ test("decides whether the lines are editable from the cloud's answer, not from t
   });
   const screen = await loaded(services);
 
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("textbox").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
 });
@@ -493,7 +493,7 @@ test("a sent order reads Enviado, is read-only and offers its cancellation", asy
   const screen = await loaded(sentServices());
 
   await expect.element(screen.getByText("Enviado")).toBeVisible();
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
   await expect.element(screen.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
 });
@@ -529,7 +529,7 @@ test("offers no cancellation of a read-only order the cloud answers cannot be ca
     }),
   );
 
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
 });
 
@@ -635,7 +635,7 @@ test("shows a draft's lines read-only, with no saving, cancelling or sharing, to
     access: accessWith("purchase_order_reads"),
   });
 
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
@@ -654,11 +654,11 @@ test("offers editing, cancelling and sharing a draft to whoever may manage purch
 test("shows the supplier's item under each product of a read-only order that has one", async () => {
   const screen = await loaded(sentServices());
 
-  const table = screen.getByRole("table", { name: "Líneas del pedido" });
+  const lines = screen.getByRole("list", { name: "Líneas del pedido" });
   await expect
-    .element(table.getByText("Artículo del proveedor: MIEL-1K · Miel pura x 12 frascos"))
+    .element(lines.getByText("Artículo del proveedor: MIEL-1K · Miel pura x 12 frascos"))
     .toBeVisible();
-  expect(table.getByText(/^Artículo del proveedor:/).elements()).toHaveLength(1);
+  expect(lines.getByText(/^Artículo del proveedor:/).elements()).toHaveLength(1);
 });
 
 test("shows only the description when the supplier's item has no code", async () => {

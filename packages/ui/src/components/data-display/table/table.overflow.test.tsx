@@ -58,12 +58,14 @@ function LotsTable({
   items = lots,
   failed = false,
   fixedColumns = false,
+  centeredFailure = false,
 }: {
   columns: TableColumns<Lot>;
   variant: TableVariant;
   items?: Lot[];
   failed?: boolean;
   fixedColumns?: boolean;
+  centeredFailure?: boolean;
 }) {
   const table = useTableModel({
     items,
@@ -77,11 +79,16 @@ function LotsTable({
       table={table}
       aria-label="Lotes"
       variant={variant}
-      failure={{
-        icon: <CircleAlert />,
-        title: "No se pudieron cargar los lotes",
-        onRetry: () => {},
-      }}
+      fixedColumns={fixedColumns}
+      failure={
+        centeredFailure
+          ? {
+              variant: "centered",
+              icon: <CircleAlert />,
+              title: "No se pudieron cargar los lotes",
+            }
+          : { icon: <CircleAlert />, title: "No se pudieron cargar los lotes", onRetry: () => {} }
+      }
     />
   ) : (
     <Table
@@ -252,6 +259,38 @@ test.each([
       container.getBoundingClientRect().right,
     );
     expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(120 + 6 + 6);
+    await expectNoAccessibilityViolations(screen.container);
+  },
+);
+
+test.each([
+  ["empty state", "No hay lotes con saldo", false],
+  ["centered load failure", "No se pudieron cargar los lotes", true],
+] as const)(
+  "keeps the %s of a fixedColumns table whole inside its container",
+  async (_, message, failed) => {
+    const screen = await render(
+      inside(
+        320,
+        <LotsTable
+          columns={squeezableColumns}
+          variant="nested"
+          items={[]}
+          failed={failed}
+          fixedColumns
+          centeredFailure
+        />,
+      ),
+    );
+    const title = screen.getByText(message).last().element();
+    const container = screen.container.firstElementChild as HTMLElement;
+
+    expect(title.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+      container.getBoundingClientRect().left,
+    );
+    expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
+      container.getBoundingClientRect().right,
+    );
     await expectNoAccessibilityViolations(screen.container);
   },
 );

@@ -168,7 +168,7 @@ test("opens an order's panel from its row, keeping the list and the tabs in view
   await expect.element(panel).toBeVisible();
   expect(location()).toBe(`/purchase-orders?order=${ORDER_ID}`);
   expect(services.purchaseOrdersListScreen.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
-  await expect.element(panel.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(panel.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   await expect.element(panel.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
   await expect.element(panel.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
   await expect

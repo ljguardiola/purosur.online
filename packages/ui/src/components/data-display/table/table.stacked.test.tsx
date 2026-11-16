@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
+import { tokenRgb } from "../../../test/token-colors";
 import { Table } from "./table";
 import { actionsColumn, dataColumn } from "./table-columns";
 import type { TableColumns, TableProps, TableSort } from "./table-types";
@@ -60,12 +61,13 @@ function LotsTable({
   loading = false,
   failed = false,
   stackWhenNarrow = true,
+  ...rowProps
 }: {
   items?: Lot[];
   loading?: false | "initial" | "updating";
   failed?: boolean;
   stackWhenNarrow?: boolean;
-}) {
+} & Pick<TableProps<Lot>, "rowState" | "rowDetail" | "locked" | "inactive">) {
   const table = useTableModel({
     items,
     id: (lot) => lot.id,
@@ -88,6 +90,7 @@ function LotsTable({
       aria-label="Lotes"
       variant="nested"
       {...stacking}
+      {...rowProps}
       loading={loading}
       empty={empty}
     />
@@ -202,6 +205,72 @@ test("shows a list placeholder while the first load is pending, when stacked", a
   await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
   expect(screen.getByRole("table").query()).toBeNull();
   expect(screen.getByRole("listitem").query()).toBeNull();
+});
+
+test("shows a stacked row's detail inside its own item", async () => {
+  const screen = await render(
+    inside(
+      320,
+      <LotsTable rowDetail={(lot) => (lot.id === "1" ? <p>Vence el 10/12/2026</p> : undefined)} />,
+    ),
+  );
+  const [first, second] = screen.getByRole("listitem").elements();
+
+  expect(first?.textContent).toContain("Vence el 10/12/2026");
+  expect(second?.textContent).not.toContain("Vence el 10/12/2026");
+});
+
+test("paints a stacked row with the background of its state", async () => {
+  const screen = await render(
+    inside(320, <LotsTable rowState={(lot) => (lot.id === "1" ? "warning" : undefined)} />),
+  );
+  const [warned, plain] = screen.getByRole("listitem").elements() as HTMLElement[];
+
+  expect(getComputedStyle(warned as HTMLElement).backgroundColor).toBe(tokenRgb("warning-subtle"));
+  expect(getComputedStyle(plain as HTMLElement).backgroundColor).not.toBe(
+    tokenRgb("warning-subtle"),
+  );
+});
+
+test.each([
+  ["locked", { locked: { label: "Lotes bloqueados" } }],
+  ["inactive", { inactive: true }],
+] as const)(
+  "dims a stacked list that is %s and marks each of its rows disabled",
+  async (_, props) => {
+    const screen = await render(inside(320, <LotsTable {...props} />));
+    const list = screen.getByRole("list", { name: "Lotes" }).element() as HTMLElement;
+
+    expect(Number(getComputedStyle(list).opacity)).toBeLessThan(1);
+    for (const item of screen.getByRole("listitem").elements()) {
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+    }
+  },
+);
+
+test("neither dims a stacked list nor marks its rows disabled when it is neither locked nor inactive", async () => {
+  const screen = await render(inside(320, <LotsTable />));
+  const list = screen.getByRole("list", { name: "Lotes" }).element() as HTMLElement;
+
+  expect(Number(getComputedStyle(list).opacity)).toBe(1);
+  for (const item of screen.getByRole("listitem").elements()) {
+    expect(item.getAttribute("aria-disabled")).toBeNull();
+  }
+});
+
+test("shows a locked stacked list's lock icon named by its label", async () => {
+  const screen = await render(inside(320, <LotsTable locked={{ label: "Lotes bloqueados" }} />));
+
+  await expect.element(screen.getByRole("img", { name: "Lotes bloqueados" })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("marks a stacked list busy while its rows update", async () => {
+  const screen = await render(inside(320, <LotsTable loading="updating" />));
+
+  await expect
+    .element(screen.getByRole("list", { name: "Lotes" }))
+    .toHaveAttribute("aria-busy", "true");
 });
 
 test("takes stackWhenNarrow or onRowPress, never both", () => {
