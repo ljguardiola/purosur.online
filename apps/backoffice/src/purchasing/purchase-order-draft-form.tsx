@@ -1,5 +1,5 @@
 import { type PurchaseOrderDetail, purchaseOrderEditBodySchema } from "@purosur/contracts";
-import { Button, Card, InlineNotice, type LoadStatus, useRequestForm } from "@purosur/ui";
+import { Button, InlineNotice, type LoadStatus, useRequestForm } from "@purosur/ui";
 import { Check, Send, ShieldX, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
@@ -131,7 +131,7 @@ export function PurchaseOrderDraftForm({
           description="Quitalo del pedido o elegí otro."
         />
       )}
-      <Card>
+      <section className="flex flex-col gap-4">
         <h2 className="text-text-accent text-subheading">Líneas</h2>
         <form.AppField name="lines">
           {() => (
@@ -143,7 +143,7 @@ export function PurchaseOrderDraftForm({
             />
           )}
         </form.AppField>
-      </Card>
+      </section>
       <div className="flex items-center justify-end gap-3">
         {order.cancellable ? (
           <Button
