@@ -10,7 +10,7 @@ function visibleTabs(...capabilities: Parameters<typeof accessWith>) {
 test("shows every tab to a person with every catalog capability", () => {
   expect(
     visibleTabs("products_and_categories", "prices_area", "promotions", "recipes", "batches"),
-  ).toEqual(["products", "prices", "promotions", "assemblies", "classification"]);
+  ).toEqual(["products", "prices", "promotions", "recipes", "batches", "classification"]);
 });
 
 test("shows Productos and Clasificación with products and categories", () => {
@@ -20,13 +20,15 @@ test("shows Productos and Clasificación with products and categories", () => {
 test.each([
   ["prices_area", "prices"],
   ["promotions", "promotions"],
-  ["recipes", "assemblies"],
+  ["recipes", "recipes"],
+  ["batches", "batches"],
 ] as const)("shows only its own tab with only %s", (capability, tab) => {
   expect(visibleTabs(capability)).toEqual([tab]);
 });
 
-test("shows Armados with only the batches capability", () => {
-  expect(visibleTabs("batches")).toEqual(["assemblies"]);
+test("shows Recetas and Producciones apart, each with its own capability", () => {
+  expect(visibleTabs("recipes", "batches")).toEqual(["recipes", "batches"]);
+  expect(visibleTabs("batches")).toEqual(["batches"]);
 });
 
 test("gives each tab its own address", () => {
@@ -34,7 +36,8 @@ test("gives each tab its own address", () => {
     products: "/products",
     prices: "/products/prices",
     promotions: "/products/promotions",
-    assemblies: "/products/assemblies",
+    recipes: "/products/recipes",
+    batches: "/products/batches",
     classification: "/products/classification",
   });
 });

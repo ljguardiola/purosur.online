@@ -2,14 +2,13 @@ import { createRouter } from "@tanstack/react-router";
 import { alertsRedirectRoute, homeRoute } from "../alerts/routes";
 import { branchSettingsRoute, legacyBranchSettingsRoute } from "../branch/routes";
 import {
-  brandsListRoute,
-  categoriesListRoute,
   classificationRoute,
   legacyBrandsRoute,
   legacyCategoriesRoute,
+  legacyClassificationBrandsRoute,
+  legacyClassificationTagsRoute,
   legacyTagsRoute,
   productsListRoute,
-  tagsListRoute,
 } from "../catalog/routes";
 import {
   accountRecoveryRoute,
@@ -94,9 +93,10 @@ import {
 } from "../sales/routes";
 import { legacyCompromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
-  assembliesRoute,
   assemblyBatchesRoute,
   expiringLotsRoute,
+  legacyAssembliesRoute,
+  legacyAssemblyBatchesInProductsRoute,
   legacyAssemblyBatchesRoute,
   legacyCurrentStockReportRoute,
   legacyExpiringLotsReportRoute,
@@ -148,8 +148,13 @@ const routeTree = rootRoute.addChildren([
         productsListRoute,
         pricesListRoute,
         discountsListRoute,
-        assembliesRoute.addChildren([recipesListRoute, assemblyBatchesRoute]),
-        classificationRoute.addChildren([categoriesListRoute, brandsListRoute, tagsListRoute]),
+        recipesListRoute,
+        assemblyBatchesRoute,
+        legacyAssembliesRoute,
+        legacyAssemblyBatchesInProductsRoute,
+        classificationRoute,
+        legacyClassificationBrandsRoute,
+        legacyClassificationTagsRoute,
       ]),
     ]),
     stockAreaRoute.addChildren([

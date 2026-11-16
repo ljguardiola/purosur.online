@@ -142,7 +142,7 @@ test("shows the eyebrow, the title, the product and size fields and both actions
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Productos · Armados")).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Producciones")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nueva producción" })).toBeVisible();
   await expect.element(dialog.getByRole("combobox", { name: /^Producto armado/ })).toBeVisible();
   await expect

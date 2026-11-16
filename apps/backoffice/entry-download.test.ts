@@ -7,7 +7,7 @@ const UI_COMPONENTS = fileURLToPath(new URL("../../packages/ui/src/components/",
 const SIGN_IN_PAGE = `${BACKOFFICE_ROOT}src/sessions/sign-in-page.tsx`;
 const SALES_BY_DAY_PAGE = `${BACKOFFICE_ROOT}src/sales/sales-by-day-page.tsx`;
 const SPREADSHEET_WRITER = `${BACKOFFICE_ROOT}src/platform/spreadsheet/spreadsheet-writer.ts`;
-const BRANDS_LIST_PAGE = `${BACKOFFICE_ROOT}src/catalog/brands-list-page.tsx`;
+const CLASSIFICATION_PAGE = `${BACKOFFICE_ROOT}src/catalog/classification-page.tsx`;
 
 let chunks: Map<string, Rolldown.OutputChunk>;
 
@@ -69,11 +69,11 @@ test("the entry downloads only the API clients the frame itself needs, and no sc
 });
 
 test("opening a screen downloads its services and its API client with it", () => {
-  const brandsListPage = [...chunks.values()].filter(
-    (chunk) => chunk.facadeModuleId === BRANDS_LIST_PAGE,
+  const classificationPage = [...chunks.values()].filter(
+    (chunk) => chunk.facadeModuleId === CLASSIFICATION_PAGE,
   );
   const entryModules = new Set(modulesDownloadedFrom(entryChunks()));
-  const modules = modulesDownloadedFrom(brandsListPage).filter(
+  const modules = modulesDownloadedFrom(classificationPage).filter(
     (moduleId) => !entryModules.has(moduleId),
   );
 

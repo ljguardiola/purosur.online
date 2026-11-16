@@ -29,28 +29,12 @@ export const productsListRoute = createRoute({
   component: lazyScreen(() => import("./products-list-page"), "ProductsListPage"),
 });
 
-export const classificationRoute = createRoute({
-  getParentRoute: () => productsRoute,
-  path: "classification",
-  beforeLoad: ({ context: { productsTabs } }) =>
-    productsTabRedirect(productsTabs, "classification"),
-  component: lazyScreen(() => import("./classification-layout"), "ClassificationLayout"),
-});
-
 export const categoriesListFilters = z.object({
   search: z.string().default("").catch(""),
   sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
 });
 
 export type CategoriesListFilters = z.output<typeof categoriesListFilters>;
-
-export const categoriesListRoute = createRoute({
-  getParentRoute: () => classificationRoute,
-  path: "/",
-  validateSearch: categoriesListFilters,
-  search: { middlewares: [stripSearchParams(categoriesListFilters.parse({}))] },
-  component: lazyScreen(() => import("./categories-list-page"), "CategoriesListPage"),
-});
 
 export const brandsListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -61,14 +45,6 @@ export const brandsListFilters = z.object({
 
 export type BrandsListFilters = z.output<typeof brandsListFilters>;
 
-export const brandsListRoute = createRoute({
-  getParentRoute: () => classificationRoute,
-  path: "brands",
-  validateSearch: brandsListFilters,
-  search: { middlewares: [stripSearchParams(brandsListFilters.parse({}))] },
-  component: lazyScreen(() => import("./brands-list-page"), "BrandsListPage"),
-});
-
 export const tagsListFilters = z.object({
   search: z.string().default("").catch(""),
   status: z.enum(["active", "inactive", "all"]).default("active").catch("active"),
@@ -78,20 +54,79 @@ export const tagsListFilters = z.object({
 
 export type TagsListFilters = z.output<typeof tagsListFilters>;
 
-export const tagsListRoute = createRoute({
-  getParentRoute: () => classificationRoute,
-  path: "tags",
+const classificationFilters = z.object({
+  categorySearch: categoriesListFilters.shape.search,
+  categorySort: categoriesListFilters.shape.sort,
+  brandSearch: brandsListFilters.shape.search,
+  brandStatus: brandsListFilters.shape.status,
+  brandSortBy: brandsListFilters.shape.sortBy,
+  brandSort: brandsListFilters.shape.sort,
+  tagSearch: tagsListFilters.shape.search,
+  tagStatus: tagsListFilters.shape.status,
+  tagSortBy: tagsListFilters.shape.sortBy,
+  tagSort: tagsListFilters.shape.sort,
+});
+
+const classificationSearch = classificationFilters.extend({
+  search: z.string().optional().catch(undefined),
+  sort: z.enum(["ascending", "descending"]).optional().catch(undefined),
+});
+
+export const classificationRoute = createRoute({
+  getParentRoute: () => productsRoute,
+  path: "classification",
+  beforeLoad: ({ context: { productsTabs }, search: { search, sort, ...current } }) => {
+    productsTabRedirect(productsTabs, "classification");
+    if (search !== undefined || sort !== undefined) {
+      throw redirect({
+        to: "/products/classification",
+        search: {
+          ...current,
+          ...(search === undefined ? {} : { categorySearch: search }),
+          ...(sort === undefined ? {} : { categorySort: sort }),
+        },
+        replace: true,
+      });
+    }
+  },
+  validateSearch: classificationSearch,
+  search: { middlewares: [stripSearchParams(classificationFilters.parse({}))] },
+  component: lazyScreen(() => import("./classification-page"), "ClassificationPage"),
+});
+
+export const legacyClassificationBrandsRoute = createRoute({
+  getParentRoute: () => productsRoute,
+  path: "classification/brands",
+  validateSearch: brandsListFilters,
+  beforeLoad: ({ search: { search, status, sortBy, sort } }) => {
+    throw redirect({
+      to: "/products/classification",
+      search: { brandSearch: search, brandStatus: status, brandSortBy: sortBy, brandSort: sort },
+    });
+  },
+});
+
+export const legacyClassificationTagsRoute = createRoute({
+  getParentRoute: () => productsRoute,
+  path: "classification/tags",
   validateSearch: tagsListFilters,
-  search: { middlewares: [stripSearchParams(tagsListFilters.parse({}))] },
-  component: lazyScreen(() => import("./tags-list-page"), "TagsListPage"),
+  beforeLoad: ({ search: { search, status, sortBy, sort } }) => {
+    throw redirect({
+      to: "/products/classification",
+      search: { tagSearch: search, tagStatus: status, tagSortBy: sortBy, tagSort: sort },
+    });
+  },
 });
 
 export const legacyCategoriesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: "categories",
   validateSearch: categoriesListFilters,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/classification", search });
+  beforeLoad: ({ search: { search, sort } }) => {
+    throw redirect({
+      to: "/products/classification",
+      search: { categorySearch: search, categorySort: sort },
+    });
   },
 });
 
@@ -99,8 +134,11 @@ export const legacyBrandsRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: "brands",
   validateSearch: brandsListFilters,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/classification/brands", search });
+  beforeLoad: ({ search: { search, status, sortBy, sort } }) => {
+    throw redirect({
+      to: "/products/classification",
+      search: { brandSearch: search, brandStatus: status, brandSortBy: sortBy, brandSort: sort },
+    });
   },
 });
 
@@ -108,7 +146,10 @@ export const legacyTagsRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: "tags",
   validateSearch: tagsListFilters,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/classification/tags", search });
+  beforeLoad: ({ search: { search, status, sortBy, sort } }) => {
+    throw redirect({
+      to: "/products/classification",
+      search: { tagSearch: search, tagStatus: status, tagSortBy: sortBy, tagSort: sort },
+    });
   },
 });

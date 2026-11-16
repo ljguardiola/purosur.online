@@ -156,7 +156,7 @@ export function EditRecipeModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Productos · Armados"
+      context="Productos · Recetas"
       title={
         titled === null
           ? ""

@@ -254,7 +254,7 @@ export function NewAssemblyBatchModal({
       width="wide"
       tone="info"
       icon={<CookingPot />}
-      context="Productos · Armados"
+      context="Productos · Producciones"
       title="Nueva producción"
       closable={!submitting}
       footer={
