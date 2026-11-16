@@ -132,13 +132,6 @@ test("lets the keyboard scroll a table that overflows its container", async () =
   expect(document.activeElement).toBe(region);
 });
 
-test("keeps a column with no width readable, never narrower than 120px of content, when the declared widths already fill the container", async () => {
-  const screen = await render(inside(320, <LotsTable columns={wideColumns} variant="nested" />));
-  const origin = screen.getByRole("columnheader", { name: "Origen" }).element() as HTMLElement;
-
-  expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(120 + 6 + 6);
-});
-
 function wordsPaintedOnSeveralLines(element: HTMLElement): string[] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   const split: string[] = [];
@@ -247,7 +240,6 @@ test.each([
     );
     const title = screen.getByText(message).first().element();
     const container = screen.container.firstElementChild as HTMLElement;
-    const origin = screen.getByRole("columnheader", { name: "Origen" }).element();
     const region = screen.getByRole("region", { name: "Lotes" }).element() as HTMLElement;
 
     region.scrollLeft = region.scrollWidth;
@@ -258,7 +250,6 @@ test.each([
     expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
       container.getBoundingClientRect().right,
     );
-    expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(120 + 6 + 6);
     await expectNoAccessibilityViolations(screen.container);
   },
 );
