@@ -23,6 +23,7 @@ import {
 import type { TableLoadingState, TableProps } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
 import { useObservedWidth } from "./use-observed-width";
+import { useScrollEdges } from "./use-scroll-edges";
 
 type TableDisplayMode = "placeholders" | "failure" | "empty" | "rows";
 
@@ -98,6 +99,7 @@ export function Table<T extends RowData>({
   const tableId = useId();
   const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(tableId);
   const { width: containerWidth, observeWidth } = useObservedWidth();
+  const { clippedAtStart, clippedAtEnd, observeScrollEdges } = useScrollEdges();
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
   const displayMode = tableDisplayMode(
@@ -121,6 +123,15 @@ export function Table<T extends RowData>({
     legendAside !== undefined && displayMode !== "placeholders" && displayMode !== "failure";
   const messageOnly =
     fill && ((displayMode === "failure" && !failureBelowHeaders) || showEmptyState);
+
+  function observeRegion(region: HTMLElement | null) {
+    const stopOverflow = observeOverflow(region);
+    const stopEdges = observeScrollEdges(region);
+    return () => {
+      stopOverflow?.();
+      stopEdges?.();
+    };
+  }
 
   const tableElement = (
     <>
@@ -284,12 +295,28 @@ export function Table<T extends RowData>({
           ) : fixedColumns ? (
             tableElement
           ) : (
-            <div
-              ref={observeOverflow}
-              {...regionProps}
-              className={`@container overflow-x-auto ${focusClassName}`}
-            >
-              {tableElement}
+            <div className="relative">
+              <div
+                ref={observeRegion}
+                {...regionProps}
+                className={`@container overflow-x-auto ${focusClassName}`}
+              >
+                {tableElement}
+              </div>
+              {clippedAtStart ? (
+                <div
+                  aria-hidden="true"
+                  data-scroll-cue="start"
+                  className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-linear-to-r from-border to-transparent"
+                />
+              ) : null}
+              {clippedAtEnd ? (
+                <div
+                  aria-hidden="true"
+                  data-scroll-cue="end"
+                  className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-linear-to-l from-border to-transparent"
+                />
+              ) : null}
             </div>
           )))
         )}
