@@ -89,9 +89,16 @@ beforeEach(async () => {
 });
 
 function linesPainted(element: HTMLElement): number {
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const tops = new Set<number>();
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const rect of range.getClientRects()) {
+      tops.add(Math.round(rect.top));
+    }
+  }
+  return tops.size;
 }
 
 function wordsPaintedOnSeveralLines(element: HTMLElement): string[] {
