@@ -29,7 +29,6 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
     children,
     footer,
   } = props;
-  const showsFooter = props.failure === undefined && props.loading !== "initial";
   return (
     <>
       <section className="flex min-h-0 min-w-0 flex-col gap-4">
@@ -56,9 +55,13 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
           {filters}
         </div>
         <div className="min-h-0 flex-1">
-          <Table {...props} aria-label={label} footer={undefined} fill />
+          <Table
+            {...props}
+            aria-label={label}
+            footer={footer == null ? footer : <div className="pt-4">{footer}</div>}
+            fill
+          />
         </div>
-        {showsFooter ? footer : null}
       </section>
       {children}
     </>

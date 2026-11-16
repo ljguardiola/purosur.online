@@ -184,7 +184,7 @@ export function Table<T extends RowData>({
     </div>
   ) : null;
 
-  return (
+  const content = (
     <>
       <div className={tableContainerClassName(variant, fill)}>
         {loading === "updating" && <TableUpdatingBar />}
@@ -226,4 +226,6 @@ export function Table<T extends RowData>({
       {displayMode !== "placeholders" && displayMode !== "failure" && footer}
     </>
   );
+
+  return fill ? <div className="flex h-full min-h-0 flex-col">{content}</div> : content;
 }
