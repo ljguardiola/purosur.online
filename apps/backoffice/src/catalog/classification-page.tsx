@@ -14,7 +14,7 @@ export function ClassificationPage(): ReactElement {
   const search = route.useSearch();
   const navigate = route.useNavigate();
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-8 p-6">
+    <div className="grid min-h-0 flex-1 grid-cols-3 gap-6 p-6">
       <CategoriesListScreen
         filters={{ search: search.categorySearch, sort: search.categorySort }}
         onFiltersChange={(next) =>

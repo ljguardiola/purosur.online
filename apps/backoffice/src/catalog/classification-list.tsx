@@ -30,10 +30,20 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
   } = props;
   return (
     <>
-      <section className="flex min-w-0 flex-col gap-4">
-        <h2 className="text-text-accent text-subheading">{label}</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
+      <section className="flex min-h-0 min-w-0 flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <h2 className="min-w-0 flex-1 text-text-accent text-subheading">{label}</h2>
+          <Button
+            variant="primary"
+            icon={<Plus />}
+            {...(createStatus === undefined ? {} : { dataStatus: createStatus })}
+            onPress={onCreate}
+          >
+            {createLabel}
+          </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
             <SearchField
               value={search}
               onChange={onSearchChange}
@@ -42,18 +52,8 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
             />
           </div>
           {filters}
-          <div className="ml-auto flex items-center gap-3">
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              {...(createStatus === undefined ? {} : { dataStatus: createStatus })}
-              onPress={onCreate}
-            >
-              {createLabel}
-            </Button>
-          </div>
         </div>
-        <Table {...props} aria-label={label} />
+        <Table {...props} aria-label={label} fill />
       </section>
       {children}
     </>
