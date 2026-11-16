@@ -40,7 +40,7 @@ describe("readHandConfirmedPayments", () => {
       },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" });
     expect(report.totals).toEqual({ count: 2, amount: 1_400 });
     expect(report.methods).toEqual([
       { method: "TRANSFER", count: 1, amount: 1_000 },
@@ -51,7 +51,7 @@ describe("readHandConfirmedPayments", () => {
     expect(reader.reads).toEqual([
       {
         locationId: "branch-1",
-        period: { from: "2026-10-01", to: "2026-10-06" },
+        period: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: undefined,
         method: undefined,
       },
@@ -70,8 +70,12 @@ describe("readHandConfirmedPayments", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined, method: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.reads[0]?.period).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.reads[0]?.period).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("limits the read to the asked register and method", async () => {

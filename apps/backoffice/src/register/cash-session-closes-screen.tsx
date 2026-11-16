@@ -61,6 +61,7 @@ export function CashSessionClosesScreen({
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
+        periodShortcuts
         registerFilter={registerFilter}
         onRegisterLabelChange={setRegisterLabel}
         trailing={

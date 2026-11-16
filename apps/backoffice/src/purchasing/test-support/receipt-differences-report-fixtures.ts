@@ -4,7 +4,7 @@ const ANDINA_ID = "90e00000-0000-4000-8000-0000000000a1";
 const GRANOS_ID = "90e00000-0000-4000-8000-0000000000a2";
 
 export const receiptDifferencesReport: ReceiptDifferencesBody = {
-  range: { from: "2026-09-01", to: "2026-11-04" },
+  range: { from: "2026-09-01", to: "2026-11-04", today: "2026-11-04" },
   suppliers: [
     {
       supplier_id: ANDINA_ID,
@@ -95,7 +95,7 @@ export const receiptDifferencesReport: ReceiptDifferencesBody = {
 };
 
 export const emptyReceiptDifferencesReport: ReceiptDifferencesBody = {
-  range: { from: "2026-09-01", to: "2026-11-04" },
+  range: { from: "2026-09-01", to: "2026-11-04", today: "2026-11-04" },
   suppliers: [],
   totals: { suppliers: 0, short_lines: 0, price_difference_lines: 0, price_difference_cents: 0 },
 };

@@ -204,8 +204,8 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
 
   const screen = await renderContent(services);
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["4", "11", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "09", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["04", "11", "2026"]);
   expect(services.fetchReceiptDifferencesReport).toHaveBeenCalledWith({});
 });
 

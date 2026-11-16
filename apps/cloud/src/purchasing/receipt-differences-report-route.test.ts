@@ -136,7 +136,7 @@ describe("GET /reports/receipt-differences", () => {
     const response = await differences(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-05", to: "2026-10-05" },
+      range: { from: "2026-10-05", to: "2026-10-05", today: "2026-10-05" },
       suppliers: [],
       totals: {
         suppliers: 0,
@@ -170,7 +170,7 @@ describe("GET /reports/receipt-differences", () => {
     const response = await differences(headers, OCTOBER);
 
     expect(receiptDifferencesSchema.parse(response.json())).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-31" },
+      range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-05" },
       suppliers: [
         {
           supplier_id: supplierId,

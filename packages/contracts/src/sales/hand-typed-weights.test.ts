@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { handTypedWeightsSchema } from "./hand-typed-weights.js";
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   cashiers: [
     {
       cashier_id: "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77",
@@ -96,7 +96,10 @@ describe("handTypedWeightsSchema", () => {
         totals: { ...report.totals, most_typed: { ...report.totals.most_typed, typed_lines: 1.5 } },
       },
     ],
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(handTypedWeightsSchema.safeParse({ ...report, ...change }).success).toBe(false);
   });

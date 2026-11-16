@@ -121,7 +121,7 @@ describe("GET /reports/cash-session-closes", () => {
     const response = await cashSessionCloses(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       totals: { sessions: 0, net_difference: 0, with_difference: 0, cashiers: [] },
       sessions: [],
     });
@@ -137,7 +137,7 @@ describe("GET /reports/cash-session-closes", () => {
     const response = await cashSessionCloses(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       totals: {
         sessions: 1,
         net_difference: -500,

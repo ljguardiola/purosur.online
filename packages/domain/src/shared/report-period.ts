@@ -7,6 +7,10 @@ export interface ReportPeriod {
   to: string;
 }
 
+export interface AnsweredReportPeriod extends ReportPeriod {
+  today: string;
+}
+
 export function isReportPeriodAsked({
   from,
   to,
@@ -29,6 +33,9 @@ export function reportPeriodOf(
   { from, to }: { from: string | undefined; to: string | undefined },
   now: Date,
   rules: ZoneRules,
-): ReportPeriod {
-  return from !== undefined && to !== undefined ? { from, to } : defaultReportPeriod(now, rules);
+): AnsweredReportPeriod {
+  const today = argentinaCalendarDay(now, rules);
+  return from !== undefined && to !== undefined
+    ? { from, to, today }
+    : { ...defaultReportPeriod(now, rules), today };
 }

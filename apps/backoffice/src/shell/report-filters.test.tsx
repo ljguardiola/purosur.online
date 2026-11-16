@@ -15,6 +15,7 @@ import {
   typePeriodEnd,
   typePeriodStart,
 } from "./test-support/report-dates";
+import { renderReportFilters } from "./test-support/report-filters";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 const ANSWERED = { from: "2026-10-01", to: "2026-10-07" };
@@ -38,37 +39,19 @@ type Handlers = {
   onFiltersChange?: (filters: ReportFiltersValue) => void;
 };
 
-function ControlledFilters({
-  filters: initial = reportFiltersSearch.parse({}),
-  onFiltersChange = () => {},
-}: Handlers) {
-  const [filters, setFilters] = useState(initial);
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ReportFilters
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          answeredPeriod={ANSWERED}
-          registerFilter={(field) => <RegisterFilterStub {...field} />}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
 function renderFilters(handlers: Handlers = {}) {
-  return render(<ControlledFilters {...handlers} />);
+  return renderReportFilters({
+    ...handlers,
+    answeredPeriodOf: () => ANSWERED,
+    registerFilter: (field) => <RegisterFilterStub {...field} />,
+  });
 }
 
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderFilters();
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["07", "10", "2026"]);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -81,7 +64,7 @@ test("shows the range and the register the URL names", async () => {
     }),
   });
 
-  expect(periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  expect(periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
   await expect
     .element(screen.getByRole("button", { name: `Caja elegida: ${BACK_REGISTER_ID}` }))
     .toBeVisible();
@@ -104,7 +87,7 @@ test("reports the register chosen in the register filter, keeping the range", as
 test("reports the range typed once both days are complete, never a half-typed year", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderFilters({ onFiltersChange });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
 
   await typePeriodStart(screen, "02102026");
 
@@ -124,7 +107,7 @@ test("says the end cannot come before the start and reports nothing", async () =
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
 
   await typePeriodEnd(screen, "01102026");
 
@@ -140,7 +123,7 @@ test("asks again once a range that was out of order is put right", async () => {
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
   await typePeriodEnd(screen, "01102026");
 
   await typePeriodEnd(screen, "06102026");
@@ -159,11 +142,11 @@ test("keeps the other end shown and reports nothing while one end of the period 
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
 
   await erasePeriodEnd(screen, "start");
 
-  expect(periodSegments(screen).slice(3)).toEqual(["5", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["05", "10", "2026"]);
   expect(onFiltersChange).not.toHaveBeenCalled();
 });
 
@@ -173,7 +156,7 @@ test("reports an empty period once both ends of the period are erased", async ()
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
 
   await erasePeriodEnd(screen, "start");
   await erasePeriodEnd(screen, "end");
@@ -189,11 +172,11 @@ test("says nothing about the order while the end's year is still being typed", a
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
 
   await typePeriodEnd(screen, "06102");
 
-  await expect.poll(() => periodSegments(screen).slice(3)).toEqual(["6", "10", "2"]);
+  await expect.poll(() => periodSegments(screen).slice(3)).toEqual(["06", "10", "2"]);
   expect(
     screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
   ).toBeNull();
@@ -235,7 +218,7 @@ function ControlledPeriod({
 test("reports the range typed without a register when it offers no register filter", async () => {
   const onFiltersChange = vi.fn();
   const screen = await render(<ControlledPeriod onFiltersChange={onFiltersChange} />);
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
 
   await typePeriodStart(screen, "02102026");
 

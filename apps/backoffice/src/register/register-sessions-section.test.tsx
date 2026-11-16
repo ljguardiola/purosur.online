@@ -69,8 +69,8 @@ const WEEK: ReportPeriodFilters = { from: "2026-10-01", to: "2026-10-07" };
 test("asks the cloud for no range when it is given none, and shows the range it answered", async () => {
   const { screen, read } = await renderSection();
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["07", "10", "2026"]);
   expect(read.mock.calls).toEqual([[{ register_id: FRONT_REGISTER_ID }]]);
 });
 
@@ -85,7 +85,7 @@ test("reads the closes of the register it is given over the period it is given",
 test("reports the period typed in Período", async () => {
   const onPeriodChange = vi.fn();
   const { screen } = await renderSection(undefined, undefined, { onPeriodChange });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
 
   await typePeriodStart(screen, "02102026");
 

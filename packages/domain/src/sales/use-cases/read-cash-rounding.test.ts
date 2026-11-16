@@ -33,7 +33,7 @@ describe("readCashRounding", () => {
     );
 
     expect(report).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-06" },
+      range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
       rows: [
         roundedOn("2026-10-04", "r1", "Caja 1", 30),
         roundedOn("2026-10-06", "r1", "Caja 1", 150),
@@ -44,7 +44,7 @@ describe("readCashRounding", () => {
     expect(reader.reads).toEqual([
       {
         locationId: "branch-1",
-        range: { from: "2026-10-01", to: "2026-10-06" },
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: undefined,
       },
     ]);

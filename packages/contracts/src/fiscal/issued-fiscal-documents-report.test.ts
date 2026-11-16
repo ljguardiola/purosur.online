@@ -45,7 +45,7 @@ const creditNoteRow = {
 };
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   rows: [receiptRow, creditNoteRow],
   totals: {
     receipts: { count: 3, amount: 9_000 },
@@ -82,7 +82,10 @@ describe("issuedFiscalDocumentsReportSchema", () => {
   });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a report without rows", { rows: undefined }],
     ["a report without totals", { totals: undefined }],
   ])("refuses %s", (_name, change) => {

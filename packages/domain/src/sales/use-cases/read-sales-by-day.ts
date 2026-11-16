@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -18,7 +18,7 @@ export interface ReadSalesByDayInput {
 }
 
 export interface SalesByDayReport {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   days: SalesOfDay[];
   totals: SalesReportTotals;
 }

@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -23,7 +23,7 @@ export interface ReadIssuedFiscalDocumentsInput {
 }
 
 export interface IssuedFiscalDocumentsListing {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   documents: IssuedFiscalDocument[];
   total: number;
   pageSize: number;

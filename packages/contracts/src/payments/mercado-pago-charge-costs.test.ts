@@ -34,7 +34,7 @@ const reported = {
 };
 
 const report = {
-  range: { from: "2026-10-01", to: "2026-10-31" },
+  range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-31" },
   charges: [reported, { ...reported, method: "QR", cost: null }],
   days: [{ day: "2026-10-01", ...entry }],
   months: [{ month: "2026-10", ...entry }],

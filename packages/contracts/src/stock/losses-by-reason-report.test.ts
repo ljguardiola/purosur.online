@@ -49,7 +49,10 @@ describe("lossesByReasonReportSchema", () => {
     loss_count: 2,
   };
   const reason = { reason: "spoiled", loss_count: 2, products: [product] };
-  const report = { range: { from: "2026-10-01", to: "2026-10-06" }, reasons: [reason] };
+  const report = {
+    range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
+    reasons: [reason],
+  };
 
   it("accepts the range and the reasons with their products", () => {
     expect(lossesByReasonReportSchema.parse(report)).toEqual(report);
@@ -109,8 +112,10 @@ describe("lossesByReasonReportSchema", () => {
 
   it("refuses a range day that is not a calendar day", () => {
     expect(
-      lossesByReasonReportSchema.safeParse({ ...report, range: { from: "ayer", to: "2026-10-06" } })
-        .success,
+      lossesByReasonReportSchema.safeParse({
+        ...report,
+        range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" },
+      }).success,
     ).toBe(false);
   });
 });

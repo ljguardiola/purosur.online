@@ -72,7 +72,7 @@ const summary = {
 };
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   typed: { rows: [row], totals },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
   history: { rows: [], totals: { returns: 0, refunded: 0 } },
@@ -210,7 +210,10 @@ describe("returnsReportSchema", () => {
   });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a report without the typed returns", { typed: undefined }],
     ["a report without the scanned returns", { scanned: undefined }],
     ["a negative count", { typed: { rows: [row], totals: { returns: -1, refunded: 0 } } }],

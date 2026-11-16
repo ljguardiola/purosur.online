@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -13,7 +13,7 @@ export interface ReadFreightByPeriodInput {
 }
 
 export interface FreightByPeriodReport extends FreightByPeriod {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
 }
 
 export async function readFreightByPeriod(

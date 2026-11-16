@@ -120,7 +120,7 @@ describe("GET /reports/mercado-pago-charge-costs", () => {
     const response = await chargeCosts(headers);
 
     expect(response.json()).toMatchObject({
-      range: { from: "2026-10-09", to: "2026-10-09" },
+      range: { from: "2026-10-09", to: "2026-10-09", today: "2026-10-09" },
       charges: [],
       days: [],
       totals: { charges_count: 0, pending_count: 0, net_amount: 0 },

@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -16,7 +16,7 @@ export interface ReadMercadoPagoChargeCostsInput {
 }
 
 export type MercadoPagoChargeCostsReport = ChargeCostsSummary & {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
 };
 
 export async function readMercadoPagoChargeCosts(

@@ -77,7 +77,11 @@ export const defectiveExchangeReason: ReasonLosses = {
 
 export function lossesByReasonReport(
   reasons: ReasonLosses[] = [spoiledReason, expiredReason],
-  range: LossesByReasonReportBody["range"] = { from: "2026-10-01", to: "2026-10-31" },
+  range: LossesByReasonReportBody["range"] = {
+    from: "2026-10-01",
+    to: "2026-10-31",
+    today: "2026-10-31",
+  },
 ): LossesByReasonReportBody {
   return { range, reasons };
 }

@@ -45,7 +45,7 @@ const ALMACEN_GROUP: AiCostByPeriodBody["groups"][number] = {
 };
 
 export const AI_COST_BY_SUPPLIER: AiCostByPeriodBody = {
-  range: { from: "2026-10-01", to: "2026-10-31" },
+  range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-31" },
   groups: [ANDINA_GROUP, ALMACEN_GROUP],
   total: {
     reading: { costNanoUsd: 3_000_000_000, unpricedCalls: 0 },
@@ -55,7 +55,7 @@ export const AI_COST_BY_SUPPLIER: AiCostByPeriodBody = {
 };
 
 export const AI_COST_BY_DAY: AiCostByPeriodBody = {
-  range: { from: "2026-10-01", to: "2026-10-31" },
+  range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-31" },
   groups: [
     {
       key: "2026-10-03",
@@ -103,7 +103,7 @@ export const INCOMPLETE_AI_COST_BY_SUPPLIER: AiCostByPeriodBody = {
 };
 
 export const EMPTY_AI_COST: AiCostByPeriodBody = {
-  range: { from: "2026-10-31", to: "2026-10-31" },
+  range: { from: "2026-10-31", to: "2026-10-31", today: "2026-10-31" },
   groups: [],
   total: {
     reading: { costNanoUsd: 0, unpricedCalls: 0 },

@@ -60,7 +60,7 @@ test("shows the losses of each reason with the range instead of the list when gr
   await expect.element(screen.getByRole("region", { name: "Vencimiento" })).toBeVisible();
   expect(screen.getByRole("table", { name: "Movimientos" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: /Período:/ }).query()).toBeNull();
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
   expect(services.fetchLossesByReasonReport).toHaveBeenCalledWith({});
   expect(services.fetchStockMovements).not.toHaveBeenCalled();
 });

@@ -554,3 +554,19 @@ test("keeps its content width when not full width", async () => {
 
   expect(segmentContainer(screen, "Entry mode").getBoundingClientRect().width).toBeLessThan(600);
 });
+
+test("accepts no chosen option as its value", () => {
+  expectTypeOf<null>().toExtend<SegmentedControlProps<EntryMode>["value"]>();
+});
+
+test("shows no option as chosen when nothing is chosen and reports the option pressed", async () => {
+  const onChange = vi.fn();
+  const screen = await render(<SegmentedControl {...baseProps({ value: null, onChange })} />);
+
+  for (const option of options) {
+    expect(segmentInput(screen, option.label).checked).toBe(false);
+  }
+  await userEvent.click(segmentLabelText(screen, "New price"));
+  expect(onChange).toHaveBeenCalledWith("newPrice");
+  await expectNoAccessibilityViolations(screen.container);
+});

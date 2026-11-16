@@ -1,4 +1,5 @@
 import {
+  type AnsweredReportPeriod,
   averageTicket,
   type Clock,
   type ReportPeriod,
@@ -25,7 +26,7 @@ export interface TicketOfPeriod extends SalesReportTotals {
 }
 
 export interface AverageTicketReport {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   previousRange: ReportPeriod | null;
   current: TicketOfPeriod;
   previous: TicketOfPeriod | null;

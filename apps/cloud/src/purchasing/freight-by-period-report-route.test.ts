@@ -122,7 +122,7 @@ describe("GET /reports/freight-by-period", () => {
     const response = await freightByPeriod(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-05", to: "2026-10-05" },
+      range: { from: "2026-10-05", to: "2026-10-05", today: "2026-10-05" },
       months: [],
       totals: { freights: 0, amount: 0 },
     });
@@ -143,7 +143,7 @@ describe("GET /reports/freight-by-period", () => {
     const response = await freightByPeriod(headers, "?from=2026-09-01&to=2026-10-05");
 
     expect(freightByPeriodSchema.parse(response.json())).toEqual({
-      range: { from: "2026-09-01", to: "2026-10-05" },
+      range: { from: "2026-09-01", to: "2026-10-05", today: "2026-10-05" },
       months: [
         { month: "2026-09", freights: 1, amount: 3_000 },
         { month: "2026-10", freights: 2, amount: 12_500 },

@@ -22,13 +22,13 @@ const bakerySupplier: SupplierRow = {
 };
 
 export const quarterPurchasesReport: PurchasesBySupplierBody = {
-  range: { from: "2026-09-01", to: "2026-10-31" },
+  range: { from: "2026-09-01", to: "2026-10-31", today: "2026-10-31" },
   suppliers: [dairySupplier, bakerySupplier],
   totals: { suppliers: 2, purchases: 4, amount: 257_550 },
 };
 
 export const emptyPurchasesReport: PurchasesBySupplierBody = {
-  range: { from: "2026-10-31", to: "2026-10-31" },
+  range: { from: "2026-10-31", to: "2026-10-31", today: "2026-10-31" },
   suppliers: [],
   totals: { suppliers: 0, purchases: 0, amount: 0 },
 };

@@ -116,6 +116,7 @@ export function CashMovementsScreen({
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
+        periodShortcuts
         registerFilter={registerFilter}
         onRegisterLabelChange={setRegisterLabel}
         trailing={
