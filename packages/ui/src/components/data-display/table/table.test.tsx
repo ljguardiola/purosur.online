@@ -71,7 +71,7 @@ function paintedTextRight(element: HTMLElement): number {
 }
 
 function frameOf(table: Element): HTMLElement {
-  return table.parentElement?.parentElement as HTMLElement;
+  return table.closest(".isolate") as HTMLElement;
 }
 
 test("paintedTextRight throws for an element that paints no text, instead of silently passing", async () => {
@@ -1897,7 +1897,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   expect(table.getAttribute("aria-busy")).toBe("true");
 
-  const bar = table.parentElement?.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(bar.getBoundingClientRect().height).toBe(3);
@@ -1915,7 +1915,7 @@ test("does not intercept a click landing on the header underneath the loading ba
     />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.parentElement?.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
   const barRect = bar.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();
@@ -1948,7 +1948,7 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     );
     await settleScroll();
     const table = screen.getByRole("table").element() as HTMLElement;
-    const bar = table.parentElement?.previousElementSibling as HTMLElement;
+    const bar = frameOf(table).firstElementChild as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
     const button = screen.getByRole("button", { name: "Stock" }).element() as HTMLElement;
     const buttonRect = button.getBoundingClientRect();
@@ -1995,7 +1995,7 @@ test("keeps the header's own title text below the loading bar's 3px band", async
     />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.parentElement?.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
 
   expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(
@@ -2109,7 +2109,7 @@ test("reads the focused header's own ring color at the same probe point when the
 test("slides the updating bar's segment left to right in a loop", async () => {
   const screen = await render(<TestTable {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.parentElement?.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
 
   const style = getComputedStyle(segment);
@@ -2125,7 +2125,7 @@ test("slides the updating bar's segment exactly from off the left edge to off th
     </div>,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.parentElement?.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
 
   const [animation] = segment.getAnimations();
@@ -2157,7 +2157,7 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
       <TestTable {...commonProps} columns={columns} loading="updating" />,
     );
     const table = screen.getByRole("table").element() as HTMLElement;
-    const bar = table.parentElement?.previousElementSibling as HTMLElement;
+    const bar = frameOf(table).firstElementChild as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
 
     await expect.poll(() => getComputedStyle(segment).animationName).toBe("none");
