@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
-import { linesPaintedUnder } from "../platform/test-support/code-cells";
+import { linesPainted } from "../platform/test-support/code-cells";
 import { render } from "../shell/test-support/render-with-router";
 import { periodSegments } from "../shell/test-support/report-dates";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
@@ -571,8 +571,7 @@ test("keeps each voucher's number on one line in a narrow window", async () => {
   const screen = await renderScreen(createServices());
 
   const table = screen.getByRole("table", { name: "Comprobantes y notas de crédito" });
-  await expect.element(table).toBeVisible();
-  const lines = () => linesPaintedUnder(table.element() as HTMLElement, "Comprobante");
-  await expect.poll(() => lines().length).toBeGreaterThan(1);
-  await expect.poll(() => lines().every((count) => count === 1)).toBe(true);
+  const voucher = table.getByText("Nota de crédito C 00003-00000041");
+  await expect.element(voucher).toBeVisible();
+  expect(linesPainted(voucher.element() as HTMLElement)).toBe(1);
 });

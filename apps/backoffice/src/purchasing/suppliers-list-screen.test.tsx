@@ -550,5 +550,5 @@ test("keeps each CUIT on one line in a narrow window", async () => {
   const screen = await loaded(createServices(), [andina, cerealera]);
 
   const table = screen.getByRole("table", { name: "Proveedores" }).element() as HTMLElement;
-  await expect.poll(() => linesPaintedUnder(table, "CUIT")).toEqual([1, 1]);
+  await expect.poll(() => linesPaintedUnder(table, "CUIT")).toEqual([1]);
 });

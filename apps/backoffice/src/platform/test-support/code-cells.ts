@@ -1,4 +1,4 @@
-function linesPainted(element: HTMLElement): number {
+export function linesPainted(element: HTMLElement): number {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   const tops = new Set<number>();
   for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {

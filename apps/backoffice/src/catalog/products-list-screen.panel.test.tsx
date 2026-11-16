@@ -1,4 +1,4 @@
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { productPanelSections } from "./test-support/product-panel-sections";
@@ -158,7 +158,8 @@ test("beside the panel at 1440px, fits every column of the list with no sideways
 });
 
 test("in a window too narrow for the list beside the panel, scrolls it and marks the cut edge", async () => {
-  await page.viewport(1000, 900);
+  document.body.style.width = "820px";
+  onTestFinished(() => document.body.style.removeProperty("width"));
   const { screen } = await renderWithPanel({ openProduct: honey.id });
 
   const table = screen.getByRole("table", { name: "Productos" });
