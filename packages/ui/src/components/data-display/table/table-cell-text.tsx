@@ -41,7 +41,7 @@ function DescriptionLine({
   return (
     <span
       className={[
-        "text-detail",
+        "text-detail whitespace-normal",
         tone === undefined ? "text-text-subtle" : DESCRIPTION_TONE_CLASS_NAME[tone],
       ].join(" ")}
     >

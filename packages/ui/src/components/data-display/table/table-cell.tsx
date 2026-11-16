@@ -20,13 +20,14 @@ export function TableCell<T extends RowData>({
   const actionsColumn = columnActionCount(cell.column) !== undefined;
   const declaredWidth = cell.column.columnDef.meta?.width;
   const align = actionsColumn ? "start" : columnAlign(cell.column);
-  const figure = (align === "end" || cell.column.columnDef.meta?.code === true) && !fixedLayout;
+  const keptOnOneLine =
+    (align === "end" || cell.column.columnDef.meta?.code === true) && !fixedLayout;
 
   return (
     <td
       className={[
         "h-control-4xl align-middle py-2",
-        fixedLayout ? "break-words" : figure ? "whitespace-nowrap" : "wrap-normal",
+        fixedLayout ? "break-words" : keptOnOneLine ? "whitespace-nowrap" : "wrap-normal",
         cellHorizontalPaddingClassName(first, last, variant),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
@@ -49,7 +50,7 @@ export function TableCell<T extends RowData>({
           <div
             className="flex flex-col gap-1 max-w-full"
             style={
-              fixedLayout || figure || declaredWidth === undefined
+              fixedLayout || keptOnOneLine || declaredWidth === undefined
                 ? undefined
                 : { maxWidth: declaredWidth }
             }
