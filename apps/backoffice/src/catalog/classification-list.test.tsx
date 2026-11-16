@@ -61,6 +61,32 @@ test("titles the list with a heading of its label", async () => {
   await expect.element(screen.getByRole("heading", { name: "Marcas", level: 2 })).toBeVisible();
 });
 
+test("stays within the height it is given and scrolls its rows inside the table, keeping its title and search in view", async () => {
+  const items = Array.from({ length: 60 }, (_, index) => ({
+    id: String(index),
+    name: `Marca ${index}`,
+  }));
+  const screen = await render(
+    <div style={{ height: 400, display: "flex", flexDirection: "column" }}>
+      <Harness items={items} />
+    </div>,
+  );
+
+  const heading = screen.getByRole("heading", { name: "Marcas", level: 2 });
+  await expect.element(heading).toBeVisible();
+  const section = heading.element().closest("section");
+  if (section === null) {
+    throw new Error("the list is not a section");
+  }
+  expect(section.getBoundingClientRect().height).toBeLessThanOrEqual(400);
+
+  const lastRow = screen.getByText("Marca 59");
+  lastRow.element().scrollIntoView();
+  await expect.element(lastRow).toBeInViewport();
+  await expect.element(heading).toBeInViewport();
+  await expect.element(screen.getByPlaceholder("Buscar una marca")).toBeInViewport();
+});
+
 test("reports what is typed in the search field and the press of the create button", async () => {
   const onSearchChange = vi.fn();
   const onCreate = vi.fn();

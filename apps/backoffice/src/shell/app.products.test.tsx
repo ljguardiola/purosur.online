@@ -341,20 +341,29 @@ test("opens Clasificación with Categorías, Marcas and Etiquetas as three lists
   expect(location()).toBe("/products/classification");
 });
 
-test("shows the three lists of Clasificación one under the other, in one scrolling column", async () => {
+test("shows the three lists of Clasificación side by side, in three columns of the same width", async () => {
   const services = productsServices(["products_and_categories", "catalog_area"]);
   window.history.pushState(null, "", "/products/classification");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const tops = [];
+  const boxes = [];
   for (const name of ["Categorías", "Marcas", "Etiquetas"]) {
-    const table = screen.getByRole("table", { name });
-    await expect.element(table).toBeVisible();
-    tops.push(table.element().getBoundingClientRect().top);
+    const heading = screen.getByRole("heading", { name, level: 2 });
+    await expect.element(heading).toBeVisible();
+    const section = heading.element().closest("section");
+    if (section === null) {
+      throw new Error(`the list ${name} is not a section`);
+    }
+    boxes.push(section.getBoundingClientRect());
   }
-  expect(tops).toEqual([...tops].sort((a, b) => a - b));
-  expect(new Set(tops).size).toBe(3);
+  const [categories, brands, tags] = boxes;
+  expect(brands?.top).toBeCloseTo(categories?.top ?? Number.NaN, 0);
+  expect(tags?.top).toBeCloseTo(categories?.top ?? Number.NaN, 0);
+  expect(categories?.right).toBeLessThan(brands?.left ?? Number.NaN);
+  expect(brands?.right).toBeLessThan(tags?.left ?? Number.NaN);
+  expect(brands?.width).toBeCloseTo(categories?.width ?? Number.NaN, 0);
+  expect(tags?.width).toBeCloseTo(categories?.width ?? Number.NaN, 0);
 });
 
 test("a new brand and a new tag are offered from their own list of Clasificación", async () => {
