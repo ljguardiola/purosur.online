@@ -162,7 +162,7 @@ test("lists the prices in the order the cloud answers them", async () => {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
   expect(periodSegments(screen).slice(3)).toEqual(["13", "10", "2026"]);
 });
 
@@ -189,7 +189,7 @@ test("asks for the period the URL carries", async () => {
 test("reports the period typed once both days are complete", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
 
   await typePeriodStart(screen, "01092026");
 

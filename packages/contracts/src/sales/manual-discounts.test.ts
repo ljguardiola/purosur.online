@@ -65,7 +65,7 @@ const lineRow = {
 };
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   rows: [saleRow, lineRow],
   totals: {
     discounted: 700,
@@ -115,7 +115,10 @@ describe("manualDiscountsSchema", () => {
   });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a negative total", { totals: { ...report.totals, discounted: -1 } }],
     ["a total with decimals", { totals: { ...report.totals, discounted: 1.5 } }],
     ["a negative count", { totals: { ...report.totals, count: -1 } }],

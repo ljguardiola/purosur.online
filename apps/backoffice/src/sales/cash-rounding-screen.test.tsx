@@ -102,8 +102,8 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["07", "10", "2026"]);
   expect(services.fetchCashRounding).toHaveBeenCalledWith({});
 });
 
@@ -124,7 +124,7 @@ test("asks the cloud for the range and the register the URL names", async () => 
     to: "2026-10-05",
     register_id: BACK_REGISTER_ID,
   });
-  expect(periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  expect(periodSegments(screen).slice(0, 3)).toEqual(["02", "10", "2026"]);
   await expect
     .element(screen.getByRole("combobox", { name: /^Caja:/ }))
     .toHaveValue("Caja del fondo");

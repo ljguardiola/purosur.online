@@ -127,6 +127,7 @@ export function SalesByProductAndCategoryScreen({
           filters={filters}
           onFiltersChange={changeFilters}
           answeredPeriod={shown?.range}
+          periodShortcuts
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={

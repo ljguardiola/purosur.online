@@ -88,7 +88,7 @@ test("shows the range the cloud answered for the hand-confirmed payments", async
     filters: { handConfirmed: true },
   });
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
 });
 
 test("asks the cloud again for the method chosen beside the filter", async () => {

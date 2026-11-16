@@ -14,7 +14,8 @@ const TAB_LABELS: Record<ProductsTab, string> = {
   products: "Productos",
   prices: "Precios",
   promotions: "Promociones",
-  assemblies: "Armados",
+  recipes: "Recetas",
+  batches: "Producciones",
   classification: "Clasificación",
 };
 
@@ -26,11 +27,13 @@ export function ProductsPage(): ReactElement {
     ? "prices"
     : matchRoute({ to: "/products/promotions" })
       ? "promotions"
-      : matchRoute({ to: "/products/assemblies", fuzzy: true })
-        ? "assemblies"
-        : matchRoute({ to: "/products/classification", fuzzy: true })
-          ? "classification"
-          : "products";
+      : matchRoute({ to: "/products/recipes" })
+        ? "recipes"
+        : matchRoute({ to: "/products/batches" })
+          ? "batches"
+          : matchRoute({ to: "/products/classification", fuzzy: true })
+            ? "classification"
+            : "products";
 
   return (
     <ScreenLayout topBar={<AreaTopBar title="Productos" />} bodyClassName="p-0">

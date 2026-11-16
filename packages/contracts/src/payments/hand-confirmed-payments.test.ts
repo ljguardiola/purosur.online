@@ -53,7 +53,7 @@ const methods = [
 ];
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   totals: { count: 3, amount: 1_900 },
   methods,
   cashiers: [{ cashier_id: CASHIER_ID, cashier_name: "Ana", count: 3, amount: 1_900, methods }],
@@ -111,7 +111,10 @@ describe("handConfirmedPaymentsSchema", () => {
   });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a negative count", { totals: { count: -1, amount: 1 } }],
     ["a total with decimals", { totals: { count: 1, amount: 1.5 } }],
     ["a negative amount", { totals: { count: 1, amount: -1 } }],

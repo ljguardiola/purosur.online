@@ -1,7 +1,7 @@
 import type { IssuedFiscalDocumentsReportBody } from "@purosur/contracts";
 
 export const issuedFiscalDocumentsReport: IssuedFiscalDocumentsReportBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       kind: "receipt",
@@ -45,7 +45,7 @@ export const issuedFiscalDocumentsReport: IssuedFiscalDocumentsReportBody = {
 };
 
 export const noIssuedFiscalDocumentsReport: IssuedFiscalDocumentsReportBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [],
   totals: {
     receipts: { count: 0, amount: 0 },

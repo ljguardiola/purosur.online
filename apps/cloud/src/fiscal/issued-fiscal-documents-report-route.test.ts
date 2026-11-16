@@ -99,7 +99,7 @@ describe("GET /reports/fiscal-documents", () => {
     const response = await report(headers, range);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-31" },
+      range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-07" },
       rows: [],
       totals: {
         receipts: { count: 0, amount: 0 },
@@ -120,7 +120,7 @@ describe("GET /reports/fiscal-documents", () => {
     const response = await report(headers, range);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-31" },
+      range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-07" },
       rows: [
         {
           kind: "receipt",

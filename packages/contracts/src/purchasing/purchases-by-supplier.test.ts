@@ -51,7 +51,7 @@ describe("purchasesBySupplierSchema", () => {
     amount: 2_250,
   };
   const report = {
-    range: { from: "2026-10-01", to: "2026-10-06" },
+    range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-07" },
     suppliers: [supplier],
     totals: { suppliers: 1, purchases: 2, amount: 2_250 },
   };
@@ -81,7 +81,10 @@ describe("purchasesBySupplierSchema", () => {
   const withMonth = (change: object) => withSupplier({ months: [{ ...month, ...change }] });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a total without suppliers", { totals: { purchases: 2, amount: 2_250 } }],
     ["a total without purchases", { totals: { suppliers: 1, amount: 2_250 } }],
     ["a total without amount", { totals: { suppliers: 1, purchases: 2 } }],

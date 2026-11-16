@@ -20,7 +20,7 @@ const QR_FIGURES = {
 };
 
 export const weekChargeCosts: MercadoPagoChargeCostsBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   charges: [
     {
       payment_transaction_id: "5b8d2f61-7c3a-4e09-9f14-0a6c8e2d4b73",
@@ -72,7 +72,7 @@ export const weekChargeCosts: MercadoPagoChargeCostsBody = {
 };
 
 export const emptyChargeCosts: MercadoPagoChargeCostsBody = {
-  range: { from: "2026-10-01", to: "2026-10-31" },
+  range: { from: "2026-10-01", to: "2026-10-31", today: "2026-10-31" },
   charges: [],
   days: [],
   months: [],

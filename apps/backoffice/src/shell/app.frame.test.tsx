@@ -3,6 +3,7 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -13,6 +14,7 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
+  "/$",
   "/account-recovery",
   "/products/classification",
   "/fiscal/settings",
@@ -40,16 +42,57 @@ test("opens Inicio at /, with Inicio active in the rail", async () => {
     .toHaveAttribute("aria-current", "page");
 });
 
-test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog", "/settings"])(
-  "redirects %s, which names no screen, to /help",
+test.each([
+  "/ventas",
+  "/helps",
+  "/help/getting_started/intro/extra",
+  "/catalog",
+  "/settings",
+  "/products/assemblies/recipes",
+  "/purchases/freight",
+])(
+  "shows %s, which names no screen, as a page not found inside the frame, keeping its address",
   async (path) => {
     window.history.pushState(null, "", path);
 
-    await render(<App help={help} services={createAppServices()} />);
+    const screen = await render(<App help={help} services={createAppServices()} />);
 
-    await expect.poll(() => window.location.pathname).toBe("/help");
+    await expect
+      .element(screen.getByRole("heading", { name: "Página no encontrada", level: 1 }))
+      .toBeVisible();
+    expect(window.location.pathname).toBe(path);
+    expect(document.title).toBe("Página no encontrada · Puro Sur");
+    const rail = screen.getByRole("navigation", { name: "Áreas" });
+    await expect.element(rail).toBeVisible();
+    expect(rail.element().querySelector("[aria-current]")).toBeNull();
+    await expect
+      .element(screen.getByRole("link", { name: "Ir a Inicio" }))
+      .toHaveAttribute("href", "/");
+    await expectNoAccessibilityViolations(document.body);
   },
 );
+
+test("following Ir a Inicio from a page not found opens Inicio", async () => {
+  window.history.pushState(null, "", "/no-existe");
+  const screen = await render(<App help={help} services={createAppServices()} />);
+
+  await userEvent.click(screen.getByRole("link", { name: "Ir a Inicio" }));
+
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/");
+});
+
+test("sends a path that names no screen to the sign-in screen when no session is live", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+  });
+  window.history.pushState(null, "", "/no-existe");
+
+  const screen = await render(<App help={help} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Ingresar", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/sign-in");
+});
 
 test("a rail item is a real link to its screen, and a plain click opens that screen in place", async () => {
   const services = createAppServices();

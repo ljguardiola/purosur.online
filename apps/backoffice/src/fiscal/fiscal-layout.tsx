@@ -4,8 +4,6 @@ import type { ReactElement } from "react";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
-import { FiscalStatusStrip } from "./fiscal-status-strip";
-import { defaultFiscalStatusStripServices } from "./fiscal-status-strip-services";
 import { FISCAL_TAB_TARGETS, type FiscalTab } from "./fiscal-tabs";
 
 const route = getRouteApi("/signed-in/fiscal-area/fiscal");
@@ -20,7 +18,7 @@ const TAB_LABELS: Record<FiscalTab, string> = {
 };
 
 export function FiscalLayout(): ReactElement {
-  const { session, services, sessionActions, fiscalTabs } = route.useRouteContext();
+  const { fiscalTabs } = route.useRouteContext();
   const matchRoute = useMatchRoute();
   useDocumentTitle("Fiscal · Puro Sur");
   const selectedTab: FiscalTab = matchRoute({ to: "/fiscal/documents" })
@@ -33,11 +31,6 @@ export function FiscalLayout(): ReactElement {
 
   return (
     <ScreenLayout topBar={<AreaTopBar title="Fiscal" />} bodyClassName="p-0">
-      <FiscalStatusStrip
-        access={session}
-        onSessionEnded={sessionActions.sessionEnded}
-        services={services.fiscalStatusStrip ?? defaultFiscalStatusStripServices}
-      />
       <Tabs
         label="Secciones de Fiscal"
         selectedTab={selectedTab}

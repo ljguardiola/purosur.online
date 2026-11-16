@@ -179,7 +179,7 @@ describe("GET /reports/sales-by-day", () => {
     const response = await salesByDay(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       days: [],
       totals: { sales_count: 0, total: 0 },
     });
@@ -195,7 +195,7 @@ describe("GET /reports/sales-by-day", () => {
 
     expect(before.json().totals).toEqual({ sales_count: 0, total: 0 });
     expect(after.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       days: [{ day: "2026-10-07", sales_count: 1, total: 4_800 }],
       totals: { sales_count: 1, total: 4_800 },
     });
@@ -292,7 +292,7 @@ describe("GET /reports/sales-by-product-and-category", () => {
     const response = await salesByProductAndCategory(headers, "?group=category");
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       group: "category",
       rows: [],
       totals: { units: 0, thousandths: 0, amount: 0 },
@@ -321,7 +321,7 @@ describe("GET /reports/sales-by-product-and-category", () => {
     const byCategory = await salesByProductAndCategory(headers, "?group=category");
 
     expect(byProduct.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       group: "product",
       rows: [
         {
@@ -346,7 +346,7 @@ describe("GET /reports/sales-by-product-and-category", () => {
       totals: { units: 3, thousandths: 1_500, amount: 16_200 },
     });
     expect(byCategory.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       group: "category",
       rows: [
         {
@@ -476,7 +476,7 @@ describe("GET /reports/sales-by-cashier", () => {
     const response = await salesByCashier(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [],
       totals: { cashiers: 0, sales_count: 0, total: 0, average_ticket: null },
     });
@@ -506,7 +506,7 @@ describe("GET /reports/sales-by-cashier", () => {
     const response = await salesByCashier(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [
         {
           cashier_id: ana,
@@ -678,7 +678,7 @@ describe("GET /reports/hand-typed-weights", () => {
     const response = await handTypedWeights(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       cashiers: [],
       sessions: [],
       totals: { weighed_lines: 0, typed_lines: 0, most_typed: null },
@@ -824,7 +824,7 @@ describe("GET /reports/sales-by-promotion", () => {
     const response = await salesByPromotion(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [],
       totals: { discounted: 0, lines: 0, most_used: null },
     });
@@ -858,7 +858,7 @@ describe("GET /reports/sales-by-promotion", () => {
     const response = await salesByPromotion(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [
         {
           promotion_id: missing,
@@ -1043,7 +1043,7 @@ describe("GET /reports/manual-discounts", () => {
     const response = await manualDiscounts(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [],
       totals: { discounted: 0, count: 0, line_count: 0, sale_count: 0, most_authorized: null },
       authorizers: [],
@@ -1057,7 +1057,7 @@ describe("GET /reports/manual-discounts", () => {
     const response = await manualDiscounts(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [
         {
           kind: "SALE",
@@ -1195,7 +1195,7 @@ describe("GET /reports/average-ticket", () => {
     const response = await averageTicket(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       previous_range: { from: "2026-10-06", to: "2026-10-06" },
       current: { sales_count: 0, total: 0, average_ticket: null },
       previous: { sales_count: 0, total: 0, average_ticket: null },
@@ -1230,7 +1230,7 @@ describe("GET /reports/average-ticket", () => {
     const response = await averageTicket(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       previous_range: { from: "2026-10-06", to: "2026-10-06" },
       current: { sales_count: 2, total: 6_600, average_ticket: 3_300 },
       previous: { sales_count: 2, total: 4_000, average_ticket: 2_000 },
@@ -1340,7 +1340,7 @@ describe("GET /reports/cash-rounding", () => {
     const response = await cashRounding(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [],
       totals: { rounded: 0, rounded_sale_count: 0 },
     });
@@ -1367,7 +1367,7 @@ describe("GET /reports/cash-rounding", () => {
     const response = await cashRounding(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       rows: [
         {
           day: "2026-10-07",

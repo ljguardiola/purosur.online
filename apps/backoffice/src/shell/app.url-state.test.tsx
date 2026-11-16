@@ -2,6 +2,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { almonds, honey } from "../catalog/test-support/products";
+import { tagList } from "../platform/test-support/tags";
 import { pricesPastReviewDeadlineReport } from "../pricing/test-support/prices-past-review-deadline-report-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
@@ -102,17 +103,63 @@ test("opens a list on its defaults for a filter value its URL carries that the l
   await expect.poll(() => services.productsListScreen.fetchProducts).toHaveBeenCalledWith("active");
 });
 
-test("reopens the categories list with the search its URL carries", async () => {
+function classificationServices() {
   const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
   });
-  window.history.pushState(null, "", "/products/classification?search=alma&sort=descending");
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([]),
+  });
+  return services;
+}
+
+test("reopens each list of Clasificación with the filters its own prefixed fields carry", async () => {
+  const services = classificationServices();
+  window.history.pushState(
+    null,
+    "",
+    "/products/classification?categorySearch=alma&categorySort=descending&brandSearch=granuz&brandStatus=all&tagSearch=sin%20tacc&tagStatus=inactive",
+  );
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByPlaceholder("Buscar una categoría")).toHaveValue("alma");
+  await expect.element(screen.getByPlaceholder("Buscar una marca")).toHaveValue("granuz");
+  await expect.element(screen.getByPlaceholder("Buscar una etiqueta")).toHaveValue("sin tacc");
+  await expect.element(screen.getByRole("button", { name: "Estado: Todas" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Estado: Inactivas" })).toBeVisible();
+});
+
+test("writes a change of one list into its own fields of the URL, replacing the history entry and leaving the other lists' fields", async () => {
+  const services = classificationServices();
+  window.history.pushState(null, "", "/products/classification?categorySearch=alma");
+  const historyLength = window.history.length;
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar una marca"), "granuz");
+
+  await expect.poll(() => window.location.search).toBe("?brandSearch=granuz&categorySearch=alma");
+  expect(window.history.length).toBe(historyLength);
+  await expect.element(screen.getByPlaceholder("Buscar una categoría")).toHaveValue("alma");
+  await expect.element(screen.getByPlaceholder("Buscar una etiqueta")).toHaveValue("");
+});
+
+test("falls back to each list's defaults for values its fields do not offer, and strips them from the URL", async () => {
+  const services = classificationServices();
+  window.history.pushState(
+    null,
+    "",
+    "/products/classification?categorySort=sideways&brandStatus=archived&tagSortBy=color&brandSearch=",
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByPlaceholder("Buscar una marca")).toHaveValue("");
+  await expect.poll(() => window.location.search).toBe("");
 });
 
 test("reopens the prices list with the filters its URL carries", async () => {
@@ -217,7 +264,7 @@ test("keeps the products list filters in the URL after following its own tab", a
 });
 
 test.each([
-  { url: "/products/classification?search=alma", link: "Categorías" },
+  { url: "/products/classification?categorySearch=alma", link: "Clasificación" },
   { url: "/products/prices?search=yerba", link: "Precios" },
   { url: "/products/promotions?search=yerba", link: "Promociones" },
 ])("the $link tab carries the filters its list is showing", async ({ url, link }) => {
@@ -225,6 +272,11 @@ test.each([
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
+  });
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([]),
   });
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
@@ -335,7 +387,7 @@ test("writes the period typed under Por revisar into the prices URL, and strips 
   });
   window.history.pushState(null, "", "/products/prices");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
   expect(window.location.search).toBe("");
 
   await typePeriodStart(screen, "01092026");

@@ -61,11 +61,11 @@ describe("readReturnsReport", () => {
       },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" });
     expect(reader.reads).toEqual([
       {
         locationId: "branch-1",
-        range: { from: "2026-10-01", to: "2026-10-06" },
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: undefined,
       },
     ]);
@@ -83,7 +83,7 @@ describe("readReturnsReport", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
   });
 
   it("answers today on the calendar of the zone rules it is given when no range is asked", async () => {
@@ -98,7 +98,7 @@ describe("readReturnsReport", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
   });
 
   it("asks only for the register and the branch it was given", async () => {

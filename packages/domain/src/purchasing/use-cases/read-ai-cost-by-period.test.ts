@@ -32,7 +32,7 @@ describe("readAiCostByPeriod", () => {
       },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" });
     expect(report.groups.map(({ key, name, total }) => [key, name, total.costNanoUsd])).toEqual([
       ["s-2", "Beta", 505],
       ["s-1", "Alfa", 50],
@@ -43,7 +43,10 @@ describe("readAiCostByPeriod", () => {
       total: { costNanoUsd: 555, unpricedCalls: 0 },
     });
     expect(reader.reads).toEqual([
-      { locationId: "branch-1", range: { from: "2026-10-01", to: "2026-10-06" } },
+      {
+        locationId: "branch-1",
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
+      },
     ]);
   });
 
@@ -73,8 +76,12 @@ describe("readAiCostByPeriod", () => {
       { locationId: "branch-1", asked: noRange, groupBy: "day" },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.reads[0]?.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.reads[0]?.range).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("asks for the current day on the calendar of the zone rules it is given", async () => {
@@ -87,7 +94,7 @@ describe("readAiCostByPeriod", () => {
       { locationId: "branch-1", asked: noRange, groupBy: "day" },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
   });
 
   it("reports no groups and a zero total when nothing was recorded", async () => {

@@ -149,7 +149,7 @@ export function FiscalStatusStrip({
     return null;
   }
   return (
-    <div className="grid shrink-0 grid-cols-4 gap-4 px-6 pt-6">
+    <div className="grid shrink-0 grid-cols-4 gap-4">
       {parts.visible.map((key) => {
         const Figure = FIGURE_COMPONENTS[key];
         return <Figure key={key} services={services} onSessionEnded={onSessionEnded} />;

@@ -100,8 +100,8 @@ test("shows the header with the promotion's name, and its values filled in", asy
   await expect.element(dialog.getByRole("radio", { name: "Etiqueta" })).toBeChecked();
   await expect.element(dialog.getByRole("combobox", { name: /^Etiqueta/ })).toHaveValue("Sin TACC");
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("20");
-  expect(validitySegments(dialog).slice(0, 3)).toEqual(["1", "12", "2026"]);
-  expect(validitySegments(dialog).slice(3)).toEqual(["28", "2", "2027"]);
+  expect(validitySegments(dialog).slice(0, 3)).toEqual(["01", "12", "2026"]);
+  expect(validitySegments(dialog).slice(3)).toEqual(["28", "02", "2027"]);
   await expect
     .element(dialog.getByRole("button", { name: "Lun, Lunes" }))
     .toHaveAttribute("aria-pressed", "true");

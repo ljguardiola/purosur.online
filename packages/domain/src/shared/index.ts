@@ -41,7 +41,7 @@ export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";
 export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";
 export type { ReportGroup } from "./report-group.js";
 export { REPORT_GROUPS } from "./report-group.js";
-export type { ReportPeriod } from "./report-period.js";
+export type { AnsweredReportPeriod, ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
 export { compareFractions, roundHalfUp } from "./rounding.js";

@@ -40,7 +40,7 @@ export function tableContainerClassName(variant: TableVariant, fill = false): st
     variant === "nested"
       ? "relative isolate overflow-clip"
       : "relative isolate overflow-clip rounded-lg border border-border bg-surface";
-  return fill ? `${base} flex h-full flex-col` : base;
+  return fill ? `${base} flex min-h-0 flex-1 flex-col` : base;
 }
 
 // An inset shadow, not a real border, so it never adds width to a row whose height is otherwise

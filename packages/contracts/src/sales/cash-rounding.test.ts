@@ -3,7 +3,7 @@ import { cashRoundingSchema } from "./cash-rounding.js";
 
 describe("cashRoundingSchema", () => {
   const report = {
-    range: { from: "2026-10-05", to: "2026-10-06" },
+    range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
     rows: [
       {
         day: "2026-10-05",
@@ -42,7 +42,10 @@ describe("cashRoundingSchema", () => {
 
   it.each([
     ["a total that is not an amount", { totals: { rounded: "150", rounded_sale_count: 2 } }],
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(cashRoundingSchema.safeParse({ ...report, ...change }).success).toBe(false);
   });

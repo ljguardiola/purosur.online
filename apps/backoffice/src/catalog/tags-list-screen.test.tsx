@@ -8,6 +8,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { type TagsListFilters, tagsListFilters } from "./routes";
 import { TagsListScreen } from "./tags-list-screen";
 import type { TagsListScreenServices } from "./tags-list-services";
+import { linesOfText } from "./test-support/text-lines";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -91,8 +92,25 @@ test("shows each active tag with its product count and state, and the totals", a
   const screen = await loaded(services, [sinTacc, vegano, sinColorantes], {}, 3);
 
   expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
-  await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activa", "Vegano18Activa"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACCActiva34", "VeganoActiva18"]);
   await expect.element(screen.getByText("2 etiquetas · 3 productos")).toBeVisible();
+});
+
+test("keeps the Productos header on one line in a narrow list, leaving the rest of the width to the name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([sinTacc]),
+  });
+  const screen = await render(<div style={{ width: 420 }}>{screenElement(services)}</div>);
+
+  const productsHeader = screen.getByRole("columnheader", { name: "Productos" });
+  await expect.element(productsHeader).toBeVisible();
+  const nameHeader = screen.getByRole("columnheader", { name: "Etiqueta" });
+  expect(linesOfText(productsHeader.element(), "Productos")).toBe(1);
+  expect(nameHeader.element().getBoundingClientRect().width).toBeGreaterThan(
+    productsHeader.element().getBoundingClientRect().width,
+  );
 });
 
 test("the state filter shows the inactive tags, or every tag, counting the inactive ones", async () => {
@@ -110,7 +128,7 @@ test("the state filter shows the inactive tags, or every tag, counting the inact
     .toEqual(["Activas", "Inactivas", "Todas"]);
   await userEvent.click(screen.getByRole("option", { name: "Inactivas" }));
 
-  await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantes3Inactiva"]);
+  await expect.poll(() => rowTexts(screen)).toEqual(["Sin colorantesInactiva3"]);
   await expect.element(screen.getByText("1 etiqueta · 1 inactiva · 37 productos")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
@@ -119,19 +137,36 @@ test("the state filter shows the inactive tags, or every tag, counting the inact
   await expect.element(screen.getByText("2 etiquetas · 1 inactiva · 37 productos")).toBeVisible();
 });
 
+test("shows each tag's state under its name, with no column of its own", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [sinTacc]);
+
+  await expect
+    .poll(() =>
+      screen
+        .getByRole("columnheader")
+        .all()
+        .map((header) => header.element().textContent),
+    )
+    .toEqual(["Etiqueta", "Productos", "Acciones"]);
+  const nameCell = screen.getByRole("row").nth(1).getByRole("cell").first();
+  await expect.element(nameCell.getByText("Sin TACC", { exact: true })).toBeVisible();
+  await expect.element(nameCell.getByText("Activa", { exact: true })).toBeVisible();
+});
+
 test("lists tags by name, and the products header orders them by how many products carry them", async () => {
   const services = createServices();
   const screen = await loaded(services, [vegano, sinTacc, organico]);
 
   await expect
     .poll(() => rowTexts(screen).map((text) => text.split(/\d/)[0]))
-    .toEqual(["Orgánico", "Sin TACC", "Vegano"]);
+    .toEqual(["OrgánicoActiva", "Sin TACCActiva", "VeganoActiva"]);
 
   await userEvent.click(screen.getByRole("button", { name: "Productos" }));
 
   await expect
     .poll(() => rowTexts(screen).map((text) => text.split(/\d/)[0]))
-    .toEqual(["Sin TACC", "Vegano", "Orgánico"]);
+    .toEqual(["Sin TACCActiva", "VeganoActiva", "OrgánicoActiva"]);
 });
 
 test("the search field filters the tags by name, case-insensitively", async () => {

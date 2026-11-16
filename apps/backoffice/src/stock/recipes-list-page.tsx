@@ -4,7 +4,7 @@ import { defaultAssemblyBatchesScreenServices } from "./assembly-batches-service
 import { RecipesListScreen } from "./recipes-list-screen";
 import { defaultRecipesListScreenServices } from "./recipes-list-services";
 
-const route = getRouteApi("/signed-in/products-area/products/assemblies/");
+const route = getRouteApi("/signed-in/products-area/products/recipes");
 
 export function RecipesListPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();

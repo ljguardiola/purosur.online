@@ -35,7 +35,7 @@ describe("aiCostByPeriodSchema", () => {
   const total = { costNanoUsd: 2_000, unpricedCalls: 1 };
   const cost = { reading: total, proposals: { costNanoUsd: 0, unpricedCalls: 0 }, total };
   const report = {
-    range: { from: "2026-10-01", to: "2026-10-06" },
+    range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-07" },
     groups: [{ key: "supplier-1", name: "Distribuidora Sur", ...cost }],
     total: cost,
   };
@@ -62,7 +62,10 @@ describe("aiCostByPeriodSchema", () => {
   });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["no groups", { groups: undefined }],
     ["no total", { total: undefined }],
     ["a group without a key", { groups: [{ name: null, ...cost }] }],

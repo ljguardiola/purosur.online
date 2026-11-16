@@ -53,7 +53,7 @@ describe("readHandTypedWeights", () => {
     );
 
     expect(report).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-06" },
+      range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
       cashiers: [
         { cashierId: "u2", name: null, weighedLines: 2, typedLines: 2 },
         { cashierId: "u1", name: "Ana", weighedLines: 5, typedLines: 1 },
@@ -76,7 +76,7 @@ describe("readHandTypedWeights", () => {
     expect(reader.reads).toEqual([
       {
         locationId: "branch-1",
-        range: { from: "2026-10-01", to: "2026-10-06" },
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: undefined,
       },
     ]);
@@ -90,8 +90,12 @@ describe("readHandTypedWeights", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.reads[0]?.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.reads[0]?.range).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("limits the read to the asked register", async () => {

@@ -9,7 +9,7 @@ import type {
 } from "@purosur/contracts";
 
 export const weekReport: SalesReportBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   days: [
     { day: "2026-10-02", sales_count: 3, total: 1_250_050 },
     { day: "2026-10-05", sales_count: 1, total: 98_000 },
@@ -18,7 +18,7 @@ export const weekReport: SalesReportBody = {
 };
 
 export const todayReport: SalesReportBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   days: [],
   totals: { sales_count: 0, total: 0 },
 };
@@ -30,7 +30,7 @@ const QUESO_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const YERBA_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
 export const categoryProductsReport: SalesByProductAndCategoryBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   group: "category",
   rows: [
     {
@@ -74,7 +74,7 @@ export const categoryProductsReport: SalesByProductAndCategoryBody = {
 };
 
 export const productProductsReport: SalesByProductAndCategoryBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   group: "product",
   rows: [
     {
@@ -100,7 +100,7 @@ export const productProductsReport: SalesByProductAndCategoryBody = {
 };
 
 export const noProductsReport: SalesByProductAndCategoryBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   group: "category",
   rows: [],
   totals: { units: 0, thousandths: 0, amount: 0 },
@@ -117,7 +117,7 @@ export function manyProductsReport(count: number): SalesByProductAndCategoryBody
     amount: (count - index) * 100,
   }));
   return {
-    range: { from: "2026-10-01", to: "2026-10-07" },
+    range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
     group: "product",
     rows,
     totals: {
@@ -133,7 +133,7 @@ const BETO_ID = "22222222-2222-4222-8222-222222222222";
 const UNKNOWN_CASHIER_ID = "33333333-3333-4333-8333-333333333333";
 
 export const cashierSalesReport: SalesByCashierBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       cashier_id: ANA_ID,
@@ -164,7 +164,7 @@ export const cashierSalesReport: SalesByCashierBody = {
 };
 
 export const singleSaleCashierReport: SalesByCashierBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       cashier_id: ANA_ID,
@@ -179,7 +179,7 @@ export const singleSaleCashierReport: SalesByCashierBody = {
 };
 
 export const noCashierSalesReport: SalesByCashierBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [],
   totals: { cashiers: 0, sales_count: 0, total: 0, average_ticket: null },
 };
@@ -189,7 +189,7 @@ const BUNDLE_ID = "55555555-5555-4555-8555-555555555555";
 const REMOVED_PROMOTION_ID = "66666666-6666-4666-8666-666666666666";
 
 export const promotionDiscountsReport: SalesByPromotionBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       promotion_id: FINDE_ID,
@@ -240,7 +240,7 @@ export const promotionDiscountsReport: SalesByPromotionBody = {
 };
 
 export const singleLinePromotionReport: SalesByPromotionBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       promotion_id: FINDE_ID,
@@ -264,13 +264,13 @@ export const singleLinePromotionReport: SalesByPromotionBody = {
 };
 
 export const noPromotionDiscountsReport: SalesByPromotionBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [],
   totals: { discounted: 0, lines: 0, most_used: null },
 };
 
 export const averageTicketReport: AverageTicketBody = {
-  range: { from: "2026-09-24", to: "2026-10-14" },
+  range: { from: "2026-09-24", to: "2026-10-14", today: "2026-10-14" },
   previous_range: { from: "2026-09-03", to: "2026-09-23" },
   current: { sales_count: 70, total: 1_750_000, average_ticket: 25_000 },
   previous: { sales_count: 55, total: 1_320_000, average_ticket: 24_000 },
@@ -301,7 +301,7 @@ export const averageTicketReport: AverageTicketBody = {
 };
 
 export const singleDayAverageTicketReport: AverageTicketBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   previous_range: { from: "2026-10-06", to: "2026-10-06" },
   current: { sales_count: 1, total: 4_800, average_ticket: 4_800 },
   previous: { sales_count: 0, total: 0, average_ticket: null },
@@ -325,7 +325,7 @@ export const quietWeekAverageTicketReport: AverageTicketBody = {
 };
 
 export const noSalesAverageTicketReport: AverageTicketBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   previous_range: { from: "2026-10-06", to: "2026-10-06" },
   current: { sales_count: 0, total: 0, average_ticket: null },
   previous: { sales_count: 0, total: 0, average_ticket: null },
@@ -334,7 +334,7 @@ export const noSalesAverageTicketReport: AverageTicketBody = {
 };
 
 export const noPreviousAverageTicketReport: AverageTicketBody = {
-  range: { from: "0001-01-01", to: "0001-01-07" },
+  range: { from: "0001-01-01", to: "0001-01-07", today: "2026-10-07" },
   previous_range: null,
   current: { sales_count: 1, total: 4_800, average_ticket: 4_800 },
   previous: null,
@@ -349,7 +349,7 @@ export const BETO_USER_ID = "88888888-8888-4888-8888-888888888888";
 const REMOVED_USER_ID = "99999999-9999-4999-8999-999999999999";
 
 export const manualDiscountsReport: ManualDiscountsBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       kind: "SALE",
@@ -415,7 +415,7 @@ export const manualDiscountsReport: ManualDiscountsBody = {
 };
 
 export const singleManualDiscountReport: ManualDiscountsBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [manualDiscountsReport.rows[0] as ManualDiscountsBody["rows"][number]],
   totals: {
     discounted: 70_000,
@@ -428,14 +428,14 @@ export const singleManualDiscountReport: ManualDiscountsBody = {
 };
 
 export const noManualDiscountsReport: ManualDiscountsBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [],
   totals: { discounted: 0, count: 0, line_count: 0, sale_count: 0, most_authorized: null },
   authorizers: [],
 };
 
 export const cashRoundingReport: CashRoundingBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   rows: [
     {
       day: "2026-10-02",
@@ -456,7 +456,7 @@ export const cashRoundingReport: CashRoundingBody = {
 };
 
 export const noCashRoundingReport: CashRoundingBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   rows: [],
   totals: { rounded: 0, rounded_sale_count: 0 },
 };

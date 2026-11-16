@@ -5,6 +5,7 @@ import { render } from "vitest-browser-react";
 import { productPanelSections } from "../catalog/test-support/product-panel-sections";
 import { almonds, honey } from "../catalog/test-support/products";
 import { mockLoaded } from "../catalog/test-support/products-list-screen";
+import { tagList } from "../platform/test-support/tags";
 import { openSession } from "../sessions/test-support/open-session";
 import { assemblyBatchList, mixBatch } from "../stock/test-support/assembly-batches";
 import { almendras, cajaDeInfusiones, mixDeFrutosSecos } from "../stock/test-support/recipes";
@@ -18,11 +19,9 @@ opensOnlyScreens([
   "/",
   "/help",
   "/products",
-  "/products/assemblies",
-  "/products/assemblies/batches",
+  "/products/recipes",
+  "/products/batches",
   "/products/classification",
-  "/products/classification/brands",
-  "/products/classification/tags",
   "/products/prices",
   "/products/promotions",
 ]);
@@ -38,7 +37,14 @@ const EVERY_PRODUCT_CAPABILITY: Capability[] = [
   "batches",
 ];
 
-const TAB_NAMES = ["Productos", "Precios", "Promociones", "Armados", "Clasificación"];
+const TAB_NAMES = [
+  "Productos",
+  "Precios",
+  "Promociones",
+  "Recetas",
+  "Producciones",
+  "Clasificación",
+];
 
 function productsServices(capabilities: Capability[]) {
   const services = createAppServices({
@@ -55,6 +61,15 @@ function productsServices(capabilities: Capability[]) {
     kind: "ok",
     value: [],
   });
+  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.tagsListScreen.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([]),
+  });
   return services;
 }
 
@@ -66,7 +81,7 @@ function railLink(screen: Awaited<ReturnType<typeof render>>) {
   return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Productos" });
 }
 
-test("opens Productos from the rail with its five tabs for a person with every catalog capability", async () => {
+test("opens Productos from the rail with its six tabs for a person with every catalog capability", async () => {
   const services = productsServices(EVERY_PRODUCT_CAPABILITY);
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -134,7 +149,8 @@ test("hides the Productos item in the rail for a user without a product capabili
 test.each([
   ["promotions", "/products/promotions", "Promociones"],
   ["prices_area", "/products/prices", "Precios"],
-  ["recipes", "/products/assemblies", "Armados"],
+  ["recipes", "/products/recipes", "Recetas"],
+  ["batches", "/products/batches", "Producciones"],
 ] as const)(
   "opens only the tab of %s, as the default, from the rail's Productos item",
   async (capability, path, tab) => {
@@ -169,6 +185,9 @@ test.each([
   ["/products/promotions", ["prices_area"], "Precios", "/products/prices"],
   ["/products/prices", ["promotions"], "Promociones", "/products/promotions"],
   ["/products/classification", ["prices_area"], "Precios", "/products/prices"],
+  ["/products/recipes", ["products_and_categories"], "Productos", "/products"],
+  ["/products/batches", ["recipes"], "Recetas", "/products/recipes"],
+  ["/products/recipes", ["batches"], "Producciones", "/products/batches"],
   ["/products/assemblies", ["products_and_categories"], "Productos", "/products"],
 ] as const)(
   "sends a person who opens %s without its capability to the first tab they see",
@@ -187,12 +206,16 @@ test.each([
   "/products",
   "/products/prices",
   "/products/promotions",
+  "/products/recipes",
+  "/products/batches",
   "/products/assemblies",
+  "/products/assemblies/batches",
   "/products/classification",
   "/categories",
   "/prices",
   "/discounts",
   "/recipes",
+  "/assembly-batches",
 ])(
   "sends a person with no product capability who opens %s to the own account panel",
   async (path) => {
@@ -212,9 +235,40 @@ test.each([
 );
 
 test.each([
-  ["/categories?search=alma", ["products_and_categories"], "/products/classification?search=alma"],
-  ["/brands", ["products_and_categories"], "/products/classification/brands"],
-  ["/tags", ["products_and_categories"], "/products/classification/tags"],
+  [
+    "/categories?search=alma&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?categorySearch=alma&categorySort=descending",
+  ],
+  ["/categories", ["products_and_categories"], "/products/classification"],
+  [
+    "/brands?search=granuz&status=all&sortBy=products&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?brandSearch=granuz&brandSort=descending&brandSortBy=products&brandStatus=all",
+  ],
+  ["/brands", ["products_and_categories"], "/products/classification"],
+  [
+    "/tags?search=sin&status=inactive&sortBy=products&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?tagSearch=sin&tagSort=descending&tagSortBy=products&tagStatus=inactive",
+  ],
+  ["/tags", ["products_and_categories"], "/products/classification"],
+  [
+    "/products/classification?search=alma&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?categorySearch=alma&categorySort=descending",
+  ],
+  [
+    "/products/classification/brands?search=granuz&status=all",
+    ["products_and_categories"],
+    "/products/classification?brandSearch=granuz&brandStatus=all",
+  ],
+  [
+    "/products/classification/tags?sortBy=products&sort=descending",
+    ["products_and_categories"],
+    "/products/classification?tagSort=descending&tagSortBy=products",
+  ],
+  ["/products/classification/brands", ["products_and_categories"], "/products/classification"],
   ["/prices?search=yerba&review=all", ["prices_area"], "/products/prices?review=all&search=yerba"],
   ["/prices?review=overdue", ["prices_area"], "/products/prices?review=overdue"],
   [
@@ -222,12 +276,38 @@ test.each([
     ["promotions"],
     "/products/promotions?search=yerba&status=all",
   ],
-  ["/recipes", ["recipes"], "/products/assemblies"],
-  ["/assembly-batches", ["recipes", "batches"], "/products/assemblies/batches"],
-  ["/assembly-batches", ["batches"], "/products/assemblies/batches"],
-  ["/assembly-batches", ["recipes"], "/products/assemblies"],
-  ["/products/assemblies/batches", ["recipes"], "/products/assemblies"],
-  ["/products/assemblies", ["batches"], "/products/assemblies/batches"],
+  ["/recipes", ["recipes"], "/products/recipes"],
+  [
+    "/recipes?search=mix&sort=descending",
+    ["recipes"],
+    "/products/recipes?search=mix&sort=descending",
+  ],
+  ["/assembly-batches", ["recipes", "batches"], "/products/batches"],
+  ["/assembly-batches?search=mix&period=7", ["batches"], "/products/batches?period=7&search=mix"],
+  ["/assembly-batches", ["recipes"], "/products/recipes"],
+  ["/products/assemblies", ["recipes"], "/products/recipes"],
+  [
+    "/products/assemblies?search=mix&sort=descending",
+    ["recipes", "batches"],
+    "/products/recipes?search=mix&sort=descending",
+  ],
+  [
+    "/products/assemblies?recipe=recipe-product-1",
+    ["recipes"],
+    "/products/recipes?recipe=recipe-product-1",
+  ],
+  ["/products/assemblies", ["batches"], "/products/batches"],
+  ["/products/assemblies/batches", ["batches"], "/products/batches"],
+  [
+    "/products/assemblies/batches?search=mix&period=7",
+    ["batches"],
+    "/products/batches?period=7&search=mix",
+  ],
+  ["/products/assemblies/batches", ["recipes"], "/products/recipes"],
+  ["/products/assemblies", ["products_and_categories", "batches"], "/products/batches"],
+  ["/recipes", ["products_and_categories", "batches"], "/products/batches"],
+  ["/products/assemblies/batches", ["products_and_categories", "recipes"], "/products/recipes"],
+  ["/assembly-batches", ["products_and_categories", "recipes"], "/products/recipes"],
 ] as const)(
   "redirects the old address %s to its tab or section",
   async (old, capabilities, target) => {
@@ -243,13 +323,8 @@ test.each([
   },
 );
 
-test("opens Clasificación with its three sections, each one at its own address", async () => {
+test("opens Clasificación with Categorías, Marcas and Etiquetas as three lists on one screen", async () => {
   const services = productsServices(["products_and_categories", "catalog_area"]);
-  vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({ kind: "ok", value: [] });
   window.history.pushState(null, "", "/products/classification");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -257,20 +332,80 @@ test("opens Clasificación with its three sections, each one at its own address"
   await expect
     .element(screen.getByRole("tab", { name: "Clasificación", selected: true }))
     .toBeVisible();
-  const sections = screen.getByRole("tablist", { name: "Secciones de Clasificación" });
-  await expect
-    .element(sections.getByRole("tab", { name: "Categorías", selected: true }))
-    .toBeVisible();
-  for (const [index, name] of ["Categorías", "Marcas", "Etiquetas"].entries()) {
-    await expect.element(sections.getByRole("tab").nth(index)).toHaveAccessibleName(name);
+  for (const name of ["Categorías", "Marcas", "Etiquetas"]) {
+    await expect.element(screen.getByRole("table", { name })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name, level: 2 })).toBeVisible();
   }
-  expect(screen.getByRole("heading", { name: "Categorías", level: 1 }).query()).toBeNull();
+  expect(screen.getByRole("tablist", { name: "Secciones de Clasificación" }).query()).toBeNull();
+  expect(screen.getByRole("tablist").elements()).toHaveLength(1);
+  expect(location()).toBe("/products/classification");
+});
 
-  await userEvent.click(sections.getByRole("tab", { name: "Marcas" }));
+test("shows the three lists of Clasificación side by side, in three columns of the same width", async () => {
+  const services = productsServices(["products_and_categories", "catalog_area"]);
+  window.history.pushState(null, "", "/products/classification");
 
-  await expect.element(sections.getByRole("tab", { name: "Marcas", selected: true })).toBeVisible();
-  expect(location()).toBe("/products/classification/brands");
-  await expect.poll(() => services.brandsListScreen.fetchBrands).toHaveBeenCalled();
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const boxes = [];
+  for (const name of ["Categorías", "Marcas", "Etiquetas"]) {
+    const heading = screen.getByRole("heading", { name, level: 2 });
+    await expect.element(heading).toBeVisible();
+    const section = heading.element().closest("section");
+    if (section === null) {
+      throw new Error(`the list ${name} is not a section`);
+    }
+    boxes.push(section.getBoundingClientRect());
+  }
+  const [categories, brands, tags] = boxes;
+  expect(brands?.top).toBeCloseTo(categories?.top ?? Number.NaN, 0);
+  expect(tags?.top).toBeCloseTo(categories?.top ?? Number.NaN, 0);
+  expect(categories?.right).toBeLessThan(brands?.left ?? Number.NaN);
+  expect(brands?.right).toBeLessThan(tags?.left ?? Number.NaN);
+  expect(brands?.width).toBeCloseTo(categories?.width ?? Number.NaN, 0);
+  expect(tags?.width).toBeCloseTo(categories?.width ?? Number.NaN, 0);
+});
+
+test("keeps each list of Clasificación inside the screen's height, scrolling its own rows when there are many", async () => {
+  const services = productsServices(["products_and_categories", "catalog_area"]);
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({
+    kind: "ok",
+    value: Array.from({ length: 80 }, (_, index) => ({
+      id: `brand-${index}`,
+      name: `Marca ${String(index).padStart(2, "0")}`,
+      active: true,
+      version: 1,
+      productCount: index,
+    })),
+  });
+  window.history.pushState(null, "", "/products/classification");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const heading = screen.getByRole("heading", { name: "Marcas", level: 2 });
+  await expect.element(screen.getByText("Marca 00")).toBeVisible();
+  const section = heading.element().closest("section");
+  if (section === null) {
+    throw new Error("the list Marcas is not a section");
+  }
+  expect(section.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+
+  const lastRow = screen.getByText("Marca 79");
+  lastRow.element().scrollIntoView();
+  await expect.element(lastRow).toBeInViewport();
+  await expect.element(heading).toBeInViewport();
+  expect(window.scrollY).toBe(0);
+});
+
+test("a new brand and a new tag are offered from their own list of Clasificación", async () => {
+  const services = productsServices(["products_and_categories", "catalog_area"]);
+  window.history.pushState(null, "", "/products/classification");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("button", { name: "Nueva categoría" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva marca" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva etiqueta" })).toBeVisible();
 });
 
 test("editing a brand in Clasificación is a modal and the list stays visible", async () => {
@@ -282,7 +417,7 @@ test("editing a brand in Clasificación is a modal and the list stays visible", 
       { id: "brand-2", name: "Vitora", active: true, version: 2, productCount: 18 },
     ],
   });
-  window.history.pushState(null, "", "/products/classification/brands");
+  window.history.pushState(null, "", "/products/classification");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table", { name: "Marcas" })).toBeVisible();
 
@@ -292,10 +427,10 @@ test("editing a brand in Clasificación is a modal and the list stays visible", 
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Granuz");
   await expect.element(screen.getByRole("table", { name: "Marcas" })).toBeVisible();
   await expect.element(screen.getByText("Vitora")).toBeVisible();
-  expect(location()).toBe("/products/classification/brands");
+  expect(location()).toBe("/products/classification");
 });
 
-function armadosServices(capabilities: Capability[]) {
+function recipesAndBatchesServices(capabilities: Capability[]) {
   const services = productsServices([...capabilities, "catalog_area"]);
   vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
     kind: "ok",
@@ -308,76 +443,84 @@ function armadosServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens Armados on Recetas, with a Producciones section beside it for a person with batches", async () => {
-  const services = armadosServices(["recipes", "batches"]);
-  window.history.pushState(null, "", "/products/assemblies");
+test("opens Recetas with Producciones as its own tab beside it for a person with batches", async () => {
+  const services = recipesAndBatchesServices(["recipes", "batches"]);
+  window.history.pushState(null, "", "/products/recipes");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Recetas", selected: true })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Producciones" })).toBeVisible();
+  const tabs = screen.getByRole("tablist", { name: "Secciones de Productos" });
+  await expect.element(tabs.getByRole("tab", { name: "Recetas", selected: true })).toBeVisible();
+  await expect.element(tabs.getByRole("tab", { name: "Producciones" })).toBeVisible();
+  expect(screen.getByRole("tablist").elements()).toHaveLength(1);
+  expect(screen.getByRole("tab", { name: "Armados" }).query()).toBeNull();
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 
-test("shows the batches in the Producciones section", async () => {
-  const services = armadosServices(["recipes", "batches"]);
-  window.history.pushState(null, "", "/products/assemblies");
+test("shows the batches in the Producciones tab", async () => {
+  const services = recipesAndBatchesServices(["recipes", "batches"]);
+  window.history.pushState(null, "", "/products/recipes");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
 
   await userEvent.click(screen.getByRole("tab", { name: "Producciones" }));
 
   await expect.element(screen.getByRole("table", { name: "Producciones" })).toBeVisible();
-  expect(location()).toBe("/products/assemblies/batches");
+  await expect
+    .element(screen.getByRole("tab", { name: "Producciones", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe("/products/batches");
 });
 
-test("opens Armados with only its Producciones section, and without Recetas, for a person with only batches", async () => {
-  const services = armadosServices(["batches"]);
+test("opens only the Producciones tab, without Recetas, for a person with only batches", async () => {
+  const services = recipesAndBatchesServices(["batches"]);
   window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("table", { name: "Producciones" })).toBeVisible();
-  await expect.element(screen.getByRole("tab", { name: "Armados", selected: true })).toBeVisible();
-  expect(screen.getByRole("tab", { name: "Recetas" }).query()).toBeNull();
-  expect(screen.getByRole("tab", { name: "Producciones" }).query()).toBeNull();
-  expect(location()).toBe("/products/assemblies/batches");
+  await expect
+    .element(screen.getByRole("tab", { name: "Producciones", selected: true }))
+    .toBeVisible();
+  expect(screen.getByRole("tab").elements()).toHaveLength(1);
+  expect(location()).toBe("/products/batches");
   expect(services.recipesListScreen.fetchRecipes).not.toHaveBeenCalled();
 });
 
-test("opens Armados as the recipes alone, without a Producciones section, for a person with only recipes", async () => {
-  const services = armadosServices(["recipes"]);
-  window.history.pushState(null, "", "/products/assemblies");
+test("opens only the Recetas tab, without Producciones, for a person with only recipes", async () => {
+  const services = recipesAndBatchesServices(["recipes"]);
+  window.history.pushState(null, "", "/products/recipes");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
+  expect(screen.getByRole("tab").elements()).toHaveLength(1);
   expect(screen.getByRole("tab", { name: "Producciones" }).query()).toBeNull();
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 
-test("a row of Armados opens the recipe's panel with its batches, and the recipe stays in the address", async () => {
-  const services = armadosServices(["recipes", "batches"]);
-  window.history.pushState(null, "", "/products/assemblies");
+test("a row of Recetas opens the recipe's panel with its batches, and the recipe stays in the address", async () => {
+  const services = recipesAndBatchesServices(["recipes", "batches"]);
+  window.history.pushState(null, "", "/products/recipes");
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await userEvent.click(screen.getByText("Mix de frutos secos"));
 
   const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
   await expect.element(panel.getByText("15/09/2026")).toBeVisible();
-  expect(location()).toBe(`/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+  expect(location()).toBe(`/products/recipes?recipe=${mixDeFrutosSecos.productId}`);
   await expect.element(panel.getByRole("button", { name: "Registrar producción" })).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
   await expect.poll(() => screen.getByRole("complementary").query()).toBeNull();
-  expect(location()).toBe("/products/assemblies");
+  expect(location()).toBe("/products/recipes");
 });
 
-test("opens the panel of the recipe named in the address of Armados", async () => {
-  const services = armadosServices(["recipes", "batches"]);
-  window.history.pushState(null, "", `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+test("opens the panel of the recipe named in the address of Recetas", async () => {
+  const services = recipesAndBatchesServices(["recipes", "batches"]);
+  window.history.pushState(null, "", `/products/recipes?recipe=${mixDeFrutosSecos.productId}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -386,9 +529,9 @@ test("opens the panel of the recipe named in the address of Armados", async () =
     .toBeVisible();
 });
 
-test("keeps the panel of Armados open while the list's search changes", async () => {
-  const services = armadosServices(["recipes", "batches"]);
-  window.history.pushState(null, "", `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+test("keeps the panel of Recetas open while the list's search changes", async () => {
+  const services = recipesAndBatchesServices(["recipes", "batches"]);
+  window.history.pushState(null, "", `/products/recipes?recipe=${mixDeFrutosSecos.productId}`);
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("complementary")).toBeVisible();
 
@@ -396,13 +539,13 @@ test("keeps the panel of Armados open while the list's search changes", async ()
 
   await expect
     .poll(location)
-    .toBe(`/products/assemblies?recipe=${mixDeFrutosSecos.productId}&search=mix`);
+    .toBe(`/products/recipes?recipe=${mixDeFrutosSecos.productId}&search=mix`);
   await expect.element(screen.getByRole("complementary")).toBeVisible();
 });
 
-test("ignores a recipe that is not a text in the address of Armados", async () => {
-  const services = armadosServices(["recipes"]);
-  window.history.pushState(null, "", "/products/assemblies?recipe=7");
+test("ignores a recipe that is not a text in the address of Recetas", async () => {
+  const services = recipesAndBatchesServices(["recipes"]);
+  window.history.pushState(null, "", "/products/recipes?recipe=7");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -410,12 +553,12 @@ test("ignores a recipe that is not a text in the address of Armados", async () =
   expect(screen.getByRole("complementary").query()).toBeNull();
 });
 
-test("a person without batches sees the recipe in its panel without its batches, and stays on Armados", async () => {
-  const services = armadosServices(["recipes"]);
+test("a person without batches sees the recipe in its panel without its batches, and stays on Recetas", async () => {
+  const services = recipesAndBatchesServices(["recipes"]);
   vi.mocked(services.assemblyBatchesScreen.fetchAssemblyBatches).mockResolvedValue({
     kind: "forbidden",
   });
-  const address = `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`;
+  const address = `/products/recipes?recipe=${mixDeFrutosSecos.productId}`;
   window.history.pushState(null, "", address);
 
   const screen = await render(<App help={emptyHelp} services={services} />);

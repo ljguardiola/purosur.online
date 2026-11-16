@@ -149,7 +149,7 @@ test("asks the cloud for the grouping in the URL and no range when the URL has n
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
   expect(periodSegments(screen).slice(3)).toEqual(["31", "10", "2026"]);
   expect(services.fetchAiCostReport).toHaveBeenCalledWith({ group_by: "supplier" });
 });

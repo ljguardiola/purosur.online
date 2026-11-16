@@ -146,7 +146,7 @@ test("returns to the freights list when the grouping is turned off", async () =>
 test("asks the report for the range in the filters and shows the range it answered", async () => {
   const services = createServices();
   const screen = await renderScreen(services, { filters: { byMonth: true } });
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "09", "2026"]);
   await screen.unmount();
 
   await renderScreen(services, {

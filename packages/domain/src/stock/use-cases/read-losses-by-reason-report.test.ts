@@ -28,9 +28,12 @@ describe("readLossesByReasonReport", () => {
       { locationId: "branch-1", asked: { from: "2026-10-01", to: "2026-10-06" } },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" });
     expect(reader.reads).toEqual([
-      { locationId: "branch-1", range: { from: "2026-10-01", to: "2026-10-06" } },
+      {
+        locationId: "branch-1",
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
+      },
     ]);
   });
 
@@ -40,7 +43,7 @@ describe("readLossesByReasonReport", () => {
       { locationId: "branch-1", asked: noRange },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
   });
 
   it("answers today on the calendar of the zone rules it is given", async () => {
@@ -53,7 +56,7 @@ describe("readLossesByReasonReport", () => {
       { locationId: "branch-1", asked: noRange },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
   });
 
   it("groups the losses read by reason, the ones the system assigns beside the hand-recorded", async () => {

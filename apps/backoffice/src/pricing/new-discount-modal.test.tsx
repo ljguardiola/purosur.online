@@ -326,7 +326,7 @@ test("says nothing about the validity's order while its end is still being typed
 
   await typeValidityEnd(dialog, "30092");
 
-  await expect.poll(() => validitySegments(dialog).slice(3)).toEqual(["30", "9", "2"]);
+  await expect.poll(() => validitySegments(dialog).slice(3)).toEqual(["30", "09", "2"]);
   expect(
     dialog.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
   ).toBeNull();
@@ -614,7 +614,7 @@ test("switching the kind keeps the name, dates, weekdays and a product sold by t
   await expect
     .element(dialog.getByRole("button", { name: "Lun, Lunes" }))
     .toHaveAttribute("aria-pressed", "true");
-  expect(validitySegments(dialog).slice(0, 3)).toEqual(["12", "9", "2026"]);
+  expect(validitySegments(dialog).slice(0, 3)).toEqual(["12", "09", "2026"]);
 
   await userEvent.click(radioLabel(dialog, "Porcentaje de descuento"));
 

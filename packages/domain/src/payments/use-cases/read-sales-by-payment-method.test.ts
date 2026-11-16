@@ -33,14 +33,14 @@ describe("readSalesByPaymentMethod", () => {
     );
 
     expect(report).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-06" },
+      range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
       methods: PAID.methods,
       totals: { salesCount: 3, total: 15_000, averageTicket: 5_000 },
     });
     expect(reader.approvedPaymentsReads).toEqual([
       {
         locationId: "branch-1",
-        period: { from: "2026-10-01", to: "2026-10-06" },
+        period: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: undefined,
       },
     ]);
@@ -54,10 +54,11 @@ describe("readSalesByPaymentMethod", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
     expect(reader.approvedPaymentsReads[0]?.period).toEqual({
       from: "2026-10-06",
       to: "2026-10-06",
+      today: "2026-10-06",
     });
   });
 
@@ -71,7 +72,7 @@ describe("readSalesByPaymentMethod", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
   });
 
   it("resolves the current day on the calendar of the zone rules it is given", async () => {
@@ -84,7 +85,7 @@ describe("readSalesByPaymentMethod", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
   });
 
   it("limits the read to the asked register", async () => {

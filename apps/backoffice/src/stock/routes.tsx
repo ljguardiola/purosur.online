@@ -1,7 +1,7 @@
 import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canManageBatches, canManageRecipes, canSeeStockPage } from "../shell/backoffice-access";
+import { canSeeStockPage } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
 import {
@@ -12,7 +12,6 @@ import {
 import { reportsRoute, reportViewRedirect } from "../shell/reports-route";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
-import { ASSEMBLIES_SECTION_TARGETS, ASSEMBLIES_SECTIONS } from "./assemblies-sections";
 import { currentStockReportFilters } from "./current-stock-report-filters";
 import { marginReportFilters } from "./margin-report-filters";
 import { STOCK_TAB_TARGETS, STOCK_TABS, type StockTab } from "./stock-tabs";
@@ -271,44 +270,48 @@ export const legacyInitialInventoryRoute = createRoute({
   },
 });
 
-export const assembliesRoute = createRoute({
-  getParentRoute: () => productsRoute,
-  path: "assemblies",
-  beforeLoad: ({ context: { productsTabs, session } }) => {
-    productsTabRedirect(productsTabs, "assemblies");
-    return {
-      assembliesSections: ASSEMBLIES_SECTIONS.filter((section) => section.isVisibleTo(session)).map(
-        (section) => section.key,
-      ),
-    };
-  },
-  component: lazyScreen(() => import("./assemblies-layout"), "AssembliesLayout"),
-});
-
 export const recipesListRoute = createRoute({
-  getParentRoute: () => assembliesRoute,
-  path: "/",
-  beforeLoad: ({ context: { session } }) => {
-    if (!canManageRecipes(session)) {
-      throw redirect({ to: ASSEMBLIES_SECTION_TARGETS.batches });
-    }
-  },
+  getParentRoute: () => productsRoute,
+  path: "recipes",
+  beforeLoad: ({ context: { productsTabs } }) => productsTabRedirect(productsTabs, "recipes"),
   validateSearch: recipesListSearch,
   search: { middlewares: [stripSearchParams(recipesListFilters.parse({}))] },
   component: lazyScreen(() => import("./recipes-list-page"), "RecipesListPage"),
 });
 
 export const assemblyBatchesRoute = createRoute({
-  getParentRoute: () => assembliesRoute,
+  getParentRoute: () => productsRoute,
   path: "batches",
-  beforeLoad: ({ context: { session } }) => {
-    if (!canManageBatches(session)) {
-      throw redirect({ to: ASSEMBLIES_SECTION_TARGETS.recipes });
-    }
-  },
+  beforeLoad: ({ context: { productsTabs } }) => productsTabRedirect(productsTabs, "batches"),
   validateSearch: assemblyBatchesFilters,
   search: { middlewares: [stripSearchParams(assemblyBatchesFilters.parse({}))] },
   component: lazyScreen(() => import("./assembly-batches-page"), "AssemblyBatchesPage"),
+});
+
+export const legacyAssembliesRoute = createRoute({
+  getParentRoute: () => productsRoute,
+  path: "assemblies",
+  validateSearch: recipesListSearch,
+  beforeLoad: ({ context: { productsTabs }, search }) => {
+    if (productsTabs.includes("recipes")) {
+      throw redirect({ to: "/products/recipes", search });
+    }
+    productsTabRedirect(productsTabs, "batches");
+    throw redirect({ to: "/products/batches" });
+  },
+});
+
+export const legacyAssemblyBatchesInProductsRoute = createRoute({
+  getParentRoute: () => productsRoute,
+  path: "assemblies/batches",
+  validateSearch: assemblyBatchesFilters,
+  beforeLoad: ({ context: { productsTabs }, search }) => {
+    if (productsTabs.includes("batches")) {
+      throw redirect({ to: "/products/batches", search });
+    }
+    productsTabRedirect(productsTabs, "recipes");
+    throw redirect({ to: "/products/recipes" });
+  },
 });
 
 export const legacyRecipesRoute = createRoute({
@@ -324,11 +327,7 @@ export const legacyAssemblyBatchesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: "assembly-batches",
   validateSearch: assemblyBatchesFilters,
-  beforeLoad: ({ context: { session }, search }) => {
-    throw redirect(
-      canManageBatches(session)
-        ? { to: ASSEMBLIES_SECTION_TARGETS.batches, search }
-        : { to: ASSEMBLIES_SECTION_TARGETS.recipes },
-    );
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/products/assemblies/batches", search });
   },
 });

@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -18,7 +18,7 @@ export interface ReadAiCostByPeriodInput {
 }
 
 export interface AiCostByPeriodReport extends AiCostByPeriod {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
 }
 
 export async function readAiCostByPeriod(

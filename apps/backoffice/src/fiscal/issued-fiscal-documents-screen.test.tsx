@@ -163,8 +163,8 @@ test("counts the documents with the period the cloud answered for", async () => 
   await expect
     .element(screen.getByText("4 comprobantes · del 01/09/2026 al 30/09/2026"))
     .toBeVisible();
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["30", "9", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "09", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["30", "09", "2026"]);
 });
 
 test("offers to open the detail of each document, named after its voucher", async () => {

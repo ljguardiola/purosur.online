@@ -9,7 +9,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Check, ListChecks } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
 import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -28,6 +28,7 @@ export type FiscalTasksScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services: FiscalTasksScreenServices;
+  summary?: ReactNode;
 };
 
 const NO_TASKS: FiscalTaskItem[] = [];
@@ -100,7 +101,12 @@ const dataColumns = [
   dataColumn({ id: "alert", header: "Aviso", width: 210, render: alertCell }),
 ] as const;
 
-export function FiscalTasksScreen({ access, onSessionEnded, services }: FiscalTasksScreenProps) {
+export function FiscalTasksScreen({
+  access,
+  onSessionEnded,
+  services,
+  summary,
+}: FiscalTasksScreenProps) {
   const [closing, setClosing] = useState<FiscalTaskItem | null>(null);
   const reload = useReloadFiscalTasks();
   const columns = canCloseFiscalTasks(access)
@@ -128,6 +134,7 @@ export function FiscalTasksScreen({ access, onSessionEnded, services }: FiscalTa
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+      {summary}
       <Table
         aria-label="Tareas fiscales"
         table={table}

@@ -3,4 +3,6 @@ import { z } from "zod";
 
 const calendarDay = z.string().refine(isCalendarDay);
 
-export const answeredRangeSchema = z.object({ from: calendarDay, to: calendarDay });
+export const calendarRangeSchema = z.object({ from: calendarDay, to: calendarDay });
+
+export const answeredRangeSchema = calendarRangeSchema.extend({ today: calendarDay });
