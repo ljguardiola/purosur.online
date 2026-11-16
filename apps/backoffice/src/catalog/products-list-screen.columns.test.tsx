@@ -31,7 +31,6 @@ test("shows the columns in order after the product's name", async () => {
     "Marca",
     "Contenido neto",
     "Código de barras",
-    "Categoría",
     "Unidad",
     "Precio",
     "Estado",
