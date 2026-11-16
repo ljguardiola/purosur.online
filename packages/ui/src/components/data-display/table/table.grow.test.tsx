@@ -58,7 +58,7 @@ const columns: TableColumns<Product> = [
   dataColumn({
     id: "state",
     header: "Estado",
-    nowrap: true,
+    width: 90,
     render: (item: Product) => item.state,
   }),
 ];
