@@ -85,6 +85,13 @@ type TableLoadProps =
   | { loading?: TableLoadingState; failure?: never }
   | { loading?: false; failure: LoadFailureProps | CenteredLoadFailureProps };
 
+// A stacked row has no pressable surface, so a table that stacks its rows takes no onRowPress.
+// stackWhenNarrow stacks each row into a block of label and value pairs while the container is
+// narrower than the columns, instead of scrolling the table sideways.
+type TableRowPressProps<T> =
+  | { stackWhenNarrow?: false; onRowPress?: (item: T) => void }
+  | { stackWhenNarrow: true; onRowPress?: never };
+
 export type TableLock = { label: string };
 
 export type TableProps<T extends RowData> = {
@@ -93,7 +100,6 @@ export type TableProps<T extends RowData> = {
   variant?: TableVariant;
   rowState?: (item: T) => TableRowState | undefined;
   rowDetail?: (item: T) => ReactNode;
-  onRowPress?: (item: T) => void;
   empty?: EmptyStateProps;
   footer?: ReactNode;
   legend?: readonly KeyLegendItem[];
@@ -108,7 +114,5 @@ export type TableProps<T extends RowData> = {
   // Keeps the columns at the container's width, squeezing them and breaking words that no longer
   // fit, instead of scrolling sideways.
   fixedColumns?: boolean;
-  // Stacks each row into a block of label and value pairs while the container is narrower than the
-  // columns, instead of scrolling the table sideways.
-  stackWhenNarrow?: boolean;
-} & TableLoadProps;
+} & TableRowPressProps<T> &
+  TableLoadProps;

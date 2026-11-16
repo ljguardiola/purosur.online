@@ -73,6 +73,7 @@ function LotsTable({
     sort: NO_SORT,
     onSortChange: () => {},
   });
+  const stacking = stackWhenNarrow ? ({ stackWhenNarrow: true } as const) : {};
   const empty = { icon: <Package />, title: "No hay lotes con saldo", variant: "blank" } as const;
   const failure = {
     icon: <CircleAlert />,
@@ -80,19 +81,13 @@ function LotsTable({
     onRetry: () => {},
   };
   return failed ? (
-    <Table
-      table={table}
-      aria-label="Lotes"
-      variant="nested"
-      stackWhenNarrow={stackWhenNarrow}
-      failure={failure}
-    />
+    <Table table={table} aria-label="Lotes" variant="nested" {...stacking} failure={failure} />
   ) : (
     <Table
       table={table}
       aria-label="Lotes"
       variant="nested"
-      stackWhenNarrow={stackWhenNarrow}
+      {...stacking}
       loading={loading}
       empty={empty}
     />

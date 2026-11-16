@@ -256,7 +256,6 @@ export function Table<T extends RowData>({
             variant={variant}
             rowState={rowState}
             rowDetail={rowDetail}
-            onRowPress={onRowPress}
             rowsDisabled={rowsDisabled}
             empty={empty}
             failure={failure}

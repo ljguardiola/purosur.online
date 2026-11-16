@@ -1,30 +1,8 @@
 import type { RowData } from "@tanstack/react-table";
-import { Fragment, type MouseEvent, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { columnActionCount, columnTitle, renderCell } from "./table-column";
-import {
-  pressableRowClassName,
-  rowBoxShadowClassName,
-  rowStateClassName,
-  startsInsideInteractiveElement,
-} from "./table-styles";
+import { rowBoxShadowClassName, rowStateClassName } from "./table-styles";
 import type { TableModel, TableRowState, TableVariant } from "./table-types";
-
-function rowPressHandlers<T>(
-  onRowPress: ((item: T) => void) | undefined,
-  rowsDisabled: boolean,
-  item: T,
-) {
-  if (onRowPress === undefined || rowsDisabled) {
-    return {};
-  }
-  return {
-    onClick: (event: MouseEvent<HTMLElement>) => {
-      if (!startsInsideInteractiveElement(event.target, event.currentTarget)) {
-        onRowPress(item);
-      }
-    },
-  };
-}
 
 export function TableStackedRows<T extends RowData>({
   table,
@@ -32,7 +10,6 @@ export function TableStackedRows<T extends RowData>({
   variant,
   rowState,
   rowDetail,
-  onRowPress,
   rowsDisabled,
 }: {
   table: TableModel<T>;
@@ -40,7 +17,6 @@ export function TableStackedRows<T extends RowData>({
   variant: TableVariant;
   rowState: ((item: T) => TableRowState | undefined) | undefined;
   rowDetail: ((item: T) => ReactNode) | undefined;
-  onRowPress: ((item: T) => void) | undefined;
   rowsDisabled: boolean;
 }) {
   const rows = table.getRowModel().rows;
@@ -60,15 +36,10 @@ export function TableStackedRows<T extends RowData>({
             className={[
               rowBoxShadowClassName(state, last && !hasDetail),
               rowStateClassName(state, variant),
-              ...(onRowPress === undefined || rowsDisabled ? [] : [pressableRowClassName(state)]),
               variant === "nested" ? "px-0" : "px-4",
               "py-3",
             ].join(" ")}
             aria-disabled={rowsDisabled ? true : undefined}
-            aria-current={
-              onRowPress !== undefined && !rowsDisabled && state === "selected" ? "true" : undefined
-            }
-            {...rowPressHandlers(onRowPress, rowsDisabled, row.original)}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1 break-words">
