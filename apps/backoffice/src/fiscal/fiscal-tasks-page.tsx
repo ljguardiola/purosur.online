@@ -1,5 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
+import { FiscalStatusStrip } from "./fiscal-status-strip";
+import { defaultFiscalStatusStripServices } from "./fiscal-status-strip-services";
 import { FiscalTasksScreen } from "./fiscal-tasks-screen";
 import { defaultFiscalTasksScreenServices } from "./fiscal-tasks-services";
 
@@ -12,6 +14,13 @@ export function FiscalTasksPage(): ReactElement {
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.fiscalTasksScreen ?? defaultFiscalTasksScreenServices}
+      summary={
+        <FiscalStatusStrip
+          access={session}
+          onSessionEnded={sessionActions.sessionEnded}
+          services={services.fiscalStatusStrip ?? defaultFiscalStatusStripServices}
+        />
+      }
     />
   );
 }
