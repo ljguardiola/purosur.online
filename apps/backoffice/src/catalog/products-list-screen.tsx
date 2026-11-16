@@ -17,6 +17,7 @@ import {
   StatusIndicator,
   sortedItems,
   Table,
+  TableCellText,
   type TableSort,
   textOrder,
   useTableModel,
@@ -262,7 +263,11 @@ export function ProductsListScreen({
       id: "product",
       header: "Producto",
       sort: { order: productNameOrder, firstDirection: "ascending" },
-      render: (item: ListedProduct) => item.name,
+      render: (item: ListedProduct) => (
+        <TableCellText description={categoryLabels.get(item.categoryId) ?? item.categoryName}>
+          {item.name}
+        </TableCellText>
+      ),
     }),
     dataColumn({
       id: "brand",
@@ -279,12 +284,8 @@ export function ProductsListScreen({
     dataColumn({
       id: "barcodes",
       header: "Código de barras",
+      code: true,
       render: (item: ListedProduct) => barcodesSummary(item.barcodes),
-    }),
-    dataColumn({
-      id: "category",
-      header: "Categoría",
-      render: (item: ListedProduct) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     }),
     dataColumn({
       id: "unit",

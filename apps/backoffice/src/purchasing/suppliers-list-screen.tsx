@@ -109,6 +109,7 @@ export function SuppliersListScreen({
     dataColumn({
       id: "cuit",
       header: "CUIT",
+      code: true,
       render: (item: SupplierSummary) => item.cuit ?? UNSET,
     }),
     dataColumn({
