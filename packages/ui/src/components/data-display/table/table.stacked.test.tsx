@@ -1,11 +1,11 @@
 import { CircleAlert, Package, Trash2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { expect, test } from "vitest";
+import { expect, expectTypeOf, test } from "vitest";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../../test/axe";
 import { Table } from "./table";
 import { actionsColumn, dataColumn } from "./table-columns";
-import type { TableColumns, TableSort } from "./table-types";
+import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
 type Lot = { id: string; name: string; origin: string; remaining: string; cost: string };
@@ -207,4 +207,14 @@ test("shows a list placeholder while the first load is pending, when stacked", a
   await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
   expect(screen.getByRole("table").query()).toBeNull();
   expect(screen.getByRole("listitem").query()).toBeNull();
+});
+
+test("takes stackWhenNarrow or onRowPress, never both", () => {
+  type Required = Pick<TableProps<Lot>, "table" | "aria-label">;
+  type Press = { onRowPress: (lot: Lot) => void };
+
+  expectTypeOf<Required & { stackWhenNarrow: true }>().toExtend<TableProps<Lot>>();
+  expectTypeOf<Required & Press>().toExtend<TableProps<Lot>>();
+  expectTypeOf<Required & Press & { stackWhenNarrow: false }>().toExtend<TableProps<Lot>>();
+  expectTypeOf<Required & Press & { stackWhenNarrow: true }>().not.toExtend<TableProps<Lot>>();
 });
