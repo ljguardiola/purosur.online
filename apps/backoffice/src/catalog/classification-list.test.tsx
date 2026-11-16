@@ -198,3 +198,39 @@ test("shows the empty state it is given when there are no rows", async () => {
 
   await expect.element(screen.getByText("Todavía no hay marcas")).toBeVisible();
 });
+
+function borderedBox(text: HTMLElement): DOMRect {
+  let element: HTMLElement | null = text;
+  while (element !== null && getComputedStyle(element).borderTopWidth === "0px") {
+    element = element.parentElement;
+  }
+  if (element === null) {
+    throw new Error("the text is not inside a bordered box");
+  }
+  return element.getBoundingClientRect();
+}
+
+test("an empty list leaves its footer's place, so its box ends on the same line as a list with a footer", async () => {
+  const column = { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" } as const;
+  const screen = await render(
+    <div style={{ height: 400, display: "flex", gap: 24 }}>
+      <div style={column}>
+        <Harness footer={<p>2 marcas</p>} />
+      </div>
+      <div style={column}>
+        <Harness
+          items={[]}
+          empty={{ icon: <Tags />, title: "Todavía no hay marcas", variant: "blank" }}
+        />
+      </div>
+    </div>,
+  );
+
+  const emptyTitle = screen.getByText("Todavía no hay marcas");
+  await expect.element(emptyTitle).toBeVisible();
+  await expect.element(screen.getByText("2 marcas")).toBeVisible();
+  const withFooter = borderedBox(screen.getByText("Alma").element() as HTMLElement);
+  const empty = borderedBox(emptyTitle.element() as HTMLElement);
+
+  expect(empty.bottom).toBeCloseTo(withFooter.bottom, 0);
+});
