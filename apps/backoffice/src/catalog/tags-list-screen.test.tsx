@@ -8,6 +8,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { type TagsListFilters, tagsListFilters } from "./routes";
 import { TagsListScreen } from "./tags-list-screen";
 import type { TagsListScreenServices } from "./tags-list-services";
+import { linesOfText } from "./test-support/text-lines";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -93,6 +94,23 @@ test("shows each active tag with its product count and state, and the totals", a
   expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACCActiva34", "VeganoActiva18"]);
   await expect.element(screen.getByText("2 etiquetas · 3 productos")).toBeVisible();
+});
+
+test("keeps the Productos header on one line in a narrow list, leaving the rest of the width to the name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchTags).mockResolvedValue({
+    kind: "ok",
+    value: tagList([sinTacc]),
+  });
+  const screen = await render(<div style={{ width: 420 }}>{screenElement(services)}</div>);
+
+  const productsHeader = screen.getByRole("columnheader", { name: "Productos" });
+  await expect.element(productsHeader).toBeVisible();
+  const nameHeader = screen.getByRole("columnheader", { name: "Etiqueta" });
+  expect(linesOfText(productsHeader.element(), "Productos")).toBe(1);
+  expect(nameHeader.element().getBoundingClientRect().width).toBeGreaterThan(
+    productsHeader.element().getBoundingClientRect().width,
+  );
 });
 
 test("the state filter shows the inactive tags, or every tag, counting the inactive ones", async () => {

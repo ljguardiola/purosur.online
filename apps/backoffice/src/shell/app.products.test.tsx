@@ -366,6 +366,37 @@ test("shows the three lists of Clasificación side by side, in three columns of 
   expect(tags?.width).toBeCloseTo(categories?.width ?? Number.NaN, 0);
 });
 
+test("keeps each list of Clasificación inside the screen's height, scrolling its own rows when there are many", async () => {
+  const services = productsServices(["products_and_categories", "catalog_area"]);
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({
+    kind: "ok",
+    value: Array.from({ length: 80 }, (_, index) => ({
+      id: `brand-${index}`,
+      name: `Marca ${String(index).padStart(2, "0")}`,
+      active: true,
+      version: 1,
+      productCount: index,
+    })),
+  });
+  window.history.pushState(null, "", "/products/classification");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const heading = screen.getByRole("heading", { name: "Marcas", level: 2 });
+  await expect.element(screen.getByText("Marca 00")).toBeVisible();
+  const section = heading.element().closest("section");
+  if (section === null) {
+    throw new Error("the list Marcas is not a section");
+  }
+  expect(section.getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight);
+
+  const lastRow = screen.getByText("Marca 79");
+  lastRow.element().scrollIntoView();
+  await expect.element(lastRow).toBeInViewport();
+  await expect.element(heading).toBeInViewport();
+  expect(window.scrollY).toBe(0);
+});
+
 test("a new brand and a new tag are offered from their own list of Clasificación", async () => {
   const services = productsServices(["products_and_categories", "catalog_area"]);
   window.history.pushState(null, "", "/products/classification");

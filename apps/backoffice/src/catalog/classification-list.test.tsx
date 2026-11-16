@@ -133,8 +133,31 @@ test("shows the filters beside the search field, and the footer under the table"
     <Harness filters={<p>Estado: Activas</p>} footer={<p>2 marcas</p>} />,
   );
 
-  await expect.element(screen.getByText("Estado: Activas")).toBeVisible();
+  const filters = screen.getByText("Estado: Activas");
+  await expect.element(filters).toBeVisible();
   await expect.element(screen.getByText("2 marcas")).toBeVisible();
+  const filtersBox = filters.element().getBoundingClientRect();
+  const searchBox = screen.getByPlaceholder("Buscar una marca").element().getBoundingClientRect();
+  expect(filtersBox.left).toBeGreaterThanOrEqual(searchBox.right);
+  expect(filtersBox.top).toBeLessThan(searchBox.bottom);
+  expect(filtersBox.bottom).toBeGreaterThan(searchBox.top);
+});
+
+test("places the create button in the list's title row, beside its heading and above the search field", async () => {
+  const screen = await render(<Harness />);
+
+  const button = screen.getByRole("button", { name: "Nueva marca" });
+  await expect.element(button).toBeVisible();
+  const buttonBox = button.element().getBoundingClientRect();
+  const headingBox = screen
+    .getByRole("heading", { name: "Marcas", level: 2 })
+    .element()
+    .getBoundingClientRect();
+  const searchBox = screen.getByPlaceholder("Buscar una marca").element().getBoundingClientRect();
+  expect(buttonBox.left).toBeGreaterThanOrEqual(headingBox.right);
+  expect(buttonBox.top).toBeLessThan(headingBox.bottom);
+  expect(buttonBox.bottom).toBeGreaterThan(headingBox.top);
+  expect(buttonBox.bottom).toBeLessThanOrEqual(searchBox.top);
 });
 
 test("keeps the list visible beside the modals it is given", async () => {

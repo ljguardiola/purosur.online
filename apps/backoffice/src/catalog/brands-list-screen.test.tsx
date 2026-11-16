@@ -8,6 +8,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { BrandsListScreen } from "./brands-list-screen";
 import type { BrandsListScreenServices } from "./brands-list-services";
 import { type BrandsListFilters, brandsListFilters } from "./routes";
+import { linesOfText } from "./test-support/text-lines";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -138,6 +139,20 @@ test("shows each brand's state under its name, with no column of its own", async
   const nameCell = screen.getByRole("row").nth(1).getByRole("cell").first();
   await expect.element(nameCell.getByText("Granuz", { exact: true })).toBeVisible();
   await expect.element(nameCell.getByText("Activa", { exact: true })).toBeVisible();
+});
+
+test("keeps the Productos header on one line in a narrow list, leaving the rest of the width to the name", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchBrands).mockResolvedValue({ kind: "ok", value: [granuz] });
+  const screen = await render(<div style={{ width: 420 }}>{screenElement(services)}</div>);
+
+  const productsHeader = screen.getByRole("columnheader", { name: "Productos" });
+  await expect.element(productsHeader).toBeVisible();
+  const nameHeader = screen.getByRole("columnheader", { name: "Marca" });
+  expect(linesOfText(productsHeader.element(), "Productos")).toBe(1);
+  expect(nameHeader.element().getBoundingClientRect().width).toBeGreaterThan(
+    productsHeader.element().getBoundingClientRect().width,
+  );
 });
 
 test("the state filter shows the inactive brands, or every brand, counting the inactive ones", async () => {

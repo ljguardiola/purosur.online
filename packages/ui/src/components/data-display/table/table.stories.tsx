@@ -839,6 +839,30 @@ export const RegisterCardWithLegendAside: Story = {
   render: () => <RegisterCardPagedProductsTable />,
 };
 
+function FillWithFooterProductsTable() {
+  const [currentSort, setCurrentSort] = useState<TableSort<"name">>(sort);
+  const table = useTableModel({
+    items: manyProducts,
+    id: (item) => item.id,
+    columns: baseColumns,
+    sort: currentSort,
+    onSortChange: setCurrentSort,
+  });
+  return (
+    <Table
+      table={table}
+      aria-label="Productos"
+      fill
+      footer={<p className="pt-4 text-detail text-text-subtle">60 productos</p>}
+    />
+  );
+}
+
+export const FillWithFooter: Story = {
+  decorators: [inTallCard],
+  render: () => <FillWithFooterProductsTable />,
+};
+
 export const RegisterCardEmpty: Story = {
   decorators: [inTallCard],
   render: () => (

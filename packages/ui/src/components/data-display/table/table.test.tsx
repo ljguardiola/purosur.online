@@ -2505,6 +2505,33 @@ test("renders the caller's footer below the table", async () => {
   await expect.element(screen.getByText("1-2 of 2")).toBeVisible();
 });
 
+test("keeps the footer under the rows inside the height it fills, scrolling the rows instead", async () => {
+  const many = Array.from({ length: 30 }, (_, index) => ({
+    id: String(index),
+    name: `Product ${index}`,
+    stock: String(index),
+  }));
+  const screen = await render(
+    <div style={{ height: 300, width: 600 }}>
+      <TestTable {...commonProps} columns={columns} items={many} fill footer={<p>30 products</p>} />
+    </div>,
+  );
+
+  const footer = screen.getByText("30 products");
+  await expect.element(footer).toBeVisible();
+  const parentBox = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect();
+  const footerBox = footer.element().getBoundingClientRect();
+  expect(footerBox.bottom).toBeLessThanOrEqual(parentBox.bottom);
+  expect(screen.getByRole("table").element().getBoundingClientRect().top).toBeLessThan(
+    footerBox.top,
+  );
+
+  const lastRow = screen.getByText("Product 29");
+  lastRow.element().scrollIntoView();
+  await expect.element(lastRow).toBeInViewport();
+  expect(footer.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(parentBox.bottom);
+});
+
 test("holds back the footer during the first load, alongside the placeholders", async () => {
   const screen = await render(
     <TestTable
