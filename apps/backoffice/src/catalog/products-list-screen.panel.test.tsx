@@ -159,7 +159,9 @@ test("beside the panel at 1440px, fits every column of the list with no sideways
 
 test("in a window too narrow for the list beside the panel, scrolls it and marks the cut edge", async () => {
   document.body.style.width = "820px";
-  onTestFinished(() => document.body.style.removeProperty("width"));
+  onTestFinished(() => {
+    document.body.style.removeProperty("width");
+  });
   const { screen } = await renderWithPanel({ openProduct: honey.id });
 
   const table = screen.getByRole("table", { name: "Productos" });
