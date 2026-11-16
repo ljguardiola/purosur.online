@@ -2713,12 +2713,7 @@ test.each(["framed", "nested"] as const)(
     const wideStock = { ...coffee, stock: "Doce mil doscientos cincuenta unidades disponibles" };
     const screen = await render(
       <div style={{ width: "1000px" }}>
-        <TestTable
-          {...commonProps}
-          items={[wideStock]}
-          columns={widthColumns}
-          variant={variant}
-        />
+        <TestTable {...commonProps} items={[wideStock]} columns={widthColumns} variant={variant} />
       </div>,
     );
     const cell = screen.getByRole("cell", { name: /Doce mil/ }).element() as HTMLElement;
