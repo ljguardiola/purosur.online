@@ -50,7 +50,7 @@ type Area =
   | "help";
 
 export type AreaLayoutProps = {
-  area: Area;
+  area: Area | null;
   children: ReactNode;
 };
 
