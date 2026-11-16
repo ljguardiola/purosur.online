@@ -54,6 +54,12 @@ function TestTable<T extends RowData & { id: string }>({
   return <Table table={table} {...tableProps} />;
 }
 
+function paintedLineCount(element: HTMLElement): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size;
+}
+
 function paintedTextRight(element: HTMLElement): number {
   const range = document.createRange();
   range.selectNodeContents(element);
@@ -251,7 +257,7 @@ test("renders a 44px header row on a bone background with 16px edge padding and 
   expect(lastStyle.paddingLeft).toBe("6px");
 });
 
-test("wraps a long, unbreakable plain header title instead of overrunning the next column", async () => {
+test("keeps a long, unbreakable plain header title whole on one line, growing its column instead of breaking the word", async () => {
   const longColumns = [
     dataColumn({
       id: "name",
@@ -266,7 +272,8 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
     .element() as HTMLElement;
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
-  expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(firstHeader).overflowWrap).toBe("normal");
+  expect(paintedLineCount(titleSpan)).toBe(1);
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
@@ -277,7 +284,7 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("wraps a long, unbreakable sortable header title instead of overrunning the next column", async () => {
+test("keeps a long, unbreakable sortable header title whole on one line, growing its column instead of breaking the word", async () => {
   const longColumns = [
     dataColumn({
       id: "name",
@@ -301,7 +308,8 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
   // min-w-0 only shrinks the span's box; break-words on the <th> is what actually wraps the text.
-  expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(firstHeader).overflowWrap).toBe("normal");
+  expect(paintedLineCount(titleSpan)).toBe(1);
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
@@ -572,7 +580,7 @@ test("wraps long cell text onto a second line instead of cutting it with an elli
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("breaks a long unbreakable token inside its own cell instead of overrunning the next column", async () => {
+test("keeps a long unbreakable token whole on one line inside its own cell, growing its column instead of breaking it", async () => {
   const barcode = "1234567890123456789012345678901234567890";
   const screen = await render(
     <div style={{ width: "320px" }}>
@@ -586,7 +594,8 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   const cellText = screen.getByText(barcode, { exact: true }).element() as HTMLElement;
   const cell = cellText.closest("td") as HTMLElement;
 
-  expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(cell).overflowWrap).toBe("normal");
+  expect(paintedLineCount(cellText)).toBe(1);
   // Checked against the content edge (border box minus padding), not the border box itself.
   const cellPaddingRight = Number.parseFloat(getComputedStyle(cell).paddingRight);
   expect(paintedTextRight(cellText)).toBeLessThanOrEqual(
@@ -596,7 +605,7 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("breaks a long unbreakable token inside an align:end cell instead of overrunning the previous column", async () => {
+test("keeps a long unbreakable token whole on one line inside an align:end cell, growing its column instead of breaking it", async () => {
   const barcode = "1234567890123456789012345678901234567890";
   const screen = await render(
     <div style={{ width: "320px" }}>
@@ -610,7 +619,8 @@ test("breaks a long unbreakable token inside an align:end cell instead of overru
   const cellText = screen.getByText(barcode, { exact: true }).element() as HTMLElement;
   const cell = cellText.closest("td") as HTMLElement;
 
-  expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(cell).overflowWrap).toBe("normal");
+  expect(paintedLineCount(cellText)).toBe(1);
   const range = document.createRange();
   range.selectNodeContents(cellText);
   const minLeft = Math.min(...Array.from(range.getClientRects()).map((rect) => rect.left));
@@ -1411,7 +1421,7 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
   const wrappedColumns = [
     dataColumn({
       id: "name",
-      header: "Superlongunbreakabletitlethatwouldwraptotwoormorelines",
+      header: "Un título de columna tan largo que necesita varias líneas para entrar",
       sort: { order: byName, firstDirection: "ascending" },
       render: (p: Product) => p.name,
     }),
@@ -1428,10 +1438,10 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
     </div>,
   );
   const header = screen
-    .getByRole("columnheader", { name: /Superlongunbreakable/ })
+    .getByRole("columnheader", { name: /Un título de columna/ })
     .element() as HTMLElement;
   const button = screen
-    .getByRole("button", { name: /Superlongunbreakable/ })
+    .getByRole("button", { name: /Un título de columna/ })
     .element() as HTMLElement;
   const headerRect = header.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();

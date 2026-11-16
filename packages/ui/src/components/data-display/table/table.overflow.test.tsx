@@ -57,11 +57,13 @@ function LotsTable({
   variant,
   items = lots,
   failed = false,
+  fixedColumns = false,
 }: {
   columns: TableColumns<Lot>;
   variant: TableVariant;
   items?: Lot[];
   failed?: boolean;
+  fixedColumns?: boolean;
 }) {
   const table = useTableModel({
     items,
@@ -86,6 +88,7 @@ function LotsTable({
       table={table}
       aria-label="Lotes"
       variant={variant}
+      fixedColumns={fixedColumns}
       empty={{ icon: <Package />, title: "No hay lotes con saldo", variant: "blank" }}
     />
   );
@@ -122,11 +125,102 @@ test("lets the keyboard scroll a table that overflows its container", async () =
   expect(document.activeElement).toBe(region);
 });
 
-test("keeps a column with no width readable, never narrower than 96px of content, when the declared widths already fill the container", async () => {
+test("keeps a column with no width readable, never narrower than 120px of content, when the declared widths already fill the container", async () => {
   const screen = await render(inside(320, <LotsTable columns={wideColumns} variant="nested" />));
   const origin = screen.getByRole("columnheader", { name: "Origen" }).element() as HTMLElement;
 
-  expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(96 + 6 + 6);
+  expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(120 + 6 + 6);
+});
+
+function wordsPaintedOnSeveralLines(element: HTMLElement): string[] {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  const split: string[] = [];
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const text = node as Text;
+    for (const match of text.data.matchAll(/\S+/g)) {
+      const range = document.createRange();
+      range.setStart(text, match.index);
+      range.setEnd(text, match.index + match[0].length);
+      const tops = new Set([...range.getClientRects()].map((rect) => Math.round(rect.top)));
+      if (tops.size > 1) {
+        split.push(match[0]);
+      }
+    }
+  }
+  return split;
+}
+
+const longName =
+  "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregado 900 g";
+
+test("paints every word of a cell of a column with no width on one line when the columns are wider than the container", async () => {
+  const screen = await render(
+    inside(
+      320,
+      <LotsTable
+        columns={wideColumns}
+        variant="nested"
+        items={[{ ...lots[0]!, origin: longName }]}
+      />,
+    ),
+  );
+  const cell = screen.getByRole("cell", { name: /Cuidadosamente/ }).element() as HTMLElement;
+
+  expect(wordsPaintedOnSeveralLines(cell)).toEqual([]);
+});
+
+test("paints every word of a header title on one line when the columns are wider than the container", async () => {
+  const columns: TableColumns<Lot> = [
+    dataColumn({ id: "name", header: "Lote", width: 220, render: (lot: Lot) => lot.name }),
+    dataColumn({
+      id: "origin",
+      header: "Responsabilidad compartida",
+      render: (lot: Lot) => lot.origin,
+    }),
+    dataColumn({ id: "cost", header: "Costo", width: 160, render: (lot: Lot) => lot.cost }),
+  ];
+  const screen = await render(inside(320, <LotsTable columns={columns} variant="nested" />));
+  const header = screen
+    .getByRole("columnheader", { name: "Responsabilidad compartida" })
+    .element() as HTMLElement;
+
+  expect(wordsPaintedOnSeveralLines(header)).toEqual([]);
+});
+
+test("grows a column whose declared width is narrower than its longest word to fit that word", async () => {
+  const columns: TableColumns<Lot> = [
+    dataColumn({ id: "name", header: "Lote", width: 220, render: (lot: Lot) => lot.name }),
+    dataColumn({ id: "origin", header: "Origen", width: 40, render: (lot: Lot) => lot.origin }),
+    dataColumn({ id: "cost", header: "Costo", width: 160, render: (lot: Lot) => lot.cost }),
+  ];
+  const screen = await render(
+    inside(
+      320,
+      <LotsTable
+        columns={columns}
+        variant="nested"
+        items={[{ ...lots[0]!, origin: "Cuidadosamente" }]}
+      />,
+    ),
+  );
+  const cell = screen.getByRole("cell", { name: "Cuidadosamente" }).element() as HTMLElement;
+
+  expect(wordsPaintedOnSeveralLines(cell)).toEqual([]);
+});
+
+test("squeezes the columns of a fixedColumns table into a container narrower than them, with no scrolling region", async () => {
+  const screen = await render(
+    inside(320, <LotsTable columns={wideColumns} variant="nested" fixedColumns />),
+  );
+  const container = screen.container.firstElementChild as HTMLElement;
+  const lastHeader = screen
+    .getByRole("columnheader", { name: "Costo unitario" })
+    .element() as HTMLElement;
+
+  expect(screen.getByRole("region").query()).toBeNull();
+  expect(lastHeader.getBoundingClientRect().right).toBeLessThanOrEqual(
+    container.getBoundingClientRect().right,
+  );
 });
 
 test("adds no scrolling region when the columns fit their container", async () => {
@@ -159,7 +253,7 @@ test.each([
     expect(title.getBoundingClientRect().right).toBeLessThanOrEqual(
       container.getBoundingClientRect().right,
     );
-    expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(96 + 6 + 6);
+    expect(origin.getBoundingClientRect().width).toBeGreaterThanOrEqual(120 + 6 + 6);
     await expectNoAccessibilityViolations(screen.container);
   },
 );
