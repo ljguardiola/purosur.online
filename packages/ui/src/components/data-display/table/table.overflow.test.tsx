@@ -109,7 +109,7 @@ test.each(["framed", "nested"] as const)(
   "scrolls a %s table whose columns are wider than its container sideways, so its last column can be reached",
   async (variant) => {
     const screen = await render(inside(320, <LotsTable columns={wideColumns} variant={variant} />));
-    const region = screen.getByRole("region", { name: "Lotes" }).element() as HTMLElement;
+    const region = screen.getByRole("group", { name: "Lotes" }).element() as HTMLElement;
     const lastHeader = screen
       .getByRole("columnheader", { name: "Costo unitario" })
       .element() as HTMLElement;
@@ -125,7 +125,7 @@ test.each(["framed", "nested"] as const)(
 
 test("lets the keyboard scroll a table that overflows its container", async () => {
   const screen = await render(inside(320, <LotsTable columns={wideColumns} variant="nested" />));
-  const region = screen.getByRole("region", { name: "Lotes" }).element() as HTMLElement;
+  const region = screen.getByRole("group", { name: "Lotes" }).element() as HTMLElement;
 
   await userEvent.tab();
 
@@ -214,7 +214,7 @@ test("squeezes a column with no width of a fixedColumns table below the readable
     .element() as HTMLElement;
   const origin = screen.getByRole("columnheader", { name: "Origen" }).element() as HTMLElement;
 
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   expect(lastHeader.getBoundingClientRect().right).toBeLessThanOrEqual(
     container.getBoundingClientRect().right,
   );
@@ -224,7 +224,7 @@ test("squeezes a column with no width of a fixedColumns table below the readable
 test("adds no scrolling region when the columns fit their container", async () => {
   const screen = await render(inside(320, <LotsTable columns={narrowColumns} variant="nested" />));
 
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   const table = screen.getByRole("table", { name: "Lotes" }).element() as HTMLElement;
   expect(table.getBoundingClientRect().width).toBe(320);
 });
@@ -240,7 +240,7 @@ test.each([
     );
     const title = screen.getByText(message).first().element();
     const container = screen.container.firstElementChild as HTMLElement;
-    const region = screen.getByRole("region", { name: "Lotes" }).element() as HTMLElement;
+    const region = screen.getByRole("group", { name: "Lotes" }).element() as HTMLElement;
 
     region.scrollLeft = region.scrollWidth;
     await expect.poll(() => region.scrollLeft).toBeGreaterThan(0);

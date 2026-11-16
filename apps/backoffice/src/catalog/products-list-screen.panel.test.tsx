@@ -148,7 +148,7 @@ test("beside the panel at 1440px, fits every column of the list with no sideways
   await expect.element(rowOf(screen, honey.name)).toBeVisible();
   const frame = table.element().closest(".isolate") as HTMLElement;
 
-  expect(screen.getByRole("region", { name: "Productos" }).query()).toBeNull();
+  expect(screen.getByRole("group", { name: "Productos" }).query()).toBeNull();
   for (const header of table.getByRole("columnheader").elements()) {
     expect(header.getBoundingClientRect().right).toBeLessThanOrEqual(
       frame.getBoundingClientRect().right,

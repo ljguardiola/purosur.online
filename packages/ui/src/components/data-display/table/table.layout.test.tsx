@@ -131,7 +131,7 @@ test("fits columns whose declared widths add up to more than the container, sinc
   const container = screen.container.firstElementChild as HTMLElement;
   const table = screen.getByRole("table", { name: "Saldos" }).element() as HTMLElement;
 
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   expect(table.getBoundingClientRect().right).toBeLessThanOrEqual(
     container.getBoundingClientRect().right,
   );
@@ -228,7 +228,7 @@ test("lets the flexible column give way to the code columns", async () => {
     </div>,
   );
 
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   const name = screen.getByRole("cell", { name: /Cuidadosamente/ }).element() as HTMLElement;
   expect(linesPainted(name)).toBeGreaterThan(1);
 });

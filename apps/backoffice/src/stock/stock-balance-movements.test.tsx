@@ -170,7 +170,7 @@ test("stacks the counts and the adjustments and losses into lists in a container
   await expect.element(counts.getByText("15/09/2026")).toBeVisible();
   await expect.element(movements.getByText("Corrección de una producción")).toBeVisible();
   expect(screen.getByRole("table").query()).toBeNull();
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   const firstCount = counts.getByRole("listitem").first().element();
   const firstMovement = movements.getByRole("listitem").first().element();
   expect([...firstCount.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([

@@ -119,7 +119,7 @@ test("stacks the rows of a stackWhenNarrow table into a list when its columns do
   const screen = await render(inside(320, <LotsTable />));
 
   expect(screen.getByRole("table").query()).toBeNull();
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   const list = screen.getByRole("list", { name: "Lotes" });
   await expect.element(list).toBeVisible();
   expect(list.getByRole("listitem").elements()).toHaveLength(2);

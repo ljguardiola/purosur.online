@@ -133,7 +133,7 @@ test("stacks each line sold into a list item inside the panel, with no sideways 
 
   const lines = screen.getByRole("list", { name: "Productos vendidos" });
   await expect.element(lines.getByText("Yerba 1 kg")).toBeVisible();
-  expect(screen.getByRole("region", { name: "Productos vendidos" }).query()).toBeNull();
+  expect(screen.getByRole("group", { name: "Productos vendidos" }).query()).toBeNull();
   const first = lines.getByRole("listitem").first().element();
   expect([...first.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
     "Cantidad",

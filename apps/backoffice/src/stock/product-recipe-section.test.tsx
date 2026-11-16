@@ -152,7 +152,7 @@ test("stacks the productions into a list in a container as narrow as a side pane
   const productions = screen.getByRole("list", { name: "Producciones" });
   await expect.element(productions.getByText("15/09/2026")).toBeVisible();
   expect(screen.getByRole("table").query()).toBeNull();
-  expect(screen.getByRole("region").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
   const first = productions.getByRole("listitem").first().element();
   expect([...first.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
     "Obtenido",
