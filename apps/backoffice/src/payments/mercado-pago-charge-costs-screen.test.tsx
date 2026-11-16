@@ -235,8 +235,8 @@ test("asks the cloud for no period when the URL has none, and shows the range it
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["07", "10", "2026"]);
   expect(services.fetchMercadoPagoChargeCosts).toHaveBeenCalledWith({});
 });
 

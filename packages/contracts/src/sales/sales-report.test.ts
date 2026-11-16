@@ -3,7 +3,7 @@ import { salesReportSchema } from "./sales-report.js";
 
 describe("salesReportSchema", () => {
   const report = {
-    range: { from: "2026-10-05", to: "2026-10-06" },
+    range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
     days: [
       { day: "2026-10-05", sales_count: 3, total: 12_500 },
       { day: "2026-10-06", sales_count: 2, total: 4_800 },
@@ -29,7 +29,10 @@ describe("salesReportSchema", () => {
     ["a negative count", { days: [{ day: "2026-10-05", sales_count: -1, total: 1 }] }],
     ["an amount with decimals", { days: [{ day: "2026-10-05", sales_count: 1, total: 10.5 }] }],
     ["a total that is not an amount", { totals: { sales_count: 5, total: "17300" } }],
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(salesReportSchema.safeParse({ ...report, ...change }).success).toBe(false);
   });

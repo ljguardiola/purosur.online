@@ -91,7 +91,7 @@ test("shows the range the report answered and asks for the one in the filters", 
   const services = createServices();
   const screen = await renderScreen(services, { filters: { bySupplier: true } });
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "09", "2026"]);
   await screen.unmount();
 
   await renderScreen(services, {

@@ -24,7 +24,7 @@ const session = {
 const cashier = { cashier_id: CASHIER_ID, cashier_name: "Ana", sessions: 1 };
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   totals: { sessions: 1, net_difference: -500, with_difference: 1, cashiers: [cashier] },
   sessions: [session],
 };
@@ -79,7 +79,10 @@ describe("cashSessionClosesSchema", () => {
   const withSession = (change: object) => ({ sessions: [{ ...session, ...change }] });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a negative session count", withTotals({ sessions: -1 })],
     ["a session count with decimals", withTotals({ sessions: 1.5 })],
     ["a net difference with decimals", withTotals({ net_difference: 1.5 })],

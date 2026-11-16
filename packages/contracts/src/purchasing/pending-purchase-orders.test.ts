@@ -72,7 +72,10 @@ describe("pendingPurchaseOrdersSchema", () => {
   const withOrder = (change: object) => ({ orders: [{ ...order, ...change }] });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a total without orders", withTotals({ orders: undefined })],
     ["a total without suppliers", withTotals({ suppliers: undefined })],
     ["a total without expected total", withTotals({ expected_total_cents: undefined })],

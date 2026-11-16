@@ -39,7 +39,7 @@ describe("freightByPeriodQuerySchema", () => {
 describe("freightByPeriodSchema", () => {
   const month = { month: "2026-10", freights: 2, amount: 12_550 };
   const report = {
-    range: { from: "2026-10-01", to: "2026-10-06" },
+    range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-07" },
     months: [month],
     totals: { freights: 2, amount: 12_550 },
   };
@@ -58,7 +58,10 @@ describe("freightByPeriodSchema", () => {
   const withMonth = (change: object) => ({ months: [{ ...month, ...change }] });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a total without freights", { totals: { amount: 12_550 } }],
     ["a total without amount", { totals: { freights: 2 } }],
     ["a negative count of freights", withTotals({ freights: -1 })],

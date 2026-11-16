@@ -4,7 +4,7 @@ import {
   RECEIVABLE_PURCHASE_ORDER_STATES,
 } from "@purosur/domain";
 import { z } from "zod";
-import { answeredRangeSchema, recordIdSchema } from "../shared/index.js";
+import { calendarRangeSchema, recordIdSchema } from "../shared/index.js";
 
 export const pendingPurchaseOrdersQuerySchema = z
   .object({
@@ -26,7 +26,7 @@ const orderSchema = z.object({
 });
 
 export const pendingPurchaseOrdersSchema = z.object({
-  range: answeredRangeSchema,
+  range: calendarRangeSchema,
   orders: z.array(orderSchema),
   totals: z.object({
     orders: z.int().nonnegative(),

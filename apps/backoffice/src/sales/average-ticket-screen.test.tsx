@@ -241,7 +241,7 @@ test("asks the cloud with no range when the URL has none, and shows the range it
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["24", "9", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["24", "09", "2026"]);
   expect(periodSegments(screen).slice(3)).toEqual(["14", "10", "2026"]);
   expect(services.fetchAverageTicket).toHaveBeenCalledWith({});
 });

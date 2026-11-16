@@ -118,7 +118,7 @@ describe("GET /reports/cash-movements", () => {
     const response = await cashMovements(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       totals: {
         cash_in: { movements: 0, amount: 0 },
         cash_out: { movements: 0, amount: 0 },
@@ -140,7 +140,7 @@ describe("GET /reports/cash-movements", () => {
     const response = await cashMovements(headers, "?from=2026-10-07&to=2026-10-07");
 
     const body = response.json();
-    expect(body.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(body.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
     expect(body.totals).toEqual({
       cash_in: { movements: 1, amount: 1_000 },
       cash_out: { movements: 2, amount: 1_000 },

@@ -138,6 +138,7 @@ function SalesByMethodSection({
           filters={filters}
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
+          periodShortcuts
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={

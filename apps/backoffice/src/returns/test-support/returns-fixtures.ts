@@ -144,7 +144,7 @@ const voidedWithoutAuthorizer: VoidRow = {
 };
 
 export const returnsReport: ReturnsReportBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   typed: {
     rows: [typedWithInvoice, typedWithoutAuthorizer],
     totals: { returns: 2, refunded: 425_000 },
@@ -237,7 +237,7 @@ export const voidsOnlyReport: ReturnsReportBody = {
 };
 
 export const noReturnsReport: ReturnsReportBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   typed: { rows: [], totals: { returns: 0, refunded: 0 } },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
   history: { rows: [], totals: { returns: 0, refunded: 0 } },

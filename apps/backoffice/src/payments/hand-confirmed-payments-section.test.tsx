@@ -4,6 +4,7 @@ import { useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
+import { choosePeriodShortcut, periodShortcuts } from "../shell/test-support/period-shortcuts";
 import { render } from "../shell/test-support/render-with-router";
 import { periodSegments } from "../shell/test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
@@ -204,8 +205,8 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
-  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["01", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["07", "10", "2026"]);
   expect(services.fetchHandConfirmedPayments).toHaveBeenCalledWith({});
 });
 
@@ -226,6 +227,18 @@ test("asks the cloud for the range, the register and the method the URL names", 
     .toEqual([
       { from: "2026-10-02", to: "2026-10-05", register_id: FRONT_REGISTER_ID, method: "TRANSFER" },
     ]);
+});
+
+test("asks the cloud for the period of the shortcut chosen beside the period", async () => {
+  const services = createServices();
+  const screen = await renderScreen(services);
+  await expect.element(periodShortcuts(screen)).not.toHaveAttribute("aria-disabled", "true");
+
+  await choosePeriodShortcut(screen, "Mes anterior");
+
+  await expect
+    .poll(() => vi.mocked(services.fetchHandConfirmedPayments).mock.lastCall)
+    .toEqual([{ from: "2026-09-01", to: "2026-09-30" }]);
 });
 
 test("asks the cloud again for the register chosen in the filters", async () => {

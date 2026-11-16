@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { salesByPaymentMethodSchema } from "./sales-by-payment-method.js";
 
 const report = {
-  range: { from: "2026-10-05", to: "2026-10-06" },
+  range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
   methods: [
     { method: "CASH", sales_count: 2, amount: 9_000 },
     { method: "QR", sales_count: 1, amount: 6_000 },
@@ -48,7 +48,10 @@ describe("salesByPaymentMethodSchema", () => {
       { totals: { sales_count: 3, total: 15_000, average_ticket: 0.5 } },
     ],
     ["a missing average ticket", { totals: { sales_count: 3, total: 15_000 } }],
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(salesByPaymentMethodSchema.safeParse({ ...report, ...change }).success).toBe(false);
   });

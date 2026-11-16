@@ -91,7 +91,7 @@ describe("GET /reports/ai-cost-by-period", () => {
     const response = await aiCostByPeriod(headers);
 
     expect(aiCostByPeriodSchema.parse(response.json())).toMatchObject({
-      range: { from: "2026-10-20", to: "2026-10-20" },
+      range: { from: "2026-10-20", to: "2026-10-20", today: "2026-10-20" },
       groups: [],
     });
   });
@@ -113,7 +113,7 @@ describe("GET /reports/ai-cost-by-period", () => {
 
     expect(response.statusCode).toBe(200);
     const body = aiCostByPeriodSchema.parse(response.json());
-    expect(body.range).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+    expect(body.range).toEqual({ from: "2026-10-01", to: "2026-10-31", today: "2026-10-20" });
     expect(body.groups.map((group) => group.key)).toEqual(["2026-10-12", "2026-10-13"]);
     expect(body.total.total).toEqual({ costNanoUsd: 5_000_000, unpricedCalls: 0 });
   });

@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -19,7 +19,7 @@ export interface ReadHandConfirmedPaymentsInput {
 }
 
 export interface HandConfirmedPaymentsReport extends HandConfirmedPaymentsReconciliation {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
 }
 
 export async function readHandConfirmedPayments(

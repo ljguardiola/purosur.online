@@ -111,7 +111,7 @@ describe("GET /reports/returns", () => {
     const response = await returnsReport(headers, range);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-06", to: "2026-10-06" },
+      range: { from: "2026-10-06", to: "2026-10-06", today: "2026-10-12" },
       typed: { rows: [], totals: { returns: 0, refunded: 0 } },
       scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
       history: { rows: [], totals: { returns: 0, refunded: 0 } },
@@ -169,7 +169,7 @@ describe("GET /reports/returns", () => {
     const response = await returnsReport(headers, range);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-06", to: "2026-10-06" },
+      range: { from: "2026-10-06", to: "2026-10-06", today: "2026-10-12" },
       typed: {
         rows: [
           {

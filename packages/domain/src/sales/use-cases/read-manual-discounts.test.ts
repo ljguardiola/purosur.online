@@ -56,7 +56,7 @@ describe("readManualDiscounts", () => {
       },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" });
     expect(report.rows.map((row) => [row.saleId, row.kind, row.discounted])).toEqual([
       ["s1", "SALE", 700],
       ["s2", "LINE", 200],
@@ -75,7 +75,7 @@ describe("readManualDiscounts", () => {
     expect(reader.reads).toEqual([
       {
         locationId: "branch-1",
-        range: { from: "2026-10-01", to: "2026-10-06" },
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: undefined,
       },
     ]);
@@ -89,8 +89,12 @@ describe("readManualDiscounts", () => {
       { ...everyone, authorizedBy: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.reads[0]?.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.reads[0]?.range).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("limits the read to the asked register", async () => {

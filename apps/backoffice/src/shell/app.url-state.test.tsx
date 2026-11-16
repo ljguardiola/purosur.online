@@ -387,7 +387,7 @@ test("writes the period typed under Por revisar into the prices URL, and strips 
   });
   window.history.pushState(null, "", "/products/prices");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
   expect(window.location.search).toBe("");
 
   await typePeriodStart(screen, "01092026");

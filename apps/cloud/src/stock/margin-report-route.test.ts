@@ -141,7 +141,7 @@ describe("GET /reports/margin", () => {
     const response = await marginReport(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-12", to: "2026-10-12" },
+      range: { from: "2026-10-12", to: "2026-10-12", today: "2026-10-12" },
       group: "product",
       rows: [],
       totals: { amount: 0, cost: 0, margin: 0, marginTenthsOfPercent: null, incompleteSales: 0 },
@@ -167,7 +167,7 @@ describe("GET /reports/margin", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      range: { from: "2026-10-06", to: "2026-10-06" },
+      range: { from: "2026-10-06", to: "2026-10-06", today: "2026-10-12" },
       group: "product",
       rows: [
         {
@@ -215,7 +215,7 @@ describe("GET /reports/margin", () => {
     const response = await marginReport(headers, `?group=category&${range}`);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-06", to: "2026-10-06" },
+      range: { from: "2026-10-06", to: "2026-10-06", today: "2026-10-12" },
       group: "category",
       rows: [
         {

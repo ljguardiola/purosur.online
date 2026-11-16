@@ -44,11 +44,14 @@ describe("readMercadoPagoChargeCosts", () => {
       { locationId: "branch-1", asked: { from: "2026-10-01", to: "2026-10-06" } },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" });
     expect(report.charges.map((charge) => charge.paymentTransactionId)).toEqual(["tx-1"]);
     expect(report.totals).toMatchObject({ chargesCount: 1, grossAmount: 10_000 });
     expect(reader.chargeReads).toEqual([
-      { locationId: "branch-1", period: { from: "2026-10-01", to: "2026-10-06" } },
+      {
+        locationId: "branch-1",
+        period: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
+      },
     ]);
   });
 
@@ -60,8 +63,12 @@ describe("readMercadoPagoChargeCosts", () => {
       { locationId: "branch-1", asked: noRange },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.chargeReads[0]?.period).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.chargeReads[0]?.period).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("resolves the current day in Argentina, not in UTC", async () => {
@@ -74,7 +81,7 @@ describe("readMercadoPagoChargeCosts", () => {
       { locationId: "branch-1", asked: noRange },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
   });
 
   it("days the charges on the calendar of the zone rules it is given", async () => {

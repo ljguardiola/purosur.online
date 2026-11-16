@@ -130,7 +130,7 @@ describe("GET /reports/sales-by-payment-method", () => {
     const response = await salesByPaymentMethod(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       methods: [],
       totals: { sales_count: 0, total: 0, average_ticket: null },
     });
@@ -143,7 +143,7 @@ describe("GET /reports/sales-by-payment-method", () => {
     const response = await salesByPaymentMethod(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       methods: [{ method: "QR", sales_count: 1, amount: 4_800 }],
       totals: { sales_count: 1, total: 4_800, average_ticket: 4_800 },
     });
@@ -261,7 +261,7 @@ describe("GET /reports/hand-confirmed-payments", () => {
     const response = await handConfirmedPayments(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       totals: { count: 0, amount: 0 },
       methods: [
         { method: "TRANSFER", count: 0, amount: 0 },
@@ -279,7 +279,7 @@ describe("GET /reports/hand-confirmed-payments", () => {
     const response = await handConfirmedPayments(headers, "?from=2026-10-07&to=2026-10-07");
 
     expect(response.json()).toMatchObject({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       totals: { count: 1, amount: 4_800 },
       methods: [
         { method: "TRANSFER", count: 1, amount: 4_800 },

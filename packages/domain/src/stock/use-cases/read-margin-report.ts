@@ -1,7 +1,7 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
   type ReportGroup,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -16,7 +16,7 @@ export interface ReadMarginReportInput {
 }
 
 export interface MarginReportView {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   group: ReportGroup;
   rows: MarginOfGroup[];
   totals: MarginTotals;

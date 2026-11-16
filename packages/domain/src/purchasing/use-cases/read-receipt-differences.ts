@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -16,7 +16,7 @@ export interface ReadReceiptDifferencesInput {
 }
 
 export interface ReceiptDifferencesReport extends ReceiptDifferences {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
 }
 
 export async function readReceiptDifferences(

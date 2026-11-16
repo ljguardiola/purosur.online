@@ -23,14 +23,17 @@ describe("readReceiptDifferences", () => {
       { locationId: "branch-1", asked: { from: "2026-09-01", to: "2026-10-06" } },
     );
 
-    expect(report.range).toEqual({ from: "2026-09-01", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-09-01", to: "2026-10-06", today: "2026-10-06" });
     expect(report.suppliers.map(({ supplierId }) => supplierId)).toEqual([
       "supplier-1",
       "supplier-2",
     ]);
     expect(report.totals).toMatchObject({ suppliers: 2, shortLines: 1, priceDifferenceLines: 1 });
     expect(reader.reads).toEqual([
-      { locationId: "branch-1", range: { from: "2026-09-01", to: "2026-10-06" } },
+      {
+        locationId: "branch-1",
+        range: { from: "2026-09-01", to: "2026-10-06", today: "2026-10-06" },
+      },
     ]);
   });
 
@@ -46,8 +49,12 @@ describe("readReceiptDifferences", () => {
       { locationId: "branch-1", asked: noRange },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.reads[0]?.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.reads[0]?.range).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("counts the current day on the calendar of the zone rules it is given", async () => {
@@ -60,7 +67,7 @@ describe("readReceiptDifferences", () => {
       { locationId: "branch-1", asked: noRange },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(report.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
   });
 
   it("reports no suppliers and zero totals when nothing was received", async () => {

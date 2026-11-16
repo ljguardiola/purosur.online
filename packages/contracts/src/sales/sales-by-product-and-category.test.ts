@@ -37,7 +37,7 @@ describe("salesByProductAndCategoryQuerySchema", () => {
 
 describe("salesByProductAndCategorySchema", () => {
   const report = {
-    range: { from: "2026-10-05", to: "2026-10-06" },
+    range: { from: "2026-10-05", to: "2026-10-06", today: "2026-10-07" },
     group: "category",
     rows: [
       {
@@ -108,7 +108,10 @@ describe("salesByProductAndCategorySchema", () => {
     ["a weight with decimals", { rows: [{ ...report.rows[1], thousandths: 1.5 }] }],
     ["an amount with decimals", { rows: [{ ...report.rows[1], amount: 10.5 }] }],
     ["a total that is not a number", { totals: { units: 13, thousandths: 0, amount: "36500" } }],
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(salesByProductAndCategorySchema.safeParse({ ...report, ...change }).success).toBe(false);
   });

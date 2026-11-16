@@ -62,7 +62,7 @@ describe("receiptDifferencesSchema", () => {
     months: [month],
   };
   const report = {
-    range: { from: "2026-09-07", to: "2026-10-06" },
+    range: { from: "2026-09-07", to: "2026-10-06", today: "2026-10-07" },
     suppliers: [supplier],
     totals: {
       suppliers: 1,
@@ -113,7 +113,10 @@ describe("receiptDifferencesSchema", () => {
   const withLine = (change: object) => withMonth({ lines: [{ ...line, ...change }] });
 
   it.each([
-    ["a range bound that is not a calendar day", { range: { from: "ayer", to: "2026-10-06" } }],
+    [
+      "a range bound that is not a calendar day",
+      { range: { from: "ayer", to: "2026-10-06", today: "2026-10-06" } },
+    ],
     ["a total without suppliers", withTotals({ suppliers: undefined })],
     ["a negative count of suppliers", withTotals({ suppliers: -1 })],
     ["a total without short lines", withTotals({ short_lines: undefined })],

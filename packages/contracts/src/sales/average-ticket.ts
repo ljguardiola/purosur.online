@@ -1,6 +1,6 @@
 import { isCalendarDay } from "@purosur/domain";
 import { z } from "zod";
-import { answeredRangeSchema } from "../shared/index.js";
+import { answeredRangeSchema, calendarRangeSchema } from "../shared/index.js";
 
 const calendarDay = z.string().refine(isCalendarDay);
 const count = z.int().nonnegative();
@@ -13,7 +13,7 @@ const ticketOfPeriod = z.object({
 
 export const averageTicketSchema = z.object({
   range: answeredRangeSchema,
-  previous_range: answeredRangeSchema.nullable(),
+  previous_range: calendarRangeSchema.nullable(),
   current: ticketOfPeriod,
   previous: ticketOfPeriod.nullable(),
   change_tenths: z.int().nullable(),

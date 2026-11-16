@@ -7,7 +7,7 @@ const QUESO_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const YERBA_ID = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
 export const categoryMarginReport: MarginReportBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   group: "category",
   rows: [
     {
@@ -65,7 +65,7 @@ export const categoryMarginReport: MarginReportBody = {
 };
 
 export const productMarginReport: MarginReportBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   group: "product",
   rows: [
     {
@@ -107,7 +107,7 @@ export const completeMarginReport: MarginReportBody = {
 };
 
 export const noMarginReport: MarginReportBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   group: "category",
   rows: [],
   totals: { amount: 0, cost: 0, margin: 0, marginTenthsOfPercent: null, incompleteSales: 0 },
@@ -126,7 +126,7 @@ export function manyMarginRowsReport(count: number): MarginReportBody {
     incompleteSales: 0,
   }));
   return {
-    range: { from: "2026-10-01", to: "2026-10-07" },
+    range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
     group: "product",
     rows,
     totals: {
@@ -140,7 +140,7 @@ export function manyMarginRowsReport(count: number): MarginReportBody {
 }
 
 export const unsoldMarginReport: MarginReportBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   group: "product",
   rows: [
     {

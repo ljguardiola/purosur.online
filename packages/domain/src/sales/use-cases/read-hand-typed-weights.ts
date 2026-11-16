@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -21,7 +21,7 @@ export interface ReadHandTypedWeightsInput {
 }
 
 export interface HandTypedWeightsReport {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   cashiers: WeighedLinesOfCashier[];
   sessions: WeighedLinesOfSession[];
   totals: WeighedLinesTotals;

@@ -69,21 +69,21 @@ export const unauthorizedReceipt: IssuedFiscalDocument = {
 };
 
 export const issuedFiscalDocuments: IssuedFiscalDocumentsBody = {
-  range: { from: "2026-09-01", to: "2026-09-30" },
+  range: { from: "2026-09-01", to: "2026-09-30", today: "2026-10-07" },
   documents: [authorizedReceipt, creditNote, contingencyReceipt, unauthorizedReceipt],
   total: 4,
   page_size: 25,
 };
 
 export const noIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
-  range: { from: "2026-09-01", to: "2026-09-30" },
+  range: { from: "2026-09-01", to: "2026-09-30", today: "2026-10-07" },
   documents: [],
   total: 0,
   page_size: 25,
 };
 
 export const pagedIssuedFiscalDocuments: IssuedFiscalDocumentsBody = {
-  range: { from: "2026-09-01", to: "2026-09-30" },
+  range: { from: "2026-09-01", to: "2026-09-30", today: "2026-10-07" },
   documents: [authorizedReceipt, creditNote],
   total: 131,
   page_size: 25,

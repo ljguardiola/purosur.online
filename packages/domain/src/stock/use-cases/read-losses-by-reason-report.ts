@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -13,7 +13,7 @@ export interface ReadLossesByReasonReportInput {
 }
 
 export interface LossesByReasonReport {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
   reasons: ReasonLosses[];
 }
 

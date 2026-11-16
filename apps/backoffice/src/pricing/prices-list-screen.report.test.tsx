@@ -46,7 +46,7 @@ test("under Por revisar with no period lists the prices with their actions, besi
     .element(screen.getByRole("button", { name: "Cambiar el precio de Arroz" }))
     .toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Revisar 1" })).toBeVisible();
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
   await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeVisible();
   expect(screen.getByRole("table", REPORT_TABLE).query()).toBeNull();
   expect(services.fetchPricesPastReviewDeadlineReport).toHaveBeenCalledWith({});
@@ -81,7 +81,7 @@ test("typing a period reports it with no search or category, asks the report aga
   const onFiltersChange = vi.fn();
   const screen = await renderControlledScreen(services, { review: "pending" }, onFiltersChange);
   await expect.element(screen.getByRole("table", PRICES_TABLE).getByText("Arroz")).toBeVisible();
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
 
   await typePeriodStart(screen, "01092026");
 
@@ -119,7 +119,7 @@ test("typing a period drops the search from the filters it reports", async () =>
     onFiltersChange,
   );
   await expect.element(screen.getByRole("table", PRICES_TABLE).getByText("Arroz")).toBeVisible();
-  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "08", "2026"]);
 
   await typePeriodStart(screen, "01092026");
 

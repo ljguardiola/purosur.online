@@ -1,6 +1,6 @@
 import {
+  type AnsweredReportPeriod,
   type Clock,
-  type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
@@ -17,7 +17,7 @@ export interface ReadCashSessionClosesInput {
 }
 
 export interface CashSessionClosesReport extends CashSessionClosesSummary {
-  range: ReportPeriod;
+  range: AnsweredReportPeriod;
 }
 
 export async function readCashSessionCloses(

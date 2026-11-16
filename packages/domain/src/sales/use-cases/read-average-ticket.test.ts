@@ -28,7 +28,7 @@ describe("readAverageTicket", () => {
     );
 
     expect(report).toEqual({
-      range: { from: "2026-10-04", to: "2026-10-06" },
+      range: { from: "2026-10-04", to: "2026-10-06", today: "2026-10-06" },
       previousRange: { from: "2026-10-01", to: "2026-10-03" },
       current: { salesCount: 4, total: 15_000, averageTicket: 3_750 },
       previous: { salesCount: 2, total: 6_000, averageTicket: 3_000 },
@@ -60,7 +60,7 @@ describe("readAverageTicket", () => {
     expect(reader.salesByDayReads).toEqual([
       {
         locationId: "branch-1",
-        range: { from: "2026-10-04", to: "2026-10-06" },
+        range: { from: "2026-10-04", to: "2026-10-06", today: "2026-10-06" },
         registerId: "register-2",
       },
       {
@@ -79,7 +79,7 @@ describe("readAverageTicket", () => {
       { locationId: "branch-1", asked: noRange, registerId: undefined },
     );
 
-    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(report.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
     expect(report.previousRange).toEqual({ from: "2026-10-05", to: "2026-10-05" });
     expect(report.current.averageTicket).toBe(3_000);
     expect(report.previous).toEqual({ salesCount: 0, total: 0, averageTicket: null });
@@ -116,7 +116,7 @@ describe("readAverageTicket", () => {
     expect(report.previous).toBeNull();
     expect(report.changeTenths).toBeNull();
     expect(reader.salesByDayReads.map(({ range }) => range)).toEqual([
-      { from: "0001-01-01", to: "0001-01-07" },
+      { from: "0001-01-01", to: "0001-01-07", today: "2026-10-06" },
     ]);
   });
 });

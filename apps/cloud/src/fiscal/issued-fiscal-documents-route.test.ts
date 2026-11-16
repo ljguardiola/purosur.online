@@ -112,7 +112,7 @@ describe("GET /fiscal/documents", () => {
     const response = await documents(headers);
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-07", to: "2026-10-07" },
+      range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
       documents: [],
       total: 0,
       page_size: 50,
@@ -171,7 +171,7 @@ describe("GET /fiscal/documents", () => {
     const response = await documents(headers, "?from=2026-10-05&to=2026-10-05");
 
     expect(response.json()).toEqual({
-      range: { from: "2026-10-05", to: "2026-10-05" },
+      range: { from: "2026-10-05", to: "2026-10-05", today: "2026-10-07" },
       documents: [
         {
           kind: "receipt",

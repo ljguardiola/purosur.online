@@ -47,7 +47,7 @@ const earlierCashOut: MovementRow = {
 };
 
 export const weekCashMovementsReport: CashMovementsBody = {
-  range: { from: "2026-10-01", to: "2026-10-07" },
+  range: { from: "2026-10-01", to: "2026-10-07", today: "2026-10-07" },
   totals: {
     cash_in: { movements: 1, amount: 20_000 },
     cash_out: { movements: 2, amount: 15_550 },
@@ -62,7 +62,7 @@ export const weekCashMovementsReport: CashMovementsBody = {
 };
 
 export const emptyCashMovementsReport: CashMovementsBody = {
-  range: { from: "2026-10-07", to: "2026-10-07" },
+  range: { from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" },
   totals: {
     cash_in: { movements: 0, amount: 0 },
     cash_out: { movements: 0, amount: 0 },

@@ -50,7 +50,7 @@ describe("readIssuedFiscalDocuments", () => {
     );
 
     expect(listing).toEqual({
-      range: { from: "2026-10-01", to: "2026-10-06" },
+      range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
       documents: [receipt],
       total: 1,
       pageSize: ISSUED_FISCAL_DOCUMENTS_PAGE_SIZE,
@@ -58,7 +58,7 @@ describe("readIssuedFiscalDocuments", () => {
     expect(reader.issuedInPeriodReads).toEqual([
       {
         locationId: "branch-1",
-        range: { from: "2026-10-01", to: "2026-10-06" },
+        range: { from: "2026-10-01", to: "2026-10-06", today: "2026-10-06" },
         registerId: "register-1",
         kind: "receipt",
         number: 12,
@@ -75,8 +75,12 @@ describe("readIssuedFiscalDocuments", () => {
       { locationId: "branch-1", asked: noRange, ...unfiltered },
     );
 
-    expect(listing.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
-    expect(reader.issuedInPeriodReads[0]?.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(listing.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
+    expect(reader.issuedInPeriodReads[0]?.range).toEqual({
+      from: "2026-10-06",
+      to: "2026-10-06",
+      today: "2026-10-06",
+    });
   });
 
   it("resolves the current day in Argentina, not in UTC", async () => {
@@ -91,7 +95,7 @@ describe("readIssuedFiscalDocuments", () => {
       { locationId: "branch-1", asked: noRange, ...unfiltered },
     );
 
-    expect(listing.range).toEqual({ from: "2026-10-06", to: "2026-10-06" });
+    expect(listing.range).toEqual({ from: "2026-10-06", to: "2026-10-06", today: "2026-10-06" });
   });
 
   it("resolves the current day on the calendar of the zone rules it is given", async () => {
@@ -106,7 +110,7 @@ describe("readIssuedFiscalDocuments", () => {
       { locationId: "branch-1", asked: noRange, ...unfiltered },
     );
 
-    expect(listing.range).toEqual({ from: "2026-10-07", to: "2026-10-07" });
+    expect(listing.range).toEqual({ from: "2026-10-07", to: "2026-10-07", today: "2026-10-07" });
   });
 
   it("asks for the requested page", async () => {

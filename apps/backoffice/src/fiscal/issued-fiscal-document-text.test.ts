@@ -79,13 +79,13 @@ test("writes the time a document was issued in Argentina", () => {
 });
 
 test("counts documents with the period they were listed for", () => {
-  expect(documentsCountText(131, { from: "2026-09-01", to: "2026-09-30" })).toBe(
-    "131 comprobantes · del 01/09/2026 al 30/09/2026",
-  );
+  expect(
+    documentsCountText(131, { from: "2026-09-01", to: "2026-09-30", today: "2026-10-07" }),
+  ).toBe("131 comprobantes · del 01/09/2026 al 30/09/2026");
 });
 
 test("counts a single document and names a one-day period once", () => {
-  expect(documentsCountText(1, { from: "2026-09-12", to: "2026-09-12" })).toBe(
+  expect(documentsCountText(1, { from: "2026-09-12", to: "2026-09-12", today: "2026-10-07" })).toBe(
     "1 comprobante · 12/09/2026",
   );
 });
