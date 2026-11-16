@@ -13,15 +13,15 @@ type Lot = { id: string; name: string; origin: string; remaining: string; cost: 
 
 const NO_SORT: TableSort = { column: "", direction: "ascending" };
 
-const lots: Lot[] = [
-  {
-    id: "1",
-    name: "Compra 10/11/2026 · 1",
-    origin: "Distribuidora del Valle",
-    remaining: "2,000 kg",
-    cost: "$ 27.599,00 / kg",
-  },
-];
+const lot: Lot = {
+  id: "1",
+  name: "Compra 10/11/2026 · 1",
+  origin: "Distribuidora del Valle",
+  remaining: "2,000 kg",
+  cost: "$ 27.599,00 / kg",
+};
+
+const lots: Lot[] = [lot];
 
 const wideColumns: TableColumns<Lot> = [
   dataColumn({ id: "name", header: "Lote", width: 220, render: (lot: Lot) => lot.name }),
@@ -157,11 +157,7 @@ test("paints every word of a cell of a column with no width on one line when the
   const screen = await render(
     inside(
       320,
-      <LotsTable
-        columns={wideColumns}
-        variant="nested"
-        items={[{ ...lots[0]!, origin: longName }]}
-      />,
+      <LotsTable columns={wideColumns} variant="nested" items={[{ ...lot, origin: longName }]} />,
     ),
   );
   const cell = screen.getByRole("cell", { name: /Cuidadosamente/ }).element() as HTMLElement;
@@ -199,7 +195,7 @@ test("grows a column whose declared width is narrower than its longest word to f
       <LotsTable
         columns={columns}
         variant="nested"
-        items={[{ ...lots[0]!, origin: "Cuidadosamente" }]}
+        items={[{ ...lot, origin: "Cuidadosamente" }]}
       />,
     ),
   );
@@ -208,19 +204,21 @@ test("grows a column whose declared width is narrower than its longest word to f
   expect(wordsPaintedOnSeveralLines(cell)).toEqual([]);
 });
 
-test("squeezes the columns of a fixedColumns table into a container narrower than them, with no scrolling region", async () => {
+test("squeezes a column with no width of a fixedColumns table below the readable minimum, with no scrolling region", async () => {
   const screen = await render(
-    inside(320, <LotsTable columns={wideColumns} variant="nested" fixedColumns />),
+    inside(320, <LotsTable columns={squeezableColumns} variant="nested" fixedColumns />),
   );
   const container = screen.container.firstElementChild as HTMLElement;
   const lastHeader = screen
     .getByRole("columnheader", { name: "Costo unitario" })
     .element() as HTMLElement;
+  const origin = screen.getByRole("columnheader", { name: "Origen" }).element() as HTMLElement;
 
   expect(screen.getByRole("region").query()).toBeNull();
   expect(lastHeader.getBoundingClientRect().right).toBeLessThanOrEqual(
     container.getBoundingClientRect().right,
   );
+  expect(origin.getBoundingClientRect().width).toBeLessThan(120);
 });
 
 test("adds no scrolling region when the columns fit their container", async () => {
