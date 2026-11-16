@@ -231,3 +231,38 @@ test("has no accessibility violations", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("keeps the more-actions button and the detail card of every line on the same right edge as the purchase's summary card, when the panel's own scrollbar takes 15px of its width", async () => {
+  const scrollbar = document.createElement("style");
+  scrollbar.textContent = "aside [class*='overflow-y-auto'] { padding-right: calc(2rem + 15px); }";
+  document.head.append(scrollbar);
+  const [line] = compraDeMiel.lines;
+  if (!line) {
+    throw new Error("test setup: a purchase has no line");
+  }
+  const manyLines = Array.from({ length: 12 }, (_, index) => ({
+    ...line,
+    id: "line-".concat(String(index)),
+  }));
+  const screen = await renderPanel(createPanelServices(), {
+    purchase: { ...compraDeMiel, lines: manyLines },
+  });
+
+  const summary = screen.getByText("Proveedor").element().closest("dl")?.parentElement;
+  const lines = screen.getByRole("table", { name: "Productos de la compra" });
+  await expect.element(lines.getByRole("button", { name: "Más acciones" }).first()).toBeVisible();
+  const summaryRight = (summary as HTMLElement).getBoundingClientRect().right;
+
+  const moreActions = lines.getByRole("button", { name: "Más acciones" }).elements();
+  expect(moreActions).toHaveLength(12);
+  for (const button of moreActions) {
+    expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(summaryRight);
+  }
+  const details = lines.element().querySelectorAll("dl");
+  expect(details).toHaveLength(12);
+  for (const detail of details) {
+    const card = detail.closest("td") as HTMLElement;
+    expect(card.getBoundingClientRect().right).toBeCloseTo(summaryRight, 0);
+  }
+  scrollbar.remove();
+});
