@@ -990,7 +990,7 @@ export const Inactive: Story = {
 
 const wideColumns = [
   dataColumn({ id: "name", header: "Producto", width: 220, render: (item: Product) => item.name }),
-  dataColumn({ id: "sku", header: "Código", render: (item: Product) => item.sku }),
+  dataColumn({ id: "sku", header: "Código", code: true, render: (item: Product) => item.sku }),
   dataColumn({
     id: "stock",
     header: "Stock",
@@ -1002,7 +1002,7 @@ const wideColumns = [
 
 export const WiderThanItsContainer: Story = {
   render: () => (
-    <div className="w-80">
+    <div className="w-32">
       <ProductsTable aria-label="Productos" columns={wideColumns} variant="nested" />
     </div>
   ),

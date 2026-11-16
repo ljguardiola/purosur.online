@@ -171,3 +171,64 @@ test("paints each figure of an end-aligned column on a single line, taking its c
     expect(linesPainted(cell as HTMLElement)).toBe(1);
   }
 });
+
+type Coded = { id: string; name: string; sku: string; document: string };
+
+const codedItems: Coded[] = [
+  {
+    id: "1",
+    name: "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados",
+    sku: "SKU-001-AZUL",
+    document: "FA-B 0001-00001234",
+  },
+];
+
+const codedColumns: TableColumns<Coded> = [
+  dataColumn({ id: "name", header: "Producto", render: (item: Coded) => item.name }),
+  dataColumn({ id: "sku", header: "Código", code: true, render: (item: Coded) => item.sku }),
+  dataColumn({
+    id: "document",
+    header: "Comprobante",
+    code: true,
+    render: (item: Coded) => item.document,
+  }),
+];
+
+function CodedTable() {
+  const table = useTableModel({
+    items: codedItems,
+    id: (item) => item.id,
+    columns: codedColumns,
+    sort: NO_SORT,
+    onSortChange: () => {},
+  });
+  return <Table table={table} aria-label="Códigos" />;
+}
+
+test.each([600, 420, 200])(
+  "paints a code column's values on one line, even at a hyphen, in a container %ipx wide",
+  async (width) => {
+    const screen = await render(
+      <div style={{ width: String(width).concat("px") }}>
+        <CodedTable />
+      </div>,
+    );
+    const row = screen.getByRole("row").nth(1).element() as HTMLElement;
+    const [, sku, document] = [...row.querySelectorAll("td")];
+
+    expect(linesPainted(sku as HTMLElement)).toBe(1);
+    expect(linesPainted(document as HTMLElement)).toBe(1);
+  },
+);
+
+test("lets the flexible column give way to the code columns", async () => {
+  const screen = await render(
+    <div style={{ width: "600px" }}>
+      <CodedTable />
+    </div>,
+  );
+
+  expect(screen.getByRole("region").query()).toBeNull();
+  const name = screen.getByRole("cell", { name: /Cuidadosamente/ }).element() as HTMLElement;
+  expect(linesPainted(name)).toBeGreaterThan(1);
+});
