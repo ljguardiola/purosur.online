@@ -983,3 +983,31 @@ export const WiderThanItsContainer: Story = {
     </div>
   ),
 };
+
+const stackedColumns = [
+  ...wideColumns,
+  actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (item: Product) => ({
+        icon: <Trash2 />,
+        "aria-label": `Quitar ${item.name}`,
+        onPress: () => {},
+      }),
+    ],
+  }),
+] as const;
+
+export const StackedWhenNarrow: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable
+        aria-label="Productos"
+        columns={stackedColumns}
+        variant="nested"
+        stackWhenNarrow
+      />
+    </div>
+  ),
+};
