@@ -142,7 +142,7 @@ test("writes a change of one list into its own fields of the URL, replacing the 
 
   await userEvent.fill(screen.getByPlaceholder("Buscar una marca"), "granuz");
 
-  await expect.poll(() => window.location.search).toBe("?categorySearch=alma&brandSearch=granuz");
+  await expect.poll(() => window.location.search).toBe("?brandSearch=granuz&categorySearch=alma");
   expect(window.history.length).toBe(historyLength);
   await expect.element(screen.getByPlaceholder("Buscar una categoría")).toHaveValue("alma");
   await expect.element(screen.getByPlaceholder("Buscar una etiqueta")).toHaveValue("");

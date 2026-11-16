@@ -244,13 +244,13 @@ test.each([
   [
     "/brands?search=granuz&status=all&sortBy=products&sort=descending",
     ["products_and_categories"],
-    "/products/classification?brandSearch=granuz&brandStatus=all&brandSortBy=products&brandSort=descending",
+    "/products/classification?brandSearch=granuz&brandSort=descending&brandSortBy=products&brandStatus=all",
   ],
   ["/brands", ["products_and_categories"], "/products/classification"],
   [
     "/tags?search=sin&status=inactive&sortBy=products&sort=descending",
     ["products_and_categories"],
-    "/products/classification?tagSearch=sin&tagStatus=inactive&tagSortBy=products&tagSort=descending",
+    "/products/classification?tagSearch=sin&tagSort=descending&tagSortBy=products&tagStatus=inactive",
   ],
   ["/tags", ["products_and_categories"], "/products/classification"],
   [
@@ -266,7 +266,7 @@ test.each([
   [
     "/products/classification/tags?sortBy=products&sort=descending",
     ["products_and_categories"],
-    "/products/classification?tagSortBy=products&tagSort=descending",
+    "/products/classification?tagSort=descending&tagSortBy=products",
   ],
   ["/products/classification/brands", ["products_and_categories"], "/products/classification"],
   ["/prices?search=yerba&review=all", ["prices_area"], "/products/prices?review=all&search=yerba"],
