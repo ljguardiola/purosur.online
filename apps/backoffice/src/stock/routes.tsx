@@ -292,8 +292,12 @@ export const legacyAssembliesRoute = createRoute({
   getParentRoute: () => productsRoute,
   path: "assemblies",
   validateSearch: recipesListSearch,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/recipes", search });
+  beforeLoad: ({ context: { productsTabs }, search }) => {
+    if (productsTabs.includes("recipes")) {
+      throw redirect({ to: "/products/recipes", search });
+    }
+    productsTabRedirect(productsTabs, "batches");
+    throw redirect({ to: "/products/batches" });
   },
 });
 
@@ -301,8 +305,12 @@ export const legacyAssemblyBatchesInProductsRoute = createRoute({
   getParentRoute: () => productsRoute,
   path: "assemblies/batches",
   validateSearch: assemblyBatchesFilters,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/batches", search });
+  beforeLoad: ({ context: { productsTabs }, search }) => {
+    if (productsTabs.includes("batches")) {
+      throw redirect({ to: "/products/batches", search });
+    }
+    productsTabRedirect(productsTabs, "recipes");
+    throw redirect({ to: "/products/recipes" });
   },
 });
 
@@ -311,7 +319,7 @@ export const legacyRecipesRoute = createRoute({
   path: "recipes",
   validateSearch: recipesListFilters,
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/recipes", search });
+    throw redirect({ to: "/products/assemblies", search });
   },
 });
 
@@ -320,6 +328,6 @@ export const legacyAssemblyBatchesRoute = createRoute({
   path: "assembly-batches",
   validateSearch: assemblyBatchesFilters,
   beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/batches", search });
+    throw redirect({ to: "/products/assemblies/batches", search });
   },
 });
