@@ -18,6 +18,7 @@ export function TableCell<T extends RowData>({
   fixedLayout: boolean;
 }) {
   const actionsColumn = columnActionCount(cell.column) !== undefined;
+  const declaredWidth = cell.column.columnDef.meta?.width;
   const align = actionsColumn ? "start" : columnAlign(cell.column);
 
   return (
@@ -44,7 +45,14 @@ export function TableCell<T extends RowData>({
         ) : (
           // items-start/-end opts out of flex stretch, so an unbreakable run's unclamped preferred
           // width can exceed the column; max-w-full caps it there so it wraps instead of overflowing.
-          <div className="flex flex-col gap-1 max-w-full">{renderCell(cell)}</div>
+          <div
+            className="flex flex-col gap-1 max-w-full"
+            style={
+              fixedLayout || declaredWidth === undefined ? undefined : { maxWidth: declaredWidth }
+            }
+          >
+            {renderCell(cell)}
+          </div>
         )}
       </div>
     </td>

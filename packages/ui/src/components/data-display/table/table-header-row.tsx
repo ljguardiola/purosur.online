@@ -43,8 +43,12 @@ function leafColumnWidthStyle<T extends RowData>(
   first: boolean,
   last: boolean,
   variant: TableVariant,
+  fixedLayout: boolean,
 ) {
   const actionCount = columnActionCount(column);
+  if (!fixedLayout && actionCount === undefined) {
+    return undefined;
+  }
   return headerColumnWidthStyle(
     actionCount === undefined ? column.columnDef.meta?.width : actionsContentWidth(actionCount),
     first,
@@ -55,7 +59,7 @@ function leafColumnWidthStyle<T extends RowData>(
 
 const FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX = 120;
 
-// Below this width a table scrolls sideways instead of crushing a column it gave no width.
+// Below this width a table of stackWhenNarrow stacks its rows instead of crushing a column.
 export function tableMinWidthPx<T extends RowData>(
   table: TableModel<T>,
   variant: TableVariant,
@@ -74,9 +78,11 @@ export function tableMinWidthPx<T extends RowData>(
 export function TableColumnWidths<T extends RowData>({
   table,
   variant,
+  fixedLayout,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
+  fixedLayout: boolean;
 }) {
   const columns = table.getAllLeafColumns();
   return (
@@ -84,7 +90,13 @@ export function TableColumnWidths<T extends RowData>({
       {columns.map((column, index) => (
         <col
           key={column.id}
-          style={leafColumnWidthStyle(column, index === 0, index === columns.length - 1, variant)}
+          style={leafColumnWidthStyle(
+            column,
+            index === 0,
+            index === columns.length - 1,
+            variant,
+            fixedLayout,
+          )}
         />
       ))}
     </colgroup>
@@ -147,7 +159,7 @@ function TableHeaderRow<T extends RowData>({
             key={id}
             scope="col"
             aria-sort={sortable ? (direction ?? "none") : undefined}
-            style={leafColumnWidthStyle(column, first, last, variant)}
+            style={leafColumnWidthStyle(column, first, last, variant, fixedLayout)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.

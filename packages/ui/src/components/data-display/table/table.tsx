@@ -131,9 +131,8 @@ export function Table<T extends RowData>({
         aria-label={ariaLabel}
         aria-busy={loading ? true : undefined}
         className={fixedLayout ? "w-full table-fixed" : "w-full table-auto"}
-        style={fixedLayout ? undefined : { minWidth: `${tableMinWidthPx(table, variant)}px` }}
       >
-        <TableColumnWidths table={table} variant={variant} />
+        <TableColumnWidths table={table} variant={variant} fixedLayout={fixedLayout} />
         <thead>
           <TableHeaderRows
             table={table}
