@@ -106,6 +106,7 @@ export function StockBalanceLots({ product }: { product: StockBalance }) {
         table={table}
         aria-label={`Lotes de ${formatProductDescription(product)}`}
         variant="nested"
+        stackWhenNarrow
       />
     </div>
   );

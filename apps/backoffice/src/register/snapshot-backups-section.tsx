@@ -184,6 +184,7 @@ export function SnapshotBackupsSection({
         <Table
           aria-label={`Últimas generaciones de ${register.name}`}
           table={table}
+          stackWhenNarrow
           {...cloudTableState(backupsData, "los backups")}
           empty={{
             icon: <HardDriveDownload />,
