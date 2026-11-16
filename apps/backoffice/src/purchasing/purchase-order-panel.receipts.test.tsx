@@ -139,12 +139,24 @@ test("stacks the order's lines and each receipt's lines into lists inside the pa
   }
 });
 
-test("shows no received or outstanding columns and no receipts for an order nothing was received of", async () => {
+test("shows no received or outstanding values and no receipts for an order nothing was received of", async () => {
   const screen = await loaded(servicesFor(SENT_ORDER), { access: RECEIVER });
 
-  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
-  expect(screen.getByRole("columnheader", { name: "Recibido" }).query()).toBeNull();
-  expect(screen.getByRole("columnheader", { name: "Pendiente" }).query()).toBeNull();
+  const lines = screen.getByRole("list", { name: "Líneas del pedido" });
+  await expect.element(lines.getByRole("listitem").first()).toBeVisible();
+  expect(
+    lines
+      .getByRole("listitem")
+      .elements()
+      .map((item) => [...item.querySelectorAll("dt")].map((term) => term.textContent)),
+  ).toEqual(
+    SENT_ORDER.lines.map(() => [
+      "Paquetes",
+      "Cantidad por paquete",
+      "Precio esperado por paquete",
+      "Total de la línea",
+    ]),
+  );
   expect(screen.getByRole("heading", { name: "Diferencias de recepción" }).query()).toBeNull();
 });
 

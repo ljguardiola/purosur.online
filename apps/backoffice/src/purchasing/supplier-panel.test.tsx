@@ -8,7 +8,10 @@ import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffi
 import { render } from "../shell/test-support/render-with-router";
 import { SupplierPanel } from "./supplier-panel";
 import type { SupplierPanelServices } from "./supplier-panel-services";
+import { envioDesdeBuenosAires } from "./test-support/freights";
+import { SENT_SUMMARY } from "./test-support/purchase-orders";
 import { createSupplierPanelServices } from "./test-support/supplier-panel-services";
+import { READ_LIST } from "./test-support/supplier-price-lists";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
 const { andina, granos, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
@@ -159,18 +162,57 @@ test("asks to close from its close button", async () => {
 });
 
 test.each([
-  ["lists", "Listas de precios del proveedor"],
-  ["orders", "Pedidos del proveedor"],
-  ["purchases", "Compras del proveedor"],
-  ["freights", "Fletes del proveedor"],
-] as const)("shows the supplier's records on the %s tab", async (tab, tableName) => {
+  ["lists", "Sin listas de precios"],
+  ["orders", "Sin pedidos"],
+  ["purchases", "Sin compras"],
+  ["freights", "Sin fletes"],
+] as const)("shows the supplier's records on the %s tab", async (tab, emptyTitle) => {
   const screen = await renderPanel(andina, { tab });
 
-  await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+  await expect.element(screen.getByText(emptyTitle, { exact: true })).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Ver todos" }))
     .toHaveAttribute("href", expect.stringContaining(`supplier=${andina.id}`));
 });
+
+function servicesWithOneRecordEach() {
+  const services = createSupplierPanelServices();
+  vi.mocked(services.fetchSupplierPriceLists).mockResolvedValue({ kind: "ok", value: [READ_LIST] });
+  vi.mocked(services.fetchPurchaseOrders).mockResolvedValue({ kind: "ok", value: [SENT_SUMMARY] });
+  vi.mocked(services.fetchFreights).mockResolvedValue({
+    kind: "ok",
+    value: {
+      items: [envioDesdeBuenosAires],
+      count: 1,
+      totalCents: envioDesdeBuenosAires.amountCents,
+    },
+  });
+  return services;
+}
+
+test.each([
+  ["lists", "Listas de precios del proveedor", ["Fecha de la lista", "Estado"]],
+  ["orders", "Pedidos del proveedor", ["Total esperado", "Estado"]],
+  ["freights", "Fletes del proveedor", ["Flete", "Monto"]],
+] as const)(
+  "stacks the supplier's records on the %s tab into a list inside the panel, with no sideways scroll",
+  async (tab, name, terms) => {
+    const screen = await renderPanel(andina, { tab, services: servicesWithOneRecordEach() });
+
+    const records = screen.getByRole("list", { name });
+    await expect.element(records.getByRole("listitem")).toBeVisible();
+    expect(screen.getByRole("region", { name }).query()).toBeNull();
+    const item = records.getByRole("listitem").element();
+    expect([...item.querySelectorAll("dt")].map((term) => term.textContent)).toEqual(terms);
+    const right = screen
+      .getByRole("complementary", { name: andina.name })
+      .element()
+      .getBoundingClientRect().right;
+    for (const value of item.querySelectorAll("dd")) {
+      expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+    }
+  },
+);
 
 test("reads no records of the tabs it does not show", async () => {
   const services = createSupplierPanelServices();

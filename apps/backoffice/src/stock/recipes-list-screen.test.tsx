@@ -717,6 +717,7 @@ test("shows the panel's recipe without its batches to a session without the batc
 
   const panel = screen.getByRole("complementary");
   await expect.element(panel.getByText(almendras.name, { exact: true })).toBeVisible();
-  expect(panel.getByRole("table", { name: "Producciones" }).query()).toBeNull();
+  expect(panel.getByText("Producciones de los últimos 90 días").query()).toBeNull();
+  expect(panel.getByRole("list", { name: "Producciones" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Registrar producción" }).query()).toBeNull();
 });

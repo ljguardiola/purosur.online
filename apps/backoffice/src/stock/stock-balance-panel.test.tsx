@@ -45,12 +45,13 @@ test("shows the product's balance, cost, value and lots under its name", async (
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows no lots table for a product without lots", async () => {
+test("shows no lots for a product without lots", async () => {
   const screen = await renderPanel(tea);
 
   const panel = screen.getByRole("complementary", { name: tea.name });
   await expect.element(panel).toBeVisible();
-  expect(panel.getByRole("table").query()).toBeNull();
+  expect(panel.getByText("Lotes", { exact: true }).query()).toBeNull();
+  expect(panel.getByRole("list", { name: /^Lotes de / }).query()).toBeNull();
 });
 
 test.each([
