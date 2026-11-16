@@ -2,14 +2,13 @@ import { createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { alertsRedirectRoute, homeRoute } from "../alerts/routes";
 import { branchSettingsRoute, legacyBranchSettingsRoute } from "../branch/routes";
 import {
-  brandsListRoute,
-  categoriesListRoute,
   classificationRoute,
   legacyBrandsRoute,
   legacyCategoriesRoute,
+  legacyClassificationBrandsRoute,
+  legacyClassificationTagsRoute,
   legacyTagsRoute,
   productsListRoute,
-  tagsListRoute,
 } from "../catalog/routes";
 import {
   accountRecoveryRoute,
@@ -161,7 +160,9 @@ const routeTree = rootRoute.addChildren([
         assemblyBatchesRoute,
         legacyAssembliesRoute,
         legacyAssemblyBatchesInProductsRoute,
-        classificationRoute.addChildren([categoriesListRoute, brandsListRoute, tagsListRoute]),
+        classificationRoute,
+        legacyClassificationBrandsRoute,
+        legacyClassificationTagsRoute,
       ]),
     ]),
     stockAreaRoute.addChildren([

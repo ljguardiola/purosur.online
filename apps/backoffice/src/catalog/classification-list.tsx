@@ -30,7 +30,8 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
   } = props;
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+      <section className="flex min-w-0 flex-col gap-4">
+        <h2 className="text-text-accent text-subheading">{label}</h2>
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -53,7 +54,7 @@ export function ClassificationList<T extends object>(props: ClassificationListPr
           </div>
         </div>
         <Table {...props} aria-label={label} />
-      </div>
+      </section>
       {children}
     </>
   );
