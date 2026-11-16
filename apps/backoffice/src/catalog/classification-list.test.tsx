@@ -28,7 +28,7 @@ function Harness({
   });
   return (
     <FieldSizeProvider size="backoffice">
-      <main>
+      <main className="flex min-h-0 flex-1 flex-col">
         <ClassificationList
           label="Marcas"
           searchPlaceholder="Buscar una marca"
