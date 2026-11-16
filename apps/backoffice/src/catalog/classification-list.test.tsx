@@ -99,7 +99,7 @@ test("reports what is typed in the search field and the press of the create butt
   expect(onCreate).toHaveBeenCalledOnce();
 });
 
-test("shows the filters between the search field and the create button, and the footer under the table", async () => {
+test("shows the filters beside the search field, and the footer under the table", async () => {
   const screen = await render(
     <Harness filters={<p>Estado: Activas</p>} footer={<p>2 marcas</p>} />,
   );
