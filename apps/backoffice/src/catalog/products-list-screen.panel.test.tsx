@@ -3,7 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import { linesPainted } from "../platform/test-support/code-cells";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { productPanelSections } from "./test-support/product-panel-sections";
-import { almonds, honey, lavenderOil, retiredHoney } from "./test-support/products";
+import { almonds, honey, lavenderOil, pricedAlmonds, retiredHoney } from "./test-support/products";
 import { createServices, mockLoaded, renderScreen } from "./test-support/products-list-screen";
 
 beforeEach(() => {
@@ -148,6 +148,32 @@ test("beside the panel at 1440px, fits every column of the list with no sideways
     );
   }
   expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
+});
+
+test("beside the panel at 1440px, keeps each price's amount on one line, right-aligned, with no sideways scroll", async () => {
+  await page.viewport(1440, 900);
+  const services = createServices();
+  mockLoaded(services, [{ ...honey, currentUnitPrice: 1176000 }, pricedAlmonds]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  const unitPrice = table.getByRole("cell", { name: "$ 11.760,00" });
+  const kiloPrice = table.getByRole("cell", { name: "$ 1.200,00 / kg" });
+  await expect.element(unitPrice).toBeVisible();
+  await expect.element(kiloPrice).toBeVisible();
+  const frame = table.element().closest(".isolate") as HTMLElement;
+
+  expect(linesPainted(unitPrice.element() as HTMLElement)).toBe(1);
+  expect(
+    linesPainted(kiloPrice.getByText("$ 1.200,00", { exact: true }).element() as HTMLElement),
+  ).toBe(1);
+  for (const price of [unitPrice, kiloPrice, table.getByRole("columnheader", { name: "Precio" })]) {
+    expect(getComputedStyle(price.element()).textAlign).toBe("right");
+  }
+  expect(screen.getByRole("group", { name: "Productos" }).query()).toBeNull();
+  expect(table.element().getBoundingClientRect().right).toBeLessThanOrEqual(
+    frame.getBoundingClientRect().right,
+  );
 });
 
 test("in a window too narrow for the list beside the panel, scrolls it and marks the cut edge", async () => {
