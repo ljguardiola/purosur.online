@@ -44,16 +44,22 @@ const columns: TableColumns<Product> = [
   dataColumn({
     id: "netContent",
     header: "Contenido neto",
+    nowrap: true,
     render: (item: Product) => item.netContent,
   }),
-  dataColumn({ id: "unit", header: "Unidad", render: (item: Product) => item.unit }),
+  dataColumn({ id: "unit", header: "Unidad", nowrap: true, render: (item: Product) => item.unit }),
   dataColumn({
     id: "price",
     header: "Precio",
     align: "end",
     render: (item: Product) => <TableCellAmount amount={item.amount} unit={item.perUnit} />,
   }),
-  dataColumn({ id: "state", header: "Estado", render: (item: Product) => item.state }),
+  dataColumn({
+    id: "state",
+    header: "Estado",
+    nowrap: true,
+    render: (item: Product) => item.state,
+  }),
 ];
 
 function ProductsTable() {
@@ -106,7 +112,7 @@ test("with room to spare, keeps the short cells on one line and gives the growin
   }
 });
 
-test("when the table would not fit otherwise, lets the short cells wrap and still fits with no sideways scroll", async () => {
+test("in a narrower container, takes the shortfall from the growing column and still fits with no sideways scroll", async () => {
   const screen = await renderIn(640);
   const table = screen.getByRole("table", { name: "Productos" }).element() as HTMLElement;
   const frame = table.closest(".isolate") as HTMLElement;
