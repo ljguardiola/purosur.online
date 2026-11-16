@@ -116,3 +116,26 @@ test("reads the products list again after the panel changes the product's price"
 
   await vi.waitFor(() => expect(services.fetchProducts).toHaveBeenCalledTimes(2));
 });
+
+test("beside the panel at 1440px, shows the price column whole and marks the edge where the rest of the list is cut", async () => {
+  await page.viewport(1440, 900);
+  const { screen } = await renderWithPanel({ openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  const frame = table.element().closest(".isolate") as HTMLElement;
+  const frameRight = () => frame.getBoundingClientRect().right;
+  const priceHeader = table.getByRole("columnheader", { name: "Precio" });
+  await expect.element(priceHeader).toBeVisible();
+  expect(priceHeader.element().getBoundingClientRect().right).toBeLessThanOrEqual(frameRight());
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const priceCell = rowOf(screen, honey.name).element().querySelectorAll("td")[6] as HTMLElement;
+  expect(priceCell.getBoundingClientRect().right).toBeLessThanOrEqual(frameRight());
+
+  const cutHeaders = table
+    .getByRole("columnheader")
+    .elements()
+    .filter((header) => header.getBoundingClientRect().right > frameRight());
+  expect(cutHeaders.length === 0 || frame.querySelector("[data-scroll-cue='end']") !== null).toBe(
+    true,
+  );
+});
