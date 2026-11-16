@@ -1,7 +1,8 @@
 import { dataColumn, FieldSizeProvider, useTableModel } from "@purosur/ui";
-import { Tags } from "lucide-react";
+import { CircleAlert, Tags } from "lucide-react";
 import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { type Locator, userEvent } from "vitest/browser";
+import type { CloudTableState } from "../platform/cloud-table-state";
 import { render } from "../shell/test-support/render-with-router";
 import { ClassificationList, type ClassificationListProps } from "./classification-list";
 
@@ -14,13 +15,14 @@ const ITEMS: Item[] = [
 
 function Harness({
   items = ITEMS,
+  state = { loading: false },
   ...props
 }: Partial<
   Pick<
     ClassificationListProps<Item>,
     "filters" | "footer" | "empty" | "createStatus" | "children" | "onSearchChange" | "onCreate"
   >
-> & { items?: Item[] }) {
+> & { items?: Item[]; state?: CloudTableState }) {
   const table = useTableModel({
     items,
     id: (item) => item.id,
@@ -37,7 +39,7 @@ function Harness({
           createLabel="Nueva marca"
           onCreate={() => {}}
           table={table}
-          loading={false}
+          {...state}
           {...props}
         />
       </main>
@@ -200,14 +202,20 @@ test("shows the empty state it is given when there are no rows", async () => {
 });
 
 function borderedBox(text: HTMLElement): DOMRect {
-  let element: HTMLElement | null = text;
-  while (element !== null && getComputedStyle(element).borderTopWidth === "0px") {
-    element = element.parentElement;
+  let box: HTMLElement | null = null;
+  for (
+    let element: HTMLElement | null = text;
+    element !== null && element.tagName !== "SECTION";
+    element = element.parentElement
+  ) {
+    if (getComputedStyle(element).borderTopWidth !== "0px") {
+      box = element;
+    }
   }
-  if (element === null) {
-    throw new Error("the text is not inside a bordered box");
+  if (box === null) {
+    throw new Error("the text is not inside a bordered box of the list");
   }
-  return element.getBoundingClientRect();
+  return box.getBoundingClientRect();
 }
 
 test("an empty list leaves its footer's place, so its box ends on the same line as a list with a footer", async () => {
@@ -234,3 +242,45 @@ test("an empty list leaves its footer's place, so its box ends on the same line 
 
   expect(empty.bottom).toBeCloseTo(withFooter.bottom, 0);
 });
+
+test.each<{ case: string; state: CloudTableState; anchor: (list: Locator) => Locator }>([
+  {
+    case: "on its first load",
+    state: { loading: "initial" },
+    anchor: (list) => list.getByRole("table", { name: "Marcas" }),
+  },
+  {
+    case: "whose load failed",
+    state: {
+      failure: {
+        icon: <CircleAlert />,
+        title: "No se pudieron cargar las marcas",
+        onRetry: () => {},
+      },
+    },
+    anchor: (list) => list.getByRole("button", { name: "Reintentar" }),
+  },
+])(
+  "a list $case leaves its footer's place, so its box ends on the same line as a list with a footer",
+  async ({ state, anchor }) => {
+    const column = { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" } as const;
+    const screen = await render(
+      <div style={{ height: 400, display: "flex", gap: 24 }}>
+        <div style={column}>
+          <Harness footer={<p className="text-detail">2 marcas</p>} />
+        </div>
+        <div style={column} data-testid="other-list">
+          <Harness items={[]} state={state} />
+        </div>
+      </div>,
+    );
+
+    await expect.element(screen.getByText("2 marcas")).toBeVisible();
+    const otherAnchor = anchor(screen.getByTestId("other-list"));
+    await expect.element(otherAnchor).toBeInTheDocument();
+    const withFooter = borderedBox(screen.getByText("Alma").element() as HTMLElement);
+    const other = borderedBox(otherAnchor.element() as HTMLElement);
+
+    expect(other.bottom).toBeCloseTo(withFooter.bottom, 0);
+  },
+);
