@@ -16,7 +16,7 @@ test("warns about the register actions nobody at the branch can do, below the re
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText(WARNING)).toBeVisible();
-  await expect.element(screen.getByText(/Nadie puede anular ventas\./)).toBeVisible();
+  await expect.element(screen.getByText(/Nadie puede anular ventas\./).first()).toBeVisible();
   const table = screen.getByRole("table", { name: "Cajas registradoras" }).element();
   const warning = screen.getByText(WARNING).element();
   expect(table.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
