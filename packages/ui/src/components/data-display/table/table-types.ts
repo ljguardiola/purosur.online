@@ -108,4 +108,7 @@ export type TableProps<T extends RowData> = {
   // Keeps the columns at the container's width, squeezing them and breaking words that no longer
   // fit, instead of scrolling sideways.
   fixedColumns?: boolean;
+  // Stacks each row into a block of label and value pairs while the container is narrower than the
+  // columns, instead of scrolling the table sideways.
+  stackWhenNarrow?: boolean;
 } & TableLoadProps;

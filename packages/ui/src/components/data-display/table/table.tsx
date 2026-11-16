@@ -1,12 +1,18 @@
 import type { RowData } from "@tanstack/react-table";
-import { Fragment, type ReactElement, useId } from "react";
+import { type ComponentProps, Fragment, type ReactElement, useId } from "react";
 import { EmptyState } from "../../feedback/empty-state";
-import { LoadFailure } from "../../feedback/load-failure";
+import {
+  type CenteredLoadFailureProps,
+  LoadFailure,
+  type LoadFailureProps,
+} from "../../feedback/load-failure";
+import { LoadingPlaceholder } from "../../feedback/loading-placeholder";
 import { useKeyboardScrollableRegion } from "../../shared/keyboard-scrollable-region";
 import { KeyLegend } from "../key-legend";
 import { TableCell } from "./table-cell";
 import { TableColumnWidths, TableHeaderRows, tableMinWidthPx } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
+import { TableStackedRows } from "./table-stacked-rows";
 import {
   pressableRowClassName,
   rowBoxShadowClassName,
@@ -16,6 +22,7 @@ import {
 } from "./table-styles";
 import type { TableLoadingState, TableProps } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
+import { useObservedWidth } from "./use-observed-width";
 
 type TableDisplayMode = "placeholders" | "failure" | "empty" | "rows";
 
@@ -37,6 +44,36 @@ function tableDisplayMode(
   return rowCount === 0 && hasEmptyState ? "empty" : "rows";
 }
 
+function StackedContent<T extends RowData>({
+  displayMode,
+  empty,
+  failure,
+  ...rows
+}: {
+  displayMode: TableDisplayMode;
+  empty: TableProps<T>["empty"];
+  failure: LoadFailureProps | CenteredLoadFailureProps | undefined;
+} & ComponentProps<typeof TableStackedRows<T>>) {
+  switch (displayMode) {
+    case "failure":
+      return failure === undefined ? null : (
+        <div className="p-4">
+          <LoadFailure {...failure} />
+        </div>
+      );
+    case "empty":
+      return empty === undefined ? null : <EmptyState {...empty} />;
+    case "placeholders":
+      return (
+        <div className={rows.variant === "nested" ? "py-3" : "p-4"}>
+          <LoadingPlaceholder variant="list" items={3} />
+        </div>
+      );
+    case "rows":
+      return <TableStackedRows {...rows} />;
+  }
+}
+
 export function Table<T extends RowData>({
   table,
   "aria-label": ariaLabel,
@@ -56,9 +93,11 @@ export function Table<T extends RowData>({
   locked,
   inactive = false,
   fixedColumns = false,
+  stackWhenNarrow = false,
 }: TableProps<T>): ReactElement {
   const tableId = useId();
   const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(tableId);
+  const { width: containerWidth, observeWidth } = useObservedWidth();
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
   const displayMode = tableDisplayMode(
@@ -68,6 +107,11 @@ export function Table<T extends RowData>({
     empty !== undefined,
   );
   const fixedLayout = fill || fixedColumns;
+  const stacked =
+    stackWhenNarrow &&
+    !fixedLayout &&
+    containerWidth !== undefined &&
+    containerWidth < tableMinWidthPx(table, variant);
   const rowsDisabled = locked !== undefined || inactive;
   const emptyBelowHeaders = fill && emptyKeepsHeaders && displayMode === "empty";
   const failureBelowHeaders = fill && failureKeepsHeaders && displayMode === "failure";
@@ -199,9 +243,25 @@ export function Table<T extends RowData>({
 
   return (
     <>
-      <div className={tableContainerClassName(variant, fill)}>
+      <div
+        ref={stackWhenNarrow ? observeWidth : undefined}
+        className={tableContainerClassName(variant, fill)}
+      >
         {loading === "updating" && <TableUpdatingBar />}
-        {emptyBelowHeaders && empty !== undefined ? (
+        {stacked ? (
+          <StackedContent
+            displayMode={displayMode}
+            table={table}
+            aria-label={ariaLabel}
+            variant={variant}
+            rowState={rowState}
+            rowDetail={rowDetail}
+            onRowPress={onRowPress}
+            rowsDisabled={rowsDisabled}
+            empty={empty}
+            failure={failure}
+          />
+        ) : emptyBelowHeaders && empty !== undefined ? (
           <>
             {tableElement}
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
