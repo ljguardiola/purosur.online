@@ -218,6 +218,12 @@ test("beside the panel in a wide window, keeps Unidad and Precio, with its unit,
 
   expect(linesPaintedUnder(element, "Unidad")).toEqual([1, 1]);
   expect(linesPaintedUnder(element, "Precio")).toEqual([1, 1]);
-  const name = element.querySelector("tbody td") as HTMLElement;
-  expect(name.getBoundingClientRect().width).toBeGreaterThan(900);
+  const cells = [...(element.querySelector("tbody tr") as HTMLElement).querySelectorAll("td")];
+  const othersWidth = cells
+    .slice(1)
+    .reduce((sum, cell) => sum + cell.getBoundingClientRect().width, 0);
+  const frame = element.closest(".isolate") as HTMLElement;
+  expect((cells[0] as HTMLElement).getBoundingClientRect().width).toBeGreaterThanOrEqual(
+    frame.getBoundingClientRect().width - othersWidth - 4,
+  );
 });
