@@ -304,6 +304,10 @@ test.each([
     "/products/batches?period=7&search=mix",
   ],
   ["/products/assemblies/batches", ["recipes"], "/products/recipes"],
+  ["/products/assemblies", ["products_and_categories", "batches"], "/products/batches"],
+  ["/recipes", ["products_and_categories", "batches"], "/products/batches"],
+  ["/products/assemblies/batches", ["products_and_categories", "recipes"], "/products/recipes"],
+  ["/assembly-batches", ["products_and_categories", "recipes"], "/products/recipes"],
 ] as const)(
   "redirects the old address %s to its tab or section",
   async (old, capabilities, target) => {
