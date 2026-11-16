@@ -236,7 +236,7 @@ test.each([
   "keeps its %s whole in view inside a container narrower than its columns, under headers that keep their width",
   async (_, message, failed) => {
     const screen = await render(
-      inside(320, <LotsTable columns={wideColumns} variant="nested" items={[]} failed={failed} />),
+      inside(200, <LotsTable columns={wideColumns} variant="nested" items={[]} failed={failed} />),
     );
     const title = screen.getByText(message).first().element();
     const container = screen.container.firstElementChild as HTMLElement;
