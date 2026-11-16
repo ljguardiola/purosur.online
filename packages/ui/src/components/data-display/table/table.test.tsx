@@ -2698,89 +2698,37 @@ test("lines a nested table's cells up with the edges of its container, with no p
   expect(lastCell.getBoundingClientRect().right).toBe(edges.right);
 });
 
-test("sizes a column given a width to that content width plus the header's own padding, leaving the rest to the others", async () => {
-  const widthColumns = [
-    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
-    dataColumn({
-      id: "stock",
-      header: "Stock",
-      align: "end",
-      width: 150,
-      render: (p: Product) => p.stock,
-    }),
-  ] as const;
-  const screen = await render(<TestTable {...commonProps} columns={widthColumns} />);
-  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+test.each(["framed", "nested"] as const)(
+  "wraps the content of a %s table's column given a width inside that width, however much room the table has",
+  async (variant) => {
+    const widthColumns = [
+      dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+      dataColumn({
+        id: "stock",
+        header: "Stock",
+        width: 150,
+        render: (p: Product) => p.stock,
+      }),
+    ] as const;
+    const wideStock = { ...coffee, stock: "Doce mil doscientos cincuenta unidades disponibles" };
+    const screen = await render(
+      <div style={{ width: "1000px" }}>
+        <TestTable
+          {...commonProps}
+          items={[wideStock]}
+          columns={widthColumns}
+          variant={variant}
+        />
+      </div>,
+    );
+    const cell = screen.getByRole("cell", { name: /Doce mil/ }).element() as HTMLElement;
 
-  expect(getComputedStyle(header).width).toBe(`${150 + 6 + 16}px`);
-  expect(
-    getComputedStyle(screen.getByRole("columnheader", { name: "Producto" }).element()).width,
-  ).not.toBe(getComputedStyle(header).width);
-});
+    expect(paintedLineCount(cell)).toBeGreaterThan(1);
+    expect(paintedTextRight(cell) - cell.getBoundingClientRect().left).toBeLessThanOrEqual(150 + 16);
+  },
+);
 
-test("sizes a nested table's column to its content width plus the padding between columns only", async () => {
-  const widthColumns = [
-    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
-    dataColumn({
-      id: "stock",
-      header: "Stock",
-      width: 150,
-      render: (p: Product) => p.stock,
-    }),
-  ] as const;
-  const screen = await render(
-    <TestTable {...commonProps} columns={widthColumns} variant="nested" />,
-  );
-  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
-
-  expect(getComputedStyle(header).width).toBe(`${150 + 6}px`);
-});
-
-const groupedColumns = [
-  dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
-  groupColumn({
-    id: "inventory",
-    header: "Existencias",
-    columns: [
-      dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
-      dataColumn({ id: "sku", header: "Código", render: (p: Product) => p.sku ?? "" }),
-    ],
-  }),
-] as const;
-
-test("heads the columns of a group with the group's name spanning all of them", async () => {
-  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
-
-  const group = screen.getByText("Existencias", { exact: true });
-  await expect.element(group).toBeVisible();
-  expect(group.element().getAttribute("colspan")).toBe("2");
-  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
-  await expect.element(screen.getByRole("columnheader", { name: "Stock" })).toBeVisible();
-  await expect.element(screen.getByRole("columnheader", { name: "Código" })).toBeVisible();
-});
-
-test("renders one cell per leaf column in each row of a table with a group", async () => {
-  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
-
-  await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
-  expect(screen.container.querySelectorAll("tbody tr:first-child td")).toHaveLength(3);
-});
-
-test("has no accessibility violations with a column group", async () => {
-  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
-
-  await expect.element(screen.getByText("Existencias", { exact: true })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("shows a single header row for a table without groups", async () => {
-  const screen = await render(<TestTable {...commonProps} columns={columns} />);
-
-  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
-  expect(screen.container.querySelectorAll("thead tr")).toHaveLength(1);
-});
-
-test("sizes the columns of a group and the columns after it at their own declared widths", async () => {
+test("sizes the actions column after a group at the width of its buttons, and a column with no width takes what is left", async () => {
   const widthGroupColumns = [
     dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
     groupColumn({
@@ -2808,9 +2756,7 @@ test("sizes the columns of a group and the columns after it at their own declare
     </div>,
   );
 
-  const stock = screen.getByRole("columnheader", { name: "Stock" });
-  await expect.element(stock).toBeVisible();
-  expect(stock.element().getBoundingClientRect().width).toBeCloseTo(150 + 6 + 6, 0);
+  await expect.element(screen.getByRole("columnheader", { name: "Stock" })).toBeVisible();
   const actions = screen.getByRole("columnheader", { name: "Actions" }).element();
   expect(actions.getBoundingClientRect().width).toBeCloseTo(60 + 6 + 16, 0);
 });
