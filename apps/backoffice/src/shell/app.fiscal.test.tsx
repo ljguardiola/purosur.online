@@ -156,7 +156,7 @@ function location() {
   return window.location.pathname + window.location.search + window.location.hash;
 }
 
-test("opens Fiscal from the rail with the status strip and the four tabs for a person with every fiscal capability", async () => {
+test("opens Fiscal from the rail with the four tabs and the status strip on the first one for a person with every fiscal capability", async () => {
   const services = servicesFor(EVERY_FISCAL_CAPABILITY);
   window.history.pushState(null, "", "/help");
 
@@ -182,6 +182,62 @@ test("opens Fiscal from the rail with the status strip and the four tabs for a p
   await expect
     .element(screen.getByRole("link", { name: "Fiscal", exact: true }))
     .toHaveAttribute("aria-current", "page");
+});
+
+function summaryCard(screen: Awaited<ReturnType<typeof render>>) {
+  let card = screen.getByText("Tareas fiscales pendientes").element();
+  while (card.parentElement !== null && getComputedStyle(card.parentElement).display !== "grid") {
+    card = card.parentElement;
+  }
+  return card;
+}
+
+test("puts the tabs right under the header, before the summary cards", async () => {
+  const services = servicesFor(EVERY_FISCAL_CAPABILITY);
+  window.history.pushState(null, "", "/fiscal");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const tabs = screen.getByRole("tablist", { name: "Secciones de Fiscal" });
+  await expect.element(screen.getByText("Tareas fiscales pendientes")).toBeVisible();
+  const card = summaryCard(screen);
+  expect(
+    tabs.element().compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(tabs.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    card.getBoundingClientRect().top,
+  );
+});
+
+test("puts the summary cards and the table of Tareas fiscales in one container, so both share its inset", async () => {
+  const services = servicesFor(EVERY_FISCAL_CAPABILITY);
+  window.history.pushState(null, "", "/fiscal");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const table = screen.getByRole("table", { name: "Tareas fiscales" });
+  await expect.element(table).toBeVisible();
+  const cards = summaryCard(screen).parentElement;
+  const container = cards?.parentElement;
+  expect(container?.contains(table.element())).toBe(true);
+  expect(getComputedStyle(cards as Element).paddingLeft).toBe("0px");
+  expect(getComputedStyle(container as Element).paddingLeft).toBe("24px");
+});
+
+test.each([
+  ["/fiscal/documents", "Comprobantes"],
+  ["/fiscal/caea", "CAEA y excepcionalidad"],
+  ["/fiscal/settings", "Configuración"],
+])("shows no summary cards on %s", async (path, tab) => {
+  const services = servicesFor(EVERY_FISCAL_CAPABILITY);
+  window.history.pushState(null, "", path);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
+  expect(screen.getByText("Tareas fiscales pendientes").query()).toBeNull();
+  expect(screen.getByText("Informes quincenales pendientes").query()).toBeNull();
+  expect(services.fiscalStatusStrip.fetchFiscalTasks).not.toHaveBeenCalled();
 });
 
 test("has no Caja y fiscal item in the rail", async () => {
