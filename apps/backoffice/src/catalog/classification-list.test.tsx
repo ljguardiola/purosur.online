@@ -215,7 +215,7 @@ test("an empty list leaves its footer's place, so its box ends on the same line 
   const screen = await render(
     <div style={{ height: 400, display: "flex", gap: 24 }}>
       <div style={column}>
-        <Harness footer={<p>2 marcas</p>} />
+        <Harness footer={<p className="text-detail">2 marcas</p>} />
       </div>
       <div style={column}>
         <Harness
