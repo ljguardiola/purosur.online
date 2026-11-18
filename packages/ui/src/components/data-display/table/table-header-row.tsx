@@ -43,10 +43,10 @@ function leafColumnWidthStyle<T extends RowData>(
   first: boolean,
   last: boolean,
   variant: TableVariant,
-  honorsDeclaredWidths: boolean,
+  fixedLayout: boolean,
 ) {
   const actionCount = columnActionCount(column);
-  if (!honorsDeclaredWidths && actionCount === undefined) {
+  if (!fixedLayout && actionCount === undefined) {
     return undefined;
   }
   return headerColumnWidthStyle(
@@ -58,12 +58,6 @@ function leafColumnWidthStyle<T extends RowData>(
 }
 
 const FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX = 120;
-
-// A table with a growing column gives every other column its declared width first, so the growing
-// one takes what is left; without one, the browser shares the width by what each column holds.
-function honorsDeclaredWidths<T extends RowData>(table: TableModel<T>, fixedLayout: boolean) {
-  return fixedLayout || table.getAllLeafColumns().some((column) => column.columnDef.meta?.grow);
-}
 
 // Below this width a table of stackWhenNarrow stacks its rows instead of crushing a column.
 export function tableMinWidthPx<T extends RowData>(
@@ -101,7 +95,7 @@ export function TableColumnWidths<T extends RowData>({
             index === 0,
             index === columns.length - 1,
             variant,
-            honorsDeclaredWidths(table, fixedLayout),
+            fixedLayout,
           )}
         />
       ))}
@@ -165,13 +159,7 @@ function TableHeaderRow<T extends RowData>({
             key={id}
             scope="col"
             aria-sort={sortable ? (direction ?? "none") : undefined}
-            style={leafColumnWidthStyle(
-              column,
-              first,
-              last,
-              variant,
-              honorsDeclaredWidths(table, fixedLayout),
-            )}
+            style={leafColumnWidthStyle(column, first, last, variant, fixedLayout)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.

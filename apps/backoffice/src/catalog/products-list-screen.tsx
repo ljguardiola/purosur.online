@@ -268,7 +268,7 @@ export function ProductsListScreen({
     dataColumn({
       id: "product",
       header: "Producto",
-      grow: true,
+      width: 640,
       sort: { order: productNameOrder, firstDirection: "ascending" },
       render: (item: ListedProduct) => (
         <TableCellText description={categoryLabels.get(item.categoryId) ?? item.categoryName}>
