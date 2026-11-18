@@ -286,7 +286,6 @@ export function ProductsListScreen({
     dataColumn({
       id: "netContent",
       header: "Contenido neto",
-      width: 80,
       render: (item: ListedProduct) =>
         item.netContent === null ? "" : formatNetContent(item.netContent),
     }),
@@ -305,7 +304,6 @@ export function ProductsListScreen({
     dataColumn({
       id: "price",
       header: "Precio",
-      width: 140,
       align: "end",
       render: priceCell,
     }),
