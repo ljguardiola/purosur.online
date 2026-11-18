@@ -227,3 +227,25 @@ test("beside the panel in a wide window, keeps Unidad and Precio, with its unit,
     frame.getBoundingClientRect().width - othersWidth - 4,
   );
 });
+
+test("beside the panel at 1440px, gives a long name at least the room it had before, keeps every amount whole and does not scroll sideways", async () => {
+  const services = createServices();
+  const longName =
+    "Aceite de girasol alto oleico prensado en frio con aromas naturales sin aditivos en botella de vidrio de 900 g para uso diario en casa y en el local";
+  mockLoaded(services, [{ ...pricedAlmonds, name: longName }, honey]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const element = table.element() as HTMLElement;
+  const frame = element.closest(".isolate") as HTMLElement;
+  const cells = [...(element.querySelector("tbody tr") as HTMLElement).querySelectorAll("td")];
+  const name = cells[0] as HTMLElement;
+  const amount = (cells[5] as HTMLElement).querySelector("span span") as HTMLElement;
+
+  expect(Math.round(frame.getBoundingClientRect().width)).toBe(840);
+  expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
+  expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(116);
+  expect(linesPainted(name.querySelector("div div") as HTMLElement)).toBeLessThanOrEqual(15);
+  expect(linesPainted(amount)).toBe(1);
+});

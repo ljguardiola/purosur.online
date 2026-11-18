@@ -9,6 +9,7 @@ import { useTableModel } from "./use-table-model";
 type Product = {
   id: string;
   name: string;
+  brand: string;
   netContent: string;
   unit: string;
   amount: string;
@@ -21,7 +22,8 @@ const NO_SORT: TableSort = { column: "", direction: "ascending" };
 const products: Product[] = [
   {
     id: "1",
-    name: "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregados, Envasado en Botella de Vidrio de 900 g para Gastronomía",
+    brand: "",
+    name: "Aceite de girasol alto oleico prensado en frio con aromas naturales sin aditivos en botella de vidrio de 900 g para uso diario en casa y en el local",
     netContent: "900 ml",
     unit: "Por unidad",
     amount: "$ 11.000,00",
@@ -30,6 +32,7 @@ const products: Product[] = [
   },
   {
     id: "2",
+    brand: "",
     name: "Miel",
     netContent: "1 kg",
     unit: "Por peso",
@@ -40,7 +43,8 @@ const products: Product[] = [
 ];
 
 const columns: TableColumns<Product> = [
-  dataColumn({ id: "name", header: "Producto", grow: true, render: (item: Product) => item.name }),
+  dataColumn({ id: "name", header: "Producto", width: 640, render: (item: Product) => item.name }),
+  dataColumn({ id: "brand", header: "Marca", width: 120, render: (item: Product) => item.brand }),
   dataColumn({
     id: "netContent",
     header: "Contenido neto",
@@ -95,31 +99,31 @@ function renderIn(width: number) {
   );
 }
 
-test("with room to spare, keeps the short cells on one line and gives the growing column only what is left", async () => {
+test("with room to spare, keeps the short cells on one line and keeps an empty column as narrow as its header", async () => {
   const screen = await renderIn(1475);
   const row = screen.getByRole("row").nth(1).element() as HTMLElement;
   const cells = [...row.querySelectorAll("td")];
 
-  for (const short of cells.slice(1)) {
+  for (const short of cells.slice(2)) {
     expect(linesPainted(short)).toBe(1);
-  }
-  const shortWidths = cells
-    .slice(1)
-    .reduce((sum, cell) => sum + cell.getBoundingClientRect().width, 0);
-  const name = cells[0] as HTMLElement;
-  expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(1475 - shortWidths - 4);
-  for (const short of cells.slice(1)) {
     expect(short.getBoundingClientRect().width).toBeLessThan(190);
   }
+  expect((cells[1] as HTMLElement).getBoundingClientRect().width).toBeLessThan(100);
+  expect((cells[0] as HTMLElement).getBoundingClientRect().width).toBeGreaterThan(600);
 });
 
-test("in a narrower container, takes the shortfall from the growing column and still fits with no sideways scroll", async () => {
-  const screen = await renderIn(640);
+test("in a narrower container, still fits with no sideways scroll and gives the name the most room", async () => {
+  const screen = await renderIn(840);
   const table = screen.getByRole("table", { name: "Productos" }).element() as HTMLElement;
   const frame = table.closest(".isolate") as HTMLElement;
+  const widths = [...(table.querySelector("tbody tr") as HTMLElement).querySelectorAll("td")].map(
+    (cell) => cell.getBoundingClientRect().width,
+  );
 
   expect(screen.getByRole("group").query()).toBeNull();
   expect(table.getBoundingClientRect().right).toBeLessThanOrEqual(
     frame.getBoundingClientRect().right,
   );
+  expect(widths[0]).toBe(Math.max(...widths));
+  expect(widths[1]).toBeLessThan(100);
 });
