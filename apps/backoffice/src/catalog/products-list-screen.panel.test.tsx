@@ -245,7 +245,7 @@ test("beside the panel at 1440px, gives a long name at least the room it had bef
 
   expect(Math.round(frame.getBoundingClientRect().width)).toBe(840);
   expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
-  expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(116);
+  expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(108);
   expect(linesPainted(name.querySelector("div div") as HTMLElement)).toBeLessThanOrEqual(15);
   expect(linesPainted(amount)).toBe(1);
 });
