@@ -208,7 +208,6 @@ describe("actionsColumn", () => {
       actionCount?: 1 | 2 | 3 | 4 | 5 | 6;
       width?: number;
       code?: boolean;
-      grow?: boolean;
     }>();
   });
 });
