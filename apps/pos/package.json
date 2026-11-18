@@ -47,7 +47,7 @@
     "uuid": "^14.0.3",
     "vite": "^8.3.5",
     "vitest-browser-react": "^2.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

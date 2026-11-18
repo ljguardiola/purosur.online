@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@purosur/domain": "workspace:*",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@sentry/core": "11.10.0"

@@ -42,7 +42,7 @@
     "pg": "^8.23.1",
     "postgres": "^3.4.9",
     "soap": "1.14.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
