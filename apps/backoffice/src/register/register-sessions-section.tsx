@@ -70,6 +70,7 @@ export function RegisterSessionsSection({
       <Table
         aria-label="Cierres de caja de la caja"
         table={table}
+        stackWhenNarrow
         {...cloudTableState(data, "los cierres de caja")}
         empty={{
           icon: <Calculator />,

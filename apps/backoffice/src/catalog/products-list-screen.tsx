@@ -17,6 +17,8 @@ import {
   StatusIndicator,
   sortedItems,
   Table,
+  TableCellAmount,
+  TableCellText,
   type TableSort,
   textOrder,
   useTableModel,
@@ -32,7 +34,7 @@ import {
 } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
-import { perSaleUnit } from "../platform/per-sale-unit";
+import { saleUnitSuffix } from "../platform/per-sale-unit";
 import type { ProductPanelSections } from "../platform/product-panel-sections";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { barcodesSummary } from "./barcodes-summary";
@@ -117,10 +119,15 @@ function unitLabel(saleUnit: ProductSaleUnit): string {
   return UNIT_OPTION_LABELS[saleUnit];
 }
 
-function priceText(product: ListedProduct): string {
-  return product.currentUnitPrice === null
-    ? "Sin precio"
-    : perSaleUnit(formatCents(product.currentUnitPrice), product.saleUnit);
+function priceCell(product: ListedProduct) {
+  return product.currentUnitPrice === null ? (
+    "Sin precio"
+  ) : (
+    <TableCellAmount
+      amount={formatCents(product.currentUnitPrice)}
+      unit={saleUnitSuffix(product.saleUnit)}
+    />
+  );
 }
 
 const productNameOrder = textOrder((product: ListedProduct) => product.name);
@@ -261,12 +268,18 @@ export function ProductsListScreen({
     dataColumn({
       id: "product",
       header: "Producto",
+      width: 640,
       sort: { order: productNameOrder, firstDirection: "ascending" },
-      render: (item: ListedProduct) => item.name,
+      render: (item: ListedProduct) => (
+        <TableCellText description={categoryLabels.get(item.categoryId) ?? item.categoryName}>
+          {item.name}
+        </TableCellText>
+      ),
     }),
     dataColumn({
       id: "brand",
       header: "Marca",
+      width: 120,
       render: (item: ListedProduct) =>
         item.brandId === null ? "" : (brandNames.get(item.brandId) ?? ""),
     }),
@@ -279,26 +292,25 @@ export function ProductsListScreen({
     dataColumn({
       id: "barcodes",
       header: "Código de barras",
+      code: true,
       render: (item: ListedProduct) => barcodesSummary(item.barcodes),
-    }),
-    dataColumn({
-      id: "category",
-      header: "Categoría",
-      render: (item: ListedProduct) => categoryLabels.get(item.categoryId) ?? item.categoryName,
     }),
     dataColumn({
       id: "unit",
       header: "Unidad",
+      width: 90,
       render: (item: ListedProduct) => unitLabel(item.saleUnit),
     }),
     dataColumn({
       id: "price",
       header: "Precio",
-      render: priceText,
+      align: "end",
+      render: priceCell,
     }),
     dataColumn({
       id: "status",
       header: "Estado",
+      width: 90,
       render: (item: ListedProduct) =>
         item.active ? (
           <StatusIndicator tone="success">Activo</StatusIndicator>

@@ -41,39 +41,38 @@ test("shows the product's balance, cost, value and lots under its name", async (
   await expect.element(panel.getByText("12,150 kg")).toBeVisible();
   await expect.element(panel.getByText("$ 10.205,84 / kg")).toBeVisible();
   await expect.element(panel.getByText("$ 124.001,00")).toBeVisible();
-  await expect
-    .element(panel.getByRole("table", { name: `Lotes de ${almonds.name}` }))
-    .toBeVisible();
+  await expect.element(panel.getByRole("list", { name: `Lotes de ${almonds.name}` })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows no lots table for a product without lots", async () => {
+test("shows no lots for a product without lots", async () => {
   const screen = await renderPanel(tea);
 
   const panel = screen.getByRole("complementary", { name: tea.name });
   await expect.element(panel).toBeVisible();
-  expect(panel.getByRole("table").query()).toBeNull();
+  expect(panel.getByText("Lotes", { exact: true }).query()).toBeNull();
+  expect(panel.getByRole("list", { name: /^Lotes de / }).query()).toBeNull();
 });
 
 test.each([
-  ["counts", accessWith("stock_balances", "stock_counts"), [`Recuentos de ${almonds.name}`]],
+  ["counts", accessWith("stock_balances", "stock_counts"), ["Sin recuentos"]],
   [
     "adjustments and losses",
     accessWith("stock_balances", "stock_movements"),
-    [`Ajustes y pérdidas de ${almonds.name}`],
+    ["Sin ajustes ni pérdidas"],
   ],
   [
     "counts, adjustments and losses",
     accessWith("stock_balances", "stock_counts", "stock_movements"),
-    [`Recuentos de ${almonds.name}`, `Ajustes y pérdidas de ${almonds.name}`],
+    ["Sin recuentos", "Sin ajustes ni pérdidas"],
   ],
 ] as const)(
   "shows the product's %s to a person who may see them",
-  async (_kinds, access, tables) => {
+  async (_kinds, access, emptyTitles) => {
     const screen = await renderPanel(almonds, { access });
 
-    for (const name of tables) {
-      await expect.element(screen.getByRole("table", { name })).toBeVisible();
+    for (const title of emptyTitles) {
+      await expect.element(screen.getByText(title, { exact: true })).toBeVisible();
     }
   },
 );
@@ -83,7 +82,7 @@ test("shows no movements and reads none for a person who can neither count nor m
   const screen = await renderPanel(almonds, { services });
 
   await expect
-    .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
+    .element(screen.getByRole("list", { name: `Lotes de ${almonds.name}` }))
     .toBeVisible();
   expect(screen.getByText(/^Movimientos/).query()).toBeNull();
   expect(services.fetchStockCounts).not.toHaveBeenCalled();

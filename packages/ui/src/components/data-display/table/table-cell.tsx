@@ -9,19 +9,25 @@ export function TableCell<T extends RowData>({
   first,
   last,
   variant,
+  fixedLayout,
 }: {
   cell: Cell<typeof tableModelFeatures, T, unknown>;
   first: boolean;
   last: boolean;
   variant: TableVariant;
+  fixedLayout: boolean;
 }) {
   const actionsColumn = columnActionCount(cell.column) !== undefined;
+  const declaredWidth = cell.column.columnDef.meta?.width;
   const align = actionsColumn ? "start" : columnAlign(cell.column);
+  const keptOnOneLine =
+    (align === "end" || cell.column.columnDef.meta?.code === true) && !fixedLayout;
 
   return (
     <td
       className={[
-        "h-control-4xl break-words align-middle py-2",
+        "h-control-4xl align-middle py-2",
+        fixedLayout ? "break-words" : keptOnOneLine ? "whitespace-nowrap" : "wrap-normal",
         cellHorizontalPaddingClassName(first, last, variant),
         alignClassName(align),
         align === "end" ? "tabular-nums" : "",
@@ -41,7 +47,16 @@ export function TableCell<T extends RowData>({
         ) : (
           // items-start/-end opts out of flex stretch, so an unbreakable run's unclamped preferred
           // width can exceed the column; max-w-full caps it there so it wraps instead of overflowing.
-          <div className="flex flex-col gap-1 max-w-full">{renderCell(cell)}</div>
+          <div
+            className="flex flex-col gap-1 max-w-full"
+            style={
+              fixedLayout || keptOnOneLine || declaredWidth === undefined
+                ? undefined
+                : { maxWidth: declaredWidth }
+            }
+          >
+            {renderCell(cell)}
+          </div>
         )}
       </div>
     </td>

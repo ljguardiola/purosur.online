@@ -267,7 +267,12 @@ export function PurchaseOrderPanel({
                   onSessionEnded={onSessionEnded}
                 />
               ) : (
-                <Table aria-label="Líneas del pedido" table={table} loading={false} />
+                <Table
+                  aria-label="Líneas del pedido"
+                  table={table}
+                  loading={false}
+                  stackWhenNarrow
+                />
               )}
               <PurchaseOrderReceipts
                 order={order}

@@ -1,11 +1,18 @@
 import type { RowData } from "@tanstack/react-table";
-import { Fragment, type ReactElement } from "react";
+import { type ComponentProps, Fragment, type ReactElement, useId } from "react";
 import { EmptyState } from "../../feedback/empty-state";
-import { LoadFailure } from "../../feedback/load-failure";
+import {
+  type CenteredLoadFailureProps,
+  LoadFailure,
+  type LoadFailureProps,
+} from "../../feedback/load-failure";
+import { LoadingPlaceholder } from "../../feedback/loading-placeholder";
+import { useKeyboardScrollableRegion } from "../../shared/keyboard-scrollable-region";
 import { KeyLegend } from "../key-legend";
 import { TableCell } from "./table-cell";
-import { TableColumnWidths, TableHeaderRows } from "./table-header-row";
+import { TableColumnWidths, TableHeaderRows, tableMinWidthPx } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
+import { TableStackedLock, TableStackedRows } from "./table-stacked-rows";
 import {
   pressableRowClassName,
   rowBoxShadowClassName,
@@ -15,6 +22,8 @@ import {
 } from "./table-styles";
 import type { TableLoadingState, TableProps } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
+import { useObservedWidth } from "./use-observed-width";
+import { useScrollEdges } from "./use-scroll-edges";
 
 type TableDisplayMode = "placeholders" | "failure" | "empty" | "rows";
 
@@ -36,6 +45,36 @@ function tableDisplayMode(
   return rowCount === 0 && hasEmptyState ? "empty" : "rows";
 }
 
+function StackedContent<T extends RowData>({
+  displayMode,
+  empty,
+  failure,
+  ...rows
+}: {
+  displayMode: TableDisplayMode;
+  empty: TableProps<T>["empty"];
+  failure: LoadFailureProps | CenteredLoadFailureProps | undefined;
+} & ComponentProps<typeof TableStackedRows<T>>) {
+  switch (displayMode) {
+    case "failure":
+      return failure === undefined ? null : (
+        <div className="p-4">
+          <LoadFailure {...failure} />
+        </div>
+      );
+    case "empty":
+      return empty === undefined ? null : <EmptyState {...empty} />;
+    case "placeholders":
+      return (
+        <div className={rows.variant === "nested" ? "py-3" : "p-4"}>
+          <LoadingPlaceholder variant="list" items={3} />
+        </div>
+      );
+    case "rows":
+      return <TableStackedRows {...rows} />;
+  }
+}
+
 export function Table<T extends RowData>({
   table,
   "aria-label": ariaLabel,
@@ -54,7 +93,16 @@ export function Table<T extends RowData>({
   failureKeepsHeaders = false,
   locked,
   inactive = false,
+  fixedColumns = false,
+  stackWhenNarrow = false,
 }: TableProps<T>): ReactElement {
+  const tableId = useId();
+  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(
+    tableId,
+    "group",
+  );
+  const { width: containerWidth, observeWidth } = useObservedWidth();
+  const { clippedAtStart, clippedAtEnd, observeScrollEdges } = useScrollEdges();
   const rows = table.getRowModel().rows;
   const columns = table.getAllLeafColumns();
   const displayMode = tableDisplayMode(
@@ -63,6 +111,12 @@ export function Table<T extends RowData>({
     rows.length,
     empty !== undefined,
   );
+  const fixedLayout = fill || fixedColumns;
+  const stacked =
+    stackWhenNarrow &&
+    !fixedLayout &&
+    containerWidth !== undefined &&
+    containerWidth < tableMinWidthPx(table, variant);
   const rowsDisabled = locked !== undefined || inactive;
   const emptyBelowHeaders = fill && emptyKeepsHeaders && displayMode === "empty";
   const failureBelowHeaders = fill && failureKeepsHeaders && displayMode === "failure";
@@ -73,20 +127,31 @@ export function Table<T extends RowData>({
   const messageOnly =
     fill && ((displayMode === "failure" && !failureBelowHeaders) || showEmptyState);
 
+  function observeRegion(region: HTMLElement | null) {
+    const stopOverflow = observeOverflow(region);
+    const stopEdges = observeScrollEdges(region);
+    return () => {
+      stopOverflow?.();
+      stopEdges?.();
+    };
+  }
+
   const tableElement = (
     <>
       {/* table/thead/tbody/tr/th/td keep their native CSS display: overriding it away from
             table-shaped drops these tags' implicit ARIA roles in some engines. */}
       <table
+        id={tableId}
         aria-label={ariaLabel}
         aria-busy={loading ? true : undefined}
-        className="w-full table-fixed"
+        className={fixedLayout ? "w-full table-fixed" : "w-full table-auto"}
       >
-        <TableColumnWidths table={table} variant={variant} />
+        <TableColumnWidths table={table} variant={variant} fixedLayout={fixedLayout} />
         <thead>
           <TableHeaderRows
             table={table}
             variant={variant}
+            fixedLayout={fixedLayout}
             {...(locked === undefined ? {} : { locked })}
           />
         </thead>
@@ -97,15 +162,19 @@ export function Table<T extends RowData>({
           {showingPlaceholders && <TablePlaceholderRows columns={columns} />}
           {failure !== undefined && !failureBelowHeaders && (
             <tr>
-              <td colSpan={columns.length} className="h-70 p-4 align-top">
-                <LoadFailure {...failure} />
+              <td colSpan={columns.length} className="h-70 align-top">
+                <div className={fixedColumns ? "p-4" : "sticky left-0 w-scroll-region p-4"}>
+                  <LoadFailure {...failure} />
+                </div>
               </td>
             </tr>
           )}
           {showEmptyState && empty !== undefined && (
             <tr>
               <td colSpan={columns.length} className="h-70 align-middle">
-                <EmptyState {...empty} />
+                <div className={fixedColumns ? undefined : "sticky left-0 w-scroll-region"}>
+                  <EmptyState {...empty} />
+                </div>
               </td>
             </tr>
           )}
@@ -150,6 +219,7 @@ export function Table<T extends RowData>({
                         first={index === 0}
                         last={index === cells.length - 1}
                         variant={variant}
+                        fixedLayout={fixedLayout}
                       />
                     ))}
                   </tr>
@@ -186,9 +256,28 @@ export function Table<T extends RowData>({
 
   const content = (
     <>
-      <div className={tableContainerClassName(variant, fill)}>
+      <div
+        ref={stackWhenNarrow ? observeWidth : undefined}
+        className={tableContainerClassName(variant, fill)}
+      >
         {loading === "updating" && <TableUpdatingBar />}
-        {emptyBelowHeaders && empty !== undefined ? (
+        {stacked && locked !== undefined ? (
+          <TableStackedLock locked={locked} variant={variant} />
+        ) : null}
+        {stacked ? (
+          <StackedContent
+            displayMode={displayMode}
+            table={table}
+            aria-label={ariaLabel}
+            variant={variant}
+            rowState={rowState}
+            rowDetail={rowDetail}
+            rowsDisabled={rowsDisabled}
+            busy={loading === "updating"}
+            empty={empty}
+            failure={failure}
+          />
+        ) : emptyBelowHeaders && empty !== undefined ? (
           <>
             {tableElement}
             <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
@@ -206,8 +295,32 @@ export function Table<T extends RowData>({
           (messageElement ??
           (fill ? (
             <div className="min-h-0 flex-1 overflow-y-auto">{tableElement}</div>
-          ) : (
+          ) : fixedColumns ? (
             tableElement
+          ) : (
+            <div className="relative">
+              <div
+                ref={observeRegion}
+                {...regionProps}
+                className={`@container overflow-x-auto ${focusClassName}`}
+              >
+                {tableElement}
+              </div>
+              {clippedAtStart ? (
+                <div
+                  aria-hidden="true"
+                  data-scroll-cue="start"
+                  className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-linear-to-r from-border to-transparent"
+                />
+              ) : null}
+              {clippedAtEnd ? (
+                <div
+                  aria-hidden="true"
+                  data-scroll-cue="end"
+                  className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-linear-to-l from-border to-transparent"
+                />
+              ) : null}
+            </div>
           )))
         )}
         {legend === undefined || locked !== undefined ? null : (

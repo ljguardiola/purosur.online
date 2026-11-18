@@ -188,6 +188,7 @@ export function ProductRecipeSection({
             aria-label="Producciones"
             table={table}
             variant="nested"
+            stackWhenNarrow
             empty={{
               icon: <CookingPot />,
               title: "Sin producciones en los últimos 90 días",

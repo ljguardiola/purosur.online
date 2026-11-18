@@ -62,6 +62,7 @@ export function SupplierListsTab({ supplierId, services, onSessionEnded }: Suppl
       <Table
         aria-label="Listas de precios del proveedor"
         variant="nested"
+        stackWhenNarrow
         table={table}
         {...cloudTableState(data, "las listas de precios")}
         empty={{ icon: <FileText />, title: "Sin listas de precios", variant: "blank" }}

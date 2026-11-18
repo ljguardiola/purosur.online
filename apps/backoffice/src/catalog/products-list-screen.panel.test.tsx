@@ -1,8 +1,9 @@
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { linesPainted, linesPaintedUnder } from "../platform/test-support/code-cells";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { productPanelSections } from "./test-support/product-panel-sections";
-import { almonds, honey, retiredHoney } from "./test-support/products";
+import { almonds, honey, lavenderOil, pricedAlmonds, retiredHoney } from "./test-support/products";
 import { createServices, mockLoaded, renderScreen } from "./test-support/products-list-screen";
 
 beforeEach(() => {
@@ -115,4 +116,179 @@ test("reads the products list again after the panel changes the product's price"
   await userEvent.click(screen.getByRole("button", { name: "Guardar un precio de prueba" }));
 
   await vi.waitFor(() => expect(services.fetchProducts).toHaveBeenCalledTimes(2));
+});
+
+test("beside the panel at 1440px, shows the price column whole", async () => {
+  await page.viewport(1440, 900);
+  const { screen } = await renderWithPanel({ openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  const frame = table.element().closest(".isolate") as HTMLElement;
+  const frameRight = () => frame.getBoundingClientRect().right;
+  const priceHeader = table.getByRole("columnheader", { name: "Precio" });
+  await expect.element(priceHeader).toBeVisible();
+  expect(priceHeader.element().getBoundingClientRect().right).toBeLessThanOrEqual(frameRight());
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const priceCell = rowOf(screen, honey.name).element().querySelectorAll("td")[5] as HTMLElement;
+  expect(priceCell.getBoundingClientRect().right).toBeLessThanOrEqual(frameRight());
+});
+
+test("beside the panel at 1440px, fits every column of the list with no sideways scroll", async () => {
+  await page.viewport(1440, 900);
+  const { screen } = await renderWithPanel({ openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const frame = table.element().closest(".isolate") as HTMLElement;
+
+  expect(screen.getByRole("group", { name: "Productos" }).query()).toBeNull();
+  for (const header of table.getByRole("columnheader").elements()) {
+    expect(header.getBoundingClientRect().right).toBeLessThanOrEqual(
+      frame.getBoundingClientRect().right,
+    );
+  }
+  expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
+});
+
+test("beside the panel at 1440px, keeps each price's amount on one line, right-aligned, with no sideways scroll", async () => {
+  await page.viewport(1440, 900);
+  const services = createServices();
+  mockLoaded(services, [{ ...honey, currentUnitPrice: 1176000 }, pricedAlmonds]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  const unitPrice = table.getByRole("cell", { name: "$ 11.760,00" });
+  const kiloPrice = table.getByRole("cell", { name: "$ 1.200,00 / kg" });
+  await expect.element(unitPrice).toBeVisible();
+  await expect.element(kiloPrice).toBeVisible();
+  const frame = table.element().closest(".isolate") as HTMLElement;
+
+  expect(linesPainted(unitPrice.element() as HTMLElement)).toBe(1);
+  expect(
+    linesPainted(kiloPrice.getByText("$ 1.200,00", { exact: true }).element() as HTMLElement),
+  ).toBe(1);
+  for (const price of [unitPrice, kiloPrice, table.getByRole("columnheader", { name: "Precio" })]) {
+    expect(getComputedStyle(price.element()).textAlign).toBe("right");
+  }
+  expect(screen.getByRole("group", { name: "Productos" }).query()).toBeNull();
+  expect(table.element().getBoundingClientRect().right).toBeLessThanOrEqual(
+    frame.getBoundingClientRect().right,
+  );
+});
+
+test("in a window too narrow for the list beside the panel, scrolls it and marks the cut edge", async () => {
+  document.body.style.width = "820px";
+  onTestFinished(() => {
+    document.body.style.removeProperty("width");
+  });
+  const { screen } = await renderWithPanel({ openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const frame = table.element().closest(".isolate") as HTMLElement;
+
+  await expect.poll(() => frame.querySelector("[data-scroll-cue='end']")).not.toBeNull();
+});
+
+test("squeezed beside the panel, keeps a product's barcodes and the count of the others on one line", async () => {
+  await page.viewport(1000, 900);
+  const services = createServices();
+  mockLoaded(services, [lavenderOil, honey]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const cell = screen.getByRole("cell", { name: "7790001234574 +1" });
+  await expect.element(cell).toBeVisible();
+  expect(linesPainted(cell.element() as HTMLElement)).toBe(1);
+});
+
+function paintedWidth(element: Element): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width;
+}
+
+function oneLineWidthOfColumn(table: HTMLElement, column: number): number {
+  const header = table.querySelectorAll("thead th")[column] as HTMLElement;
+  const contents = [...table.querySelectorAll("tbody tr")].map(
+    (row) =>
+      row.querySelectorAll("td")[column]?.firstElementChild?.firstElementChild as HTMLElement,
+  );
+  return Math.max(...[header, ...contents].map(paintedWidth));
+}
+
+function horizontalPadding(cell: HTMLElement): number {
+  const style = getComputedStyle(cell);
+  return Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+}
+
+const longNetContent = { quantity: 99999.999, unit: "ML" } as const;
+
+test("beside the panel in a wide window, keeps the short cells on one line, each column close to its content, and gives the rest to the name", async () => {
+  document.body.style.width = "2048px";
+  onTestFinished(() => {
+    document.body.style.removeProperty("width");
+  });
+  const services = createServices();
+  const longName =
+    "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregados, Envasado en Botella de Vidrio de 900 g para Gastronomía";
+  mockLoaded(services, [
+    { ...pricedAlmonds, name: longName, netContent: longNetContent },
+    { ...honey, netContent: longNetContent },
+  ]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const element = table.element() as HTMLElement;
+
+  for (const short of ["Contenido neto", "Unidad", "Precio", "Estado"]) {
+    expect(linesPaintedUnder(element, short)).toEqual([1, 1]);
+  }
+  const cells = [...(element.querySelector("tbody tr") as HTMLElement).querySelectorAll("td")];
+  for (const column of [1, 2, 3, 4, 5, 6]) {
+    const cell = cells[column] as HTMLElement;
+    expect(cell.getBoundingClientRect().width).toBeLessThanOrEqual(
+      (oneLineWidthOfColumn(element, column) + horizontalPadding(cell)) * 1.15,
+    );
+  }
+});
+
+test("beside the panel at 1440px, gives a long name at least the room it had before, keeps every amount whole and does not scroll sideways", async () => {
+  const services = createServices();
+  const longName =
+    "Aceite de girasol alto oleico prensado en frio con aromas naturales sin aditivos en botella de vidrio de 900 g para uso diario en casa y en el local";
+  mockLoaded(services, [{ ...pricedAlmonds, name: longName }, honey]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const element = table.element() as HTMLElement;
+  const frame = element.closest(".isolate") as HTMLElement;
+  const cells = [...(element.querySelector("tbody tr") as HTMLElement).querySelectorAll("td")];
+  const name = cells[0] as HTMLElement;
+  const amount = (cells[5] as HTMLElement).querySelector("span span") as HTMLElement;
+
+  expect(Math.round(frame.getBoundingClientRect().width)).toBe(840);
+  expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
+  expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(108);
+  expect(linesPainted(name.querySelector("div div") as HTMLElement)).toBeLessThanOrEqual(15);
+  expect(linesPainted(amount)).toBe(1);
+});
+
+test("beside the panel at 1440px, fits a long net content with no sideways scroll", async () => {
+  const services = createServices();
+  mockLoaded(services, [{ ...pricedAlmonds, netContent: longNetContent }, honey]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const element = table.element() as HTMLElement;
+  const frame = element.closest(".isolate") as HTMLElement;
+
+  expect(Math.round(frame.getBoundingClientRect().width)).toBe(840);
+  expect(screen.getByRole("group", { name: "Productos" }).query()).toBeNull();
+  expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
+  expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(
+    frame.getBoundingClientRect().right,
+  );
 });

@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { linesPainted } from "../platform/test-support/code-cells";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { listed, type RenderOptions, renderScreen } from "./test-support/stock-balances-screen";
 import { almonds, honey, oats } from "./test-support/stock-fixtures";
@@ -82,7 +83,32 @@ test("shows the product's movements in the panel to a person who may count", asy
     access: accessWith("stock_area", "stock_balances", "stock_counts"),
   });
 
-  await expect
-    .element(screen.getByRole("table", { name: `Recuentos de ${almonds.name}` }))
-    .toBeVisible();
+  const panel = screen.getByRole("complementary", { name: almonds.name });
+  await expect.element(panel.getByText("Sin recuentos", { exact: true })).toBeVisible();
+});
+
+test("beside the panel, gives a long product name the room the figures do not need and keeps the figures whole", async () => {
+  await page.viewport(1440, 900);
+  const longName =
+    "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregado 900 g";
+  const { screen } = await renderWithPanel(
+    { openProduct: almonds.id },
+    listed([{ ...almonds, name: longName }, honey]),
+  );
+
+  const table = screen.getByRole("table", { name: "Saldos" });
+  const name = table.getByText(/Cuidadosamente/).element() as HTMLElement;
+  const widthOf = (title: string) =>
+    table.getByRole("columnheader", { name: title }).element().getBoundingClientRect().width;
+
+  expect(linesPainted(name)).toBeLessThanOrEqual(3);
+  for (const figures of ["Saldo", "Costo unitario", "Valorizado"]) {
+    expect(widthOf("Producto")).toBeGreaterThan(widthOf(figures));
+  }
+  const row = rowOf(screen, "Cuidadosamente").element() as HTMLElement;
+  const figureCells = [...row.querySelectorAll("td.text-right")];
+  expect(figureCells.length).toBeGreaterThanOrEqual(4);
+  for (const cell of figureCells) {
+    expect(linesPainted(cell as HTMLElement)).toBe(1);
+  }
 });

@@ -8,7 +8,7 @@ test("shows each product's brand, net content, barcode and current price", async
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("cell", { name: "Aceite de Almendras" })).toBeVisible();
+  await expect.element(screen.getByRole("cell", { name: /^Aceite de Almendras/ })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Vitora" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "30 ml" })).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "7790001234567" })).toBeVisible();
@@ -21,7 +21,7 @@ test("shows the columns in order after the product's name", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("cell", { name: "Aceite de Almendras" })).toBeVisible();
+  await expect.element(screen.getByRole("cell", { name: /^Aceite de Almendras/ })).toBeVisible();
   const headers = screen
     .getByRole("columnheader")
     .elements()
@@ -31,7 +31,6 @@ test("shows the columns in order after the product's name", async () => {
     "Marca",
     "Contenido neto",
     "Código de barras",
-    "Categoría",
     "Unidad",
     "Precio",
     "Estado",
@@ -51,7 +50,7 @@ test("leaves the brand and net content cells empty and reads Sin precio for a pr
     .getByRole("cell")
     .elements()
     .map((cell) => cell.textContent?.trim());
-  expect(cells.slice(0, 4)).toEqual(["Miel pura de abeja 1 kg", "", "", "7790987000015"]);
+  expect(cells.slice(0, 4)).toEqual(["Miel pura de abeja 1 kgAlmacén", "", "", "7790987000015"]);
 });
 
 test("still shows the name of an inactive brand", async () => {

@@ -135,6 +135,30 @@ describe("the scale and reader's section of Ajustes", () => {
     await expect.element(table.getByRole("row").nth(2)).toHaveTextContent("05e0:1200 · COM4Lector");
   });
 
+  it("keeps the detected devices inside the panel, breaking a long port inside its column instead of scrolling sideways", async () => {
+    const longPath =
+      "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A50285BI_Balanza_Mostrador-if00-port0";
+    const { screen } = await renderDevices({
+      readDevices: async () => ({
+        ...NOTHING_REGISTERED,
+        detected: [{ path: longPath, ...SCALE_IDENTITY }],
+      }),
+    });
+    const table = panel(screen).getByRole("table", { name: "Dispositivos serie detectados" });
+    await expect.element(table).toBeVisible();
+    const cell = table.getByRole("cell", { name: /Balanza_Mostrador/ });
+
+    expect(
+      panel(screen).getByRole("region", { name: "Dispositivos serie detectados" }).query(),
+    ).toBeNull();
+    expect(cell.element().getBoundingClientRect().right).toBeLessThanOrEqual(
+      table.element().getBoundingClientRect().right,
+    );
+    expect(table.element().getBoundingClientRect().right).toBeLessThanOrEqual(
+      panel(screen).element().getBoundingClientRect().right,
+    );
+  });
+
   it("leaves the registered role empty for a device registered as neither", async () => {
     const { screen } = await renderDevices();
 

@@ -141,7 +141,7 @@ test("the category filter offers only leaf categories, labeled by their full pat
   await expect.element(screen.getByText("Soda 2 l")).toBeVisible();
 });
 
-test("the Categoría column shows each product's category by its full path", async () => {
+test("the product's cell shows its category by its full path under the name", async () => {
   const matchboxes: ListedProduct = {
     ...honey,
     id: "90d00000-0000-4000-8000-000000000004",
@@ -153,15 +153,19 @@ test("the Categoría column shows each product's category by its full path", asy
   mockLoaded(services, [matchboxes], [groceries, otherGroceries]);
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("cell", { name: "Almacén › Otros" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("cell", { name: /Fósforos.*Almacén › Otros/ }))
+    .toBeVisible();
 });
 
-test("the Categoría column falls back to the category name the product carries when that category isn't loaded", async () => {
+test("the product's cell falls back to the category name the product carries when that category isn't loaded", async () => {
   const services = createServices();
   mockLoaded(services, [almonds], [groceries]);
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByRole("cell", { name: "Frutos secos" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("cell", { name: /Almendras peladas.*Frutos secos/ }))
+    .toBeVisible();
 });
 
 test("the unit filter narrows the list", async () => {

@@ -106,6 +106,7 @@ function documentColumnsOf(onOpen: (voucher: Voucher) => void) {
     dataColumn({
       id: "voucher",
       header: "Comprobante",
+      code: true,
       render: (document: IssuedFiscalDocument) => (
         <TableCellText strong description={voucherDetailText(document)}>
           {voucherText(document)}

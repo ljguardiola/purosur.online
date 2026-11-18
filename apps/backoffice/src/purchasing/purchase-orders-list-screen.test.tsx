@@ -256,7 +256,7 @@ test("shows the open order in a panel with its lines, sharing, cancelling and re
   const panel = screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" });
   await expect.element(panel).toBeVisible();
   expect(services.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
-  await expect.element(panel.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(panel.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   await expect.element(panel.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
   await expect.element(panel.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
   await expect

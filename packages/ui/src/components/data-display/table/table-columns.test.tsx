@@ -207,6 +207,7 @@ describe("actionsColumn", () => {
       align?: "start" | "end";
       actionCount?: 1 | 2 | 3 | 4 | 5 | 6;
       width?: number;
+      code?: boolean;
     }>();
   });
 });

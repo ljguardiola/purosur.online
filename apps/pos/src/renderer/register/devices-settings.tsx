@@ -110,7 +110,12 @@ function DetectedDevices({ read }: { read: Read }) {
   return (
     <div className="flex flex-col gap-2 border-b border-border pb-4">
       <Eyebrow text="DISPOSITIVOS SERIE DETECTADOS" />
-      <Table aria-label="Dispositivos serie detectados" table={table} variant="nested" />
+      <Table
+        aria-label="Dispositivos serie detectados"
+        table={table}
+        variant="nested"
+        fixedColumns
+      />
     </div>
   );
 }

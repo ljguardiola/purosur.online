@@ -1,4 +1,5 @@
 import { FieldSizeProvider } from "@purosur/ui";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -28,20 +29,28 @@ function createServices(): ProductRecipeSectionServices {
   };
 }
 
+const PANEL_WIDTH = 325;
+const SCREEN_WIDTH = 1200;
+
 function renderSection(
   services: ProductRecipeSectionServices,
-  { mayManageBatches = true }: { mayManageBatches?: boolean } = {},
+  {
+    mayManageBatches = true,
+    width = SCREEN_WIDTH,
+  }: { mayManageBatches?: boolean; width?: number } = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
-      <ProductRecipeSection
-        productId={mixDeFrutosSecos.productId}
-        productName={mixDeFrutosSecos.productName}
-        saleUnit="KG"
-        mayManageBatches={mayManageBatches}
-        onSessionEnded={() => {}}
-        services={services}
-      />
+      <div style={{ width: `${width}px` }}>
+        <ProductRecipeSection
+          productId={mixDeFrutosSecos.productId}
+          productName={mixDeFrutosSecos.productName}
+          saleUnit="KG"
+          mayManageBatches={mayManageBatches}
+          onSessionEnded={() => {}}
+          services={services}
+        />
+      </div>
     </FieldSizeProvider>,
   );
 }
@@ -135,4 +144,27 @@ test("says it could not open the productions when they fail to load", async () =
   const screen = await renderSection(services);
 
   await expect.element(screen.getByText("No pudimos abrir las producciones")).toBeVisible();
+});
+
+test("stacks the productions into a list in a container as narrow as a side panel, with each one's action and values inside it", async () => {
+  const screen = await renderSection(createServices(), { width: PANEL_WIDTH });
+
+  const productions = screen.getByRole("list", { name: "Producciones" });
+  await expect.element(productions.getByText("15/09/2026")).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
+  expect(screen.getByRole("group").query()).toBeNull();
+  const first = productions.getByRole("listitem").first().element();
+  expect([...first.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Obtenido",
+    "Costo unitario",
+    "Vence",
+  ]);
+  const right = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect().right;
+  for (const element of [
+    screen.getByRole("button", { name: "Anular producción de Mix de frutos secos" }).element(),
+    ...first.querySelectorAll("dd"),
+  ]) {
+    expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+  }
+  await expectNoAccessibilityViolations(screen.container);
 });

@@ -70,6 +70,7 @@ export function SupplierFreightsTab({
       <Table
         aria-label="Fletes del proveedor"
         variant="nested"
+        stackWhenNarrow
         table={table}
         {...cloudTableState(data, "los fletes")}
         empty={{ icon: <Truck />, title: "Sin fletes", variant: "blank" }}

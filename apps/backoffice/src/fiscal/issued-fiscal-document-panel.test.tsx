@@ -112,10 +112,11 @@ test("shows each line as sold, with its quantity, its promotion and its amount, 
     servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
   );
 
-  const yerba = screen.getByRole("row", { name: /Yerba 1 kg/ });
+  const lines = screen.getByRole("list", { name: "Productos vendidos" });
+  const yerba = lines.getByRole("listitem").filter({ hasText: "Yerba 1 kg" });
   await expect.element(yerba.getByText("2 u")).toBeVisible();
   await expect.element(yerba.getByText("$ 8.500,00")).toBeVisible();
-  const queso = screen.getByRole("row", { name: /Queso cremoso/ });
+  const queso = lines.getByRole("listitem").filter({ hasText: "Queso cremoso" });
   await expect.element(queso.getByText("0,450 kg")).toBeVisible();
   await expect.element(queso.getByText("Lácteos 2x1")).toBeVisible();
   await expect.element(queso.getByText("$ 9.002,75")).toBeVisible();
@@ -123,6 +124,28 @@ test("shows each line as sold, with its quantity, its promotion and its amount, 
   await expect.element(screen.getByText("Total del comprobante", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("$ 17.502,75").first()).toBeVisible();
   await expect.element(screen.getByText("$ 17.502,75").last()).toBeVisible();
+});
+
+test("stacks each line sold into a list item inside the panel, with no sideways scroll", async () => {
+  const screen = await renderPanel(
+    servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
+  );
+
+  const lines = screen.getByRole("list", { name: "Productos vendidos" });
+  await expect.element(lines.getByText("Yerba 1 kg")).toBeVisible();
+  expect(screen.getByRole("group", { name: "Productos vendidos" }).query()).toBeNull();
+  const first = lines.getByRole("listitem").first().element();
+  expect([...first.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Cantidad",
+    "Importe",
+  ]);
+  const right = screen
+    .getByRole("complementary", { name: /Factura C 00003-00001247/ })
+    .element()
+    .getBoundingClientRect().right;
+  for (const value of lines.element().querySelectorAll("dd")) {
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+  }
 });
 
 test("a partial credit note's detail shows the sale's total under its lines and its own amount apart", async () => {

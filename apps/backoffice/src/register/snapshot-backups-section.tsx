@@ -104,6 +104,7 @@ export function SnapshotBackupsSection({
     dataColumn({
       id: "status",
       header: "Estado",
+      width: 200,
       render: (generation: SnapshotBackupGeneration) => (
         <div className="flex flex-col items-start gap-1">
           {generationStatus(generation)}
@@ -183,6 +184,7 @@ export function SnapshotBackupsSection({
         <Table
           aria-label={`Últimas generaciones de ${register.name}`}
           table={table}
+          stackWhenNarrow
           {...cloudTableState(backupsData, "los backups")}
           empty={{
             icon: <HardDriveDownload />,

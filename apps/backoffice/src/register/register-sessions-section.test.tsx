@@ -13,6 +13,8 @@ import {
   weekCashSessionClosesReport,
 } from "./test-support/cash-session-closes-fixtures";
 
+const SCREEN_WIDTH = 1200;
+
 const NO_PERIOD: ReportPeriodFilters = { from: "", to: "" };
 
 function renderSection(
@@ -23,11 +25,16 @@ function renderSection(
   {
     period = NO_PERIOD,
     onPeriodChange = () => {},
-  }: { period?: ReportPeriodFilters; onPeriodChange?: (period: ReportPeriodFilters) => void } = {},
+    width = SCREEN_WIDTH,
+  }: {
+    period?: ReportPeriodFilters;
+    onPeriodChange?: (period: ReportPeriodFilters) => void;
+    width?: number;
+  } = {},
 ) {
   const services: RegisterSessionsSectionServices = { fetchCashSessionCloses: read };
   return render(
-    <main>
+    <main style={{ width: `${width}px` }}>
       <ControlledSection
         initialPeriod={period}
         onPeriodChange={onPeriodChange}
@@ -174,4 +181,67 @@ test("has no accessibility violations once loaded", async () => {
   await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+function paintedLineCount(element: Element): number {
+  const tops = new Set<number>();
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    for (const rect of range.getClientRects()) {
+      tops.add(Math.round(rect.top));
+    }
+  }
+  return tops.size;
+}
+
+const REGISTER_PANEL_WIDTH = 325;
+
+test("keeps each amount on one line, inside the container, in a container as narrow as the register panel", async () => {
+  const largeAmounts = {
+    ...weekCashSessionClosesReport,
+    sessions: weekCashSessionClosesReport.sessions.map((session) => ({
+      ...session,
+      expected_cash: 155_532_100,
+      counted_cash: 155_517_600,
+      difference: -14_500,
+      has_difference: true,
+    })),
+  };
+  const read = vi
+    .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+    .mockResolvedValue({ kind: "ok", value: largeAmounts });
+  const { screen } = await renderSection(read, undefined, { width: REGISTER_PANEL_WIDTH });
+
+  const list = screen.getByRole("list", { name: "Cierres de caja de la caja" });
+  await expect.poll(() => list.getByRole("listitem").all().length).toBeGreaterThan(0);
+  const amounts = list
+    .getByRole("listitem")
+    .elements()
+    .flatMap((item) => [...item.querySelectorAll("dd")])
+    .filter((value) => /\$/.test(value.textContent ?? ""));
+  const right = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect().right;
+  expect(amounts.length).toBeGreaterThan(0);
+  expect(amounts.map((value) => [value.textContent, paintedLineCount(value)])).toEqual(
+    amounts.map((value) => [value.textContent, 1]),
+  );
+  expect(amounts.filter((value) => value.getBoundingClientRect().right > right)).toEqual([]);
+});
+
+test("stacks each closed session into a list item in a container as narrow as the register panel, with the other columns as header and value pairs", async () => {
+  const { screen } = await renderSection(undefined, undefined, { width: REGISTER_PANEL_WIDTH });
+
+  expect(screen.getByRole("table").query()).toBeNull();
+  const item = screen
+    .getByRole("list", { name: "Cierres de caja de la caja" })
+    .getByRole("listitem")
+    .first();
+  await expect.element(item).toBeVisible();
+  expect([...item.element().querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Cajero",
+    "Esperado",
+    "Contado",
+    "Diferencia",
+  ]);
 });

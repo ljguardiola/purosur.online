@@ -354,3 +354,37 @@ test("has no accessibility violations once loaded and with each modal open", asy
   await expect.element(screen.getByRole("dialog", { name: "Cambiar las reglas" })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 });
+
+test("stacks each generation into a list item in a container as narrow as the register panel, with its state whole inside the container", async () => {
+  const screen = await renderSection(
+    servicesWithBackups({
+      ...backups,
+      generations: [verifiedGeneration, failedGeneration, verifyingGeneration],
+    }),
+    { width: 325 },
+  );
+
+  await expect.element(screen.getByText("Verificando")).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
+  const items = screen
+    .getByRole("list", { name: "Últimas generaciones de Caja 1" })
+    .getByRole("listitem")
+    .elements();
+  expect(items).toHaveLength(3);
+  expect(
+    [...screen.getByRole("listitem").first().element().querySelectorAll("dt")].map(
+      (term) => term.textContent,
+    ),
+  ).toEqual(["Dónde", "Tamaño", "Estado"]);
+  const containerRight = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect()
+    .right;
+  const states = ["Verificada", "No pasó la verificación", "Verificando"].map((text) =>
+    screen.getByText(text).element(),
+  );
+  expect(
+    states
+      .filter((state) => state.getBoundingClientRect().right > containerRight)
+      .map((state) => state.textContent),
+  ).toEqual([]);
+  expect(states.map((state) => state.getBoundingClientRect().height)).toEqual(states.map(() => 28));
+});

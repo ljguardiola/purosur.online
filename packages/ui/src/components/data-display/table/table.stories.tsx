@@ -987,3 +987,85 @@ export const Inactive: Story = {
     />
   ),
 };
+
+const wideColumns = [
+  dataColumn({ id: "name", header: "Producto", width: 220, render: (item: Product) => item.name }),
+  dataColumn({ id: "sku", header: "Código", code: true, render: (item: Product) => item.sku }),
+  dataColumn({
+    id: "stock",
+    header: "Stock",
+    width: 150,
+    align: "end",
+    render: (item: Product) => item.stock,
+  }),
+] as const;
+
+export const WiderThanItsContainer: Story = {
+  render: () => (
+    <div className="w-32">
+      <ProductsTable aria-label="Productos" columns={wideColumns} variant="nested" />
+    </div>
+  ),
+};
+
+const stackedColumns = [
+  ...wideColumns,
+  actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (item: Product) => ({
+        icon: <Trash2 />,
+        "aria-label": `Quitar ${item.name}`,
+        onPress: () => {},
+      }),
+    ],
+  }),
+] as const;
+
+export const StackedWhenNarrow: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable
+        aria-label="Productos"
+        columns={stackedColumns}
+        variant="nested"
+        stackWhenNarrow
+      />
+    </div>
+  ),
+};
+
+const fixedColumns = [
+  dataColumn({ id: "name", header: "Producto", width: 120, render: (item: Product) => item.name }),
+  dataColumn({ id: "sku", header: "Código", render: (item: Product) => item.sku }),
+  dataColumn({
+    id: "stock",
+    header: "Stock disponible",
+    width: 120,
+    align: "end",
+    render: (item: Product) => item.stock,
+  }),
+] as const;
+
+export const FixedColumnsWhenNarrow: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable aria-label="Productos" columns={fixedColumns} variant="nested" fixedColumns />
+    </div>
+  ),
+};
+
+export const StackedWhenNarrowLocked: Story = {
+  render: () => (
+    <div className="w-80">
+      <ProductsTable
+        aria-label="Productos"
+        columns={stackedColumns}
+        variant="nested"
+        stackWhenNarrow
+        locked={{ label: "Productos bloqueados" }}
+      />
+    </div>
+  ),
+};

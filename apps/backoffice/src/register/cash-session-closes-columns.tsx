@@ -51,18 +51,21 @@ const cashFlowColumns = [
   dataColumn({
     id: "expected",
     header: "Esperado",
+    width: 136,
     align: "end",
     render: (session: CashSessionCloseRow) => formatCents(session.expected_cash),
   }),
   dataColumn({
     id: "counted",
     header: "Contado",
+    width: 136,
     align: "end",
     render: (session: CashSessionCloseRow) => formatCents(session.counted_cash),
   }),
   dataColumn({
     id: "difference",
     header: "Diferencia",
+    width: 144,
     align: "end",
     render: differenceCell,
   }),

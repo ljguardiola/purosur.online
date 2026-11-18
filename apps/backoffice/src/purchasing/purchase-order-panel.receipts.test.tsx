@@ -49,7 +49,7 @@ test("decides whether to offer Recibir pedido from the cloud's answer, not from 
     access: RECEIVER,
   });
 
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Recibir pedido" }).query()).toBeNull();
 });
 
@@ -58,7 +58,7 @@ test("offers no Recibir pedido to whoever may only read purchase orders", async 
     access: accessWith("purchase_order_reads"),
   });
 
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("list", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Recibir pedido" }).query()).toBeNull();
 });
 
@@ -98,23 +98,65 @@ test("cancelling a partially received order says what is missing can no longer b
 test("shows, beside each line of an order with receipts, what was received and what is still outstanding", async () => {
   const screen = await loaded(servicesFor(PARTIALLY_RECEIVED_ORDER), { access: RECEIVER });
 
-  const table = screen.getByRole("table", { name: "Líneas del pedido" });
-  await expect.element(table.getByRole("columnheader", { name: "Recibido" })).toBeVisible();
-  await expect.element(table.getByRole("columnheader", { name: "Pendiente" })).toBeVisible();
-  const miel = table.getByRole("row", { name: /Miel pura de abeja 1 kg/ });
-  await expect.element(miel.getByRole("cell").nth(5)).toHaveTextContent("24 u");
-  await expect.element(miel.getByRole("cell").nth(6)).toHaveTextContent("12 u");
-  const avena = table.getByRole("row", { name: /Avena arrollada/ });
-  await expect.element(avena.getByRole("cell").nth(5)).toHaveTextContent("40 kg");
-  await expect.element(avena.getByRole("cell").nth(6)).toHaveTextContent("10 kg");
+  const lines = screen.getByRole("list", { name: "Líneas del pedido" });
+  await expect.element(lines.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  expect(
+    lines
+      .getByRole("listitem")
+      .elements()
+      .map((item) => [
+        item.firstElementChild?.textContent,
+        ...[...item.querySelectorAll("div:has(> dt)")].flatMap((pair) =>
+          ["Recibido", "Pendiente"].includes(pair.querySelector("dt")?.textContent ?? "")
+            ? [pair.textContent]
+            : [],
+        ),
+      ]),
+  ).toEqual([
+    [expect.stringContaining("Miel pura de abeja 1 kg"), "Recibido24 u", "Pendiente12 u"],
+    [expect.stringContaining("Avena arrollada"), "Recibido40 kg", "Pendiente10 kg"],
+  ]);
 });
 
-test("shows no received or outstanding columns and no receipts for an order nothing was received of", async () => {
+test("stacks the order's lines and each receipt's lines into lists inside the panel, with no sideways scroll", async () => {
+  const screen = await loaded(servicesFor(PARTIALLY_RECEIVED_ORDER), { access: RECEIVER });
+
+  const lines = screen.getByRole("list", { name: "Líneas del pedido" });
+  const receipt = screen.getByRole("list", { name: "Recepción del 12/03/2026" });
+  await expect.element(lines.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(receipt.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  expect(screen.getByRole("table").query()).toBeNull();
+  expect(screen.getByRole("region").query()).toBeNull();
+  const right = screen
+    .getByRole("complementary", { name: /^Pedido a / })
+    .element()
+    .getBoundingClientRect().right;
+  for (const value of [
+    ...lines.element().querySelectorAll("dd"),
+    ...receipt.element().querySelectorAll("dd"),
+  ]) {
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+  }
+});
+
+test("shows no received or outstanding values and no receipts for an order nothing was received of", async () => {
   const screen = await loaded(servicesFor(SENT_ORDER), { access: RECEIVER });
 
-  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
-  expect(screen.getByRole("columnheader", { name: "Recibido" }).query()).toBeNull();
-  expect(screen.getByRole("columnheader", { name: "Pendiente" }).query()).toBeNull();
+  const lines = screen.getByRole("list", { name: "Líneas del pedido" });
+  await expect.element(lines.getByRole("listitem").first()).toBeVisible();
+  expect(
+    lines
+      .getByRole("listitem")
+      .elements()
+      .map((item) => [...item.querySelectorAll("dt")].map((term) => term.textContent)),
+  ).toEqual(
+    SENT_ORDER.lines.map(() => [
+      "Paquetes",
+      "Cantidad por paquete",
+      "Precio esperado por paquete",
+      "Total de la línea",
+    ]),
+  );
   expect(screen.getByRole("heading", { name: "Diferencias de recepción" }).query()).toBeNull();
 });
 

@@ -24,7 +24,10 @@ function overflowsItsBox(region: HTMLElement) {
 // styles that change inside a box that keeps its size. A mutation inside it is committed in a
 // microtask and a render of its owner as it commits; any other size change is committed when the
 // resize observer reports, before the next paint.
-export function useKeyboardScrollableRegion(labelledBy: string) {
+export function useKeyboardScrollableRegion(
+  labelledBy: string,
+  role: "region" | "group" = "region",
+) {
   const [overflows, setOverflows] = useState(false);
   const [holdsFocus, setHoldsFocus] = useState(false);
   const regionRef = useRef<HTMLElement | null>(null);
@@ -70,9 +73,7 @@ export function useKeyboardScrollableRegion(labelledBy: string) {
   return {
     observeOverflow,
     regionProps: {
-      ...(overflows || holdsFocus
-        ? { role: "region", tabIndex: 0, "aria-labelledby": labelledBy }
-        : {}),
+      ...(overflows || holdsFocus ? { role, tabIndex: 0, "aria-labelledby": labelledBy } : {}),
       onFocus: (event: FocusEvent<HTMLElement>) => {
         if (event.target === event.currentTarget) {
           setHoldsFocus(true);

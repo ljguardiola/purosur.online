@@ -21,6 +21,7 @@ const columns = [
   dataColumn({
     id: "receipt",
     header: "Comprobante",
+    code: true,
     render: (purchase: PurchaseSummary) =>
       receiptLabel(purchase.receiptType, purchase.receiptNumber),
   }),

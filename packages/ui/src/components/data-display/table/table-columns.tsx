@@ -16,6 +16,7 @@ type DataColumnOptions<T, Id extends string> = {
   header: string;
   align?: TableColumnAlign;
   width?: number;
+  code?: boolean;
   render: (item: T) => ReactNode;
 };
 
@@ -35,6 +36,7 @@ export function dataColumn<T extends RowData, const Id extends string>({
   header,
   align,
   width,
+  code,
   render,
   sort,
 }: DataColumnOptions<T, Id> & { sort?: DataColumnSort<T> }): TableColumn<T, Id> {
@@ -46,6 +48,7 @@ export function dataColumn<T extends RowData, const Id extends string>({
     meta: {
       ...(align === undefined ? {} : { align }),
       ...(width === undefined ? {} : { width }),
+      ...(code === true ? { code } : {}),
     },
     enableSorting: sort !== undefined,
     ...(sort === undefined

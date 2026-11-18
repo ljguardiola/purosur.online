@@ -66,8 +66,8 @@ export function PurchaseOrderLinesField({
             return (
               <fieldset key={line.id} aria-label={`Línea ${index + 1}`} className="min-w-0">
                 <Card variant="subtle">
-                  <div className="flex items-end gap-4">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-end gap-4">
+                    <div className="min-w-48 flex-1">
                       {line.fromOrder && product ? (
                         <p className="text-body text-text">{formatProductDescription(product)}</p>
                       ) : choice ? (

@@ -5,10 +5,15 @@ import { render } from "vitest-browser-react";
 import { StockBalanceLots } from "./stock-balance-lots";
 import { almonds, crackers, honey } from "./test-support/stock-fixtures";
 
-function renderLots(product: typeof almonds) {
+const PANEL_WIDTH = 325;
+const SCREEN_WIDTH = 1200;
+
+function renderLots(product: typeof almonds, { width = SCREEN_WIDTH }: { width?: number } = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
-      <StockBalanceLots product={product} />
+      <div style={{ width: `${width}px` }}>
+        <StockBalanceLots product={product} />
+      </div>
     </FieldSizeProvider>,
   );
 }
@@ -133,4 +138,35 @@ test("shows a lot's system name, never the number typed when it was recorded", a
 
   await expect.element(screen.getByText("Compra 05/08/2026")).toBeVisible();
   expect(screen.container.textContent).not.toContain("L-2312");
+});
+
+test("stacks each lot into a list item in a container as narrow as a side panel, with every column's header beside its value inside the container", async () => {
+  const screen = await renderLots(almonds, { width: PANEL_WIDTH });
+
+  expect(screen.getByRole("table").query()).toBeNull();
+  const items = screen
+    .getByRole("list", { name: `Lotes de ${almonds.name}` })
+    .getByRole("listitem");
+  expect(items.elements()).toHaveLength(2);
+  const first = items.first().element();
+  expect([...first.querySelectorAll("dt")].map((term) => term.textContent)).toEqual([
+    "Vencimiento",
+    "Origen",
+    "Saldo",
+    "Costo unitario",
+    "Valorizado",
+  ]);
+  expect([...first.querySelectorAll("dd")].map((value) => value.textContent)).toEqual([
+    "14/10/2026",
+    "Distribuidora del Sur",
+    "4,300 kg",
+    "$ 10.180,00 / kg",
+    "$ 43.774,00",
+  ]);
+  expect(first.firstElementChild?.textContent).toContain("Compra 05/08/2026");
+  const right = (screen.container.firstElementChild as HTMLElement).getBoundingClientRect().right;
+  for (const value of first.querySelectorAll("dd")) {
+    expect(value.getBoundingClientRect().right).toBeLessThanOrEqual(right);
+  }
+  await expectNoAccessibilityViolations(screen.container);
 });

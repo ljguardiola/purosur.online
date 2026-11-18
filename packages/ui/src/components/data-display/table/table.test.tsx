@@ -54,6 +54,12 @@ function TestTable<T extends RowData & { id: string }>({
   return <Table table={table} {...tableProps} />;
 }
 
+function paintedLineCount(element: HTMLElement): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top))).size;
+}
+
 function paintedTextRight(element: HTMLElement): number {
   const range = document.createRange();
   range.selectNodeContents(element);
@@ -62,6 +68,10 @@ function paintedTextRight(element: HTMLElement): number {
     throw new Error("paintedTextRight: element painted no text (no client rects)");
   }
   return Math.max(...rects.map((rect) => rect.right));
+}
+
+function frameOf(table: Element): HTMLElement {
+  return table.closest(".isolate") as HTMLElement;
 }
 
 test("paintedTextRight throws for an element that paints no text, instead of silently passing", async () => {
@@ -152,7 +162,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
   );
   await settleScroll();
   const table = screen.getByRole("table").element() as HTMLElement;
-  const container = table.parentElement as HTMLElement;
+  const container = frameOf(table);
   const rect = container.getBoundingClientRect();
   // 1.5px lands on the antialiased blend between the backdrop and the container's border.
   const headerBone = rgbTuple(tokenRgb("surface-subtle"));
@@ -183,7 +193,7 @@ test("keeps every corner rounded: no adjacent fill reaches the curve, with a bac
 
 test("renders a white container with an 8px radius and a 1px line border", async () => {
   const screen = await render(<TestTable {...commonProps} columns={columns} />);
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
   const style = getComputedStyle(container);
 
   expect(style.backgroundColor).toBe(tokenRgb("surface"));
@@ -247,7 +257,7 @@ test("renders a 44px header row on a bone background with 16px edge padding and 
   expect(lastStyle.paddingLeft).toBe("6px");
 });
 
-test("wraps a long, unbreakable plain header title instead of overrunning the next column", async () => {
+test("keeps a long, unbreakable plain header title whole on one line, growing its column instead of breaking the word", async () => {
   const longColumns = [
     dataColumn({
       id: "name",
@@ -262,7 +272,8 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
     .element() as HTMLElement;
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
-  expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(firstHeader).overflowWrap).toBe("normal");
+  expect(paintedLineCount(titleSpan)).toBe(1);
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
@@ -273,7 +284,7 @@ test("wraps a long, unbreakable plain header title instead of overrunning the ne
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("wraps a long, unbreakable sortable header title instead of overrunning the next column", async () => {
+test("keeps a long, unbreakable sortable header title whole on one line, growing its column instead of breaking the word", async () => {
   const longColumns = [
     dataColumn({
       id: "name",
@@ -296,8 +307,8 @@ test("wraps a long, unbreakable sortable header title instead of overrunning the
     .element() as HTMLElement;
   const titleSpan = firstHeader.querySelector("span") as HTMLElement;
 
-  // min-w-0 only shrinks the span's box; break-words on the <th> is what actually wraps the text.
-  expect(getComputedStyle(firstHeader).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(firstHeader).overflowWrap).toBe("normal");
+  expect(paintedLineCount(titleSpan)).toBe(1);
   expect(titleSpan.getBoundingClientRect().right).toBeLessThanOrEqual(
     firstHeader.getBoundingClientRect().right,
   );
@@ -387,7 +398,7 @@ test("skips its own bottom divider on the last row, since the container's own bo
   const screen = await render(<TestTable {...commonProps} columns={columns} />);
   const lastCell = screen.getByRole("cell", { name: "8" }).element() as HTMLElement;
   const lastRow = lastCell.parentElement as HTMLElement;
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
 
   const rowRect = lastRow.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
@@ -414,7 +425,7 @@ test("skips its own bottom divider on the last placeholder row too, while loadin
   const placeholderRows = screen.container.querySelectorAll('tbody[aria-hidden="true"] tr');
   const lastPlaceholderRow = placeholderRows[placeholderRows.length - 1] as HTMLElement;
   const otherPlaceholderRow = placeholderRows[0] as HTMLElement;
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
 
   const rowRect = lastPlaceholderRow.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
@@ -568,7 +579,7 @@ test("wraps long cell text onto a second line instead of cutting it with an elli
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("breaks a long unbreakable token inside its own cell instead of overrunning the next column", async () => {
+test("keeps a long unbreakable token whole on one line inside its own cell, growing its column instead of breaking it", async () => {
   const barcode = "1234567890123456789012345678901234567890";
   const screen = await render(
     <div style={{ width: "320px" }}>
@@ -582,7 +593,8 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   const cellText = screen.getByText(barcode, { exact: true }).element() as HTMLElement;
   const cell = cellText.closest("td") as HTMLElement;
 
-  expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(cell).overflowWrap).toBe("normal");
+  expect(paintedLineCount(cellText)).toBe(1);
   // Checked against the content edge (border box minus padding), not the border box itself.
   const cellPaddingRight = Number.parseFloat(getComputedStyle(cell).paddingRight);
   expect(paintedTextRight(cellText)).toBeLessThanOrEqual(
@@ -592,7 +604,7 @@ test("breaks a long unbreakable token inside its own cell instead of overrunning
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("breaks a long unbreakable token inside an align:end cell instead of overrunning the previous column", async () => {
+test("keeps a long unbreakable token whole on one line inside an align:end cell, growing its column instead of breaking it", async () => {
   const barcode = "1234567890123456789012345678901234567890";
   const screen = await render(
     <div style={{ width: "320px" }}>
@@ -606,7 +618,8 @@ test("breaks a long unbreakable token inside an align:end cell instead of overru
   const cellText = screen.getByText(barcode, { exact: true }).element() as HTMLElement;
   const cell = cellText.closest("td") as HTMLElement;
 
-  expect(getComputedStyle(cell).overflowWrap).toBe("break-word");
+  expect(getComputedStyle(cell).overflowWrap).toBe("normal");
+  expect(paintedLineCount(cellText)).toBe(1);
   const range = document.createRange();
   range.selectNodeContents(cellText);
   const minLeft = Math.min(...Array.from(range.getClientRects()).map((rect) => rect.left));
@@ -1407,7 +1420,7 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
   const wrappedColumns = [
     dataColumn({
       id: "name",
-      header: "Superlongunbreakabletitlethatwouldwraptotwoormorelines",
+      header: "Un título de columna tan largo que necesita varias líneas para entrar",
       sort: { order: byName, firstDirection: "ascending" },
       render: (p: Product) => p.name,
     }),
@@ -1424,10 +1437,10 @@ test("keeps the sortable header's own button matching a wrapped title's grown he
     </div>,
   );
   const header = screen
-    .getByRole("columnheader", { name: /Superlongunbreakable/ })
+    .getByRole("columnheader", { name: /Un título de columna/ })
     .element() as HTMLElement;
   const button = screen
-    .getByRole("button", { name: /Superlongunbreakable/ })
+    .getByRole("button", { name: /Un título de columna/ })
     .element() as HTMLElement;
   const headerRect = header.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();
@@ -1502,8 +1515,7 @@ test("paints the sortable header's own focus ring inside the container, never pa
   );
   await settleScroll();
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
-  const container = (screen.getByRole("table").element() as HTMLElement)
-    .parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
 
   const scrollYBeforeFocus = window.scrollY;
   await userEvent.tab();
@@ -1885,7 +1897,7 @@ test("keeps the current rows and shows a top loading bar while updating", async 
   await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
   expect(table.getAttribute("aria-busy")).toBe("true");
 
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   expect(bar).not.toBeNull();
   expect(getComputedStyle(bar).backgroundColor).toBe(tokenRgb("action-subtle"));
   expect(bar.getBoundingClientRect().height).toBe(3);
@@ -1903,7 +1915,7 @@ test("does not intercept a click landing on the header underneath the loading ba
     />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const button = screen.getByRole("button", { name: "Producto" }).element() as HTMLElement;
   const barRect = bar.getBoundingClientRect();
   const buttonRect = button.getBoundingClientRect();
@@ -1936,7 +1948,7 @@ test("keeps a hovered, unfocused header's own hover fill under the updating bar"
     );
     await settleScroll();
     const table = screen.getByRole("table").element() as HTMLElement;
-    const bar = table.previousElementSibling as HTMLElement;
+    const bar = frameOf(table).firstElementChild as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
     const button = screen.getByRole("button", { name: "Stock" }).element() as HTMLElement;
     const buttonRect = button.getBoundingClientRect();
@@ -1983,7 +1995,7 @@ test("keeps the header's own title text below the loading bar's 3px band", async
     />,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const title = screen.getByText("Producto", { exact: true }).element() as HTMLElement;
 
   expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(
@@ -2097,7 +2109,7 @@ test("reads the focused header's own ring color at the same probe point when the
 test("slides the updating bar's segment left to right in a loop", async () => {
   const screen = await render(<TestTable {...commonProps} columns={columns} loading="updating" />);
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
 
   const style = getComputedStyle(segment);
@@ -2113,7 +2125,7 @@ test("slides the updating bar's segment exactly from off the left edge to off th
     </div>,
   );
   const table = screen.getByRole("table").element() as HTMLElement;
-  const bar = table.previousElementSibling as HTMLElement;
+  const bar = frameOf(table).firstElementChild as HTMLElement;
   const segment = bar.firstElementChild as HTMLElement;
 
   const [animation] = segment.getAnimations();
@@ -2145,7 +2157,7 @@ test("keeps the updating bar's segment still when the system asks for reduced mo
       <TestTable {...commonProps} columns={columns} loading="updating" />,
     );
     const table = screen.getByRole("table").element() as HTMLElement;
-    const bar = table.previousElementSibling as HTMLElement;
+    const bar = frameOf(table).firstElementChild as HTMLElement;
     const segment = bar.firstElementChild as HTMLElement;
 
     await expect.poll(() => getComputedStyle(segment).animationName).toBe("none");
@@ -2640,7 +2652,7 @@ test("draws a nested table with no frame of its own, on its container's backgrou
   const screen = await render(
     <TestTable {...commonProps} columns={columns} variant="nested" sort={NO_SORT} />,
   );
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
   const style = getComputedStyle(container);
   const header = screen.getByRole("columnheader", { name: "Producto" }).element()
     .parentElement as HTMLElement;
@@ -2675,7 +2687,7 @@ test("lines a nested table's cells up with the edges of its container, with no p
   const screen = await render(
     <TestTable {...commonProps} columns={columns} variant="nested" sort={NO_SORT} />,
   );
-  const container = screen.getByRole("table").element().parentElement as HTMLElement;
+  const container = frameOf(screen.getByRole("table").element());
   const firstCell = screen.getByRole("cell", { name: "Coffee" }).element();
   const lastCell = screen.getByRole("cell", { name: "12" }).element();
   const firstHeader = screen.getByRole("columnheader", { name: "Producto" }).element();
@@ -2686,43 +2698,31 @@ test("lines a nested table's cells up with the edges of its container, with no p
   expect(lastCell.getBoundingClientRect().right).toBe(edges.right);
 });
 
-test("sizes a column given a width to that content width plus the header's own padding, leaving the rest to the others", async () => {
-  const widthColumns = [
-    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
-    dataColumn({
-      id: "stock",
-      header: "Stock",
-      align: "end",
-      width: 150,
-      render: (p: Product) => p.stock,
-    }),
-  ] as const;
-  const screen = await render(<TestTable {...commonProps} columns={widthColumns} />);
-  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
+test.each(["framed", "nested"] as const)(
+  "wraps the content of a %s table's column given a width inside that width, however much room the table has",
+  async (variant) => {
+    const widthColumns = [
+      dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+      dataColumn({
+        id: "stock",
+        header: "Stock",
+        width: 150,
+        render: (p: Product) => p.stock,
+      }),
+    ] as const;
+    const wideStock = { ...coffee, stock: "Doce mil doscientos cincuenta unidades disponibles" };
+    const screen = await render(
+      <div style={{ width: "1000px" }}>
+        <TestTable {...commonProps} items={[wideStock]} columns={widthColumns} variant={variant} />
+      </div>,
+    );
+    const cell = screen.getByRole("cell", { name: /Doce mil/ }).element() as HTMLElement;
 
-  expect(getComputedStyle(header).width).toBe(`${150 + 6 + 16}px`);
-  expect(
-    getComputedStyle(screen.getByRole("columnheader", { name: "Producto" }).element()).width,
-  ).not.toBe(getComputedStyle(header).width);
-});
-
-test("sizes a nested table's column to its content width plus the padding between columns only", async () => {
-  const widthColumns = [
-    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
-    dataColumn({
-      id: "stock",
-      header: "Stock",
-      width: 150,
-      render: (p: Product) => p.stock,
-    }),
-  ] as const;
-  const screen = await render(
-    <TestTable {...commonProps} columns={widthColumns} variant="nested" />,
-  );
-  const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
-
-  expect(getComputedStyle(header).width).toBe(`${150 + 6}px`);
-});
+    expect(paintedLineCount(cell)).toBeGreaterThan(1);
+    const content = cell.querySelector("div > div") as HTMLElement;
+    expect(content.getBoundingClientRect().width).toBeLessThanOrEqual(150);
+  },
+);
 
 const groupedColumns = [
   dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
@@ -2768,7 +2768,7 @@ test("shows a single header row for a table without groups", async () => {
   expect(screen.container.querySelectorAll("thead tr")).toHaveLength(1);
 });
 
-test("sizes the columns of a group and the columns after it at their own declared widths", async () => {
+test("sizes the actions column after a group at the width of its buttons, and a column with no width takes what is left", async () => {
   const widthGroupColumns = [
     dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
     groupColumn({
@@ -2796,9 +2796,7 @@ test("sizes the columns of a group and the columns after it at their own declare
     </div>,
   );
 
-  const stock = screen.getByRole("columnheader", { name: "Stock" });
-  await expect.element(stock).toBeVisible();
-  expect(stock.element().getBoundingClientRect().width).toBeCloseTo(150 + 6 + 6, 0);
+  await expect.element(screen.getByRole("columnheader", { name: "Stock" })).toBeVisible();
   const actions = screen.getByRole("columnheader", { name: "Actions" }).element();
   expect(actions.getBoundingClientRect().width).toBeCloseTo(60 + 6 + 16, 0);
 });

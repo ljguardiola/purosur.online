@@ -45,6 +45,8 @@ export type {
 } from "./components/data-display/table/row-actions-menu";
 export { RowActionsMenu } from "./components/data-display/table/row-actions-menu";
 export { Table } from "./components/data-display/table/table";
+export type { TableCellAmountProps } from "./components/data-display/table/table-cell-amount";
+export { TableCellAmount } from "./components/data-display/table/table-cell-amount";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
 export {

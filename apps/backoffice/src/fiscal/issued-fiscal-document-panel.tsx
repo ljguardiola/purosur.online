@@ -105,6 +105,7 @@ function LinesTable({ lines }: { lines: Detail["lines"] }) {
   return (
     <Table
       aria-label="Productos vendidos"
+      stackWhenNarrow
       table={table}
       empty={{ icon: <Package />, title: "Sin productos asociados.", variant: "blank" }}
     />

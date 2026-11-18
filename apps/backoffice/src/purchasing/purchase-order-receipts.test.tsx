@@ -13,7 +13,7 @@ function renderReceipts(
   { canOpenPurchases = false, onOpenPurchases = () => {} } = {},
 ) {
   return render(
-    <main>
+    <main style={{ width: "1200px" }}>
       <PurchaseOrderReceipts
         order={order}
         canOpenPurchases={canOpenPurchases}

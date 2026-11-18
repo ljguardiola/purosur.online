@@ -18,10 +18,12 @@ function Harness({
   products = purchasableProducts,
   productsStatus = "loaded",
   onLinesChange = () => {},
+  width,
 }: {
   products?: PurchaseProducts;
   productsStatus?: LoadStatus;
   onLinesChange?: () => void;
+  width?: number;
 }) {
   const { form } = useRequestForm({
     defaultValues: purchaseOrderFormValuesOf(DRAFT_ORDER),
@@ -32,7 +34,7 @@ function Harness({
   });
   return (
     <FieldSizeProvider size="backoffice">
-      <main>
+      <main style={width === undefined ? undefined : { width: `${width}px` }}>
         <form.AppField name="lines">
           {() => (
             <PurchaseOrderLinesField
@@ -143,3 +145,46 @@ test.each(["loading", "failed"] as const)(
     await expect.element(screen.getByRole("button", { name: "Agregar línea" })).toBeDisabled();
   },
 );
+
+const ORDER_PANEL_LINE_WIDTH = 230;
+
+test("gives a line's product its own row in a container as narrow as the order panel, so its name is never squeezed beside the remove button", async () => {
+  const screen = await render(<Harness width={ORDER_PANEL_LINE_WIDTH} />);
+  const miel = line(screen, 1);
+
+  const name = miel.getByText("Miel pura de abeja 1 kg").element();
+  const remove = miel.getByRole("button", { name: "Quitar línea" }).element();
+  expect(remove.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+    name.getBoundingClientRect().bottom,
+  );
+});
+
+test("stacks the two quantity inputs in a container as narrow as the order panel, so each shows its whole value", async () => {
+  const screen = await render(<Harness width={ORDER_PANEL_LINE_WIDTH} />);
+  const miel = line(screen, 1);
+  const packages = miel.getByRole("textbox", { name: /^Cantidad de paquetes/ });
+  const perPackage = miel.getByRole("textbox", { name: /^Cantidad por paquete/ });
+
+  await userEvent.fill(packages, "1250");
+  await userEvent.fill(perPackage, "12500");
+
+  const packagesInput = packages.element() as HTMLInputElement;
+  const perPackageInput = perPackage.element() as HTMLInputElement;
+  expect(perPackageInput.getBoundingClientRect().top).toBeGreaterThan(
+    packagesInput.getBoundingClientRect().bottom,
+  );
+  expect(packagesInput.scrollWidth).toBeLessThanOrEqual(packagesInput.clientWidth);
+  expect(perPackageInput.scrollWidth).toBeLessThanOrEqual(perPackageInput.clientWidth);
+});
+
+test("keeps the product beside the remove button and the quantities side by side where the line has room", async () => {
+  const screen = await render(<Harness width={720} />);
+  const miel = line(screen, 1);
+
+  const name = miel.getByText("Miel pura de abeja 1 kg").element();
+  const remove = miel.getByRole("button", { name: "Quitar línea" }).element();
+  expect(remove.getBoundingClientRect().top).toBeLessThan(name.getBoundingClientRect().bottom);
+  const packages = miel.getByRole("textbox", { name: /^Cantidad de paquetes/ }).element();
+  const perPackage = miel.getByRole("textbox", { name: /^Cantidad por paquete/ }).element();
+  expect(perPackage.getBoundingClientRect().top).toBe(packages.getBoundingClientRect().top);
+});

@@ -1,6 +1,6 @@
 import type { RowData } from "@tanstack/react-table";
 import { Lock } from "lucide-react";
-import { actionsContentWidth, headerColumnWidthStyle } from "./table-actions";
+import { actionsContentWidth, columnWidthPx, headerColumnWidthStyle } from "./table-actions";
 import { columnActionCount, columnAlign, columnTitle, type TableColumnOf } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
@@ -43,8 +43,12 @@ function leafColumnWidthStyle<T extends RowData>(
   first: boolean,
   last: boolean,
   variant: TableVariant,
+  fixedLayout: boolean,
 ) {
   const actionCount = columnActionCount(column);
+  if (!fixedLayout && actionCount === undefined) {
+    return undefined;
+  }
   return headerColumnWidthStyle(
     actionCount === undefined ? column.columnDef.meta?.width : actionsContentWidth(actionCount),
     first,
@@ -53,12 +57,32 @@ function leafColumnWidthStyle<T extends RowData>(
   );
 }
 
+const FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX = 120;
+
+// Below this width a table of stackWhenNarrow stacks its rows instead of crushing a column.
+export function tableMinWidthPx<T extends RowData>(
+  table: TableModel<T>,
+  variant: TableVariant,
+): number {
+  const columns = table.getAllLeafColumns();
+  return columns.reduce((total, column, index) => {
+    const actionCount = columnActionCount(column);
+    const contentWidth =
+      actionCount === undefined
+        ? (column.columnDef.meta?.width ?? FLEXIBLE_COLUMN_MIN_CONTENT_WIDTH_PX)
+        : actionsContentWidth(actionCount);
+    return total + columnWidthPx(contentWidth, index === 0, index === columns.length - 1, variant);
+  }, 0);
+}
+
 export function TableColumnWidths<T extends RowData>({
   table,
   variant,
+  fixedLayout,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
+  fixedLayout: boolean;
 }) {
   const columns = table.getAllLeafColumns();
   return (
@@ -66,7 +90,13 @@ export function TableColumnWidths<T extends RowData>({
       {columns.map((column, index) => (
         <col
           key={column.id}
-          style={leafColumnWidthStyle(column, index === 0, index === columns.length - 1, variant)}
+          style={leafColumnWidthStyle(
+            column,
+            index === 0,
+            index === columns.length - 1,
+            variant,
+            fixedLayout,
+          )}
         />
       ))}
     </colgroup>
@@ -77,10 +107,12 @@ export function TableHeaderRows<T extends RowData>({
   table,
   variant,
   locked,
+  fixedLayout,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
   locked?: TableLock;
+  fixedLayout: boolean;
 }) {
   const groupDepths = table.getHeaderGroups().slice(0, -1);
   return (
@@ -91,6 +123,7 @@ export function TableHeaderRows<T extends RowData>({
       <TableHeaderRow
         table={table}
         variant={variant}
+        fixedLayout={fixedLayout}
         {...(locked === undefined ? {} : { locked })}
       />
     </>
@@ -101,10 +134,12 @@ function TableHeaderRow<T extends RowData>({
   table,
   variant,
   locked,
+  fixedLayout,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
   locked?: TableLock;
+  fixedLayout: boolean;
 }) {
   const headers = table.getHeaderGroups().at(-1)?.headers ?? [];
   return (
@@ -124,12 +159,12 @@ function TableHeaderRow<T extends RowData>({
             key={id}
             scope="col"
             aria-sort={sortable ? (direction ?? "none") : undefined}
-            style={leafColumnWidthStyle(column, first, last, variant)}
+            style={leafColumnWidthStyle(column, first, last, variant, fixedLayout)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.
               variant === "nested" ? "h-control-sm" : "h-control-xl",
-              "break-words align-middle",
+              fixedLayout ? "break-words align-middle" : "wrap-normal align-middle",
               // A sortable header's hit area needs the cell's full box, so its padding
               // lives on the button instead.
               sortable ? "" : cellHorizontalPaddingClassName(first, last, variant),

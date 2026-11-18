@@ -30,6 +30,8 @@ export function createServices(
   };
 }
 
+const SCREEN_WIDTH = 1200;
+
 export const caja1: SnapshotBackupRegister = { id: "register-1", name: "Caja 1" };
 export const caja2: SnapshotBackupRegister = { id: "register-2", name: "Caja 2" };
 
@@ -115,13 +117,15 @@ export function renderSection(
   {
     register = caja1,
     onSessionEnded = () => {},
+    width = SCREEN_WIDTH,
   }: {
     register?: SnapshotBackupRegister;
     onSessionEnded?: () => void;
+    width?: number;
   } = {},
 ) {
   return render(
-    <main>
+    <main style={{ width: `${width}px` }}>
       <SnapshotBackupsSection
         register={register}
         services={services}

@@ -130,11 +130,9 @@ test("opens a panel with the lots and the movements of a product beside the list
   await userEvent.click(screen.getByText(almonds.name));
 
   const panel = screen.getByRole("complementary", { name: almonds.name });
+  await expect.element(panel.getByRole("list", { name: `Lotes de ${almonds.name}` })).toBeVisible();
   await expect
-    .element(panel.getByRole("table", { name: `Lotes de ${almonds.name}` }))
-    .toBeVisible();
-  await expect
-    .element(panel.getByRole("table", { name: `Recuentos de ${almonds.name}` }))
+    .element(panel.getByRole("list", { name: `Recuentos de ${almonds.name}` }))
     .toBeVisible();
   await expect.element(screen.getByRole("table", { name: "Saldos" })).toBeVisible();
   expect(location()).toBe(`/stock?product=${almonds.id}`);
