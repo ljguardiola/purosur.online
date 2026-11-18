@@ -6,6 +6,7 @@ import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
 import { actionsColumn, dataColumn } from "./table-columns";
 import type { TableColumns, TableSort } from "./table-types";
+import { linesPainted } from "./test-support/lines-painted";
 import { useTableModel } from "./use-table-model";
 
 type Balance = {
@@ -88,19 +89,6 @@ function BalancesTable() {
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
-
-function linesPainted(element: HTMLElement): number {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const tops = new Set<number>();
-  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    for (const rect of range.getClientRects()) {
-      tops.add(Math.round(rect.top));
-    }
-  }
-  return tops.size;
-}
 
 function wordsPaintedOnSeveralLines(element: HTMLElement): string[] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);

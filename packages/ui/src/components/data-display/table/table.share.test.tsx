@@ -4,6 +4,7 @@ import { Table } from "./table";
 import { TableCellAmount } from "./table-cell-amount";
 import { dataColumn } from "./table-columns";
 import type { TableColumns, TableSort } from "./table-types";
+import { linesPainted } from "./test-support/lines-painted";
 import { useTableModel } from "./use-table-model";
 
 type Product = {
@@ -55,7 +56,6 @@ const columns: TableColumns<Product> = [
   dataColumn({
     id: "price",
     header: "Precio",
-    width: 140,
     align: "end",
     render: (item: Product) => <TableCellAmount amount={item.amount} unit={item.perUnit} />,
   }),
@@ -76,19 +76,6 @@ function ProductsTable() {
     onSortChange: () => {},
   });
   return <Table table={table} aria-label="Productos" />;
-}
-
-function linesPainted(element: HTMLElement): number {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  const tops = new Set<number>();
-  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-    const range = document.createRange();
-    range.selectNodeContents(node);
-    for (const rect of range.getClientRects()) {
-      tops.add(Math.round(rect.top));
-    }
-  }
-  return tops.size;
 }
 
 function renderIn(width: number) {

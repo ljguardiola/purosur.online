@@ -201,7 +201,29 @@ test("squeezed beside the panel, keeps a product's barcodes and the count of the
   expect(linesPainted(cell.element() as HTMLElement)).toBe(1);
 });
 
-test("beside the panel in a wide window, keeps Unidad and Precio, with its unit, on one line and gives the name only what is left", async () => {
+function paintedWidth(element: Element): number {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width;
+}
+
+function oneLineWidthOfColumn(table: HTMLElement, column: number): number {
+  const header = table.querySelectorAll("thead th")[column] as HTMLElement;
+  const contents = [...table.querySelectorAll("tbody tr")].map(
+    (row) =>
+      row.querySelectorAll("td")[column]?.firstElementChild?.firstElementChild as HTMLElement,
+  );
+  return Math.max(...[header, ...contents].map(paintedWidth));
+}
+
+function horizontalPadding(cell: HTMLElement): number {
+  const style = getComputedStyle(cell);
+  return Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+}
+
+const longNetContent = { quantity: 99999.999, unit: "ML" } as const;
+
+test("beside the panel in a wide window, keeps the short cells on one line, each column close to its content, and gives the rest to the name", async () => {
   document.body.style.width = "2048px";
   onTestFinished(() => {
     document.body.style.removeProperty("width");
@@ -209,23 +231,26 @@ test("beside the panel in a wide window, keeps Unidad and Precio, with its unit,
   const services = createServices();
   const longName =
     "Aceite de Girasol Elaborado con Ingredientes Cuidadosamente Seleccionados, sin Conservantes Agregados, Envasado en Botella de Vidrio de 900 g para Gastronomía";
-  mockLoaded(services, [{ ...pricedAlmonds, name: longName }, honey]);
+  mockLoaded(services, [
+    { ...pricedAlmonds, name: longName, netContent: longNetContent },
+    { ...honey, netContent: longNetContent },
+  ]);
   const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
 
   const table = screen.getByRole("table", { name: "Productos" });
   await expect.element(rowOf(screen, honey.name)).toBeVisible();
   const element = table.element() as HTMLElement;
 
-  expect(linesPaintedUnder(element, "Unidad")).toEqual([1, 1]);
-  expect(linesPaintedUnder(element, "Precio")).toEqual([1, 1]);
+  for (const short of ["Contenido neto", "Unidad", "Precio", "Estado"]) {
+    expect(linesPaintedUnder(element, short)).toEqual([1, 1]);
+  }
   const cells = [...(element.querySelector("tbody tr") as HTMLElement).querySelectorAll("td")];
-  const othersWidth = cells
-    .slice(1)
-    .reduce((sum, cell) => sum + cell.getBoundingClientRect().width, 0);
-  const frame = element.closest(".isolate") as HTMLElement;
-  expect((cells[0] as HTMLElement).getBoundingClientRect().width).toBeGreaterThanOrEqual(
-    frame.getBoundingClientRect().width - othersWidth - 4,
-  );
+  for (const column of [1, 2, 3, 4, 5, 6]) {
+    const cell = cells[column] as HTMLElement;
+    expect(cell.getBoundingClientRect().width).toBeLessThanOrEqual(
+      (oneLineWidthOfColumn(element, column) + horizontalPadding(cell)) * 1.15,
+    );
+  }
 });
 
 test("beside the panel at 1440px, gives a long name at least the room it had before, keeps every amount whole and does not scroll sideways", async () => {
@@ -248,4 +273,22 @@ test("beside the panel at 1440px, gives a long name at least the room it had bef
   expect(name.getBoundingClientRect().width).toBeGreaterThanOrEqual(108);
   expect(linesPainted(name.querySelector("div div") as HTMLElement)).toBeLessThanOrEqual(15);
   expect(linesPainted(amount)).toBe(1);
+});
+
+test("beside the panel at 1440px, fits a long net content with no sideways scroll", async () => {
+  const services = createServices();
+  mockLoaded(services, [{ ...pricedAlmonds, netContent: longNetContent }, honey]);
+  const screen = await renderScreen(services, () => {}, { openProduct: honey.id });
+
+  const table = screen.getByRole("table", { name: "Productos" });
+  await expect.element(rowOf(screen, honey.name)).toBeVisible();
+  const element = table.element() as HTMLElement;
+  const frame = element.closest(".isolate") as HTMLElement;
+
+  expect(Math.round(frame.getBoundingClientRect().width)).toBe(840);
+  expect(screen.getByRole("group", { name: "Productos" }).query()).toBeNull();
+  expect(frame.querySelector("[data-scroll-cue]")).toBeNull();
+  expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(
+    frame.getBoundingClientRect().right,
+  );
 });
