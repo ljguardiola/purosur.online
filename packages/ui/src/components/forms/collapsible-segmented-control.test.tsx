@@ -99,6 +99,31 @@ test("switches between the segmented control and the select as its area is resiz
   expect(screen.getByRole("button", { name: "By day Period" }).query()).toBeNull();
 });
 
+test("keeps its full height in a scrolling column whose content is taller than the column", async () => {
+  const screen = await render(
+    <div
+      data-testid="column"
+      style={{ display: "flex", flexDirection: "column", height: "200px", overflow: "auto" }}
+    >
+      <CollapsibleSegmentedControl<Period>
+        name="period"
+        label="Period"
+        options={options}
+        value="day"
+        onChange={() => {}}
+      />
+      <div style={{ height: "1000px", flexShrink: 0 }} />
+    </div>,
+  );
+  const control = screen.getByRole("radiogroup", { name: "Period" });
+  await expect.element(control).toBeVisible();
+  const shown = screen.getByTestId("column").element().firstElementChild as HTMLElement;
+
+  expect(shown.getBoundingClientRect().bottom).toBeGreaterThanOrEqual(
+    control.element().getBoundingClientRect().bottom,
+  );
+});
+
 test("does not accept a control without the name its select is submitted with", () => {
   expectTypeOf<{
     label: string;
