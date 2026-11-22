@@ -30,7 +30,7 @@ export function CollapsibleSegmentedControl<V extends string>({
   }
 
   return (
-    <div ref={observeFit} className="relative overflow-hidden">
+    <div ref={observeFit} className="relative shrink-0 overflow-hidden">
       <div aria-hidden="true" inert className="invisible absolute top-0 left-0 w-max">
         <SegmentedControl<V>
           label={label}
