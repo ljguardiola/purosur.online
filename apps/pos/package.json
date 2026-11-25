@@ -23,7 +23,7 @@
     "@react-aria/optimize-locales-plugin": "^2.1.0",
     "@resvg/resvg-js": "^2.6.2",
     "@rolldown/plugin-babel": "^0.2.4",
-    "@sentry/electron": "^8.3.0",
+    "@sentry/electron": "^8.4.0",
     "@tailwindcss/node": "^4.3.5",
     "@tailwindcss/oxide": "^4.3.5",
     "@tailwindcss/vite": "^4.3.5",
